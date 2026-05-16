@@ -12,7 +12,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Settings
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { 
@@ -73,6 +74,9 @@ const Dashboard: React.FC = () => {
           </div>
           <button className="bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-lg shadow-red-500/20 active:scale-95">
             Punch Out
+          </button>
+          <button className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all shadow-sm">
+            <Settings className="w-5 h-5" />
           </button>
         </div>
       </div>

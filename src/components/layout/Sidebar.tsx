@@ -63,20 +63,30 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
     >
       {/* Logo Section */}
       <div className={cn(
-        "p-6 flex items-center gap-3",
+        "p-6 mb-2 flex items-center gap-3",
         !isOpen && "justify-center"
       )}>
-        <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20">
-          <TrendingUp className="text-white w-6 h-6" />
+        <div className="relative flex-shrink-0">
+          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center shadow-xl shadow-slate-900/20 group-hover:scale-105 transition-transform">
+            {/* Logo Icon (Approximating the leaf/Q logo) */}
+            <div className="relative w-8 h-8">
+              <div className="absolute inset-0 border-4 border-white/20 rounded-full"></div>
+              <div className="absolute bottom-0 left-0 w-6 h-6 bg-primary-500 rounded-tr-[2rem] rounded-bl-lg transform -rotate-12 shadow-sm"></div>
+            </div>
+          </div>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary-500 rounded-full border-2 border-white"></div>
         </div>
         {isOpen && (
-          <motion.span 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-xl font-bold text-slate-900 tracking-tight"
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex flex-col"
           >
-            QUIK BOOM
-          </motion.span>
+            <span className="text-xl font-black text-slate-900 leading-none tracking-tight">
+              QUIK<span className="text-primary-500">BOOM</span>
+            </span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Admin Panel</span>
+          </motion.div>
         )}
       </div>
 

@@ -6,8 +6,17 @@ import {
   Clock, 
   Menu,
   CreditCard,
-  CircleDot
+  CircleDot,
+  Settings,
+  User,
+  LogOut,
+  Activity,
+  Shield
 } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useDispatch } from 'react-redux';
+import { logout } from '../../store/slices/authSlice.ts';
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -15,11 +24,19 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
   const [time, setTime] = useState(new Date());
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
 
   return (
     <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-20">
@@ -65,22 +82,95 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
           <span className="hidden sm:inline text-xs font-semibold text-slate-500 uppercase tracking-wider">Online</span>
         </div>
 
-        {/* Notifications */}
-        <button className="relative p-2 text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">
+        <NavLink 
+          to="/notifications"
+          className={({ isActive }) => `relative p-2 rounded-xl transition-colors ${
+            isActive ? 'bg-primary-50 text-primary-600' : 'text-slate-500 hover:bg-slate-50'
+          }`}
+        >
           <Bell className="w-6 h-6" />
           <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-        </button>
+        </NavLink>
+
+        {/* Global Settings Shortcut */}
+        <NavLink 
+          to="/settings"
+          className={({ isActive }) => `p-2 rounded-xl transition-colors ${
+            isActive ? 'bg-primary-50 text-primary-600' : 'text-slate-500 hover:bg-slate-50'
+          }`}
+        >
+          <Settings className="w-6 h-6" />
+        </NavLink>
 
         {/* Profile Dropdown */}
-        <div className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer group">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-slate-900 group-hover:text-primary-600 transition-colors">Avinash Magar</p>
-            <p className="text-[10px] font-medium text-slate-500 uppercase">Super Admin</p>
+        <div className="relative">
+          <div 
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer group"
+          >
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-slate-900 group-hover:text-primary-600 transition-colors">Avinash Magar</p>
+              <p className="text-[10px] font-medium text-slate-500 uppercase">Super Admin</p>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden transition-transform group-hover:scale-105">
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+            </div>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
           </div>
-          <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm overflow-hidden transition-transform group-hover:scale-105">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
-          </div>
-          <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+
+          <AnimatePresence>
+            {isProfileOpen && (
+              <>
+                {/* Backdrop to close on click outside */}
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsProfileOpen(false)}
+                ></div>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-20"
+                >
+                  <div className="p-4 bg-slate-50 border-b border-slate-100">
+                    <p className="text-sm font-bold text-slate-900">Avinash Magar</p>
+                    <p className="text-xs text-slate-500 font-medium">admin@quikboom.com</p>
+                  </div>
+                  
+                  <div className="p-2">
+                    {[
+                      { icon: User, label: 'My Profile', path: '/settings' },
+                      { icon: Activity, label: 'Activity Log', path: '/activity' },
+                      { icon: Shield, label: 'Account Security', path: '/settings' },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => {
+                          navigate(item.path);
+                          setIsProfileOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-primary-600 transition-all"
+                      >
+                        <item.icon className="w-4 h-4" />
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="p-2 border-t border-slate-100">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-50 transition-all"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </header>
