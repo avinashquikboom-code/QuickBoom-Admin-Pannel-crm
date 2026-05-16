@@ -84,7 +84,7 @@ const Attendance: React.FC = () => {
                     Punch In Now
                   </button>
                 ) : (
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <button 
                       onClick={() => setIsOnBreak(!isOnBreak)}
                       className={`flex-1 font-bold py-4 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-3 border-2 ${
@@ -149,13 +149,13 @@ const Attendance: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-7 gap-4 mb-4">
+            <div className="grid grid-cols-7 gap-1 sm:gap-4 mb-4">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">{day}</div>
+                <div key={day} className="text-center text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{day}</div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-4">
+            <div className="grid grid-cols-7 gap-1 sm:gap-4">
               {/* Dummy calendar dates */}
               {Array.from({ length: 31 }).map((_, i) => {
                 const day = i + 1;
@@ -166,23 +166,23 @@ const Attendance: React.FC = () => {
                 return (
                   <div 
                     key={day} 
-                    className={`h-16 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                    className={`h-12 sm:h-16 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
                       isToday ? 'bg-primary-50 border-primary-200 shadow-sm ring-2 ring-primary-500/10' :
                       status === 'present' ? 'bg-emerald-50/30 border-emerald-100' :
                       status === 'holiday' ? 'bg-slate-50 border-slate-100' :
                       'bg-white border-slate-50'
                     }`}
                   >
-                    <span className={`text-sm font-bold ${isToday ? 'text-primary-600' : 'text-slate-700'}`}>{day}</span>
-                    {status === 'present' && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>}
-                    {status === 'holiday' && <div className="w-1.5 h-1.5 bg-slate-300 rounded-full"></div>}
-                    {isToday && <div className="w-1.5 h-1.5 bg-primary-500 rounded-full animate-pulse"></div>}
+                    <span className={`text-xs sm:text-sm font-bold ${isToday ? 'text-primary-600' : 'text-slate-700'}`}>{day}</span>
+                    {status === 'present' && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-emerald-500 rounded-full"></div>}
+                    {status === 'holiday' && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-slate-300 rounded-full"></div>}
+                    {isToday && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-primary-500 rounded-full animate-pulse"></div>}
                   </div>
                 );
               })}
             </div>
 
-            <div className="mt-8 flex items-center justify-center gap-8 border-t border-slate-50 pt-6">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4 sm:gap-8 border-t border-slate-50 pt-6">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
                 <span className="text-xs font-bold text-slate-500 uppercase">Present</span>
