@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Calendar, 
-  Briefcase, 
-  Clock, 
   CheckCircle2, 
   XCircle, 
-  Plus, 
   Users, 
   DollarSign,
   ChevronRight,
@@ -15,8 +12,7 @@ import {
   Download,
   AlertCircle,
   FileText,
-  CreditCard,
-  PieChart as PieChartIcon
+  CreditCard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 

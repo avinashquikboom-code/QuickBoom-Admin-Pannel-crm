@@ -5,16 +5,13 @@ import {
   Download, 
   Plus, 
   MoreVertical, 
-  DollarSign, 
-  PieChart, 
   Users,
   Search,
   Filter,
   CheckCircle2,
   Clock,
-  AlertCircle
+  TrendingUp
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const invoices = [
   { id: 'INV-2026-001', client: 'Tech Solutions', amount: '₹12,500', status: 'Paid', date: '10 May 2026', due: 'Paid' },
@@ -106,7 +103,7 @@ const CRM: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {invoices.map((inv, idx) => (
+              {invoices.map((inv) => (
                 <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="text-sm font-bold text-slate-900">{inv.id}</span>
@@ -144,7 +141,5 @@ const CRM: React.FC = () => {
     </div>
   );
 };
-
-import { TrendingUp } from 'lucide-react';
 
 export default CRM;

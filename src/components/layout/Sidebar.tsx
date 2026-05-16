@@ -11,14 +11,10 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
-  FileText,
-  Calendar,
   Layers,
-  MessageSquare,
   ShieldCheck
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useDispatch } from 'react-redux';

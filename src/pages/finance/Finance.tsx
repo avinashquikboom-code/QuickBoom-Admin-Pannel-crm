@@ -1,20 +1,13 @@
 import React from 'react';
 import { 
-  DollarSign, 
   TrendingUp, 
   TrendingDown, 
   ArrowUpRight, 
   ArrowDownRight, 
   Download, 
   Plus, 
-  CreditCard,
-  Wallet,
-  PieChart as PieChartIcon,
-  Search,
-  Filter,
-  MoreHorizontal
+  Wallet
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { 
   BarChart, 
   Bar, 
@@ -150,7 +143,7 @@ const Finance: React.FC = () => {
             <button className="text-xs font-bold text-primary-600 hover:underline">View All History</button>
           </div>
           <div className="space-y-5">
-            {transactions.map((txn, idx) => (
+            {transactions.map((txn) => (
               <div key={txn.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:bg-white hover:shadow-md transition-all">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${

@@ -4,22 +4,16 @@ import {
   User, 
   Bell, 
   Shield, 
-  Globe, 
   Palette, 
   Save, 
   Lock, 
   Building,
   ChevronRight,
   Monitor,
-  Database,
   Key,
-  Mail,
-  Phone,
-  MapPin,
   Camera,
   Laptop,
-  Smartphone,
-  Clock
+  Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

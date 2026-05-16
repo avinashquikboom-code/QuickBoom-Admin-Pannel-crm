@@ -4,11 +4,7 @@ import { twMerge } from 'tailwind-merge';
 import { 
   Users, 
   Target, 
-  TrendingUp, 
   DollarSign, 
-  Clock, 
-  Calendar,
-  ChevronRight,
   ArrowUpRight,
   ArrowDownRight,
   CheckCircle2,
@@ -24,8 +20,6 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
   Cell,
   PieChart,
   Pie
@@ -177,7 +171,7 @@ const Dashboard: React.FC = () => {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {pieData.map((entry, index) => (
+                  {pieData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

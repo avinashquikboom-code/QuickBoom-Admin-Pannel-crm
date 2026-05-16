@@ -1,16 +1,11 @@
 import React from 'react';
 import { 
   Plus, 
-  Search, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
   MoreHorizontal,
   Users,
   Calendar,
   MessageSquare,
   Paperclip,
-  TrendingUp,
   BarChart2
 } from 'lucide-react';
 import { motion } from 'framer-motion';

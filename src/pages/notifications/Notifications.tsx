@@ -9,7 +9,6 @@ import {
   DollarSign, 
   Search,
   MoreVertical,
-  Filter,
   Trash2,
   Clock
 } from 'lucide-react';

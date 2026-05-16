@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  Clock, 
   MapPin, 
-  Calendar as CalendarIcon, 
   CheckCircle2, 
-  XCircle, 
   Coffee,
   Play,
   Square,
@@ -13,7 +10,6 @@ import {
   Monitor,
   Smartphone
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const Attendance: React.FC = () => {
   const [isPunchedIn, setIsPunchedIn] = useState(false);

@@ -2,16 +2,12 @@ import React, { useState } from 'react';
 import { 
   Activity, 
   Search, 
-  Filter, 
   Calendar, 
   Download, 
   ChevronRight,
-  Clock,
-  User,
   Shield,
   FileEdit,
   LogIn,
-  LogOut,
   UserPlus,
   Settings,
   MoreVertical

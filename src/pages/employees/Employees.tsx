@@ -3,17 +3,14 @@ import {
   Plus, 
   Search, 
   Filter, 
-  MoreHorizontal, 
   Edit2, 
   Trash2, 
-  ExternalLink,
   ChevronLeft,
   ChevronRight,
   Download,
-  Mail,
-  Phone
+  Mail
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const employees = [
   { id: 'EMP001', name: 'Avinash Magar', role: 'Super Admin', dept: 'Management', status: 'Active', email: 'avinash@quikboom.com', phone: '+91 98765 43210', joined: '12 Jan 2024' },
