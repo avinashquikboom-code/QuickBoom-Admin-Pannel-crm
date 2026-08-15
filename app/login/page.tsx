@@ -63,12 +63,6 @@ export default function LoginPage() {
     }
   };
 
-  const setDemoCredentials = (demoEmail: string, roleName: string) => {
-    setEmail(demoEmail);
-    setPassword('password123');
-    toast.success(`Demo credentials loaded for ${roleName}`);
-  };
-
   return (
     <div className="min-h-screen w-full flex bg-slate-50 font-sans text-slate-800 selection:bg-emerald-600 selection:text-white">
       {/* Left Column: Visual Showcase & Brand Highlights (Hidden on Mobile) */}
@@ -257,35 +251,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Fill Demo Credentials */}
-          <div className="pt-6 border-t border-slate-100 space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-extrabold text-slate-500 flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-emerald-600" /> Quick Demo Fill:
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('admin@quikboom.com', 'Super Admin')}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors cursor-pointer group"
-              >
-                <p className="font-bold text-slate-900 group-hover:text-emerald-700">Super Admin</p>
-                <p className="text-[10px] text-slate-500 font-medium">admin@quikboom.com</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('hr.manager@quikboom.com', 'HR Manager')}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors cursor-pointer group"
-              >
-                <p className="font-bold text-slate-900 group-hover:text-emerald-700">HR Manager</p>
-                <p className="text-[10px] text-slate-500 font-medium">hr.manager@quikboom.com</p>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
