@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Mail, Phone, Building2, MapPin, Tag } from 'lucide-react';
+import { Plus, Search, Filter, Mail, Phone, Building2, MapPin, Tag, Contact } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
@@ -46,12 +46,13 @@ export default function ContactsPage() {
     queryKey: ['contacts', search],
     queryFn: async () => {
       try {
-        const res = await api.get(`/contacts?search=${search}`);
-        return res.data;
+        const res: any = await api.get(`/contacts?search=${search}`);
+        return res?.data || res;
       } catch (e) {
         return null;
       }
     },
+    retry: false,
   });
 
   const contactsList = contactsData && contactsData.length > 0 ? contactsData : demoContacts;
@@ -67,15 +68,25 @@ export default function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Title Card Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F172A]">Contacts Management</h1>
-          <p className="text-sm text-[#64748B]">Centralized directory of client contacts, leads, and partner accounts.</p>
+          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
+            <Contact className="w-4 h-4 text-emerald-400" /> CLIENT & PARTNER DIRECTORY
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+            Contacts & Account Directory
+          </h1>
+          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+            Centralized directory of client contacts, key stakeholders, and partner accounts.
+          </p>
         </div>
-        <button className="inline-flex items-center justify-center gap-2 bg-[#0F766E] hover:bg-[#115E59] text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-all shadow-xs cursor-pointer">
-          <Plus className="w-4 h-4" /> Add New Contact
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all shadow-md cursor-pointer">
+            <Plus className="w-4 h-4" /> Add New Contact
+          </button>
+        </div>
       </div>
 
       {/* Filter Toolbar */}

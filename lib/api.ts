@@ -30,8 +30,11 @@ api.interceptors.response.use(
   (error) => {
     const message = error.response?.data?.message || 'An unexpected error occurred';
     if (typeof window !== 'undefined' && error.response?.status === 401) {
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+      // Only redirect if not already on login page
+      if (window.location.pathname !== '/login') {
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+      }
     }
     toast.error(Array.isArray(message) ? message[0] : message);
     return Promise.reject(error);
