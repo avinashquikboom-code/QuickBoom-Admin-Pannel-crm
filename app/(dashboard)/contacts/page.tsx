@@ -98,7 +98,7 @@ export default function ContactsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search contacts by name, email, company..."
-            className="w-full pl-9 pr-4 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] text-[#0F172A]"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#23C45E] text-[#111827]"
           />
         </div>
 
@@ -109,8 +109,8 @@ export default function ContactsPage() {
               onClick={() => setSelectedType(type)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 selectedType === type
-                  ? 'bg-[#0F766E] text-white shadow-xs'
-                  : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#E2E8F0]'
+                  ? 'bg-[#23C45E] text-white shadow-xs'
+                  : 'bg-slate-50 text-[#64748B] hover:bg-[#E5E7EB]'
               }`}
             >
               {type}
@@ -124,31 +124,31 @@ export default function ContactsPage() {
         {filteredContacts.map((contact: any) => (
           <div
             key={contact.id}
-            className="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-xs hover:border-[#0F766E] transition-all space-y-4"
+            className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xs hover:border-[#23C45E] transition-all space-y-4"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-[#CCFBF1] text-[#0F766E] font-bold text-base flex items-center justify-center">
+                <div className="w-11 h-11 rounded-xl bg-[#E8F9EE] text-[#23C45E] font-bold text-base flex items-center justify-center">
                   {contact.name[0]}
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-[#0F172A]">{contact.name}</h3>
+                  <h3 className="font-bold text-base text-[#111827]">{contact.name}</h3>
                   <p className="text-xs text-[#64748B]">{contact.designation}</p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#F8FAFC] text-[#0F766E] border border-[#E2E8F0]">
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-50 text-[#23C45E] border border-[#E5E7EB]">
                 {contact.type || 'CONTACT'}
               </span>
             </div>
 
-            <div className="space-y-2 pt-2 border-t border-[#E2E8F0] text-xs text-[#64748B]">
-              <div className="flex items-center gap-2 text-[#0F172A] font-medium">
-                <Building2 className="w-4 h-4 text-[#0F766E]" />
+            <div className="space-y-2 pt-2 border-t border-[#E5E7EB] text-xs text-[#64748B]">
+              <div className="flex items-center gap-2 text-[#111827] font-medium">
+                <Building2 className="w-4 h-4 text-[#23C45E]" />
                 <span>{contact.company}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-[#64748B]" />
-                <a href={`mailto:${contact.email}`} className="hover:underline text-[#0F766E]">
+                <a href={`mailto:${contact.email}`} className="hover:underline text-[#23C45E]">
                   {contact.email}
                 </a>
               </div>
@@ -162,11 +162,11 @@ export default function ContactsPage() {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[#E2E8F0] flex items-center justify-between">
-              <button className="text-xs font-semibold text-[#0F766E] hover:underline cursor-pointer">
+            <div className="pt-3 border-t border-[#E5E7EB] flex items-center justify-between">
+              <button className="text-xs font-semibold text-[#23C45E] hover:underline cursor-pointer">
                 View Timeline
               </button>
-              <button className="px-3 py-1.5 bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A] hover:bg-[#E2E8F0] rounded-lg text-xs font-medium cursor-pointer">
+              <button className="px-3 py-1.5 bg-slate-50 border border-[#E5E7EB] text-[#111827] hover:bg-[#E5E7EB] rounded-lg text-xs font-medium cursor-pointer">
                 Edit
               </button>
             </div>

@@ -79,39 +79,39 @@ export default function InvoicesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F172A]">Billing & Invoices</h1>
+          <h1 className="text-2xl font-bold text-[#111827]">Billing & Invoices</h1>
           <p className="text-sm text-[#64748B]">Generate, manage, and track client invoice payments via Razorpay.</p>
         </div>
-        <button className="inline-flex items-center justify-center gap-2 bg-[#0F766E] hover:bg-[#115E59] text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-all shadow-xs cursor-pointer">
+        <button className="inline-flex items-center justify-center gap-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-all shadow-xs cursor-pointer">
           <Plus className="w-4 h-4" /> Create New Invoice
         </button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-xs">
+        <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#64748B] uppercase">Total Billed</span>
-            <div className="w-10 h-10 rounded-xl bg-[#CCFBF1] text-[#0F766E] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#23C45E] flex items-center justify-center">
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-[#0F172A] mt-3">₹4,45,000</p>
+          <p className="text-2xl font-bold text-[#111827] mt-3">₹4,45,000</p>
           <p className="text-xs text-[#64748B] mt-1">3 total active invoices</p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-xs">
+        <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#64748B] uppercase">Paid Revenue</span>
-            <div className="w-10 h-10 rounded-xl bg-green-100 text-[#16A34A] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#23C45E] flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-[#16A34A] mt-3">₹1,50,000</p>
-          <p className="text-xs text-[#16A34A] font-medium mt-1">Settled via Razorpay</p>
+          <p className="text-2xl font-bold text-[#23C45E] mt-3">₹1,50,000</p>
+          <p className="text-xs text-[#23C45E] font-medium mt-1">Settled via Razorpay</p>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-xs">
+        <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#64748B] uppercase">Pending Balance</span>
             <div className="w-10 h-10 rounded-xl bg-amber-100 text-[#F59E0B] flex items-center justify-center">
@@ -124,7 +124,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] shadow-xs flex flex-wrap gap-4 items-center justify-between">
+      <div className="bg-white p-4 rounded-2xl border border-[#E5E7EB] shadow-xs flex flex-wrap gap-4 items-center justify-between">
         <div className="relative flex-1 min-w-[240px]">
           <Search className="w-4 h-4 absolute left-3 top-3 text-[#64748B]" />
           <input
@@ -132,7 +132,7 @@ export default function InvoicesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by invoice ID or client name..."
-            className="w-full pl-9 pr-4 py-2 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0F766E] text-[#0F172A]"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#23C45E] text-[#111827]"
           />
         </div>
 
@@ -143,8 +143,8 @@ export default function InvoicesPage() {
               onClick={() => setSelectedStatus(st)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 selectedStatus === st
-                  ? 'bg-[#0F766E] text-white shadow-xs'
-                  : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#E2E8F0]'
+                  ? 'bg-[#23C45E] text-white shadow-xs'
+                  : 'bg-slate-50 text-[#64748B] hover:bg-[#E5E7EB]'
               }`}
             >
               {st}
@@ -154,11 +154,11 @@ export default function InvoicesPage() {
       </div>
 
       {/* Invoices Table */}
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-xs">
+      <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs font-semibold text-[#64748B] uppercase tracking-wider">
+              <tr className="bg-slate-50 border-b border-[#E5E7EB] text-xs font-semibold text-[#64748B] uppercase tracking-wider">
                 <th className="py-3.5 px-6">Invoice ID</th>
                 <th className="py-3.5 px-6">Client Name</th>
                 <th className="py-3.5 px-6">Amount</th>
@@ -168,18 +168,18 @@ export default function InvoicesPage() {
                 <th className="py-3.5 px-6 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0] text-sm">
+            <tbody className="divide-y divide-[#E5E7EB] text-sm">
               {filteredInvoices.map((inv: any) => (
-                <tr key={inv.id} className="hover:bg-[#F8FAFC] transition-colors">
-                  <td className="py-4 px-6 font-bold text-[#0F766E]">{inv.id}</td>
-                  <td className="py-4 px-6 font-medium text-[#0F172A]">{inv.clientName}</td>
-                  <td className="py-4 px-6 font-bold text-[#0F172A]">{inv.amount}</td>
+                <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="py-4 px-6 font-bold text-[#23C45E]">{inv.id}</td>
+                  <td className="py-4 px-6 font-medium text-[#111827]">{inv.clientName}</td>
+                  <td className="py-4 px-6 font-bold text-[#111827]">{inv.amount}</td>
                   <td className="py-4 px-6 text-[#64748B] text-xs">{inv.issueDate}</td>
                   <td className="py-4 px-6 text-[#64748B] text-xs">{inv.dueDate}</td>
                   <td className="py-4 px-6">{getStatusBadge(inv.status)}</td>
                   <td className="py-4 px-6 text-right">
-                    <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#E2E8F0] text-[#0F172A] rounded-lg text-xs font-medium cursor-pointer">
-                      <Download className="w-3.5 h-3.5 text-[#0F766E]" /> PDF
+                    <button className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#E5E7EB] bg-slate-50 hover:bg-[#E5E7EB] text-[#111827] rounded-lg text-xs font-medium cursor-pointer">
+                      <Download className="w-3.5 h-3.5 text-[#23C45E]" /> PDF
                     </button>
                   </td>
                 </tr>

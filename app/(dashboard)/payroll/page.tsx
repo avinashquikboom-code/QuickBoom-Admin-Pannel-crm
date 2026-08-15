@@ -65,10 +65,10 @@ const mockHistory = [
 ];
 
 const payrollBreakdownData = [
-  { name: 'Basic Salary', value: 9500000, color: '#0F766E' },
-  { name: 'HRA & Allowances', value: 5500000, color: '#14B8A6' },
+  { name: 'Basic Salary', value: 9500000, color: '#23C45E' },
+  { name: 'HRA & Allowances', value: 5500000, color: '#1AA14D' },
   { name: 'PF & ESI', value: 1200000, color: '#F59E0B' },
-  { name: 'TDS Tax', value: 1050000, color: '#EF4444' },
+  { name: 'TDS Tax', value: 1050000, color: '#DC2626' },
 ];
 
 export default function PayrollPage() {
@@ -236,8 +236,8 @@ export default function PayrollPage() {
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip />
-                      <Bar dataKey="gross" fill="#0F766E" radius={[6, 6, 0, 0]} name="Gross Salary" />
-                      <Bar dataKey="net" fill="#14B8A6" radius={[6, 6, 0, 0]} name="Net Salary" />
+                      <Bar dataKey="gross" fill="#23C45E" radius={[6, 6, 0, 0]} name="Gross Salary" />
+                      <Bar dataKey="net" fill="#1AA14D" radius={[6, 6, 0, 0]} name="Net Salary" />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (

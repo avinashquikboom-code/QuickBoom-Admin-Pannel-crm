@@ -10,24 +10,24 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          DEFAULT: '#0F766E', // Primary Brand Color
-          dark: '#115E59',    // Primary Dark
-          light: '#CCFBF1',   // Primary Light
-          secondary: '#14B8A6',
-          accent: '#2DD4BF',
+          DEFAULT: '#23C45E', // Primary Brand Color
+          dark: '#1AA14D',    // Primary Dark
+          light: '#E8F9EE',   // Primary Light
+          secondary: '#23C45E',
+          accent: '#23C45E',
         },
         slate: {
-          bg: '#F8FAFC',
+          bg: '#FFFFFF',
           surface: '#FFFFFF',
-          textPrimary: '#0F172A',
+          textPrimary: '#111827',
           textSecondary: '#64748B',
-          border: '#E2E8F0',
+          border: '#E5E7EB',
         },
         status: {
-          success: '#16A34A',
+          success: '#23C45E',
           warning: '#F59E0B',
           error: '#DC2626',
-          info: '#2563EB',
+          info: '#64748B',
         },
       },
     },
