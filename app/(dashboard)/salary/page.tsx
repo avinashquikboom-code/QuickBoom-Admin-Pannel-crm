@@ -23,17 +23,25 @@ const mockStructures: SalaryStructure[] = [
 export default function SalaryStructuresPage() {
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      {/* Top Title Card Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Salary Structures & CTC Profiles</h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Configure employee compensation packages, basic salary, HRA, and tax deductions.</p>
+          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
+            <Banknote className="w-4 h-4 text-emerald-400" /> COMPENSATION & CTC PACKAGES
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+            Salary Structures & CTC Profiles
+          </h1>
+          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+            Configure employee compensation packages, basic salary, HRA, statutory PF, and tax deductions.
+          </p>
         </div>
 
-        <div className="flex gap-3">
-          <Link href="/salary/components" className="px-4 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs">
+        <div className="flex items-center gap-3">
+          <Link href="/salary/components" className="px-4 py-2.5 bg-slate-800/90 hover:bg-slate-800 text-slate-200 border border-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer">
             Manage Components
           </Link>
-          <Link href="/salary/1/edit" className="px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-md">
+          <Link href="/salary/1/edit" className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs shadow-md transition-all cursor-pointer">
             + New Structure
           </Link>
         </div>
