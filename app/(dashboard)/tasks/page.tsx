@@ -1,153 +1,59 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
 import { Plus, CheckSquare, Clock, AlertCircle } from 'lucide-react';
-import api from '@/lib/api';
 
-interface TaskItem {
-  id: string;
-  title: string;
-  description?: string;
-  status: string;
-  priority: string;
-  dueDate?: string;
-}
+const tasks = [
+  { id: '1', title: 'Schedule product demo with TechCorp', priority: 'HIGH', dueDate: 'Today, 4:00 PM', status: 'PENDING' },
+  { id: '2', title: 'Send updated enterprise proposal to Acme', priority: 'MEDIUM', dueDate: 'Tomorrow', status: 'PENDING' },
+  { id: '3', title: 'Follow up on contract renewal with GlobalMedia', priority: 'LOW', dueDate: 'Aug 18, 2026', status: 'COMPLETED' },
+];
 
 export default function TasksPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    status: 'PENDING',
-    priority: 'MEDIUM',
-    dueDate: '',
-  });
-
-  const queryClient = useQueryClient();
-
-  const { data: tasksResponse, isLoading } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => api.get('/tasks'),
-  });
-
-  const createTaskMutation = useMutation({
-    mutationFn: (newTask: typeof formData) => api.post('/tasks', newTask),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      setIsModalOpen(false);
-      setFormData({ title: '', description: '', status: 'PENDING', priority: 'MEDIUM', dueDate: '' });
-    },
-  });
-
-  const tasks: TaskItem[] = (tasksResponse as any) || [];
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Tasks & Activities</h1>
-          <p className="text-sm text-slate-500">Track client follow-ups, calls, and team action items.</p>
+          <h1 className="text-2xl font-bold text-[#0F172A]">Task Management</h1>
+          <p className="text-sm text-[#64748B]">Track to-dos, follow-ups, and customer touchpoints.</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl shadow-xs transition-all gap-2 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          Add Task
+        <button className="inline-flex items-center gap-2 bg-[#0F766E] hover:bg-[#115E59] text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-all shadow-xs cursor-pointer">
+          <Plus className="w-4 h-4" /> Create New Task
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-        {isLoading ? (
-          <p className="text-center text-slate-500 py-8">Loading tasks...</p>
-        ) : tasks.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">
-            <CheckSquare className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-            <p className="font-semibold text-slate-800 dark:text-slate-200">No active tasks</p>
-            <p className="text-xs text-slate-400">All follow-ups and action items are up to date.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center font-bold">
-                    <CheckSquare className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900 dark:text-white text-sm">{task.title}</p>
-                    {task.description && <p className="text-xs text-slate-500">{task.description}</p>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    {task.priority}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No Due Date'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Create New Task</h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                createTaskMutation.mutate(formData);
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Task Title *</label>
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-xs">
+        <div className="divide-y divide-[#E2E8F0]">
+          {tasks.map((task) => (
+            <div key={task.id} className="p-4 flex items-center justify-between hover:bg-[#F8FAFC] transition-colors">
+              <div className="flex items-center gap-4">
                 <input
-                  type="text"
-                  required
-                  placeholder="e.g. Schedule product demo"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-slate-950 border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white"
+                  type="checkbox"
+                  defaultChecked={task.status === 'COMPLETED'}
+                  className="w-4 h-4 text-[#0F766E] rounded focus:ring-[#0F766E] accent-[#0F766E]"
                 />
+                <div>
+                  <h4 className={`text-sm font-semibold ${task.status === 'COMPLETED' ? 'line-through text-[#64748B]' : 'text-[#0F172A]'}`}>
+                    {task.title}
+                  </h4>
+                  <div className="flex items-center gap-3 text-xs text-[#64748B] mt-1">
+                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {task.dueDate}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      task.priority === 'HIGH' ? 'bg-red-100 text-[#DC2626]' : 'bg-amber-100 text-[#F59E0B]'
+                    }`}>
+                      {task.priority}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-slate-950 border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white"
-                  rows={3}
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createTaskMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg shadow-xs cursor-pointer"
-                >
-                  {createTaskMutation.isPending ? 'Saving...' : 'Save Task'}
-                </button>
-              </div>
-            </form>
-          </div>
+
+              <button className="text-xs text-[#0F766E] font-medium hover:underline cursor-pointer">
+                Edit
+              </button>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }

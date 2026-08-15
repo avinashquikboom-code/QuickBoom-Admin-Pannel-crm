@@ -19,14 +19,6 @@
   --info: #2563EB;
 }
 
-.dark {
-  --background: #0F172A;
-  --surface: #1E293B;
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --border: #334155;
-}
-
 @layer base {
   body {
     background-color: var(--background);

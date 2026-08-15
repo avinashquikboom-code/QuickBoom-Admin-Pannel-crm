@@ -25,50 +25,50 @@ export default function LoginPage() {
       toast.success('Welcome back to QuikBoom CRM!');
       router.push('/dashboard');
     } catch (err: any) {
-      // Errors handled dynamically by API interceptor
+      // Handled dynamically by API interceptor
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0F172A] px-4">
-      <div className="max-w-md w-full bg-[#1E293B] border border-[#334155] rounded-2xl p-8 shadow-2xl space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4">
+      <div className="max-w-md w-full bg-white border border-[#E2E8F0] rounded-2xl p-8 shadow-xl space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#0F766E] text-white mb-2 shadow-xs">
             <Zap className="w-6 h-6 fill-white text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-[#F8FAFC]">Sign in to QuikBoom</h1>
-          <p className="text-sm text-[#94A3B8]">Enterprise Multi-Tenant SaaS CRM Platform</p>
+          <h1 className="text-2xl font-bold text-[#0F172A]">Sign in to QuikBoom</h1>
+          <p className="text-sm text-[#64748B]">Enterprise Multi-Tenant SaaS CRM Platform</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-[#F8FAFC] mb-1.5">Email Address</label>
+            <label className="block text-xs font-semibold text-[#0F172A] mb-1.5">Email Address</label>
             <div className="relative">
-              <Mail className="w-4 h-4 absolute left-3 top-3 text-[#94A3B8]" />
+              <Mail className="w-4 h-4 absolute left-3 top-3 text-[#64748B]" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="user@domain.com"
-                className="w-full pl-9 pr-4 py-2.5 bg-[#0F172A] border border-[#334155] rounded-lg text-sm text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#0F766E]"
+                className="w-full pl-9 pr-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F766E]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#F8FAFC] mb-1.5">Password</label>
+            <label className="block text-xs font-semibold text-[#0F172A] mb-1.5">Password</label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3 top-3 text-[#94A3B8]" />
+              <Lock className="w-4 h-4 absolute left-3 top-3 text-[#64748B]" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-4 py-2.5 bg-[#0F172A] border border-[#334155] rounded-lg text-sm text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#0F766E]"
+                className="w-full pl-9 pr-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F766E]"
               />
             </div>
           </div>

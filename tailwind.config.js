@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class',
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -30,9 +29,6 @@ module.exports = {
           error: '#DC2626',
           info: '#2563EB',
         },
-      },
-      fontFamily: {
-        sans: ['var(--font-outfit)', 'Inter', 'sans-serif'],
       },
     },
   },
