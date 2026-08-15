@@ -10,11 +10,46 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          DEFAULT: '#23C45E', // Primary Brand Color
-          dark: '#1AA14D',    // Primary Dark
-          light: '#E8F9EE',   // Primary Light
+          DEFAULT: '#23C45E', // Primary Green
+          50: '#E8F9EE',
+          100: '#D1FAE5',
+          200: '#A7F3D0',
+          300: '#6EE7B7',
+          400: '#34D399',
+          500: '#23C45E',
+          600: '#23C45E',
+          700: '#1AA14D',
+          800: '#15803D',
+          900: '#14532D',
+          dark: '#1AA14D',
+          light: '#E8F9EE',
           secondary: '#23C45E',
           accent: '#23C45E',
+        },
+        emerald: {
+          50: '#E8F9EE',
+          100: '#D1FAE5',
+          200: '#A7F3D0',
+          300: '#6EE7B7',
+          400: '#34D399',
+          500: '#23C45E',
+          600: '#23C45E',
+          700: '#1AA14D',
+          800: '#15803D',
+          900: '#14532D',
+          950: '#052e16',
+        },
+        teal: {
+          50: '#E8F9EE',
+          100: '#D1FAE5',
+          200: '#A7F3D0',
+          300: '#6EE7B7',
+          400: '#34D399',
+          500: '#23C45E',
+          600: '#23C45E',
+          700: '#1AA14D',
+          800: '#15803D',
+          900: '#14532D',
         },
         slate: {
           bg: '#FFFFFF',

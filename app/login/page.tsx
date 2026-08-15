@@ -47,8 +47,8 @@ export default function LoginPage() {
         {
           id: 'usr-admin-01',
           email: email || 'admin@quikboom.com',
-          firstName: 'Avinash',
-          lastName: 'Magar',
+          firstName: 'Demo',
+          lastName: 'User',
           tenantId: 't-001',
           tenantName: 'QuikBoom Enterprise',
           roles: ['Super Admin', 'HR Manager'],

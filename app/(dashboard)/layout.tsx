@@ -8,12 +8,16 @@ import { useAuthStore } from '@/lib/store';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-800">
       {/* Desktop Sidebar (Hidden on Mobile) */}
       <div className="hidden lg:block">
-        <Sidebar />
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+        />
       </div>
 
       {/* Mobile Sidebar Overlay Drawer */}
@@ -26,7 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="relative flex-1 max-w-xs w-full bg-white shadow-2xl z-10 flex flex-col">
             <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2 font-black text-slate-900 text-sm">
-                <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
+                <div className="w-7 h-7 rounded-lg bg-[#23C45E] flex items-center justify-center text-white">
                   <Zap className="w-4 h-4 fill-white" />
                 </div>
                 <span>QUIKBOOM</span>
@@ -64,7 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <input
                 type="text"
                 placeholder="Search leads, contacts, deals..."
-                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:outline-none text-slate-900 font-medium"
+                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#23C45E] focus:outline-none text-slate-900 font-medium"
               />
             </div>
           </div>
@@ -72,17 +76,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-3">
             <button className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 relative cursor-pointer">
               <Bell className="w-5 h-5" />
-              <span className="w-2 h-2 bg-emerald-600 rounded-full absolute top-2 right-2" />
+              <span className="w-2 h-2 bg-[#23C45E] rounded-full absolute top-2 right-2" />
             </button>
             <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shadow-xs">
-                {user?.firstName?.[0] || 'A'}
+              <div className="w-8 h-8 rounded-full bg-[#E8F9EE] text-[#23C45E] flex items-center justify-center font-bold text-xs shadow-xs">
+                {user?.firstName?.[0] || 'D'}
               </div>
               <div className="hidden sm:block text-left">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {user ? `${user.firstName} ${user.lastName}` : 'Administrator'}
+                  {user ? `${user.firstName} ${user.lastName}` : 'Demo User'}
                 </p>
-                <p className="text-[10px] text-emerald-700 font-bold capitalize truncate">
+                <p className="text-[10px] text-[#23C45E] font-bold capitalize truncate">
                   {user?.roles?.[0] || 'Tenant Admin'}
                 </p>
               </div>
