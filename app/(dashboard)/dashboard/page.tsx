@@ -147,7 +147,7 @@ export default function LiveHRDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="text-right hidden sm:block mr-2">
             <span className="text-[10px] uppercase font-extrabold text-emerald-300 tracking-wider">Last Updated</span>
             <p className="text-sm font-black text-white">{lastUpdated}</p>
@@ -202,7 +202,7 @@ export default function LiveHRDashboardPage() {
       </div>
 
       {/* Top Live Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-3 overflow-x-auto">
         <div onClick={() => router.push('/attendance')} className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs cursor-pointer hover:border-emerald-500 transition-all">
           <span className="text-[10px] font-extrabold uppercase text-slate-400">Employees</span>
           <p className="text-xl font-black text-slate-900 mt-1">117</p>
@@ -286,7 +286,7 @@ export default function LiveHRDashboardPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+          <table className="w-full min-w-[800px] text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase border-b border-slate-100">
               <tr>
                 <th className="p-3">Employee</th>
@@ -418,7 +418,8 @@ export default function LiveHRDashboardPage() {
         <div className="p-4 border-b border-slate-100">
           <h3 className="font-extrabold text-slate-900 text-sm">Department-Wise Attendance Ledger</h3>
         </div>
-        <table className="w-full text-xs text-left">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-xs text-left">
           <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase border-b border-slate-100">
             <tr>
               <th className="p-3">Department</th>
@@ -446,6 +447,7 @@ export default function LiveHRDashboardPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Attendance Timeline & Operational Summaries Grid */}

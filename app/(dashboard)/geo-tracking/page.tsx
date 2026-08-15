@@ -462,10 +462,10 @@ export default function GeoTrackingPage() {
       </div>
 
       {/* Main Tab Navigation Bar */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('map')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'map'
               ? 'bg-emerald-600 text-white shadow-md'
               : 'text-slate-600 hover:bg-slate-100'
@@ -475,7 +475,7 @@ export default function GeoTrackingPage() {
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'history'
               ? 'bg-emerald-600 text-white shadow-md'
               : 'text-slate-600 hover:bg-slate-100'
@@ -485,7 +485,7 @@ export default function GeoTrackingPage() {
         </button>
         <button
           onClick={() => setActiveTab('geofence')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'geofence'
               ? 'bg-emerald-600 text-white shadow-md'
               : 'text-slate-600 hover:bg-slate-100'
@@ -495,7 +495,7 @@ export default function GeoTrackingPage() {
         </button>
         <button
           onClick={() => setActiveTab('policy')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'policy'
               ? 'bg-emerald-600 text-white shadow-md'
               : 'text-slate-600 hover:bg-slate-100'

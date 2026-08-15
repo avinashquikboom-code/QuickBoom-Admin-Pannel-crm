@@ -139,7 +139,7 @@ export default function PayrollPage() {
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
             activeTab === 'dashboard' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -147,7 +147,7 @@ export default function PayrollPage() {
         </button>
         <button
           onClick={() => setActiveTab('processing')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
             activeTab === 'processing' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -155,7 +155,7 @@ export default function PayrollPage() {
         </button>
         <button
           onClick={() => setActiveTab('structures')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
             activeTab === 'structures' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -163,7 +163,7 @@ export default function PayrollPage() {
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
             activeTab === 'history' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -171,7 +171,7 @@ export default function PayrollPage() {
         </button>
         <button
           onClick={() => setActiveTab('slips')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
             activeTab === 'slips' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -179,7 +179,7 @@ export default function PayrollPage() {
         </button>
         <button
           onClick={() => setActiveTab('settings')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
             activeTab === 'settings' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -340,7 +340,8 @@ export default function PayrollPage() {
               <Plus className="w-3.5 h-3.5" /> Configure New Structure
             </button>
           </div>
-          <table className="w-full text-xs text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase border-b border-slate-100">
               <tr>
                 <th className="p-3">Employee</th>
@@ -376,6 +377,7 @@ export default function PayrollPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -385,7 +387,8 @@ export default function PayrollPage() {
           <div className="p-4 border-b border-slate-100">
             <h3 className="font-extrabold text-slate-900 text-sm">Monthly Payroll Audit History</h3>
           </div>
-          <table className="w-full text-xs text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase border-b border-slate-100">
               <tr>
                 <th className="p-3">Pay Period</th>
@@ -419,6 +422,7 @@ export default function PayrollPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
