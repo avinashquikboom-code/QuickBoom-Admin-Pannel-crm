@@ -87,7 +87,7 @@ export default function LoginPage() {
               QUIKBOOM
             </span>
             <span className="text-[10px] font-extrabold tracking-widest text-emerald-700 uppercase">
-              Enterprise CRM & HRM
+              Enterprise CRM
             </span>
           </div>
         </div>
@@ -96,15 +96,15 @@ export default function LoginPage() {
         <div className="relative z-10 my-auto max-w-xl space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100/80 border border-emerald-300/80 text-emerald-800 text-xs font-extrabold shadow-2xs">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Next-Gen Enterprise Workforce & Sales Intelligence</span>
+            <span>Next-Gen Enterprise Sales & Relationship Management</span>
           </div>
 
           <h1 className="text-4xl xl:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-            Streamline Workforce Operations & Sales Growth
+            Streamline Customer Relationships & Sales Growth
           </h1>
 
           <p className="text-sm text-slate-600 leading-relaxed font-semibold">
-            Empower your HR teams and sales representatives with real-time GPS check-ins, automated payroll slip generation, and visual sales deal pipelines — all in one unified multi-tenant platform.
+            Empower your sales representatives with lead management, contact tracking, deal pipelines, and field visit logs — all in one unified CRM platform.
           </p>
 
           {/* Feature Highlights Grid */}
@@ -113,9 +113,9 @@ export default function LoginPage() {
               <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
                 <Users className="w-4 h-4" />
               </div>
-              <h3 className="font-bold text-sm text-slate-900">HRM & Attendance</h3>
+              <h3 className="font-bold text-sm text-slate-900">Leads & Contacts</h3>
               <p className="text-xs text-slate-500 font-medium">
-                GPS check-ins, Leave policies, and automated Payslips.
+                Lead capture, contact scoring, and customer history.
               </p>
             </div>
 
@@ -125,7 +125,7 @@ export default function LoginPage() {
               </div>
               <h3 className="font-bold text-sm text-slate-900">CRM & Sales Pipeline</h3>
               <p className="text-xs text-slate-500 font-medium">
-                Visual Kanban board, Field visits, and Lead scoring.
+                Visual Kanban board, Field visits, and Deal analytics.
               </p>
             </div>
           </div>
@@ -154,7 +154,7 @@ export default function LoginPage() {
                 QUIKBOOM
               </span>
               <span className="text-[9px] font-extrabold tracking-widest text-emerald-600 uppercase">
-                CRM & HRM
+                CRM
               </span>
             </div>
           </div>
