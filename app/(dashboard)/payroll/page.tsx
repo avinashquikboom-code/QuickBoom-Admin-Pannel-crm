@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Banknote,
@@ -77,6 +77,12 @@ export default function PayrollPage() {
   const [selectedYear, setSelectedYear] = useState('2026');
   const [selectedDept, setSelectedDept] = useState('All');
   const [processingStatus, setProcessingStatus] = useState<string>('DRAFT');
+
+  // Client-side mount flag for Recharts & browser safety
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Policy Settings State
   const [workingDays, setWorkingDays] = useState(30);
@@ -223,32 +229,40 @@ export default function PayrollPage() {
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
               <h3 className="text-sm font-extrabold text-slate-900 mb-4">Gross vs Net Monthly Trend</h3>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mockHistory}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Bar dataKey="gross" fill="#0F766E" radius={[6, 6, 0, 0]} name="Gross Salary" />
-                    <Bar dataKey="net" fill="#14B8A6" radius={[6, 6, 0, 0]} name="Net Salary" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {isMounted ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={mockHistory}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Bar dataKey="gross" fill="#0F766E" radius={[6, 6, 0, 0]} name="Gross Salary" />
+                      <Bar dataKey="net" fill="#14B8A6" radius={[6, 6, 0, 0]} name="Net Salary" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full bg-slate-50 animate-pulse rounded-xl" />
+                )}
               </div>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
               <h3 className="text-sm font-extrabold text-slate-900 mb-4">Earnings & Deductions Distribution</h3>
               <div className="h-64 flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={payrollBreakdownData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value">
-                      {payrollBreakdownData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {isMounted ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={payrollBreakdownData} innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value">
+                        {payrollBreakdownData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full w-full bg-slate-50 animate-pulse rounded-xl" />
+                )}
               </div>
             </div>
           </div>

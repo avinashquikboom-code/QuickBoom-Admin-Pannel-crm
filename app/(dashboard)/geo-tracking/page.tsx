@@ -30,12 +30,7 @@ import {
   History,
   Compass,
 } from 'lucide-react';
-// Toast notification helper
-const toast = {
-  success: (msg: string) => alert(`✓ ${msg}`),
-  info: (msg: string) => alert(`ℹ ${msg}`),
-  error: (msg: string) => alert(`✕ ${msg}`),
-};
+import { toast } from 'react-hot-toast';
 
 interface EmployeeLocationData {
   id: string;
@@ -727,7 +722,7 @@ export default function GeoTrackingPage() {
                       <History className="w-3.5 h-3.5" /> View Route History
                     </button>
                     <button
-                      onClick={() => toast.info(`Viewing profile for ${selectedEmployee.name}`)}
+                      onClick={() => toast(`Viewing profile for ${selectedEmployee.name}`)}
                       className="py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
                     >
                       <User className="w-3.5 h-3.5" /> Employee Profile
@@ -872,7 +867,7 @@ export default function GeoTrackingPage() {
               </div>
 
               <button
-                onClick={() => toast.info('Geofence creator modal opened')}
+                onClick={() => toast('Geofence creator modal opened')}
                 className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Add Branch Geofence

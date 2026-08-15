@@ -1,51 +1,97 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, Menu, X, Zap } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
-      <Sidebar />
+    <div className="flex min-h-screen bg-slate-50 text-slate-800">
+      {/* Desktop Sidebar (Hidden on Mobile) */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+
+      {/* Mobile Sidebar Overlay Drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="relative flex-1 max-w-xs w-full bg-white shadow-2xl z-10 flex flex-col">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2 font-black text-slate-900 text-sm">
+                <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
+                  <Zap className="w-4 h-4 fill-white" />
+                </div>
+                <span>QUIKBOOM</span>
+              </div>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="p-1 text-slate-500 hover:text-slate-900 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <Sidebar />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-[#E2E8F0] px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-          <div className="flex items-center gap-4 flex-1 max-w-md">
+        <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+          <div className="flex items-center gap-3 flex-1 max-w-md">
+            {/* Mobile Hamburger Toggle */}
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden p-2 hover:bg-slate-100 rounded-xl text-slate-600 cursor-pointer"
+              aria-label="Open Mobile Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
             <div className="relative w-full">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-[#64748B]" />
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search leads, contacts, deals..."
-                className="w-full pl-9 pr-4 py-2 text-sm bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#0F766E] focus:outline-none text-[#0F172A]"
+                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:outline-none text-slate-900 font-medium"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button className="p-2 hover:bg-[#F8FAFC] rounded-lg text-[#64748B] relative cursor-pointer">
+          <div className="flex items-center gap-3">
+            <button className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 relative cursor-pointer">
               <Bell className="w-5 h-5" />
-              <span className="w-2 h-2 bg-[#0F766E] rounded-full absolute top-2 right-2"></span>
+              <span className="w-2 h-2 bg-emerald-600 rounded-full absolute top-2 right-2" />
             </button>
-            <div className="flex items-center gap-3 pl-3 border-l border-[#E2E8F0]">
-              <div className="w-8 h-8 rounded-full bg-[#CCFBF1] text-[#0F766E] flex items-center justify-center font-bold text-sm">
+            <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shadow-xs">
                 {user?.firstName?.[0] || 'A'}
               </div>
-              <div className="hidden md:block text-left">
-                <p className="text-xs font-semibold text-[#0F172A]">
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-bold text-slate-900 truncate">
                   {user ? `${user.firstName} ${user.lastName}` : 'Administrator'}
                 </p>
-                <p className="text-[10px] text-[#64748B] capitalize">{user?.roles?.[0] || 'Tenant Admin'}</p>
+                <p className="text-[10px] text-emerald-700 font-bold capitalize truncate">
+                  {user?.roles?.[0] || 'Tenant Admin'}
+                </p>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Content */}
-        <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+        {/* Dynamic Page Content */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">{children}</main>
       </div>
     </div>
   );
