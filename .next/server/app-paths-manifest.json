@@ -3,7 +3,7 @@
   "/login/page": "app/login/page.js",
   "/page": "app/page.js",
   "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
-  "/(dashboard)/tasks/page": "app/(dashboard)/tasks/page.js",
   "/(dashboard)/crm/page": "app/(dashboard)/crm/page.js",
+  "/(dashboard)/tasks/page": "app/(dashboard)/tasks/page.js",
   "/(dashboard)/leads/page": "app/(dashboard)/leads/page.js"
 }
