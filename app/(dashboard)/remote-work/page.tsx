@@ -64,12 +64,17 @@ export default function RemoteWorkPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Title Card Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Work From Home / Remote Requests</h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium">
-            Manage employee remote work requests, verify project tasks, and approve WFH days.
+          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
+            <Laptop className="w-4 h-4 text-emerald-400" /> REMOTE WORK & WFH APPROVALS
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+            Remote Work & WFH Applications
+          </h1>
+          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+            Manage staff work-from-home requests, task commitments, and remote attendance permissions.
           </p>
         </div>
       </div>

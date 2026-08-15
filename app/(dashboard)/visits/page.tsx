@@ -46,11 +46,25 @@ const mockVisits: VisitRecord[] = [
 export default function FieldVisitsPage() {
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Field Visits & Client Meetings</h1>
-        <p className="text-xs text-slate-500 mt-1 font-medium">
-          Track field staff client meetings, GPS check-in points, visit notes, and durations.
-        </p>
+      {/* Top Title Card Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
+        <div>
+          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
+            <Navigation className="w-4 h-4 text-emerald-400" /> FIELD VISITS & CLIENT MEETINGS
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+            Field Visits & Client Logbook
+          </h1>
+          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+            Track field representative client meetings, GPS check-in points, visit notes, and meeting durations.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer">
+            <MapPin className="w-4 h-4" /> Schedule Visit
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
