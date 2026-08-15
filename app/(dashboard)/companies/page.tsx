@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Building2, Plus, Mail, Phone, ExternalLink } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface Company {
   id: string;
@@ -23,29 +24,38 @@ export default function CompaniesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      {/* Companies Header Title Card */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Client Companies & Accounts</h1>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Manage corporate client accounts and associated deals.</p>
+          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
+            <Building2 className="w-4 h-4 text-emerald-400" /> CLIENT COMPANY ACCOUNTS
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+            Client Companies & Accounts
+          </h1>
+          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+            Manage corporate client accounts, revenue history, contact directory, and associated sales deals.
+          </p>
         </div>
 
         <Link
           href="/companies/create"
-          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md"
+          className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-extrabold transition-all shadow-md cursor-pointer self-start md:self-auto"
         >
           <Plus className="w-4 h-4" /> Add Company Account
         </Link>
       </div>
 
+      {/* Companies Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {companies.map((c) => (
-          <div key={c.id} className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div key={c.id} className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 hover:border-emerald-500 transition-all">
             <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                <Building2 className="w-5 h-5" />
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold border border-emerald-100">
+                <Building2 className="w-6 h-6" />
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                {c.dealsCount} Deals
+              <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                {c.dealsCount} Active Deals
               </span>
             </div>
 
@@ -54,8 +64,9 @@ export default function CompaniesPage() {
               <p className="text-xs text-slate-500 font-medium mt-0.5">{c.industry} • {c.location}</p>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 text-right">
-              <Link href={`/companies/${c.id}`} className="text-xs font-bold text-indigo-600 hover:underline inline-flex items-center gap-1">
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400">Status: Active</span>
+              <Link href={`/companies/${c.id}`} className="text-xs font-bold text-emerald-700 hover:underline inline-flex items-center gap-1">
                 View Account <ExternalLink className="w-3.5 h-3.5" />
               </Link>
             </div>

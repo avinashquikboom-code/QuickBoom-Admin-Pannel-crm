@@ -56,13 +56,14 @@ const navigationSections: NavSection[] = [
     sectionIcon: Users,
     items: [
       { name: 'Employees', href: '/employees', icon: Users },
+      { name: 'Departments', href: '/departments', icon: Building2 },
+      { name: 'Designations', href: '/designations', icon: Award },
       { name: 'Attendance', href: '/attendance', icon: Clock },
-      { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin },
-      { name: 'Visits', href: '/visits', icon: Activity },
       { name: 'Leave', href: '/leaves', icon: Calendar },
       { name: 'Remote Work', href: '/remote-work', icon: Laptop },
-      { name: 'Salary', href: '/salary', icon: Banknote },
-      { name: 'Salary Slips', href: '/salary-slips', icon: FileSpreadsheet },
+      { name: 'Visits', href: '/visits', icon: Activity },
+      { name: 'Payroll', href: '/payroll', icon: Banknote },
+      { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin },
     ],
   },
   {
