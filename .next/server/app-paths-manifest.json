@@ -1,9 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/login/page": "app/login/page.js",
-  "/(dashboard)/leads/page": "app/(dashboard)/leads/page.js",
-  "/page": "app/page.js",
   "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
-  "/(dashboard)/crm/page": "app/(dashboard)/crm/page.js",
-  "/(dashboard)/tasks/page": "app/(dashboard)/tasks/page.js"
+  "/(dashboard)/leads/page": "app/(dashboard)/leads/page.js",
+  "/(dashboard)/tasks/page": "app/(dashboard)/tasks/page.js",
+  "/(dashboard)/contacts/page": "app/(dashboard)/contacts/page.js",
+  "/(dashboard)/invoices/page": "app/(dashboard)/invoices/page.js",
+  "/(dashboard)/settings/page": "app/(dashboard)/settings/page.js"
 }
