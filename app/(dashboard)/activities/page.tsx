@@ -38,12 +38,12 @@ export default function ActivitiesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => toast.success('Log Activity modal opened')}
+        <Link
+          href="/activities/create"
           className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-extrabold transition-all shadow-md cursor-pointer self-start md:self-auto"
         >
           <Plus className="w-4 h-4" /> Log Activity
-        </button>
+        </Link>
       </div>
 
       {/* Activity Logs Stream Card */}

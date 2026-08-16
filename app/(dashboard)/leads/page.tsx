@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Plus, Search, Filter, Mail, Phone, Building, UserCheck, DollarSign, Calendar, Eye, Trash2, Edit } from 'lucide-react';
 
 interface Lead {
@@ -62,17 +63,6 @@ const initialLeads: Lead[] = [
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [search, setSearch] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    company: '',
-    email: '',
-    phone: '',
-    source: 'WEBSITE',
-    leadValue: 100000,
-    priority: 'MEDIUM' as 'HIGH' | 'MEDIUM' | 'LOW',
-  });
 
   const filtered = leads.filter(
     (l) =>
@@ -80,18 +70,6 @@ export default function LeadsPage() {
       l.company.toLowerCase().includes(search.toLowerCase()) ||
       l.email.toLowerCase().includes(search.toLowerCase())
   );
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newLead: Lead = {
-      id: Date.now().toString(),
-      ...formData,
-      status: 'NEW',
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setLeads([newLead, ...leads]);
-    setShowModal(false);
-  };
 
   return (
     <div className="space-y-8">
@@ -110,12 +88,12 @@ export default function LeadsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowModal(true)}
+          <Link
+            href="/leads/create"
             className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all shadow-md cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add New Lead
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -216,95 +194,6 @@ export default function LeadsPage() {
           </table>
         </div>
       </div>
-
-      {/* Add Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-black text-slate-900">Add New CRM Lead</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 font-bold">
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreate} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">First Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-xl"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Company Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Est. Deal Value (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.leadValue}
-                    onChange={(e) => setFormData({ ...formData, leadValue: Number(e.target.value) })}
-                    className="w-full p-2 border border-slate-200 rounded-xl font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl font-bold shadow-md"
-                >
-                  Save Lead
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

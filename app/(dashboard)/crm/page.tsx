@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Plus, MoreHorizontal, DollarSign, Building2, Calendar, CheckCircle2, ArrowRight, Kanban } from 'lucide-react';
 
 interface Deal {
@@ -61,15 +62,6 @@ const stages = [
 
 export default function PipelinePage() {
   const [deals, setDeals] = useState<Deal[]>(initialDeals);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    company: '',
-    value: 200000,
-    stage: 'QUALIFICATION' as Deal['stage'],
-    closingDays: 10,
-    priority: 'MEDIUM' as 'HIGH' | 'MEDIUM',
-  });
 
   const moveDeal = (id: string, currentStage: Deal['stage']) => {
     const stageOrder: Deal['stage'][] = ['QUALIFICATION', 'PROPOSAL', 'NEGOTIATION', 'WON'];
@@ -77,16 +69,6 @@ export default function PipelinePage() {
     setDeals(
       deals.map((d) => (d.id === id ? { ...d, stage: stageOrder[nextIdx] } : d))
     );
-  };
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newDeal: Deal = {
-      id: Date.now().toString(),
-      ...formData,
-    };
-    setDeals([...deals, newDeal]);
-    setShowModal(false);
   };
 
   return (
@@ -106,12 +88,12 @@ export default function PipelinePage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowModal(true)}
+          <Link
+            href="/deals/create"
             className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all shadow-md cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add New Deal
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -180,88 +162,6 @@ export default function PipelinePage() {
           );
         })}
       </div>
-
-      {/* Create Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-black text-slate-900">Add New Deal Opportunity</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 font-bold">
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreate} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Deal Title</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-xl"
-                  placeholder="Software License Subscription"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Company Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-xl"
-                  placeholder="Acme Corp"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Deal Value (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.value}
-                    onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
-                    className="w-full p-2 border border-slate-200 rounded-xl font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Stage</label>
-                  <select
-                    value={formData.stage}
-                    onChange={(e) => setFormData({ ...formData, stage: e.target.value as Deal['stage'] })}
-                    className="w-full p-2 border border-slate-200 rounded-xl font-bold"
-                  >
-                    <option value="QUALIFICATION">Qualification</option>
-                    <option value="PROPOSAL">Proposal</option>
-                    <option value="NEGOTIATION">Negotiation</option>
-                    <option value="WON">Closed Won</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl font-bold shadow-md"
-                >
-                  Save Deal
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

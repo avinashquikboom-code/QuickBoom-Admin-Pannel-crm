@@ -1,13 +1,23 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { UserCheck, Mail, Phone, Building2, DollarSign, Globe, Tag } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import {
+  AdminFormPage,
+  AdminFormSection,
+  AdminFormField,
+  AdminFormActions,
+  AdminInput,
+  AdminSelect,
+  AdminTextarea,
+} from '@/components/admin';
 
 export default function CreateLeadPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -15,96 +25,157 @@ export default function CreateLeadPage() {
     email: '',
     phone: '',
     source: 'WEBSITE',
-    leadValue: 500000,
+    status: 'NEW',
+    priority: 'HIGH',
+    leadValue: '500000',
+    assignedTo: 'Rahul Sharma',
+    notes: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Lead created successfully');
-    router.push('/leads');
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast.success('CRM Lead captured successfully!');
+      router.push('/leads');
+    }, 600);
   };
 
   return (
-    <div className="space-y-8 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Link href="/leads" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Add New CRM Lead</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Record a prospective lead opportunity.</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8">
-        <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">First Name</label>
-              <input
-                type="text"
-                required
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Last Name</label>
-              <input
-                type="text"
-                required
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-bold text-slate-700 mb-1.5">Company Name</label>
-            <input
+    <AdminFormPage
+      title="Add CRM Lead"
+      description="Capture a new prospective sales lead, qualify budget value, and assign a pipeline owner."
+      backHref="/leads"
+      backLabel="Back to Leads"
+      badge="CRM & Sales"
+      maxWidthClass="max-w-4xl"
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <AdminFormSection title="Lead Contact & Company" description="Prospective client details" icon={UserCheck} columns={2}>
+          <AdminFormField label="First Name" required>
+            <AdminInput
               type="text"
               required
+              placeholder="e.g. Ramesh"
+              value={formData.firstName}
+              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Last Name" required>
+            <AdminInput
+              type="text"
+              required
+              placeholder="e.g. Kothari"
+              value={formData.lastName}
+              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Client Company Name" required fullWidth>
+            <AdminInput
+              type="text"
+              required
+              placeholder="e.g. Reliance Retail Systems Ltd"
+              icon={Building2}
               value={formData.company}
               onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-              className="w-full p-3 border border-slate-200 rounded-xl"
             />
-          </div>
+          </AdminFormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Est. Deal Value (₹)</label>
-              <input
-                type="number"
-                required
-                value={formData.leadValue}
-                onChange={(e) => setFormData({ ...formData, leadValue: Number(e.target.value) })}
-                className="w-full p-3 border border-slate-200 rounded-xl font-bold"
-              />
-            </div>
-          </div>
+          <AdminFormField label="Email Address" required>
+            <AdminInput
+              type="email"
+              required
+              placeholder="ramesh@relianceretail.com"
+              icon={Mail}
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+          </AdminFormField>
 
-          <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-            <Link href="/leads" className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl">
-              Cancel
-            </Link>
-            <button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center gap-2">
-              <Save className="w-4 h-4" /> Save Lead
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <AdminFormField label="Phone Number" required>
+            <AdminInput
+              type="tel"
+              required
+              placeholder="+91 98765 00000"
+              icon={Phone}
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Deal Pipeline & Qualification" description="Estimated value, priority, and source" icon={DollarSign} columns={2}>
+          <AdminFormField label="Estimated Deal Value (₹)" required>
+            <AdminInput
+              type="number"
+              required
+              placeholder="500000"
+              value={formData.leadValue}
+              onChange={(e) => setFormData({ ...formData, leadValue: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Lead Source" required>
+            <AdminSelect
+              value={formData.source}
+              onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              options={[
+                { value: 'WEBSITE', label: 'Inbound Website Form' },
+                { value: 'LINKEDIN', label: 'LinkedIn Outbound' },
+                { value: 'REFERRAL', label: 'Client Referral' },
+                { value: 'EVENT', label: 'Conference / Event' },
+                { value: 'COLD_CALL', label: 'Cold Calling' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Pipeline Status" required>
+            <AdminSelect
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              options={[
+                { value: 'NEW', label: 'New Uncontacted' },
+                { value: 'CONTACTED', label: 'Contacted' },
+                { value: 'QUALIFIED', label: 'Qualified Opportunity' },
+                { value: 'PROPOSAL_SENT', label: 'Proposal Sent' },
+                { value: 'NEGOTIATION', label: 'In Negotiation' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Assigned Account Rep" required>
+            <AdminSelect
+              value={formData.assignedTo}
+              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+              options={[
+                { value: 'Rahul Sharma', label: 'Rahul Sharma (Senior BD)' },
+                { value: 'Sneha Gupta', label: 'Sneha Gupta (Account Lead)' },
+                { value: 'Amit Verma', label: 'Amit Verma (Enterprise Rep)' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Requirement Notes & Scope" fullWidth>
+            <AdminTextarea
+              rows={3}
+              placeholder="Initial requirements, timeline expectations, decision maker details..."
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormActions
+          backHref="/leads"
+          cancelLabel="Cancel"
+          submitLabel="Create CRM Lead"
+          loading={loading}
+          sticky
+        />
+      </form>
+    </AdminFormPage>
   );
 }

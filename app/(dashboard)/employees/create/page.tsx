@@ -1,131 +1,220 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, User, Mail, Phone, Building2 } from 'lucide-react';
+import { User, Mail, Phone, Building2, Award, Calendar, DollarSign, Shield, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import {
+  AdminFormPage,
+  AdminFormSection,
+  AdminFormField,
+  AdminFormActions,
+  AdminInput,
+  AdminSelect,
+  AdminTextarea,
+} from '@/components/admin';
 
 export default function CreateEmployeePage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    employeeCode: 'EMP-' + Math.floor(1000 + Math.random() * 9000),
     email: '',
     phone: '',
+    emergencyPhone: '',
     department: 'Sales',
     designation: 'Sales Executive',
-    role: 'Employee',
     joiningDate: new Date().toISOString().split('T')[0],
+    officeLocation: 'Headquarters (Mumbai)',
+    employmentType: 'Full-Time',
+    monthlySalary: '75000',
+    panNumber: '',
+    address: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Employee created successfully');
-    router.push('/employees');
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast.success('Employee profile created successfully!');
+      router.push('/employees');
+    }, 600);
   };
 
   return (
-    <div className="space-y-8 max-w-3xl">
-      <div className="flex items-center gap-4">
-        <Link href="/employees" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create New Employee</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Add a new staff member to your tenant organization.</p>
-        </div>
-      </div>
+    <AdminFormPage
+      title="Add Employee"
+      description="Create a new employee record with employment details, contact information, and payroll settings."
+      backHref="/employees"
+      backLabel="Back to Employee Directory"
+      badge="HRM Management"
+      maxWidthClass="max-w-4xl"
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Section 1: Basic Information */}
+        <AdminFormSection title="Basic Information" description="Personal details and identity" icon={User} columns={2}>
+          <AdminFormField label="First Name" required>
+            <AdminInput
+              type="text"
+              required
+              placeholder="e.g. Rahul"
+              value={formData.firstName}
+              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+            />
+          </AdminFormField>
 
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8">
-        <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">First Name</label>
-              <input
-                type="text"
-                required
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                placeholder="John"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Last Name</label>
-              <input
-                type="text"
-                required
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                placeholder="Doe"
-              />
-            </div>
-          </div>
+          <AdminFormField label="Last Name" required>
+            <AdminInput
+              type="text"
+              required
+              placeholder="e.g. Sharma"
+              value={formData.lastName}
+              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+            />
+          </AdminFormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Corporate Email</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                placeholder="john.doe@quikboom.com"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Phone Number</label>
-              <input
-                type="tel"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                placeholder="9876543210"
-              />
-            </div>
-          </div>
+          <AdminFormField label="Employee Code / ID" required hint="Auto-generated unique code">
+            <AdminInput
+              type="text"
+              required
+              value={formData.employeeCode}
+              onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
+            />
+          </AdminFormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Department</label>
-              <select
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-              >
-                <option value="Sales">Sales</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Operations">Operations</option>
-                <option value="Finance">Finance</option>
-              </select>
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Designation</label>
-              <input
-                type="text"
-                required
-                value={formData.designation}
-                onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-              />
-            </div>
-          </div>
+          <AdminFormField label="PAN / National ID">
+            <AdminInput
+              type="text"
+              placeholder="ABCDE1234F"
+              value={formData.panNumber}
+              onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
 
-          <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-            <Link href="/employees" className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl">
-              Cancel
-            </Link>
-            <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md flex items-center gap-2">
-              <Save className="w-4 h-4" /> Save Employee
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {/* Section 2: Employment Information */}
+        <AdminFormSection title="Employment Details" description="Department, designation, and joining date" icon={Building2} columns={2}>
+          <AdminFormField label="Department" required>
+            <AdminSelect
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              options={[
+                { value: 'Sales', label: 'Sales & BD' },
+                { value: 'Engineering', label: 'Engineering' },
+                { value: 'Marketing', label: 'Marketing' },
+                { value: 'Operations', label: 'Operations' },
+                { value: 'Finance', label: 'Finance' },
+                { value: 'HR', label: 'Human Resources' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Designation" required>
+            <AdminInput
+              type="text"
+              required
+              placeholder="e.g. Senior Sales Executive"
+              value={formData.designation}
+              onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Employment Type" required>
+            <AdminSelect
+              value={formData.employmentType}
+              onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })}
+              options={[
+                { value: 'Full-Time', label: 'Full-Time (Permanent)' },
+                { value: 'Contract', label: 'Contract / Consultant' },
+                { value: 'Probation', label: 'Probation Period' },
+                { value: 'Internship', label: 'Intern' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Joining Date" required>
+            <AdminInput
+              type="date"
+              required
+              value={formData.joiningDate}
+              onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        {/* Section 3: Contact & Communication */}
+        <AdminFormSection title="Contact Information" description="Official email, phone, and residential address" icon={Mail} columns={2}>
+          <AdminFormField label="Corporate Email Address" required>
+            <AdminInput
+              type="email"
+              required
+              placeholder="rahul.sharma@quikboom.com"
+              icon={Mail}
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Mobile Phone Number" required>
+            <AdminInput
+              type="tel"
+              required
+              placeholder="+91 98765 43210"
+              icon={Phone}
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Residential Address" fullWidth>
+            <AdminTextarea
+              rows={3}
+              placeholder="Full postal residential address"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        {/* Section 4: Compensation & Salary */}
+        <AdminFormSection title="Compensation & Payroll" description="Base monthly compensation" icon={DollarSign} columns={2}>
+          <AdminFormField label="Monthly Base Salary (₹)" required>
+            <AdminInput
+              type="number"
+              required
+              placeholder="75000"
+              value={formData.monthlySalary}
+              onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Office / Work Location" required>
+            <AdminSelect
+              value={formData.officeLocation}
+              onChange={(e) => setFormData({ ...formData, officeLocation: e.target.value })}
+              options={[
+                { value: 'Headquarters (Mumbai)', label: 'Headquarters (Mumbai)' },
+                { value: 'Tech Hub (Bengaluru)', label: 'Tech Hub (Bengaluru)' },
+                { value: 'Regional Office (Delhi)', label: 'Regional Office (Delhi)' },
+                { value: 'Remote / Field', label: 'Remote / Field Workforce' },
+              ]}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        {/* Action Bar */}
+        <AdminFormActions
+          backHref="/employees"
+          cancelLabel="Cancel"
+          submitLabel="Create Employee Profile"
+          loading={loading}
+          sticky
+        />
+      </form>
+    </AdminFormPage>
   );
 }

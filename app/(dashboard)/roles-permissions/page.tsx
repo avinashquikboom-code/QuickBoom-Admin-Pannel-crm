@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { ShieldCheck, Lock, Check, Plus, Edit } from 'lucide-react';
 
 interface Role {
@@ -36,9 +37,12 @@ export default function RolesPermissionsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer">
+          <Link
+            href="/roles/create"
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
+          >
             <Plus className="w-4 h-4" /> Create Custom Role
-          </button>
+          </Link>
         </div>
       </div>
 

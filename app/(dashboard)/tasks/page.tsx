@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Plus, CheckSquare, Clock, AlertCircle, Filter, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -45,12 +46,12 @@ export default function TasksPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => toast.success('Create Task modal opened')}
+        <Link
+          href="/tasks/create"
           className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-xs font-extrabold transition-all shadow-md cursor-pointer self-start md:self-auto"
         >
           <Plus className="w-4 h-4" /> Create New Task
-        </button>
+        </Link>
       </div>
 
       {/* Task Stream Card */}

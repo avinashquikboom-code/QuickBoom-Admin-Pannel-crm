@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import {
   Users,
   UserPlus,
@@ -107,20 +108,6 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // New Employee Form State
-  const [formData, setFormData] = useState({
-    employeeId: `EMP00${employees.length + 1}`,
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    department: 'Sales',
-    designation: 'Executive',
-    role: 'Employee',
-    joiningDate: new Date().toISOString().split('T')[0],
-  });
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
@@ -130,28 +117,6 @@ export default function EmployeesPage() {
     const matchesDept = departmentFilter === 'ALL' || emp.department === departmentFilter;
     return matchesSearch && matchesDept;
   });
-
-  const handleCreateEmployee = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newEmp: Employee = {
-      id: Date.now().toString(),
-      ...formData,
-      status: 'ACTIVE',
-    };
-    setEmployees([newEmp, ...employees]);
-    setShowCreateModal(false);
-    setFormData({
-      employeeId: `EMP00${employees.length + 2}`,
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      department: 'Sales',
-      designation: 'Executive',
-      role: 'Employee',
-      joiningDate: new Date().toISOString().split('T')[0],
-    });
-  };
 
   return (
     <div className="space-y-8">
@@ -170,12 +135,12 @@ export default function EmployeesPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowCreateModal(true)}
+          <Link
+            href="/employees/create"
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
           >
             <UserPlus className="w-4 h-4" /> Add Employee
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -309,119 +274,6 @@ export default function EmployeesPage() {
           </table>
         </div>
       </div>
-
-      {/* Create Employee Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 space-y-6 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-black text-slate-900">Add New Employee</h2>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg text-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateEmployee} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">First Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                    placeholder="John"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                    placeholder="Doe"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                    placeholder="john.doe@quikboom.com"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                    placeholder="9876543210"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Department</label>
-                  <select
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none font-semibold"
-                  >
-                    <option value="Sales">Sales</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Finance">Finance</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Designation</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.designation}
-                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-                    placeholder="Sales Manager"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md"
-                >
-                  Save Employee
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

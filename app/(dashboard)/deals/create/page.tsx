@@ -1,86 +1,165 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Kanban, Building2, DollarSign, Calendar, User, Percent } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import {
+  AdminFormPage,
+  AdminFormSection,
+  AdminFormField,
+  AdminFormActions,
+  AdminInput,
+  AdminSelect,
+  AdminTextarea,
+} from '@/components/admin';
 
 export default function CreateDealPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     title: '',
     company: '',
-    value: 500000,
-    stage: 'QUALIFICATION',
+    value: '750000',
+    stage: 'PROPOSAL',
+    probability: '60',
+    expectedCloseDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    assignedTo: 'Rahul Sharma',
+    dealType: 'NEW_BUSINESS',
+    notes: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Deal created successfully');
-    router.push('/crm');
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast.success('Deal opportunity registered successfully!');
+      router.push('/crm');
+    }, 600);
   };
 
   return (
-    <div className="space-y-8 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Link href="/crm" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create Sales Deal</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Add a new deal opportunity to the sales pipeline.</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8">
-        <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-          <div>
-            <label className="block font-bold text-slate-700 mb-1.5">Deal Opportunity Title</label>
-            <input
+    <AdminFormPage
+      title="Add New Sales Deal"
+      description="Register a deal opportunity in the visual CRM pipeline, define contract value, and assign account executive."
+      backHref="/crm"
+      backLabel="Back to Deals Pipeline"
+      badge="CRM Pipeline"
+      maxWidthClass="max-w-4xl"
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <AdminFormSection title="Deal Overview & Client" description="Opportunity title and account linkage" icon={Kanban} columns={2}>
+          <AdminFormField label="Deal Opportunity Title" required fullWidth>
+            <AdminInput
               type="text"
               required
+              placeholder="e.g. Enterprise Cloud License (1000 Seats)"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full p-3 border border-slate-200 rounded-xl"
-              placeholder="Enterprise Cloud License"
             />
-          </div>
+          </AdminFormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Company Account</label>
-              <input
-                type="text"
-                required
-                value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl"
-                placeholder="Acme Corp"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Est. Value (₹)</label>
-              <input
-                type="number"
-                required
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })}
-                className="w-full p-3 border border-slate-200 rounded-xl font-bold"
-              />
-            </div>
-          </div>
+          <AdminFormField label="Client Company Account" required>
+            <AdminInput
+              type="text"
+              required
+              placeholder="e.g. Apex Tech Solutions"
+              icon={Building2}
+              value={formData.company}
+              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+            />
+          </AdminFormField>
 
-          <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-            <Link href="/crm" className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl">
-              Cancel
-            </Link>
-            <button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center gap-2">
-              <Save className="w-4 h-4" /> Save Deal
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <AdminFormField label="Deal Opportunity Type" required>
+            <AdminSelect
+              value={formData.dealType}
+              onChange={(e) => setFormData({ ...formData, dealType: e.target.value })}
+              options={[
+                { value: 'NEW_BUSINESS', label: 'New Business / Net New Client' },
+                { value: 'UPSELL', label: 'Upsell / Expansion' },
+                { value: 'RENEWAL', label: 'Annual Contract Renewal' },
+              ]}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Valuation & Stage Forecast" description="Contract size, win probability, and timeline" icon={DollarSign} columns={2}>
+          <AdminFormField label="Contract Deal Value (₹)" required>
+            <AdminInput
+              type="number"
+              required
+              placeholder="750000"
+              value={formData.value}
+              onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Pipeline Stage" required>
+            <AdminSelect
+              value={formData.stage}
+              onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
+              options={[
+                { value: 'DISCOVERY', label: 'Discovery & Needs Analysis' },
+                { value: 'PROPOSAL', label: 'Proposal & Scope Presentation' },
+                { value: 'NEGOTIATION', label: 'Commercial Negotiation' },
+                { value: 'CLOSING', label: 'Contract Signing & Closing' },
+                { value: 'WON', label: 'Closed Won' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Estimated Win Probability (%)" required>
+            <AdminInput
+              type="number"
+              min="0"
+              max="100"
+              required
+              value={formData.probability}
+              onChange={(e) => setFormData({ ...formData, probability: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Target Expected Close Date" required>
+            <AdminInput
+              type="date"
+              required
+              value={formData.expectedCloseDate}
+              onChange={(e) => setFormData({ ...formData, expectedCloseDate: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Assigned Account Owner" required fullWidth>
+            <AdminSelect
+              value={formData.assignedTo}
+              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+              options={[
+                { value: 'Rahul Sharma', label: 'Rahul Sharma (Enterprise Lead)' },
+                { value: 'Sneha Gupta', label: 'Sneha Gupta (Account Exec)' },
+                { value: 'Amit Verma', label: 'Amit Verma (Regional Manager)' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Commercial Notes & Milestones" fullWidth>
+            <AdminTextarea
+              rows={3}
+              placeholder="Pricing tiers, discount approvals, delivery milestones..."
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormActions
+          backHref="/crm"
+          cancelLabel="Cancel"
+          submitLabel="Create Sales Deal"
+          loading={loading}
+          sticky
+        />
+      </form>
+    </AdminFormPage>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { MapPin, Calendar, Clock, Building2, User, CheckCircle2, Navigation } from 'lucide-react';
 
 interface VisitRecord {
@@ -61,9 +62,12 @@ export default function FieldVisitsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer">
+          <Link
+            href="/visits/create"
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
+          >
             <MapPin className="w-4 h-4" /> Schedule Visit
-          </button>
+          </Link>
         </div>
       </div>
 

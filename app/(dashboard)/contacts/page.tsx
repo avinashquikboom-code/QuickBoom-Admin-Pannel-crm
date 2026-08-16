@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Plus, Search, Filter, Mail, Phone, Building2, MapPin, Tag, Contact } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -83,9 +84,12 @@ export default function ContactsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all shadow-md cursor-pointer">
+          <Link
+            href="/contacts/create"
+            className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all shadow-md cursor-pointer"
+          >
             <Plus className="w-4 h-4" /> Add New Contact
-          </button>
+          </Link>
         </div>
       </div>
 

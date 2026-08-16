@@ -1,84 +1,153 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Contact, Mail, Phone, Building2, User, Globe, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import {
+  AdminFormPage,
+  AdminFormSection,
+  AdminFormField,
+  AdminFormActions,
+  AdminInput,
+  AdminSelect,
+  AdminTextarea,
+} from '@/components/admin';
 
 export default function CreateContactPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
+    designation: '',
+    company: '',
     email: '',
     phone: '',
-    company: '',
+    type: 'CLIENT',
+    city: 'Mumbai',
+    notes: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Contact created successfully');
-    router.push('/contacts');
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast.success('Contact entry created successfully!');
+      router.push('/contacts');
+    }, 600);
   };
 
   return (
-    <div className="space-y-8 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Link href="/contacts" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create Contact</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Add a client or partner contact entry.</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8">
-        <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-          <div>
-            <label className="block font-bold text-slate-700 mb-1.5">Full Name</label>
-            <input
+    <AdminFormPage
+      title="Add New Contact"
+      description="Create a new client stakeholder, vendor representative, or partner contact entry."
+      backHref="/contacts"
+      backLabel="Back to Contacts"
+      badge="Directory"
+      maxWidthClass="max-w-4xl"
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <AdminFormSection title="Personal & Professional Information" description="Contact identity and organizational role" icon={Contact} columns={2}>
+          <AdminFormField label="Full Name" required>
+            <AdminInput
               type="text"
               required
+              placeholder="e.g. Ramesh Kothari"
+              icon={User}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full p-3 border border-slate-200 rounded-xl"
             />
-          </div>
+          </AdminFormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Phone</label>
-              <input
-                type="tel"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl"
-              />
-            </div>
-          </div>
+          <AdminFormField label="Job Title / Designation" required>
+            <AdminInput
+              type="text"
+              required
+              placeholder="e.g. Chief Procurement Officer"
+              value={formData.designation}
+              onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+            />
+          </AdminFormField>
 
-          <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-            <Link href="/contacts" className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl">
-              Cancel
-            </Link>
-            <button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center gap-2">
-              <Save className="w-4 h-4" /> Save Contact
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <AdminFormField label="Organization / Company" required fullWidth>
+            <AdminInput
+              type="text"
+              required
+              placeholder="e.g. Reliance Retail Systems Ltd"
+              icon={Building2}
+              value={formData.company}
+              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Contact Classification" required>
+            <AdminSelect
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              options={[
+                { value: 'CLIENT', label: 'Enterprise Client' },
+                { value: 'PROSPECT', label: 'Sales Prospect' },
+                { value: 'PARTNER', label: 'Channel Partner' },
+                { value: 'VENDOR', label: 'Supplier / Vendor' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="City / Region" required>
+            <AdminInput
+              type="text"
+              required
+              placeholder="Mumbai, Maharashtra"
+              icon={MapPin}
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Communication Channels" description="Official email, direct phone, and notes" icon={Mail} columns={2}>
+          <AdminFormField label="Corporate Email Address" required>
+            <AdminInput
+              type="email"
+              required
+              placeholder="ramesh@relianceretail.com"
+              icon={Mail}
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Direct Phone Number" required>
+            <AdminInput
+              type="tel"
+              required
+              placeholder="+91 98765 43210"
+              icon={Phone}
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Notes & Background Context" fullWidth>
+            <AdminTextarea
+              rows={3}
+              placeholder="Relationship history, preferred meeting times, key projects..."
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormActions
+          backHref="/contacts"
+          cancelLabel="Cancel"
+          submitLabel="Create Contact"
+          loading={loading}
+          sticky
+        />
+      </form>
+    </AdminFormPage>
   );
 }

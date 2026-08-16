@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "lsof -ti:3001 | xargs kill -9 2>/dev/null || true; next dev -p 3001",
     "build": "next build",
-    "start": "next start -p 3001",
+    "start": "lsof -ti:3001 | xargs kill -9 2>/dev/null || true; next start -p 3001",
+    "clean": "rm -rf .next && lsof -ti:3001 | xargs kill -9 2>/dev/null || true",
     "lint": "next lint"
   },
   "dependencies": {

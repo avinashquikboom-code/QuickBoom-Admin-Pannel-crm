@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Award, Plus, Building2, Search } from 'lucide-react';
+import Link from 'next/link';
+import { Award, Plus, Building2, Search, Edit2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function DesignationsPage() {
@@ -27,42 +28,45 @@ export default function DesignationsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => toast.success('Add Designation modal opened')}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
+        <Link
+          href="/designations/create"
+          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer self-start md:self-auto"
         >
           <Plus className="w-4 h-4" /> Add Designation
-        </button>
+        </Link>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         <table className="w-full text-xs text-left">
           <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase border-b border-slate-100">
             <tr>
-              <th className="p-3.5">Designation Title</th>
-              <th className="p-3.5">Code</th>
-              <th className="p-3.5">Department</th>
-              <th className="p-3.5">Level</th>
-              <th className="p-3.5">Status</th>
-              <th className="p-3.5">Actions</th>
+              <th className="p-4">Designation Title</th>
+              <th className="p-4">Code</th>
+              <th className="p-4">Department</th>
+              <th className="p-4">Level</th>
+              <th className="p-4">Status</th>
+              <th className="p-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium">
             {designations.map((d) => (
-              <tr key={d.id} className="hover:bg-slate-50/50">
-                <td className="p-3.5 font-bold text-slate-900">{d.title}</td>
-                <td className="p-3.5 font-bold text-emerald-700">{d.code}</td>
-                <td className="p-3.5 text-slate-800">{d.department}</td>
-                <td className="p-3.5 text-slate-600">{d.level}</td>
-                <td className="p-3.5">
-                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded-md text-[10px]">
+              <tr key={d.id} className="hover:bg-slate-50/50 transition-colors">
+                <td className="p-4 font-bold text-slate-900">{d.title}</td>
+                <td className="p-4 font-bold text-emerald-700">{d.code}</td>
+                <td className="p-4 text-slate-800">{d.department}</td>
+                <td className="p-4 text-slate-600">{d.level}</td>
+                <td className="p-4">
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-lg text-[10px] border border-emerald-200">
                     {d.status}
                   </span>
                 </td>
-                <td className="p-3.5">
-                  <button onClick={() => toast(`Editing ${d.title}`)} className="text-emerald-700 font-bold hover:underline">
-                    Edit
-                  </button>
+                <td className="p-4 text-right">
+                  <Link
+                    href={`/designations/${d.id}/edit`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 rounded-xl text-xs font-bold transition-all"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" /> Edit
+                  </Link>
                 </td>
               </tr>
             ))}

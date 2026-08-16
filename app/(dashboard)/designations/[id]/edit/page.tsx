@@ -1,91 +1,131 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Award, Building2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import {
+  AdminFormPage,
+  AdminFormSection,
+  AdminFormField,
+  AdminFormActions,
+  AdminInput,
+  AdminSelect,
+  AdminTextarea,
+} from '@/components/admin';
 
 export default function EditDesignationPage() {
   const params = useParams();
-  const id = params?.id || '1';
+  const id = (params?.id as string) || 'des-1';
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: 'Sales Manager',
-    code: 'SM',
-    department: 'Sales',
-    level: 3,
+    title: 'Senior Software Engineer',
+    code: 'SR-ENG',
+    department: 'Engineering & IT',
+    level: 'Level 4',
+    status: 'ACTIVE',
+    description: 'Senior development lead in charge of microservice backends, REST API performance, and platform resilience.',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Designation updated successfully');
-    router.push('/designations');
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      toast.success(`Designation ${id} updated successfully!`);
+      router.push('/designations');
+    }, 600);
   };
 
   return (
-    <div className="space-y-8 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Link href="/designations" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Edit Designation</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Update details for designation ID {id}.</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8">
-        <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-          <div>
-            <label className="block font-bold text-slate-700 mb-1.5">Designation Title</label>
-            <input
+    <AdminFormPage
+      title={`Edit Designation (${formData.code})`}
+      description={`Update role specifications, hierarchy level, and department allocation for ${formData.title}.`}
+      backHref="/designations"
+      backLabel="Back to Designations"
+      badge="Edit Designation"
+      maxWidthClass="max-w-3xl"
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <AdminFormSection title="Designation Details" description="Job title, code, and hierarchy band" icon={Award} columns={2}>
+          <AdminFormField label="Job Designation Title" required fullWidth>
+            <AdminInput
               type="text"
               required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full p-3 border border-slate-200 rounded-xl"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             />
-          </div>
+          </AdminFormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Designation Code</label>
-              <input
-                type="text"
-                required
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl font-bold uppercase"
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1.5">Department</label>
-              <select
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="w-full p-3 border border-slate-200 rounded-xl font-bold"
-              >
-                <option value="Sales">Sales</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Operations">Operations</option>
-                <option value="Finance">Finance</option>
-              </select>
-            </div>
-          </div>
+          <AdminFormField label="Designation Code" required>
+            <AdminInput
+              type="text"
+              required
+              className="uppercase font-bold"
+              value={formData.code}
+              onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+            />
+          </AdminFormField>
 
-          <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-            <Link href="/designations" className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl">
-              Cancel
-            </Link>
-            <button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-md flex items-center gap-2">
-              <Save className="w-4 h-4" /> Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <AdminFormField label="Hierarchy Level" required>
+            <AdminSelect
+              value={formData.level}
+              onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+              options={[
+                { value: 'Level 1', label: 'Level 1 (Entry / Trainee)' },
+                { value: 'Level 2', label: 'Level 2 (Associate)' },
+                { value: 'Level 3', label: 'Level 3 (Mid-Senior)' },
+                { value: 'Level 4', label: 'Level 4 (Lead / Specialist)' },
+                { value: 'Level 5', label: 'Level 5 (Managerial)' },
+                { value: 'Level 6', label: 'Level 6 (Director / Executive)' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Linked Department" required>
+            <AdminSelect
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              options={[
+                { value: 'Engineering & IT', label: 'Engineering & IT' },
+                { value: 'Sales & BD', label: 'Sales & BD' },
+                { value: 'Human Resources & Operations', label: 'Human Resources & Operations' },
+                { value: 'Finance & Accounts', label: 'Finance & Accounts' },
+                { value: 'Marketing', label: 'Marketing' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Status" required>
+            <AdminSelect
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              options={[
+                { value: 'ACTIVE', label: 'Active Designation' },
+                { value: 'INACTIVE', label: 'Inactive / Deprecated' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Job Scope & Responsibilities" fullWidth>
+            <AdminTextarea
+              rows={3}
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormActions
+          backHref="/designations"
+          cancelLabel="Cancel"
+          submitLabel="Save Changes"
+          loading={loading}
+          sticky
+        />
+      </form>
+    </AdminFormPage>
   );
 }
