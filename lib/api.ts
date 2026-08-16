@@ -20,14 +20,40 @@ api.interceptors.request.use(
         config.headers['x-tenant-id'] = tenantId;
       }
     }
+    
+    // Log API Request
+    console.log(`=========================================`);
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    console.log(`Headers:`, config.headers);
+    if (config.data) {
+      console.log(`Payload:`, config.data);
+    }
+    console.log(`=========================================`);
+
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => {
+    console.error(`[API Request Error]`, error);
+    return Promise.reject(error);
+  }
 );
 
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    // Log API Response
+    console.log(`-----------------------------------------`);
+    console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} → ${response.status}`);
+    console.log(`Data:`, response.data);
+    console.log(`-----------------------------------------`);
+    return response.data;
+  },
   (error) => {
+    // Log API Error
+    console.log(`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`);
+    console.log(`[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} → ${error.response?.status}`);
+    console.log(`Error Data:`, error.response?.data || error.message);
+    console.log(`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`);
+
     let message = 'An unexpected error occurred';
     
     if (error && error.response && error.response.data) {
