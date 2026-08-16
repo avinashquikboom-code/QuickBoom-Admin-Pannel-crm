@@ -23,7 +23,7 @@ export default function EditDepartmentPage() {
   const [formData, setFormData] = useState({
     name: 'Engineering & IT',
     code: 'ENG',
-    headName: 'Avinash Magar',
+    headName: 'Demo User',
     status: 'ACTIVE',
     description: 'Core software engineering, platform architecture, and IT operations unit.',
   });

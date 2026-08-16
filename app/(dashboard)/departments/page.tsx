@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState([
-    { id: 'dept-1', name: 'Engineering & IT', code: 'ENG', head: 'Avinash Magar', employees: 32, status: 'ACTIVE' },
+    { id: 'dept-1', name: 'Engineering & IT', code: 'ENG', head: 'Demo User', employees: 32, status: 'ACTIVE' },
     { id: 'dept-2', name: 'Sales & Business Development', code: 'SALES', head: 'Rahul Sharma', employees: 45, status: 'ACTIVE' },
     { id: 'dept-3', name: 'Human Resources & Operations', code: 'HR', head: 'Priya Singh', employees: 12, status: 'ACTIVE' },
     { id: 'dept-4', name: 'Finance & Accounts', code: 'FIN', head: 'Vikram Mehta', employees: 18, status: 'ACTIVE' },

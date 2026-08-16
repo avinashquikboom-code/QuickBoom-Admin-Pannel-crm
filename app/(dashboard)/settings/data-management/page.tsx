@@ -126,8 +126,8 @@ export default function DataManagementPage() {
     employee: {
       id: 'emp-001',
       employeeCode: 'EMP001',
-      name: 'Avinash Magar',
-      email: 'avinash@quikboom.com',
+      name: 'Demo User',
+      email: 'demo@quikboom.com',
       phone: '+91 98250 12345',
       department: 'Technology',
       designation: 'Lead Architect',
@@ -777,11 +777,11 @@ export default function DataManagementPage() {
               <AdminSearchInput
                 value={employeeSearch}
                 onChange={setEmployeeSearch}
-                placeholder="Type employee name or EMP code (e.g. Avinash Magar, EMP001)..."
+                placeholder="Type employee name or EMP code (e.g. Demo User, EMP001)..."
               />
               <AdminButton
                 variant="primary"
-                onClick={() => toast.success(`Selected employee Avinash Magar (EMP001)`)}
+                onClick={() => toast.success(`Selected employee Demo User (EMP001)`)}
               >
                 Search
               </AdminButton>

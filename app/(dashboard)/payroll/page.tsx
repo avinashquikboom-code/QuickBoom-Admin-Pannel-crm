@@ -53,7 +53,7 @@ interface SalaryStructureItem {
 }
 
 const mockStructures: SalaryStructureItem[] = [
-  { id: 'st-1', employeeCode: 'EMP001', employeeName: 'Avinash Magar', department: 'Engineering', basic: 45000, hra: 18000, allowances: 12000, gross: 75000, pf: 5400, tax: 2600, net: 67000, status: 'ACTIVE' },
+  { id: 'st-1', employeeCode: 'EMP001', employeeName: 'Demo User', department: 'Engineering', basic: 45000, hra: 18000, allowances: 12000, gross: 75000, pf: 5400, tax: 2600, net: 67000, status: 'ACTIVE' },
   { id: 'st-2', employeeCode: 'EMP002', employeeName: 'Rahul Sharma', department: 'Sales', basic: 35000, hra: 14000, allowances: 11000, gross: 60000, pf: 4200, tax: 1800, net: 54000, status: 'ACTIVE' },
   { id: 'st-3', employeeCode: 'EMP003', employeeName: 'Priya Singh', employeeName2: 'Priya Singh', department: 'HR', basic: 40000, hra: 16000, allowances: 9000, gross: 65000, pf: 4800, tax: 2200, net: 58000, status: 'ACTIVE' } as any,
 ];

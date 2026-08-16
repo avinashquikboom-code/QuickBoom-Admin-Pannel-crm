@@ -54,10 +54,10 @@ export default function EmployeeDetailPage() {
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-xl flex items-center justify-center shadow-md">
-            AM
+            DU
           </div>
           <div>
-            <h2 className="text-xl font-extrabold text-slate-900">Avinash Magar</h2>
+            <h2 className="text-xl font-extrabold text-slate-900">Demo User</h2>
             <p className="text-xs text-emerald-700 font-bold">EMP001 • Senior Software Engineer</p>
             <div className="flex items-center gap-2 mt-1.5">
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -104,7 +104,7 @@ export default function EmployeeDetailPage() {
         <div className="bg-white rounded-3xl border border-slate-200/80 p-6 space-y-4 text-xs">
           <h3 className="font-extrabold text-slate-900 text-sm">Personal & Contact Details</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div><span className="text-slate-400">Email:</span> <p className="font-bold text-slate-800">avinash.magar@quikboom.com</p></div>
+            <div><span className="text-slate-400">Email:</span> <p className="font-bold text-slate-800">demo.user@quikboom.com</p></div>
             <div><span className="text-slate-400">Mobile:</span> <p className="font-bold text-slate-800">+91 98765 43210</p></div>
             <div><span className="text-slate-400">Employment Type:</span> <p className="font-bold text-slate-800">Full-Time Permanent</p></div>
             <div><span className="text-slate-400">Emergency Contact:</span> <p className="font-bold text-slate-800">+91 98765 00000</p></div>
