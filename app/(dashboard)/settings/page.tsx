@@ -44,7 +44,9 @@ export default function SettingsPage() {
   const [razorpayConnected, setRazorpayConnected] = useState(true);
 
   // Google Maps Integration State
-  const [googleMapsApiKey, setGoogleMapsApiKey] = useState('AIzaSyD-QuikBoomMapsPlatformKey2026');
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState(
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBzIu9g59dQo-ICpmusnRorJ8tJ3OYFlRA'
+  );
   const [enableEcoRouting, setEnableEcoRouting] = useState(true);
   const [enableGeocoding, setEnableGeocoding] = useState(true);
   const [defaultCity, setDefaultCity] = useState('Mumbai, Maharashtra');
