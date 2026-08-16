@@ -4,24 +4,41 @@ import React, { useState } from 'react';
 import {
   ShieldCheck,
   Building2,
-  CreditCard,
-  Zap,
-  CheckCircle,
-  AlertCircle,
   Plus,
   Users,
   DollarSign,
   TrendingUp,
+  Activity,
+  CheckCircle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import {
+  AdminPageHeader,
+  AdminStatCard,
+  AdminDataTable,
+  AdminButton,
+  AdminStatusBadge,
+  AdminCard,
+  ColumnDef,
+} from '@/components/admin';
+
+interface TenantRow {
+  id: string;
+  name: string;
+  plan: string;
+  status: string;
+  users: number;
+  storage: string;
+  mrr: string;
+}
 
 export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState<'tenants' | 'plans' | 'billing'>('tenants');
 
-  const mockTenants = [
-    { id: 't-1', name: 'Acme Enterprise India', plan: 'Professional Plan', status: 'ACTIVE', users: 52, storage: '2.4 GB', mrr: '₹14,999' },
-    { id: 't-2', name: 'TechCorp Solutions', plan: 'Enterprise Plan', status: 'ACTIVE', users: 180, storage: '12.8 GB', mrr: '₹49,999' },
-    { id: 't-3', name: 'Reliance Logistics Hub', plan: 'Starter Plan', status: 'TRIAL', users: 12, storage: '450 MB', mrr: '₹4,999' },
+  const mockTenants: TenantRow[] = [
+    { id: 't-1', name: 'Acme Enterprise India', plan: 'Professional Plan', status: 'active', users: 52, storage: '2.4 GB', mrr: '₹14,999' },
+    { id: 't-2', name: 'TechCorp Solutions', plan: 'Enterprise Plan', status: 'active', users: 180, storage: '12.8 GB', mrr: '₹49,999' },
+    { id: 't-3', name: 'Reliance Logistics Hub', plan: 'Starter Plan', status: 'pending', users: 12, storage: '450 MB', mrr: '₹4,999' },
   ];
 
   const mockPlans = [
@@ -30,70 +47,128 @@ export default function SuperAdminPage() {
     { id: 'p-3', name: 'Enterprise Plan', price: '₹49,999/mo', userLimit: 250, features: ['CRM', 'HRM', 'Payroll', 'Geo Tracking', 'Advanced Reports'] },
   ];
 
-  return (
-    <div className="space-y-8">
-      {/* Super Admin Title Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-indigo-900">
-        <div>
-          <div className="flex items-center gap-2 text-indigo-300 font-extrabold text-xs uppercase tracking-wider mb-1">
-            <ShieldCheck className="w-4 h-4 text-indigo-400" /> PLATFORM SUPER ADMIN CONTROLS
-          </div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-            QuikBoom SaaS Super Admin Portal
-          </h1>
-          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-            Manage multi-tenant subscriptions, platform billing, SaaS feature flags, and tenant provisioning.
-          </p>
-        </div>
+  const tenantColumns: ColumnDef<TenantRow>[] = [
+    {
+      key: 'name',
+      header: 'Company Name',
+      render: (t) => <span className="font-extrabold text-slate-900">{t.name}</span>,
+    },
+    {
+      key: 'plan',
+      header: 'Plan',
+      render: (t) => <span className="text-indigo-700 font-bold">{t.plan}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (t) => <AdminStatusBadge status={t.status} />,
+    },
+    {
+      key: 'users',
+      header: 'Users',
+      render: (t) => <span className="text-slate-700">{t.users} Staff</span>,
+    },
+    {
+      key: 'storage',
+      header: 'Storage',
+      render: (t) => <span className="text-slate-500">{t.storage}</span>,
+    },
+    {
+      key: 'mrr',
+      header: 'MRR',
+      render: (t) => <span className="font-bold text-slate-900">{t.mrr}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Action',
+      className: 'text-right',
+      headerClassName: 'text-right',
+      render: () => (
+        <button
+          type="button"
+          onClick={() => toast.success('Opening subscription configuration...')}
+          className="text-indigo-600 font-bold hover:underline cursor-pointer"
+        >
+          Manage Subscription
+        </button>
+      ),
+    },
+  ];
 
-        <div className="flex items-center gap-3">
-          <button
+  return (
+    <div className="space-y-6">
+      {/* Super Admin Title Header */}
+      <AdminPageHeader
+        title="QuikBoom SaaS Super Admin Portal"
+        description="Manage multi-tenant subscriptions, platform billing, SaaS feature flags, and tenant provisioning."
+        badge={{
+          text: 'PLATFORM SUPER ADMIN CONTROLS',
+          icon: ShieldCheck,
+          variant: 'indigo',
+        }}
+        actions={
+          <AdminButton
+            variant="primary"
+            icon={Plus}
             onClick={() => toast.success('Tenant provisioning modal opened')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Provision New Tenant
-          </button>
-        </div>
-      </div>
+            Provision New Tenant
+          </AdminButton>
+        }
+      />
 
       {/* Top SaaS KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-extrabold uppercase text-slate-400">Total Tenants</span>
-          <p className="text-2xl font-black text-slate-900 mt-1">42</p>
-          <span className="text-[11px] font-bold text-emerald-600">38 Active • 4 Trial</span>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-extrabold uppercase text-slate-400">Monthly Recurring Revenue</span>
-          <p className="text-2xl font-black text-indigo-700 mt-1">₹8,45,000</p>
-          <span className="text-[11px] font-bold text-indigo-600">+14% Growth MoM</span>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-extrabold uppercase text-slate-400">Total SaaS Users</span>
-          <p className="text-2xl font-black text-slate-900 mt-1">3,420</p>
-          <span className="text-[11px] font-bold text-slate-500">Employees & Admins</span>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-[10px] font-extrabold uppercase text-slate-400">SaaS Platform Health</span>
-          <p className="text-2xl font-black text-emerald-600 mt-1">99.98%</p>
-          <span className="text-[11px] font-bold text-emerald-600">All Systems Operational</span>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminStatCard
+          title="Total Active Tenants"
+          value="42"
+          description="38 Active • 4 Free Trials"
+          icon={Building2}
+          iconBg="primary"
+          trend="+8.2%"
+        />
+        <AdminStatCard
+          title="Monthly Recurring Revenue"
+          value="₹8,45,000"
+          description="+14% Growth MoM"
+          icon={DollarSign}
+          iconBg="purple"
+          trend="+14.2%"
+        />
+        <AdminStatCard
+          title="Total SaaS Users"
+          value="3,420"
+          description="Across 42 Organizations"
+          icon={Users}
+          iconBg="blue"
+        />
+        <AdminStatCard
+          title="Platform Uptime"
+          value="99.98%"
+          description="All Systems Operational"
+          icon={Activity}
+          iconBg="primary"
+        />
       </div>
 
       {/* Submodule Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
           onClick={() => setActiveTab('tenants')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeTab === 'tenants' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+            activeTab === 'tenants'
+              ? 'bg-slate-900 text-white shadow-md'
+              : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           Tenant Management
         </button>
         <button
           onClick={() => setActiveTab('plans')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeTab === 'plans' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+            activeTab === 'plans'
+              ? 'bg-slate-900 text-white shadow-md'
+              : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           Subscription Plans
@@ -102,70 +177,38 @@ export default function SuperAdminPage() {
 
       {/* Tenants Table */}
       {activeTab === 'tenants' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-extrabold text-slate-900 text-sm">Active Tenant Organizations</h3>
-          </div>
-          <table className="w-full text-xs text-left">
-            <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase border-b border-slate-100">
-              <tr>
-                <th className="p-3">Company Name</th>
-                <th className="p-3">Plan</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Users</th>
-                <th className="p-3">Storage</th>
-                <th className="p-3">MRR</th>
-                <th className="p-3">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {mockTenants.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-50/50">
-                  <td className="p-3 font-bold text-slate-900">{t.name}</td>
-                  <td className="p-3 text-indigo-700 font-bold">{t.plan}</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded-md text-[10px]">
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-slate-700">{t.users} Staff</td>
-                  <td className="p-3 text-slate-500">{t.storage}</td>
-                  <td className="p-3 font-bold text-slate-900">{t.mrr}</td>
-                  <td className="p-3">
-                    <button className="text-indigo-600 font-bold hover:underline">Manage Subscription</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AdminCard title="Active Tenant Organizations" description="Overview of provisioned enterprise accounts">
+          <AdminDataTable columns={tenantColumns} data={mockTenants} />
+        </AdminCard>
       )}
 
       {/* Plans Grid */}
       {activeTab === 'plans' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {mockPlans.map((p) => (
-            <div key={p.id} className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            <AdminCard key={p.id} className="space-y-4">
               <div>
                 <h3 className="font-black text-slate-900 text-lg">{p.name}</h3>
-                <p className="text-2xl font-black text-indigo-600 mt-1">{p.price}</p>
+                <p className="text-2xl font-black text-[#23C45E] mt-1">{p.price}</p>
               </div>
               <p className="text-xs font-bold text-slate-500">Up to {p.userLimit} Users included</p>
               <div className="space-y-1.5 text-xs text-slate-700">
                 {p.features.map((f, idx) => (
                   <div key={idx} className="flex items-center gap-2">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <CheckCircle className="w-3.5 h-3.5 text-[#23C45E]" />
                     <span>{f}</span>
                   </div>
                 ))}
               </div>
-              <button
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                className="w-full mt-2"
                 onClick={() => toast.success(`Editing ${p.name}`)}
-                className="w-full py-2 bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer"
               >
                 Configure Plan Features
-              </button>
-            </div>
+              </AdminButton>
+            </AdminCard>
           ))}
         </div>
       )}

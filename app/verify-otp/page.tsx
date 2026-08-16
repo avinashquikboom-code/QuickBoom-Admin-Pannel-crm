@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Zap, Key, ArrowRight } from 'lucide-react';
+import { Zap, Key, ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@/lib/store';
 
@@ -25,12 +25,12 @@ export default function VerifyOtpPage() {
       setAuth(
         {
           id: 'usr-new-01',
-          email: 'user@quikboom.com',
-          firstName: 'Registered',
+          email: 'admin@quikboom.com',
+          firstName: 'Demo',
           lastName: 'User',
           tenantId: 't-001',
           tenantName: 'QuikBoom Enterprise',
-          roles: ['Employee'],
+          roles: ['Super Admin', 'HR Manager'],
         },
         'token-access',
         'token-refresh'
@@ -41,25 +41,23 @@ export default function VerifyOtpPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 p-4 font-sans text-slate-100">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#F8FAFC] p-4 font-sans text-slate-900 selection:bg-[#23C45E] selection:text-white">
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-8 shadow-xl space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-emerald-400 p-0.5 mb-2 shadow-lg shadow-indigo-500/20">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <Zap className="w-6 h-6 text-emerald-400 fill-emerald-400" />
-            </div>
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#23C45E] mb-2 shadow-lg shadow-[#23C45E]/20 text-white">
+            <Zap className="w-6 h-6 fill-white text-white" />
           </div>
-          <h1 className="text-2xl font-black text-white">Verify Phone OTP</h1>
-          <p className="text-xs text-slate-400 font-medium">
+          <h1 className="text-2xl font-black text-slate-900">Verify Phone OTP</h1>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed">
             Enter the 6-digit verification code sent to your registered mobile number.
           </p>
         </div>
 
         <form onSubmit={handleVerify} className="space-y-4 text-xs">
           <div>
-            <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">Verification Code (OTP)</label>
+            <label className="block font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">Verification Code (OTP)</label>
             <div className="relative">
-              <Key className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
+              <Key className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
               <input
                 type="text"
                 required
@@ -67,7 +65,7 @@ export default function VerifyOtpPage() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono tracking-widest text-center font-bold text-base focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono tracking-widest text-center font-bold text-base focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white transition-all"
               />
             </div>
           </div>
@@ -75,22 +73,31 @@ export default function VerifyOtpPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+            className="w-full py-3.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-[#23C45E]/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
           >
             {loading ? 'Verifying Code...' : 'Verify & Sign In'}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        <p className="text-center text-xs text-slate-400">
+        <p className="text-center text-xs text-slate-500">
           Didn't receive code?{' '}
           <button
             onClick={() => toast.success('New OTP sent to your phone!')}
-            className="text-indigo-400 hover:underline font-bold"
+            className="text-[#1AA14D] hover:underline font-extrabold cursor-pointer"
           >
             Resend OTP
           </button>
         </p>
+
+        <div className="text-center pt-2">
+          <Link
+            href="/login"
+            className="text-xs text-slate-500 hover:text-[#1AA14D] font-bold inline-flex items-center gap-1.5 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
+          </Link>
+        </div>
       </div>
     </div>
   );

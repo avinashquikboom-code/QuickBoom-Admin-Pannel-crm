@@ -28,8 +28,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      // Prevent browser crash overlay when an unhandled event or empty rejection occurs
+      if (event.reason instanceof Event || typeof event.reason === 'undefined') {
+        event.preventDefault();
+      }
+    };
+
     window.addEventListener('error', handleChunkError);
-    return () => window.removeEventListener('error', handleChunkError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', handleChunkError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
   }, []);
 
   return (

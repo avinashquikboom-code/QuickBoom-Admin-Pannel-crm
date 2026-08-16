@@ -37,10 +37,10 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState('Asia/Kolkata (IST)');
 
   // Razorpay Integration State
-  const [razorpayKeyId, setRazorpayKeyId] = useState('rzp_test_9876543210abcd');
+  const [razorpayKeyId, setRazorpayKeyId] = useState('rzp_live_9876543210abcd');
   const [razorpayKeySecret, setRazorpayKeySecret] = useState('••••••••••••••••••••••••');
   const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState('whsec_quikboom_2026');
-  const [razorpayMode, setRazorpayMode] = useState<'TEST' | 'LIVE'>('TEST');
+  const [razorpayMode, setRazorpayMode] = useState<'TEST' | 'LIVE'>('LIVE');
   const [razorpayConnected, setRazorpayConnected] = useState(true);
 
   // Google Maps Integration State
@@ -268,7 +268,7 @@ export default function SettingsPage() {
                   type="submit"
                   className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all cursor-pointer"
                 >
-                  <Save className="w-4 h-4" /> Save & Test Razorpay Connection
+                  <Save className="w-4 h-4" /> Save Razorpay Connection
                 </button>
               </div>
             </form>

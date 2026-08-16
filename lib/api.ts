@@ -28,15 +28,36 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const message = error.response?.data?.message || 'An unexpected error occurred';
-    if (typeof window !== 'undefined' && error.response?.status === 401) {
-      // Only redirect if not already on login page
-      if (window.location.pathname !== '/login') {
-        useAuthStore.getState().logout();
-        window.location.href = '/login';
+    let message = 'An unexpected error occurred';
+    
+    if (error && error.response && error.response.data) {
+      const dataMsg = error.response.data.message;
+      if (typeof dataMsg === 'string') {
+        message = dataMsg;
+      } else if (Array.isArray(dataMsg) && dataMsg.length > 0) {
+        message = typeof dataMsg[0] === 'string' ? dataMsg[0] : JSON.stringify(dataMsg[0]);
+      } else if (typeof dataMsg === 'object') {
+        message = JSON.stringify(dataMsg);
+      }
+    } else if (error && typeof error.message === 'string' && error.message.trim().length > 0) {
+      message = error.message;
+    } else if (typeof error === 'string') {
+      message = error;
+    }
+
+    // Do not show toast if error is an Event object or empty
+    if (typeof message === 'string' && message !== '[object Event]' && message !== '[object Object]') {
+      if (typeof window !== 'undefined' && error?.response?.status === 401) {
+        // Only redirect if not already on login page
+        if (window.location.pathname !== '/login') {
+          useAuthStore.getState().logout();
+          window.location.href = '/login';
+        }
+      } else {
+        toast.error(message);
       }
     }
-    toast.error(Array.isArray(message) ? message[0] : message);
+
     return Promise.reject(error);
   },
 );

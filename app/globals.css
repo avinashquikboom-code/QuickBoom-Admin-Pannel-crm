@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light !important;
   --primary: #23C45E;
   --primary-dark: #1AA14D;
   --primary-light: #E8F9EE;
@@ -20,9 +21,10 @@
 }
 
 @layer base {
-  body {
-    background-color: var(--background);
-    color: var(--text-primary);
+  html, body {
+    color-scheme: light !important;
+    background-color: #F8FAFC;
+    color: #111827;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
