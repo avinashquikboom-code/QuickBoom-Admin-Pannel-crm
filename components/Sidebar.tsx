@@ -93,7 +93,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse }: 
                 QUIKBOOM
               </span>
               <span className="text-[10px] font-extrabold tracking-widest text-[#23C45E] uppercase truncate">
-                {role === 'Super Admin' ? 'SaaS Platform' : role === 'Employee' ? 'Employee Portal' : 'CRM & HRM'}
+                {role === 'Super Admin' ? 'Super Admin' : role === 'HR' ? 'HR Operations' : 'Admin Portal'}
               </span>
             </div>
           )}

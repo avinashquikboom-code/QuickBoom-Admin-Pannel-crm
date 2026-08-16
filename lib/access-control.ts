@@ -26,15 +26,23 @@ import {
   DollarSign,
   Ticket,
   TrendingUp,
+  Target,
+  Briefcase,
+  Bell,
+  Trash2,
+  RefreshCw,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { User as UserType } from './store';
 
 export type UserRole =
   | 'Super Admin'
-  | 'Tenant Owner'
-  | 'Tenant Admin'
+  | 'SUPER_ADMIN'
+  | 'HR'
   | 'HR Manager'
   | 'HR Executive'
+  | 'Tenant Owner'
+  | 'Tenant Admin'
   | 'Manager'
   | 'Employee';
 
@@ -61,6 +69,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'platform.all',
     'dashboard.view',
     'crm.all',
+    'crm.manage',
     'leads.view',
     'contacts.view',
     'companies.view',
@@ -68,26 +77,50 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'tasks.view',
     'activities.view',
     'data_capture.view',
+    'data_capture.manage',
     'hrm.all',
+    'hrm.manage',
     'employee.view',
     'employee.manage',
+    'employee.create',
+    'employee.update',
     'department.view',
+    'department.create',
+    'department.update',
     'designation.view',
+    'designation.create',
+    'designation.update',
+    'attendance.view',
     'attendance.view_all',
+    'attendance.manage',
+    'attendance.correction',
+    'leave.view',
     'leave.view_all',
+    'leave.approve',
+    'leave.reject',
+    'remote.view',
     'remote.view_all',
+    'remote.approve',
+    'remote.reject',
+    'visits.view',
     'visits.view_all',
+    'geo_tracking.view',
     'payroll.view',
     'payroll.manage',
-    'geo_tracking.view',
+    'payroll.generate',
+    'payroll.salary_slip',
     'reports.view',
+    'reports.manage',
     'reports.team',
     'reports.platform',
     'notifications.view',
     'roles.manage',
+    'permissions.manage',
     'settings.view',
+    'settings.manage',
     'settings.global',
     'subscription.view',
+    'subscription.manage',
     'tenants.manage',
     'plans.manage',
     'subscriptions.manage',
@@ -100,13 +133,41 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'data_reset.view',
     'data_reset.module',
     'data_reset.employee',
+    'data_reset.execute',
   ],
-  // Retain definition of disabled roles for future activation without active access in current version
-  'Tenant Owner': [],
-  'Tenant Admin': [],
-  'HR Manager': [],
-  'HR Executive': [],
-  'Manager': [],
+  'HR': [
+    'dashboard.view',
+    'employee.view',
+    'employee.create',
+    'employee.update',
+    'department.view',
+    'department.create',
+    'department.update',
+    'designation.view',
+    'designation.create',
+    'designation.update',
+    'attendance.view',
+    'attendance.view_all',
+    'attendance.manage',
+    'attendance.correction',
+    'leave.view',
+    'leave.view_all',
+    'leave.approve',
+    'leave.reject',
+    'remote.view',
+    'remote.view_all',
+    'remote.approve',
+    'remote.reject',
+    'visits.view',
+    'visits.view_all',
+    'geo_tracking.view',
+    'payroll.view',
+    'payroll.manage',
+    'payroll.generate',
+    'payroll.salary_slip',
+    'reports.view',
+    'notifications.view',
+  ],
   'Employee': [
     'mobile.access',
     'attendance.view_own',
@@ -142,176 +203,321 @@ export interface NavSectionConfig {
   feature?: keyof SubscriptionFeatures;
 }
 
-export const CENTRAL_NAVIGATION: NavSectionConfig[] = [
-  // PLATFORM SECTION (Super Admin Only)
-  {
-    id: 'platform',
-    category: 'PLATFORM MANAGEMENT',
-    sectionIcon: ShieldCheck,
-    roles: ['Super Admin'],
-    items: [
-      { name: 'SaaS Overview', href: '/super-admin', icon: LayoutDashboard, permission: 'platform.all' },
-      { name: 'Tenants', href: '/super-admin', icon: Building2, permission: 'tenants.manage' },
-      { name: 'Subscription Plans', href: '/super-admin', icon: Layers, permission: 'plans.manage' },
-      { name: 'Audit Logs', href: '/audit-logs', icon: History, permission: 'audit_logs.view' },
-      { name: 'Global Settings', href: '/settings', icon: Settings, permission: 'settings.global' },
-    ],
-  },
+export const adminNavigation: {
+  superAdmin: NavSectionConfig[];
+  hr: NavSectionConfig[];
+} = {
+  superAdmin: [
+    // 1. Dashboard
+    {
+      id: 'dashboard',
+      category: 'Dashboard',
+      sectionIcon: LayoutDashboard,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
+      ],
+    },
 
-  // OVERVIEW
-  {
-    id: 'overview',
-    category: 'OVERVIEW',
-    sectionIcon: LayoutDashboard,
-    roles: ['Super Admin'],
-    items: [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
-    ],
-  },
+    // 2. CRM
+    {
+      id: 'crm',
+      category: 'CRM',
+      sectionIcon: Users,
+      feature: 'crm',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
+        { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
+        { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
+        { name: 'Deals', href: '/crm', icon: Kanban, permission: 'deals.view' },
+        { name: 'Tasks', href: '/tasks', icon: CheckSquare, permission: 'tasks.view' },
+        { name: 'Activities', href: '/activities', icon: Activity, permission: 'activities.view' },
+      ],
+    },
 
-  // HRM MANAGEMENT (Super Admin Consolidated Management)
-  {
-    id: 'hrm',
-    category: 'HRM MANAGEMENT',
-    sectionIcon: Users,
-    feature: 'hrm',
-    roles: ['Super Admin'],
-    items: [
-      {
-        name: 'Employees',
-        href: '/employees',
-        icon: Users,
-        permission: 'employee.view',
-      },
-      {
-        name: 'Departments',
-        href: '/departments',
-        icon: Building2,
-        permission: 'department.view',
-      },
-      {
-        name: 'Designations',
-        href: '/designations',
-        icon: Award,
-        permission: 'designation.view',
-      },
-      {
-        name: 'Attendance',
-        href: '/attendance',
-        icon: Clock,
-        permission: 'attendance.view_all',
-      },
-      {
-        name: 'Leave',
-        href: '/leaves',
-        icon: Calendar,
-        permission: 'leave.view_all',
-      },
-      {
-        name: 'Remote Work',
-        href: '/remote-work',
-        icon: Laptop,
-        permission: 'remote.view_all',
-      },
-      {
-        name: 'Visits',
-        href: '/visits',
-        icon: Activity,
-        permission: 'visits.view_all',
-      },
-      {
-        name: 'Payroll',
-        href: '/payroll',
-        icon: Banknote,
-        feature: 'payroll',
-        permission: 'payroll.view',
-      },
-      {
-        name: 'Geo Tracking',
-        href: '/geo-tracking',
-        icon: MapPin,
-        feature: 'geo_tracking',
-        permission: 'geo_tracking.view',
-      },
-    ],
-  },
+    // 3. Data Capture
+    {
+      id: 'data-capture',
+      category: 'Data Capture',
+      sectionIcon: Target,
+      feature: 'data_capture',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
+        { name: 'Capture History', href: '/data-capture?tab=history', icon: History, permission: 'data_capture.view' },
+        { name: 'Usage', href: '/data-capture?tab=usage', icon: Activity, permission: 'data_capture.view' },
+      ],
+    },
 
-  // CRM & SALES (Super Admin Consolidated CRM)
-  {
-    id: 'crm',
-    category: 'CRM & SALES',
-    sectionIcon: Kanban,
-    feature: 'crm',
-    roles: ['Super Admin'],
-    items: [
-      { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
-      { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
-      { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
-      { name: 'Deals Pipeline', href: '/crm', icon: Kanban, permission: 'deals.view' },
-      { name: 'Tasks', href: '/tasks', icon: CheckSquare, permission: 'tasks.view' },
-      { name: 'Activities', href: '/activities', icon: Activity, permission: 'activities.view' },
-      {
-        name: 'Data Capture',
-        href: '/data-capture',
-        icon: Database,
-        feature: 'data_capture',
-        permission: 'data_capture.view',
-      },
-    ],
-  },
+    // 4. HRM
+    {
+      id: 'hrm',
+      category: 'HRM',
+      sectionIcon: Briefcase,
+      feature: 'hrm',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
+        { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
+        { name: 'Designations', href: '/designations', icon: Award, permission: 'designation.view' },
+        { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view_all' },
+        { name: 'Leave', href: '/leaves', icon: Calendar, permission: 'leave.view_all' },
+        { name: 'Remote Work', href: '/remote-work', icon: Laptop, permission: 'remote.view_all' },
+        { name: 'Visits', href: '/visits', icon: Activity, permission: 'visits.view_all' },
+        { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, feature: 'geo_tracking', permission: 'geo_tracking.view' },
+        { name: 'Payroll', href: '/payroll', icon: Banknote, feature: 'payroll', permission: 'payroll.view' },
+      ],
+    },
 
-  // ADMIN & SYSTEM
-  {
-    id: 'admin',
-    category: 'ADMIN & SYSTEM',
-    sectionIcon: ShieldCheck,
-    roles: ['Super Admin'],
-    items: [
-      {
-        name: 'Reports',
-        href: '/reports',
-        icon: BarChart3,
-        feature: 'reports',
-        permission: 'reports.view',
-      },
-      {
-        name: 'Roles & Permissions',
-        href: '/roles-permissions',
-        icon: ShieldCheck,
-        permission: 'roles.manage',
-      },
-      {
-        name: 'Audit Logs',
-        href: '/audit-logs',
-        icon: History,
-        permission: 'audit_logs.view',
-      },
-      {
-        name: 'Tenant Settings',
-        href: '/settings',
-        icon: Settings,
-        permission: 'settings.view',
-      },
-      {
-        name: 'Data Management',
-        href: '/settings/data-management',
-        icon: Database,
-        permission: 'data_reset.view',
-      },
-      {
-        name: 'Subscription',
-        href: '/super-admin',
-        icon: CreditCard,
-        permission: 'subscription.view',
-      },
-    ],
-  },
+    // 5. Reports
+    {
+      id: 'reports',
+      category: 'Reports',
+      sectionIcon: BarChart3,
+      feature: 'reports',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
+      ],
+    },
+
+    // 6. Notifications
+    {
+      id: 'notifications',
+      category: 'Notifications',
+      sectionIcon: Bell,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Notifications', href: '/notifications', icon: Bell, permission: 'notifications.view' },
+      ],
+    },
+
+    // 7. Tenants / Companies
+    {
+      id: 'tenants',
+      category: 'Tenants / Companies',
+      sectionIcon: Building2,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Tenants', href: '/super-admin', icon: Building2, permission: 'tenants.manage' },
+      ],
+    },
+
+    // 8. Subscription
+    {
+      id: 'subscription',
+      category: 'Subscription',
+      sectionIcon: CreditCard,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Plans', href: '/super-admin?tab=plans', icon: Layers, permission: 'plans.manage' },
+        { name: 'Subscriptions', href: '/super-admin?tab=subscriptions', icon: ShieldCheck, permission: 'subscriptions.manage' },
+        { name: 'Billing', href: '/super-admin?tab=billing', icon: CreditCard, permission: 'billing.manage' },
+        { name: 'Usage', href: '/super-admin?tab=usage', icon: Activity, permission: 'subscription.view' },
+      ],
+    },
+
+    // 9. Data Management
+    {
+      id: 'data-management',
+      category: 'Data Management',
+      sectionIcon: Trash2,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Data Overview', href: '/settings/data-management', icon: Database, permission: 'data_reset.view' },
+        { name: 'Module-wise Reset', href: '/settings/data-management?tab=modules', icon: RefreshCw, permission: 'data_reset.module' },
+        { name: 'Employee-wise Reset', href: '/settings/data-management?tab=employee', icon: User, permission: 'data_reset.employee' },
+        { name: 'Reset History', href: '/settings/data-management?tab=history', icon: History, permission: 'data_reset.view' },
+      ],
+    },
+
+    // 10. Settings
+    {
+      id: 'settings',
+      category: 'Settings',
+      sectionIcon: Settings,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Roles & Permissions', href: '/roles-permissions', icon: ShieldCheck, permission: 'roles.manage' },
+        { name: 'Company Settings', href: '/settings?tab=company', icon: Building2, permission: 'settings.view' },
+        { name: 'System Settings', href: '/settings?tab=system', icon: SlidersHorizontal, permission: 'settings.global' },
+      ],
+    },
+  ],
+
+  hr: [
+    // 1. Dashboard
+    {
+      id: 'dashboard',
+      category: 'Dashboard',
+      sectionIcon: LayoutDashboard,
+      roles: ['HR'],
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
+      ],
+    },
+
+    // 2. Employees
+    {
+      id: 'employees',
+      category: 'Employees',
+      sectionIcon: Users,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
+      ],
+    },
+
+    // 3. Departments
+    {
+      id: 'departments',
+      category: 'Departments',
+      sectionIcon: Building2,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
+      ],
+    },
+
+    // 4. Designations
+    {
+      id: 'designations',
+      category: 'Designations',
+      sectionIcon: Award,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Designations', href: '/designations', icon: Award, permission: 'designation.view' },
+      ],
+    },
+
+    // 5. Attendance
+    {
+      id: 'attendance',
+      category: 'Attendance',
+      sectionIcon: Clock,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view' },
+      ],
+    },
+
+    // 6. Leave
+    {
+      id: 'leaves',
+      category: 'Leave',
+      sectionIcon: Calendar,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Leave', href: '/leaves', icon: Calendar, permission: 'leave.view' },
+      ],
+    },
+
+    // 7. Remote Work
+    {
+      id: 'remote-work',
+      category: 'Remote Work',
+      sectionIcon: Laptop,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Remote Work', href: '/remote-work', icon: Laptop, permission: 'remote.view' },
+      ],
+    },
+
+    // 8. Visits
+    {
+      id: 'visits',
+      category: 'Visits',
+      sectionIcon: Activity,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Visits', href: '/visits', icon: Activity, permission: 'visits.view' },
+      ],
+    },
+
+    // 9. Geo Tracking
+    {
+      id: 'geo-tracking',
+      category: 'Geo Tracking',
+      sectionIcon: MapPin,
+      feature: 'geo_tracking',
+      roles: ['HR'],
+      items: [
+        { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, permission: 'geo_tracking.view' },
+      ],
+    },
+
+    // 10. Payroll
+    {
+      id: 'payroll',
+      category: 'Payroll',
+      sectionIcon: Banknote,
+      feature: 'payroll',
+      roles: ['HR'],
+      items: [
+        { name: 'Payroll', href: '/payroll', icon: Banknote, permission: 'payroll.view' },
+      ],
+    },
+
+    // 11. Reports
+    {
+      id: 'reports',
+      category: 'Reports',
+      sectionIcon: BarChart3,
+      feature: 'reports',
+      roles: ['HR'],
+      items: [
+        { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
+      ],
+    },
+
+    // 12. Notifications
+    {
+      id: 'notifications',
+      category: 'Notifications',
+      sectionIcon: Bell,
+      roles: ['HR'],
+      items: [
+        { name: 'Notifications', href: '/notifications', icon: Bell, permission: 'notifications.view' },
+      ],
+    },
+  ],
+};
+
+// Fallback/Legacy reference
+export const CENTRAL_NAVIGATION = adminNavigation.superAdmin;
+
+export const ADMIN_PANEL_ALLOWED_ROLES: string[] = [
+  'Super Admin',
+  'SUPER_ADMIN',
+  'HR',
+  'HR Manager',
+  'HR Executive',
 ];
 
 // Helper Functions
 export function getUserRole(user: UserType | null): string {
   if (!user || !user.roles || user.roles.length === 0) return 'Employee';
-  return user.roles[0];
+  const rawRole = user.roles[0];
+  if (rawRole === 'SUPER_ADMIN' || rawRole === 'Super Admin') return 'Super Admin';
+  if (
+    rawRole === 'HR' ||
+    rawRole === 'HR_MANAGER' ||
+    rawRole === 'HR Manager' ||
+    rawRole === 'HR_EXECUTIVE' ||
+    rawRole === 'HR Executive'
+  ) {
+    return 'HR';
+  }
+  if (rawRole === 'EMPLOYEE' || rawRole === 'Employee') return 'Employee';
+  return rawRole;
 }
 
 export function getUserPermissions(user: UserType | null): string[] {
@@ -403,16 +609,23 @@ export function canAccessSection(user: UserType | null, section: NavSectionConfi
 }
 
 export function filterNavigation(
-  sections: NavSectionConfig[],
+  _sectionsIgnored: NavSectionConfig[] | undefined,
   user: UserType | null
 ): NavSectionConfig[] {
   const role = getUserRole(user);
-  // Only Super Admin has navigation items in the Admin Panel
+
   if (!ADMIN_PANEL_ALLOWED_ROLES.includes(role)) {
     return [];
   }
 
-  return sections
+  const baseSections =
+    role === 'Super Admin'
+      ? adminNavigation.superAdmin
+      : role === 'HR'
+        ? adminNavigation.hr
+        : [];
+
+  return baseSections
     .filter((section) => canAccessSection(user, section))
     .map((section) => ({
       ...section,
@@ -421,7 +634,19 @@ export function filterNavigation(
     .filter((section) => section.items.length > 0);
 }
 
-export const ADMIN_PANEL_ALLOWED_ROLES: string[] = ['Super Admin'];
+export const SUPER_ADMIN_ONLY_ROUTES: string[] = [
+  '/crm',
+  '/leads',
+  '/contacts',
+  '/companies',
+  '/tasks',
+  '/activities',
+  '/data-capture',
+  '/super-admin',
+  '/settings/data-management',
+  '/roles-permissions',
+  '/audit-logs',
+];
 
 // Route Protection Definition for Direct URL Protection
 export interface RouteAccessResult {
@@ -463,8 +688,24 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
     };
   }
 
+  // Check Super Admin Only routes for HR users
+  if (role === 'HR') {
+    const isSuperAdminOnly = SUPER_ADMIN_ONLY_ROUTES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
+    if (isSuperAdminOnly) {
+      return {
+        allowed: false,
+        reason: 'NO_PERMISSION',
+        message: `Access Forbidden (403): The "${pathname}" module is restricted to Super Admin only. HR users do not have access.`,
+      };
+    }
+  }
+
+  const activeNav = role === 'Super Admin' ? adminNavigation.superAdmin : adminNavigation.hr;
+
   // Find if route matches any navigation item
-  for (const section of CENTRAL_NAVIGATION) {
+  for (const section of activeNav) {
     // Check section feature
     if (section.feature && !isFeatureEnabled(user, section.feature)) {
       const isRouteInSection = section.items.some(
@@ -509,7 +750,7 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
             allowed: false,
             reason: 'NO_PERMISSION',
             requiredPermission: permStr,
-            message: `Access denied. You lack the required permission (${permStr}) to view this resource.`,
+            message: `Access denied (403). You lack the required permission (${permStr}) to view this resource.`,
           };
         }
 
@@ -518,6 +759,6 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
     }
   }
 
-  // Default allowed for generic sub-pages unless restricted
+  // Default allowed for authorized sub-pages
   return { allowed: true };
 }

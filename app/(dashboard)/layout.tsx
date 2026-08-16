@@ -35,6 +35,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const availableRoles: UserRole[] = [
     'Super Admin',
+    'HR',
   ];
 
   const subscriptionFeatureKeys: (keyof SubscriptionFeatures)[] = [
