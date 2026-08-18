@@ -18,7 +18,7 @@ env:
   ECR_REPOSITORY: qcrm-admin-panel
   # Path on the server where deploy/docker/ was copied by hand (see deploy/README.md
   # in the backend repo — this deploy/ dir is shared and lives only on the server).
-  DEPLOY_DIR: /var/www/docker/qbapp.online
+  DEPLOY_DIR: /var/www/qbapp.online
 
 jobs:
   build-and-deploy:
