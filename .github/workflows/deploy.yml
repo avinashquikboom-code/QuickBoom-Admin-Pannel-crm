@@ -100,8 +100,9 @@ jobs:
       # ---- Deploy over SSH --------------------------------------------------
       # Rewrite the ADMIN_IMAGE_TAG line in the server's already-present
       # config.sh (deploy/ is copied there by hand, not synced by CI — see
-      # deploy/README.md), then run the shared deploy.sh, which redeploys
-      # both the API and the admin panel. SSH key was already added above.
+      # deploy/README.md), then run admin.sh — ONLY the admin container.
+      # backend.sh (API) is untouched by this workflow. SSH key was already
+      # added above.
       - name: Pin image tag and deploy
         run: |
           ssh -i ~/.ssh/deploy_key \
@@ -110,7 +111,7 @@ jobs:
              cd '${DEPLOY_DIR}'
              chmod +x ./*.sh
              sed -i 's|^export ADMIN_IMAGE_TAG=.*|export ADMIN_IMAGE_TAG=\"${{ steps.meta.outputs.sha_tag }}\"|' config.sh
-             ./deploy.sh"
+             ./admin.sh"
 
       - name: Deploy summary
         if: always()
