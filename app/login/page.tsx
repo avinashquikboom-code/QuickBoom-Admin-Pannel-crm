@@ -207,21 +207,9 @@ export default function LoginPage() {
 
             {/* Password Input */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                  Password
-                </label>
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    toast('Please contact your customer administrator to reset password.');
-                  }}
-                  className="text-xs text-[#1AA14D] hover:text-[#23C45E] font-bold transition-colors"
-                >
-                  Forgot Password?
-                </a>
-              </div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                Password
+              </label>
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
                 <input
