@@ -48,8 +48,8 @@ export default function LoginPage() {
           email: email || 'admin@quikboom.com',
           firstName: 'Demo',
           lastName: 'User',
-          tenantId: 't-001',
-          tenantName: 'QuikBoom Enterprise',
+          customerId: 't-001',
+          customerName: 'QuikBoom Enterprise',
           roles: ['Super Admin', 'HR Manager'],
         },
         'demo-jwt-token-access',
@@ -103,7 +103,7 @@ export default function LoginPage() {
           </h1>
 
           <p className="text-sm text-slate-600 leading-relaxed font-medium">
-            Manage corporate client accounts, sales pipelines, live office attendance, employee visits, and consolidated payroll — in one secure multi-tenant platform.
+            Manage corporate client accounts, sales pipelines, live office attendance, employee visits, and consolidated payroll — in one secure multi-customer platform.
           </p>
 
           {/* Core Feature Highlights */}
@@ -160,7 +160,7 @@ export default function LoginPage() {
               Sign In to Admin Portal
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              Enter your credentials to access tenant administration services.
+              Enter your credentials to access customer administration services.
             </p>
           </div>
 
@@ -215,7 +215,7 @@ export default function LoginPage() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    toast('Please contact your tenant administrator to reset password.');
+                    toast('Please contact your customer administrator to reset password.');
                   }}
                   className="text-xs text-[#1AA14D] hover:text-[#23C45E] font-bold transition-colors"
                 >

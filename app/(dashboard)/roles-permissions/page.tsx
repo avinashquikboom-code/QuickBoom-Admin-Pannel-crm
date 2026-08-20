@@ -13,7 +13,7 @@ interface Role {
 }
 
 const mockRoles: Role[] = [
-  { id: '1', name: 'Tenant Super Admin', description: 'Full system control across HRM & CRM', permissionsCount: 48, isSystem: true },
+  { id: '1', name: 'Customer Super Admin', description: 'Full system control across HRM & CRM', permissionsCount: 48, isSystem: true },
   { id: '2', name: 'HR Manager', description: 'Employee management, attendance, leave approval & payroll', permissionsCount: 32, isSystem: false },
   { id: '3', name: 'Sales Manager', description: 'CRM leads, deal pipeline, contacts, and field visit oversight', permissionsCount: 26, isSystem: false },
   { id: '4', name: 'Employee', description: 'Self check-in, leave application, remote request & profile view', permissionsCount: 12, isSystem: true },
@@ -32,7 +32,7 @@ export default function RolesPermissionsPage() {
             Roles & RBAC Permissions Matrix
           </h1>
           <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-            Define security roles, granular permission strings, and multi-tenant authorization policies.
+            Define security roles, granular permission strings, and multi-customer authorization policies.
           </p>
         </div>
 
@@ -57,7 +57,7 @@ export default function RolesPermissionsPage() {
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-base">{role.name}</h3>
                   <span className="text-[10px] font-semibold text-indigo-600">
-                    {role.isSystem ? 'System Built-In' : 'Custom Tenant Role'}
+                    {role.isSystem ? 'System Built-In' : 'Custom Customer Role'}
                   </span>
                 </div>
               </div>

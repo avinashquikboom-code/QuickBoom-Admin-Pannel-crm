@@ -459,7 +459,7 @@ export default function PayrollPage() {
       {/* Submodule 6: Payroll Settings */}
       {activeTab === 'settings' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
-          <h3 className="font-extrabold text-slate-900 text-sm">Tenant Payroll Policy Parameters</h3>
+          <h3 className="font-extrabold text-slate-900 text-sm">Customer Payroll Policy Parameters</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div className="space-y-1.5">

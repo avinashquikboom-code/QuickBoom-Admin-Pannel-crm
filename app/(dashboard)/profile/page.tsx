@@ -26,7 +26,7 @@ export default function ProfilePage() {
               {user ? `${user.firstName} ${user.lastName}` : 'Administrator'}
             </h2>
             <p className="text-xs text-indigo-600 font-bold mt-0.5">{user?.roles?.[0] || 'Super Admin'}</p>
-            <p className="text-xs text-slate-500 font-medium">{user?.tenantName || 'QuikBoom Enterprise'}</p>
+            <p className="text-xs text-slate-500 font-medium">{user?.customerName || 'QuikBoom Enterprise'}</p>
           </div>
         </div>
 
@@ -48,10 +48,10 @@ export default function ProfilePage() {
           </div>
 
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Tenant ID</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Customer ID</span>
             <p className="font-mono font-bold text-indigo-600 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-indigo-500" />
-              {user?.tenantId || 't-001'}
+              {user?.customerId || 't-001'}
             </p>
           </div>
 

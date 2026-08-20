@@ -31,7 +31,7 @@ export default function SettingsPage() {
 
   // General Settings State
   const [companyName, setCompanyName] = useState('QuikBoom Enterprise');
-  const [tenantId, setTenantId] = useState('t-001');
+  const [customerId, setCustomerId] = useState('t-001');
   const [supportEmail, setSupportEmail] = useState('support@quikboom.com');
   const [currency, setCurrency] = useState('INR (₹)');
   const [timezone, setTimezone] = useState('Asia/Kolkata (IST)');
@@ -111,13 +111,13 @@ export default function SettingsPage() {
             Workspace Settings & Integrations
           </h1>
           <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-            Manage payment gateways, Google Maps Platform APIs, workforce rules, and multi-tenant security policies.
+            Manage payment gateways, Google Maps Platform APIs, workforce rules, and multi-customer security policies.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <span className="px-3.5 py-1.5 bg-emerald-800/80 text-emerald-200 font-extrabold text-xs rounded-xl border border-emerald-700 shadow-xs">
-            Tenant: {tenantId}
+            Customer: {customerId}
           </span>
         </div>
       </div>
@@ -490,7 +490,7 @@ export default function SettingsPage() {
         <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xs space-y-6">
           <div>
             <h2 className="text-lg font-extrabold text-slate-900">Security & JWT Authentication</h2>
-            <p className="text-xs text-slate-500 font-medium">Manage session expiration, multi-tenant headers (`x-tenant-id`), and 2FA enforcement.</p>
+            <p className="text-xs text-slate-500 font-medium">Manage session expiration, multi-customer headers (`x-customer-id`), and 2FA enforcement.</p>
           </div>
 
           <form onSubmit={handleSaveSecurity} className="space-y-6 pt-6 border-t border-slate-100 text-xs">
@@ -519,7 +519,7 @@ export default function SettingsPage() {
             <div className="p-4 bg-emerald-50 border border-emerald-200/80 rounded-2xl space-y-2 font-mono text-emerald-800 text-xs">
               <p className="font-bold text-emerald-900">Security Parameters Summary:</p>
               <p>• JWT Passport Strategy: Enabled (RS256 signed bearer tokens)</p>
-              <p>• Row-Level Tenant Isolation: Enforced via tenantId index filtering</p>
+              <p>• Row-Level Customer Isolation: Enforced via customerId index filtering</p>
               <p>• Rate Limiting Guard: 100 requests per minute per IP</p>
             </div>
 

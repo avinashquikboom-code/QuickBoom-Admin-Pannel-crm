@@ -155,7 +155,7 @@ export default function LiveHRDashboardPage() {
               QuikBoom SaaS Platform Command Center
             </h1>
             <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-              Multi-tenant architecture health, monthly recurring revenue, and global subscription provisioning.
+              Multi-customer architecture health, monthly recurring revenue, and global subscription provisioning.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -163,7 +163,7 @@ export default function LiveHRDashboardPage() {
               onClick={() => router.push('/super-admin')}
               className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
             >
-              <Plus className="w-4 h-4" /> Tenant Management
+              <Plus className="w-4 h-4" /> Customer Management
             </button>
           </div>
         </div>
@@ -171,7 +171,7 @@ export default function LiveHRDashboardPage() {
         {/* Super Admin Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Total Active Tenants</span>
+            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Total Active Customers</span>
             <p className="text-2xl font-black text-slate-900 mt-2">42</p>
             <span className="text-[11px] font-bold text-[#1AA14D] mt-1">38 Active • 4 Free Trials</span>
           </div>

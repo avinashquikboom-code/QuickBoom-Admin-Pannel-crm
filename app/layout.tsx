@@ -4,7 +4,7 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'QuikBoom CRM - Enterprise SaaS Platform',
-  description: 'Enterprise Multi-Tenant SaaS CRM Platform for QuikBoom',
+  description: 'Enterprise Multi-Customer SaaS CRM Platform for QuikBoom',
 };
 
 export default function RootLayout({

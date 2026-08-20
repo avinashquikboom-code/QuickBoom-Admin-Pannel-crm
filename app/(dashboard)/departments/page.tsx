@@ -24,7 +24,7 @@ export default function DepartmentsPage() {
             Custom Departments
           </h1>
           <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-            Configure tenant organizational departments, assign department heads, and manage workforce structures.
+            Configure customer organizational departments, assign department heads, and manage workforce structures.
           </p>
         </div>
 

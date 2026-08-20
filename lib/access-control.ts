@@ -41,8 +41,8 @@ export type UserRole =
   | 'HR'
   | 'HR Manager'
   | 'HR Executive'
-  | 'Tenant Owner'
-  | 'Tenant Admin'
+  | 'Customer Owner'
+  | 'Customer Admin'
   | 'Manager'
   | 'Employee';
 
@@ -121,7 +121,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'settings.global',
     'subscription.view',
     'subscription.manage',
-    'tenants.manage',
+    'customers.manage',
     'plans.manage',
     'subscriptions.manage',
     'billing.manage',
@@ -293,14 +293,14 @@ export const adminNavigation: {
       ],
     },
 
-    // 7. Tenants / Companies
+    // 7. Customers / Companies
     {
-      id: 'tenants',
-      category: 'Tenants / Companies',
+      id: 'customers',
+      category: 'Customers / Companies',
       sectionIcon: Building2,
       roles: ['Super Admin'],
       items: [
-        { name: 'Tenants', href: '/super-admin', icon: Building2, permission: 'tenants.manage' },
+        { name: 'Customers', href: '/super-admin', icon: Building2, permission: 'customers.manage' },
       ],
     },
 
@@ -716,7 +716,7 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
           allowed: false,
           reason: 'FEATURE_DISABLED',
           requiredFeature: section.feature,
-          message: `The "${section.feature.toUpperCase()}" module is not included in your tenant subscription plan.`,
+          message: `The "${section.feature.toUpperCase()}" module is not included in your customer subscription plan.`,
         };
       }
     }

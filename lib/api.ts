@@ -12,13 +12,15 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      const { token, tenantId } = useAuthStore.getState();
+      const { token, customerId } = useAuthStore.getState();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-      if (tenantId) {
-        config.headers['x-tenant-id'] = tenantId;
+      if (customerId) {
+        config.headers['x-customer-id'] = customerId;
+        config.headers['x-tenant-id'] = customerId;
       }
+
     }
     
     // Log API Request

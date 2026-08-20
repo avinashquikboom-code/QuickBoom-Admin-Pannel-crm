@@ -182,7 +182,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   setShowRoleMenu(false);
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 transition-all text-xs font-bold cursor-pointer"
-                title="Toggle Subscription Features for Tenant"
+                title="Toggle Subscription Features for Customer"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-[#23C45E]" />
                 <span>Subscription Features</span>
@@ -195,7 +195,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <p className="text-[10px] uppercase font-black tracking-wider text-slate-400">
                       Active Plan Features
                     </p>
-                    <p className="text-[11px] text-slate-500 font-medium">Toggle features on/off for current tenant</p>
+                    <p className="text-[11px] text-slate-500 font-medium">Toggle features on/off for current customer</p>
                   </div>
                   <div className="space-y-1.5">
                     {subscriptionFeatureKeys.map((k) => {

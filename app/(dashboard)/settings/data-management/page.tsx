@@ -939,7 +939,7 @@ export default function DataManagementPage() {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-rose-950">Purge All Transactional Tenant Data</h2>
+              <h2 className="text-xl font-black text-rose-950">Purge All Transactional Customer Data</h2>
               <p className="text-xs sm:text-sm text-rose-900/90 font-medium mt-1">
                 This operation permanently resets all transactional application records across all modules simultaneously in a single database transaction.
               </p>
@@ -977,7 +977,7 @@ export default function DataManagementPage() {
       {activeTab === 'history' && (
         <AdminCard
           title="Data Reset Audit Trail"
-          description="Immutable log of all data purge operations executed across the tenant organization."
+          description="Immutable log of all data purge operations executed across the customer organization."
         >
           <AdminDataTable
             columns={historyColumns}

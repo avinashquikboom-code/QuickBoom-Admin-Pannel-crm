@@ -908,7 +908,7 @@ export default function GeoTrackingPage() {
         <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
           <div>
             <h3 className="text-lg font-black text-slate-900">Workforce Location Privacy & Tracking Rules</h3>
-            <p className="text-xs text-slate-500 font-medium">Enforce organizational consent guidelines, retention boundaries, and tenant isolation policies.</p>
+            <p className="text-xs text-slate-500 font-medium">Enforce organizational consent guidelines, retention boundaries, and customer isolation policies.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">

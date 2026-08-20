@@ -7,8 +7,8 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  tenantId: string | null;
-  tenantName?: string;
+  customerId: string | null;
+  customerName?: string;
   roles: string[];
   permissions?: string[];
   subscriptionFeatures?: SubscriptionFeatures;
@@ -18,10 +18,10 @@ interface AuthState {
   user: User | null;
   token: string | null;
   refreshToken: string | null;
-  tenantId: string | null;
+  customerId: string | null;
   isAuthenticated: boolean;
   setAuth: (user: User, token: string, refreshToken: string) => void;
-  setTenantId: (tenantId: string) => void;
+  setCustomerId: (customerId: string) => void;
   switchRole: (role: string) => void;
   toggleSubscriptionFeature: (feature: keyof SubscriptionFeatures, enabled: boolean) => void;
   logout: () => void;
@@ -35,15 +35,15 @@ export const useAuthStore = create<AuthState>()(
         email: 'admin@quikboom.com',
         firstName: 'Demo',
         lastName: 'User',
-        tenantId: 't-001',
-        tenantName: 'QuikBoom Enterprise',
-        roles: ['Tenant Owner'],
-        permissions: ROLE_DEFAULT_PERMISSIONS['Tenant Owner'],
+        customerId: 't-001',
+        customerName: 'QuikBoom Enterprise',
+        roles: ['Customer Owner'],
+        permissions: ROLE_DEFAULT_PERMISSIONS['Customer Owner'],
         subscriptionFeatures: { ...DEFAULT_SUBSCRIPTION_FEATURES },
       },
       token: 'demo-jwt-token-access',
       refreshToken: 'demo-jwt-token-refresh',
-      tenantId: 't-001',
+      customerId: 't-001',
       isAuthenticated: true,
 
       setAuth: (user: User, token: string, refreshToken: string) => {
@@ -59,12 +59,12 @@ export const useAuthStore = create<AuthState>()(
           },
           token,
           refreshToken,
-          tenantId: user.tenantId,
+          customerId: user.customerId,
           isAuthenticated: true,
         });
       },
 
-      setTenantId: (tenantId: string) => set({ tenantId }),
+      setCustomerId: (customerId: string) => set({ customerId }),
 
       switchRole: (role: string) => {
         const currentUser = get().user;
@@ -77,8 +77,8 @@ export const useAuthStore = create<AuthState>()(
         if (role === 'Super Admin') {
           demoFirstName = 'Super';
           demoLastName = 'Admin';
-        } else if (role === 'Tenant Owner') {
-          demoFirstName = 'Tenant';
+        } else if (role === 'Customer Owner') {
+          demoFirstName = 'Customer';
           demoLastName = 'Owner';
         } else if (role === 'HR Manager') {
           demoFirstName = 'HR';
@@ -126,7 +126,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           refreshToken: null,
-          tenantId: null,
+          customerId: null,
           isAuthenticated: false,
         }),
     }),

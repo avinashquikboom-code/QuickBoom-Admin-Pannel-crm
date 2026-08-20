@@ -22,7 +22,7 @@ import {
   ColumnDef,
 } from '@/components/admin';
 
-interface TenantRow {
+interface CustomerRow {
   id: string;
   name: string;
   plan: string;
@@ -33,9 +33,9 @@ interface TenantRow {
 }
 
 export default function SuperAdminPage() {
-  const [activeTab, setActiveTab] = useState<'tenants' | 'plans' | 'billing'>('tenants');
+  const [activeTab, setActiveTab] = useState<'customers' | 'plans' | 'billing'>('customers');
 
-  const mockTenants: TenantRow[] = [
+  const mockCustomers: CustomerRow[] = [
     { id: 't-1', name: 'Acme Enterprise India', plan: 'Professional Plan', status: 'active', users: 52, storage: '2.4 GB', mrr: '₹14,999' },
     { id: 't-2', name: 'TechCorp Solutions', plan: 'Enterprise Plan', status: 'active', users: 180, storage: '12.8 GB', mrr: '₹49,999' },
     { id: 't-3', name: 'Reliance Logistics Hub', plan: 'Starter Plan', status: 'pending', users: 12, storage: '450 MB', mrr: '₹4,999' },
@@ -47,7 +47,7 @@ export default function SuperAdminPage() {
     { id: 'p-3', name: 'Enterprise Plan', price: '₹49,999/mo', userLimit: 250, features: ['CRM', 'HRM', 'Payroll', 'Geo Tracking', 'Advanced Reports'] },
   ];
 
-  const tenantColumns: ColumnDef<TenantRow>[] = [
+  const customerColumns: ColumnDef<CustomerRow>[] = [
     {
       key: 'name',
       header: 'Company Name',
@@ -100,7 +100,7 @@ export default function SuperAdminPage() {
       {/* Super Admin Title Header */}
       <AdminPageHeader
         title="QuikBoom SaaS Super Admin Portal"
-        description="Manage multi-tenant subscriptions, platform billing, SaaS feature flags, and tenant provisioning."
+        description="Manage multi-customer subscriptions, platform billing, SaaS feature flags, and customer provisioning."
         badge={{
           text: 'PLATFORM SUPER ADMIN CONTROLS',
           icon: ShieldCheck,
@@ -110,9 +110,9 @@ export default function SuperAdminPage() {
           <AdminButton
             variant="primary"
             icon={Plus}
-            onClick={() => toast.success('Tenant provisioning modal opened')}
+            onClick={() => toast.success('Customer provisioning modal opened')}
           >
-            Provision New Tenant
+            Provision New Customer
           </AdminButton>
         }
       />
@@ -120,7 +120,7 @@ export default function SuperAdminPage() {
       {/* Top SaaS KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <AdminStatCard
-          title="Total Active Tenants"
+          title="Total Active Customers"
           value="42"
           description="38 Active • 4 Free Trials"
           icon={Building2}
@@ -154,14 +154,14 @@ export default function SuperAdminPage() {
       {/* Submodule Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
-          onClick={() => setActiveTab('tenants')}
+          onClick={() => setActiveTab('customers')}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-            activeTab === 'tenants'
+            activeTab === 'customers'
               ? 'bg-slate-900 text-white shadow-md'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          Tenant Management
+          Customer Management
         </button>
         <button
           onClick={() => setActiveTab('plans')}
@@ -175,10 +175,10 @@ export default function SuperAdminPage() {
         </button>
       </div>
 
-      {/* Tenants Table */}
-      {activeTab === 'tenants' && (
-        <AdminCard title="Active Tenant Organizations" description="Overview of provisioned enterprise accounts">
-          <AdminDataTable columns={tenantColumns} data={mockTenants} />
+      {/* Customers Table */}
+      {activeTab === 'customers' && (
+        <AdminCard title="Active Customer Organizations" description="Overview of provisioned enterprise accounts">
+          <AdminDataTable columns={customerColumns} data={mockCustomers} />
         </AdminCard>
       )}
 
