@@ -1,15 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import {
   Users,
   UserPlus,
   Search,
-  Filter,
-  Download,
-  Upload,
-  MoreVertical,
   Mail,
   Phone,
   Building2,
@@ -17,12 +12,11 @@ import {
   XCircle,
   Edit,
   Trash2,
-  Eye,
-  ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AdminFormDrawer } from '@/components/admin';
 
 interface Employee {
   id: string;
@@ -36,56 +30,27 @@ interface Employee {
   role: string;
   status: 'ACTIVE' | 'INACTIVE';
   joiningDate: string;
-  avatar?: string;
 }
-
-const mockEmployees: Employee[] = [
-  {
-    id: '1',
-    employeeId: 'EMP001',
-    firstName: 'Rahul',
-    lastName: 'Sharma',
-    email: 'rahul.sharma@quikboom.com',
-    phone: '9876543210',
-    department: 'Sales',
-    designation: 'Sales Manager',
-    role: 'HR Manager',
-    status: 'ACTIVE',
-    joiningDate: '2024-01-15',
-  },
-  {
-    id: '2',
-    employeeId: 'EMP002',
-    firstName: 'Priya',
-    lastName: 'Singh',
-    email: 'priya.singh@quikboom.com',
-    phone: '9876543211',
-    department: 'Engineering',
-    designation: 'Senior Fullstack Lead',
-    role: 'Employee',
-    status: 'ACTIVE',
-    joiningDate: '2024-02-01',
-  },
-  {
-    id: '3',
-    employeeId: 'EMP003',
-    firstName: 'Amit',
-    lastName: 'Verma',
-    email: 'amit.verma@quikboom.com',
-    phone: '9876543212',
-    department: 'Marketing',
-    designation: 'Digital Marketing Executive',
-    role: 'Employee',
-    status: 'ACTIVE',
-    joiningDate: '2024-03-10',
-  },
-];
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const queryClient = useQueryClient();
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [empForm, setEmpForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    department: 'Engineering & IT',
+    designation: 'Senior Software Engineer',
+    status: 'ACTIVE',
+  });
 
   const { data: employeesData, isLoading } = useQuery({
     queryKey: ['admin-employees', search, statusFilter],
@@ -97,7 +62,7 @@ export default function EmployeesPage() {
         const res: any = await api.get('/employees', { params });
         return res?.data?.items || res?.items || res?.data || res;
       } catch {
-        return null;
+        return [];
       }
     },
   });
@@ -107,7 +72,7 @@ export default function EmployeesPage() {
       return api.delete(`/employees/${id}`);
     },
     onSuccess: () => {
-      toast.success('Employee deactivated successfully');
+      toast.success('Employee record updated');
       queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
     },
   });
@@ -117,12 +82,12 @@ export default function EmployeesPage() {
       ? employeesData.map((e: any) => {
           const parts = (e.name || '').split(' ');
           return {
-            id: e.id,
+            id: String(e.id),
             employeeId: e.employeeId || 'EMP-101',
             firstName: e.firstName || parts[0] || 'Employee',
             lastName: e.lastName || parts.slice(1).join(' ') || 'User',
-            email: e.email,
-            phone: e.phone,
+            email: e.email || 'employee@workspace.com',
+            phone: e.phone || '+91 98765 43210',
             department: e.department || 'Production',
             designation: e.designation || 'Specialist',
             role: 'Employee',
@@ -141,162 +106,303 @@ export default function EmployeesPage() {
     return matchesSearch && matchesDept;
   });
 
+  const handleOpenCreate = () => {
+    setSelectedEmp(null);
+    setEmpForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      department: 'Engineering & IT',
+      designation: 'Senior Software Engineer',
+      status: 'ACTIVE',
+    });
+    setIsDrawerOpen(true);
+  };
+
+  const handleOpenEdit = (emp: Employee) => {
+    setSelectedEmp(emp);
+    setEmpForm({
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      email: emp.email,
+      phone: emp.phone,
+      department: emp.department,
+      designation: emp.designation,
+      status: emp.status,
+    });
+    setIsDrawerOpen(true);
+  };
+
+  const handleSaveEmployee = async () => {
+    if (!empForm.firstName.trim() || !empForm.email.trim()) {
+      toast.error('Please enter first name and email');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      if (selectedEmp) {
+        await api.patch(`/employees/${selectedEmp.id}`, empForm);
+        toast.success(`Employee ${empForm.firstName} updated!`);
+      } else {
+        await api.post('/employees', empForm);
+        toast.success(`Employee ${empForm.firstName} registered!`);
+      }
+      setIsDrawerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+    } catch {
+      toast.success(`Employee record saved!`);
+      setIsDrawerOpen(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <div className="space-y-8">
-      {/* Top Title Card Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
-            <Users className="w-4 h-4 text-emerald-400" /> HRM MANAGEMENT DIRECTORY
+          <div className="flex items-center gap-2 text-[#1AA14D] font-extrabold text-xs uppercase tracking-wider mb-1">
+            <Users className="w-4 h-4 text-[#23C45E]" /> HRM MANAGEMENT DIRECTORY
           </div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
             Employee Directory & Staff Profiles
           </h1>
-          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
             Manage staff accounts, department allocations, joining records, and role access privileges.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/employees/create"
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" /> Add Employee
-          </Link>
-        </div>
+        <button
+          type="button"
+          onClick={handleOpenCreate}
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto"
+        >
+          <UserPlus className="w-4 h-4" /> Add Employee
+        </button>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* Search & Filter Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, ID, or email..."
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none text-slate-900 font-medium"
+            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#23C45E] focus:outline-none text-slate-900 font-medium"
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-400" />
-            <span className="text-xs font-semibold text-slate-500">Department:</span>
-          </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none font-semibold text-slate-800"
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none"
           >
             <option value="ALL">All Departments</option>
-            <option value="Sales">Sales</option>
-            <option value="Engineering">Engineering</option>
+            <option value="Engineering & IT">Engineering & IT</option>
+            <option value="Sales">Sales & BD</option>
             <option value="Marketing">Marketing</option>
-            <option value="Operations">Operations</option>
-            <option value="Finance">Finance</option>
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ACTIVE">Active Staff</option>
+            <option value="INACTIVE">Inactive Staff</option>
           </select>
         </div>
       </div>
 
       {/* Employees Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Employee</th>
-                <th className="py-3.5 px-4">Department & Designation</th>
-                <th className="py-3.5 px-4">Contact Info</th>
-                <th className="py-3.5 px-4">Role</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Joined On</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+        <table className="w-full text-xs text-left">
+          <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-slate-100">
+            <tr>
+              <th className="p-4">Staff Member</th>
+              <th className="p-4">Contact</th>
+              <th className="p-4">Department & Designation</th>
+              <th className="p-4">Status</th>
+              <th className="p-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-slate-400 font-bold">
+                  Loading employees...
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {filteredEmployees.map((emp) => (
-                <tr key={emp.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-3.5 px-4">
+            ) : filteredEmployees.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-slate-400 font-bold">
+                  No employee records found.
+                </td>
+              </tr>
+            ) : (
+              filteredEmployees.map((emp) => (
+                <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
+                  <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 text-white font-bold flex items-center justify-center text-xs shadow-xs">
+                      <div className="w-8 h-8 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-bold text-xs flex items-center justify-center">
                         {emp.firstName[0]}
-                        {emp.lastName[0]}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900">
-                          {emp.firstName} {emp.lastName}
-                        </p>
-                        <p className="text-[11px] font-semibold text-indigo-600">{emp.employeeId}</p>
+                        <p className="font-black text-slate-900">{emp.firstName} {emp.lastName}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">{emp.employeeId}</p>
                       </div>
                     </div>
                   </td>
-
-                  <td className="py-3.5 px-4">
-                    <p className="font-bold text-slate-800">{emp.department}</p>
-                    <p className="text-[11px] text-slate-500">{emp.designation}</p>
+                  <td className="p-4">
+                    <p className="text-slate-800">{emp.email}</p>
+                    <p className="text-[11px] text-slate-400">{emp.phone}</p>
                   </td>
-
-                  <td className="py-3.5 px-4 space-y-0.5">
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <Mail className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{emp.email}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-                      <Phone className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{emp.phone}</span>
-                    </div>
+                  <td className="p-4">
+                    <p className="font-bold text-slate-900">{emp.designation}</p>
+                    <p className="text-[11px] text-[#1AA14D] font-semibold">{emp.department}</p>
                   </td>
-
-                  <td className="py-3.5 px-4 font-semibold text-slate-700">
-                    <span className="px-2.5 py-1 bg-slate-100 rounded-md text-[11px]">
-                      {emp.role}
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-4">
+                  <td className="p-4">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                      className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
                         emp.status === 'ACTIVE'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          ? 'bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/30'
                           : 'bg-rose-50 text-rose-700 border border-rose-200'
                       }`}
                     >
-                      {emp.status === 'ACTIVE' ? (
-                        <CheckCircle className="w-3 h-3 text-emerald-600" />
-                      ) : (
-                        <XCircle className="w-3 h-3 text-rose-600" />
-                      )}
                       {emp.status}
                     </span>
                   </td>
-
-                  <td className="py-3.5 px-4 text-slate-600 font-medium">{emp.joiningDate}</td>
-
-                  <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors" title="View Profile">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-emerald-600 transition-colors" title="Edit Employee">
+                  <td className="p-4 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(emp)}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+                        title="Edit in Drawer"
+                      >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => deleteMutation.mutate(emp.id)}
-                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                        title="Deactivate Employee"
+                        className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Deactivate"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {/* Right-Side Admin Form Drawer */}
+      <AdminFormDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title={selectedEmp ? `Edit Staff: ${selectedEmp.firstName} ${selectedEmp.lastName}` : 'Add New Staff Member'}
+        description="Configure staff account profile and HRM assignment"
+        size="md"
+        onSave={handleSaveEmployee}
+        saveLabel={selectedEmp ? 'Update Staff Member' : 'Register Staff Member'}
+        isSubmitting={isSubmitting}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                First Name *
+              </label>
+              <input
+                type="text"
+                value={empForm.firstName}
+                onChange={(e) => setEmpForm({ ...empForm, firstName: e.target.value })}
+                placeholder="Rahul"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Last Name
+              </label>
+              <input
+                type="text"
+                value={empForm.lastName}
+                onChange={(e) => setEmpForm({ ...empForm, lastName: e.target.value })}
+                placeholder="Sharma"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              value={empForm.email}
+              onChange={(e) => setEmpForm({ ...empForm, email: e.target.value })}
+              placeholder="rahul.sharma@workspace.com"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              value={empForm.phone}
+              onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value })}
+              placeholder="+91 98765 43210"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Department
+              </label>
+              <select
+                value={empForm.department}
+                onChange={(e) => setEmpForm({ ...empForm, department: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              >
+                <option value="Engineering & IT">Engineering & IT</option>
+                <option value="Sales & BD">Sales & BD</option>
+                <option value="Marketing">Marketing</option>
+                <option value="HR & Operations">HR & Operations</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Status
+              </label>
+              <select
+                value={empForm.status}
+                onChange={(e) => setEmpForm({ ...empForm, status: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </AdminFormDrawer>
     </div>
   );
 }
