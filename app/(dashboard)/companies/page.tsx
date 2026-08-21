@@ -69,7 +69,7 @@ export default function CompaniesPage() {
       </div>
 
       {/* Companies Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {companies.map((c) => (
           <div key={c.id} className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 hover:border-emerald-500 transition-all">
             <div className="flex items-center justify-between">

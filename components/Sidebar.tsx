@@ -21,9 +21,10 @@ import {
 interface SidebarProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  onNavigate?: () => void;
 }
 
-export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
@@ -188,6 +189,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse }: 
               <div key={section.id}>
                 <Link
                   href={singleItem.href}
+                  onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border transition-all duration-200 font-extrabold cursor-pointer group ${
                     isActive
@@ -275,6 +277,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse }: 
                       <Link
                         key={item.name + item.href}
                         href={item.href}
+                        onClick={onNavigate}
                         aria-current={isActive ? 'page' : undefined}
                         className={`flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl transition-all duration-150 ${
                           isActive

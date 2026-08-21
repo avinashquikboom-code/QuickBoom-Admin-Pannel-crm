@@ -156,7 +156,7 @@ export default function InvoicesPage() {
       {/* Invoices Table */}
       <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-slate-50 border-b border-[#E5E7EB] text-xs font-semibold text-[#64748B] uppercase tracking-wider">
                 <th className="py-3.5 px-6">Invoice ID</th>
