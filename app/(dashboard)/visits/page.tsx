@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { MapPin, Calendar, Clock, Building2, User, CheckCircle2, Navigation } from 'lucide-react';
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 interface VisitRecord {
   id: string;
@@ -45,6 +47,33 @@ const mockVisits: VisitRecord[] = [
 ];
 
 export default function FieldVisitsPage() {
+  const { data: visitsData } = useQuery({
+    queryKey: ['admin-visits'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/visits');
+        return res?.data?.items || res?.items || res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const visits: VisitRecord[] =
+    Array.isArray(visitsData) && visitsData.length > 0
+      ? visitsData.map((v: any) => ({
+          id: v.id,
+          employeeName: v.employeeName || 'Assigned Representative',
+          clientCompany: v.clientName || 'Client Company',
+          location: v.location || 'Bandra, Mumbai',
+          purpose: v.purpose || 'Client Meeting',
+          startTime: v.time || '10:00 AM',
+          endTime: '-',
+          duration: v.duration || '45m',
+          status: v.status || 'SCHEDULED',
+          date: v.date ? new Date(v.date).toLocaleDateString() : '2026-08-21',
+        }))
+      : mockVisits;
   return (
     <div className="space-y-8">
       {/* Top Title Card Header */}
@@ -100,7 +129,7 @@ export default function FieldVisitsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {mockVisits.map((v) => (
+              {visits.map((v) => (
                 <tr key={v.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-3.5 px-4 font-bold text-slate-900">{v.employeeName}</td>
                   <td className="py-3.5 px-4 font-bold text-indigo-600 flex items-center gap-1.5 pt-4">

@@ -43,15 +43,15 @@ export default function InvoicesPage() {
     queryKey: ['invoices', search],
     queryFn: async () => {
       try {
-        const res = await api.get(`/invoices?search=${search}`);
-        return res.data;
+        const res: any = await api.get(`/invoices`);
+        return res?.data?.items || res?.items || res?.data || res;
       } catch (e) {
         return null;
       }
     },
   });
 
-  const invoicesList = invoicesData && invoicesData.length > 0 ? invoicesData : demoInvoices;
+  const invoicesList = Array.isArray(invoicesData) && invoicesData.length > 0 ? invoicesData : demoInvoices;
 
   const filteredInvoices = invoicesList.filter((inv: any) => {
     const matchesSearch =

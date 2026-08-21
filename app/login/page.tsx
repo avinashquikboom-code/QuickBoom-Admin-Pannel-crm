@@ -21,7 +21,7 @@ import { toast } from 'react-hot-toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('admin@quikboom.com');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('123456');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -71,7 +71,7 @@ export default function LoginPage() {
 
   const fillQuickDemo = (demoEmail: string) => {
     setEmail(demoEmail);
-    setPassword('password123');
+    setPassword('123456');
     toast.success(`Demo credentials filled for ${demoEmail}`);
   };
 

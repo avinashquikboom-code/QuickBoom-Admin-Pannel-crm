@@ -2,6 +2,9 @@
 
 import React, { useState } from 'react';
 import { Bell, CheckCircle2, Clock, Calendar, Check, Trash2, Mail } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface NotificationItem {
   id: string;
@@ -15,35 +18,71 @@ interface NotificationItem {
 const mockNotifications: NotificationItem[] = [
   {
     id: '1',
-    title: 'Leave Request Approved',
-    message: 'Your casual leave request from 20-Aug to 22-Aug has been approved by HR.',
+    title: 'Work Scheduled: 2 Reels Production',
+    message: 'SSM Team A scheduled on-site shooting for Acme Enterprises at Bandra Studio.',
     time: '10 minutes ago',
-    isRead: false,
-    type: 'LEAVE',
-  },
-  {
-    id: '2',
-    title: 'New Lead Assigned',
-    message: 'Lead "Apex Tech Solutions" (₹4,50,000) has been assigned to your sales pipeline.',
-    time: '1 hour ago',
     isRead: false,
     type: 'CRM',
   },
   {
-    id: '3',
-    title: 'January Salary Slips Ready',
-    message: 'Monthly payroll slips have been generated and dispatched to your profile.',
-    time: 'Yesterday',
-    isRead: true,
+    id: '2',
+    title: 'Payment Received: ₹49,999',
+    message: 'TechCorp Solutions renewed their Enterprise Plan for 1 Year.',
+    time: '1 hour ago',
+    isRead: false,
     type: 'PAYROLL',
   },
 ];
 
 export default function NotificationsPage() {
-  const [items, setItems] = useState<NotificationItem[]>(mockNotifications);
+  const queryClient = useQueryClient();
+
+  const { data: notificationsData } = useQuery({
+    queryKey: ['admin-notifications'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/notifications');
+        return res?.data?.items || res?.items || res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      return api.patch('/notifications/read-all', {});
+    },
+    onSuccess: () => {
+      toast.success('All notifications marked as read');
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    },
+  });
+
+  const markSingleReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return api.patch(`/notifications/${id}/read`, {});
+    },
+    onSuccess: () => {
+      toast.success('Notification dismissed');
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    },
+  });
+
+  const items: NotificationItem[] =
+    Array.isArray(notificationsData) && notificationsData.length > 0
+      ? notificationsData.map((n: any) => ({
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent',
+          isRead: Boolean(n.isRead),
+          type: n.type === 'PAYMENT_RECEIVED' ? 'PAYROLL' : 'CRM',
+        }))
+      : mockNotifications;
 
   const markAllRead = () => {
-    setItems(items.map((i) => ({ ...i, isRead: true })));
+    markAllReadMutation.mutate();
   };
 
   return (
@@ -58,25 +97,35 @@ export default function NotificationsPage() {
 
         <button
           onClick={markAllRead}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-bold transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-bold transition-all cursor-pointer"
         >
-          <Check className="w-4 h-4" /> Mark All as Read
+          <Check className="w-4 h-4" /> Mark all as read
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+      <div className="space-y-3">
         {items.map((item) => (
           <div
             key={item.id}
-            className={`p-5 flex items-start justify-between transition-colors ${
-              !item.isRead ? 'bg-indigo-50/40' : 'hover:bg-slate-50'
+            className={`p-4 rounded-2xl border transition-all flex items-start justify-between gap-4 ${
+              item.isRead
+                ? 'bg-white border-slate-200/80 opacity-75'
+                : 'bg-indigo-50/40 border-indigo-100'
             }`}
           >
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
-                <Bell className="w-5 h-5" />
+            <div className="flex items-start gap-3.5">
+              <div
+                className={`p-2.5 rounded-xl ${
+                  item.type === 'LEAVE'
+                    ? 'bg-emerald-50 text-emerald-600'
+                    : item.type === 'CRM'
+                    ? 'bg-indigo-50 text-indigo-600'
+                    : 'bg-amber-50 text-amber-600'
+                }`}
+              >
+                <Bell className="w-4 h-4" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-slate-900 text-sm">{item.title}</h3>
                   {!item.isRead && (
@@ -89,8 +138,9 @@ export default function NotificationsPage() {
             </div>
 
             <button
-              onClick={() => setItems(items.filter((i) => i.id !== item.id))}
-              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"
+              onClick={() => markSingleReadMutation.mutate(item.id)}
+              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer"
+              title="Dismiss notification"
             >
               <Trash2 className="w-4 h-4" />
             </button>

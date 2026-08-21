@@ -49,17 +49,42 @@ export default function SuperAdminPage() {
     },
   });
 
+  const { data: customersResponse } = useQuery({
+    queryKey: ['admin-customers'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/customers');
+        return res?.data?.items || res?.items || res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
+
   const rawPlans = Array.isArray(plansResponse)
     ? plansResponse
     : Array.isArray(plansResponse?.data)
     ? plansResponse.data
     : null;
 
-  const mockCustomers: CustomerRow[] = [
+  const defaultMockCustomers: CustomerRow[] = [
     { id: 't-1', name: 'Acme Enterprise India', plan: 'Professional Plan', status: 'active', users: 52, storage: '2.4 GB', mrr: '₹14,999' },
     { id: 't-2', name: 'TechCorp Solutions', plan: 'Enterprise Plan', status: 'active', users: 180, storage: '12.8 GB', mrr: '₹49,999' },
     { id: 't-3', name: 'Reliance Logistics Hub', plan: 'Starter Plan', status: 'pending', users: 12, storage: '450 MB', mrr: '₹4,999' },
   ];
+
+  const mockCustomers: CustomerRow[] =
+    Array.isArray(customersResponse) && customersResponse.length > 0
+      ? customersResponse.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          plan: c.plan || 'Starter Plan',
+          status: c.status || (c.isActive ? 'active' : 'inactive'),
+          users: c.users || 1,
+          storage: c.storage || '0 MB',
+          mrr: c.mrr || '₹4,999',
+        }))
+      : defaultMockCustomers;
 
   const defaultMockPlans = [
     { id: 'p-1', name: 'Starter Plan', price: '₹4,999/mo', userLimit: 15, features: ['CRM', 'Attendance', 'Leave'] },

@@ -20,6 +20,9 @@ import {
   Eye,
   ShieldAlert,
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Employee {
   id: string;
@@ -76,38 +79,58 @@ const mockEmployees: Employee[] = [
     status: 'ACTIVE',
     joiningDate: '2024-03-10',
   },
-  {
-    id: '4',
-    employeeId: 'EMP004',
-    firstName: 'Sneha',
-    lastName: 'Gupta',
-    email: 'sneha.gupta@quikboom.com',
-    phone: '9876543213',
-    department: 'Operations',
-    designation: 'Field Visit Supervisor',
-    role: 'Employee',
-    status: 'ACTIVE',
-    joiningDate: '2024-04-05',
-  },
-  {
-    id: '5',
-    employeeId: 'EMP005',
-    firstName: 'Vikram',
-    lastName: 'Mehta',
-    email: 'vikram.mehta@quikboom.com',
-    phone: '9876543214',
-    department: 'Finance',
-    designation: 'Payroll Accountant',
-    role: 'Finance Manager',
-    status: 'INACTIVE',
-    joiningDate: '2023-11-20',
-  },
 ];
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const queryClient = useQueryClient();
+
+  const { data: employeesData, isLoading } = useQuery({
+    queryKey: ['admin-employees', search, statusFilter],
+    queryFn: async () => {
+      try {
+        const params: Record<string, string> = {};
+        if (search) params.search = search;
+        if (statusFilter !== 'ALL') params.status = statusFilter;
+        const res: any = await api.get('/employees', { params });
+        return res?.data?.items || res?.items || res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return api.delete(`/employees/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Employee deactivated successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+    },
+  });
+
+  const employees: Employee[] =
+    Array.isArray(employeesData) && employeesData.length > 0
+      ? employeesData.map((e: any) => {
+          const parts = (e.name || '').split(' ');
+          return {
+            id: e.id,
+            employeeId: e.employeeId || 'EMP-101',
+            firstName: e.firstName || parts[0] || 'Employee',
+            lastName: e.lastName || parts.slice(1).join(' ') || 'User',
+            email: e.email,
+            phone: e.phone,
+            department: e.department || 'Production',
+            designation: e.designation || 'Specialist',
+            role: 'Employee',
+            status: e.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
+            joiningDate: e.joiningDate ? new Date(e.joiningDate).toLocaleDateString() : '2024-01-15',
+          };
+        })
+      : mockEmployees;
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
@@ -260,9 +283,9 @@ export default function EmployeesPage() {
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => setEmployees(employees.filter((e) => e.id !== emp.id))}
-                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-rose-600 transition-colors"
-                        title="Delete Employee"
+                        onClick={() => deleteMutation.mutate(emp.id)}
+                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Deactivate Employee"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

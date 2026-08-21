@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { History, Shield, Terminal, User } from 'lucide-react';
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 interface AuditLog {
   id: string;
@@ -13,13 +15,37 @@ interface AuditLog {
   status: 'SUCCESS' | 'WARNING' | 'FAILED';
 }
 
-const mockLogs: AuditLog[] = [
-  { id: '1', action: 'EMPLOYEE_CREATED', user: 'Admin User', ipAddress: '192.168.1.100', entity: 'Employee (EMP005)', timestamp: '2026-08-15 09:12:00', status: 'SUCCESS' },
-  { id: '2', action: 'SALARY_SLIP_GENERATED', user: 'Vikram Mehta', ipAddress: '192.168.1.104', entity: 'Payroll Batch (Aug 2026)', timestamp: '2026-08-15 11:30:15', status: 'SUCCESS' },
-  { id: '3', action: 'LEAVE_APPROVED', user: 'Rahul Sharma', ipAddress: '192.168.1.102', entity: 'LeaveRequest (#849)', timestamp: '2026-08-15 12:05:44', status: 'SUCCESS' },
+const defaultMockLogs: AuditLog[] = [
+  { id: '1', action: 'LOGIN', user: 'Demo User', ipAddress: '127.0.0.1', entity: 'Session Token Issued', timestamp: '2026-08-21 09:12:00', status: 'SUCCESS' },
+  { id: '2', action: 'SCHEDULE', user: 'Demo User', ipAddress: '127.0.0.1', entity: 'Reels Shoot (#1)', timestamp: '2026-08-21 09:15:30', status: 'SUCCESS' },
+  { id: '3', action: 'PAYMENT_VERIFIED', user: 'System Webhook', ipAddress: '127.0.0.1', entity: 'Subscription Order (#ORD-9821)', timestamp: '2026-08-21 08:45:10', status: 'SUCCESS' },
 ];
 
 export default function AuditLogsPage() {
+  const { data: auditData } = useQuery({
+    queryKey: ['admin-audit-logs'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/audit-logs');
+        return res?.data?.items || res?.items || res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const mockLogs: AuditLog[] =
+    Array.isArray(auditData) && auditData.length > 0
+      ? auditData.map((l: any) => ({
+          id: l.id,
+          action: l.action || 'MUTATION',
+          user: l.actor || 'Administrator',
+          ipAddress: l.ipAddress || '127.0.0.1',
+          entity: `${l.module || 'SYSTEM'} Event`,
+          timestamp: l.createdAt ? new Date(l.createdAt).toLocaleString() : '2026-08-21 09:00',
+          status: 'SUCCESS',
+        }))
+      : defaultMockLogs;
   return (
     <div className="space-y-8">
       {/* Top Title Card Header */}

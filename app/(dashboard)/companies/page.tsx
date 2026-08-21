@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Building2, Plus, Mail, Phone, ExternalLink } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 interface Company {
   id: string;
@@ -20,7 +22,27 @@ const mockCompanies: Company[] = [
 ];
 
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>(mockCompanies);
+  const { data: customersData, isLoading } = useQuery({
+    queryKey: ['customers-list'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/customers');
+        return res?.data?.items || res?.items || res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const companies: Company[] = customersData && Array.isArray(customersData) && customersData.length > 0
+    ? customersData.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        industry: c.plan || 'Enterprise Account',
+        location: c.city ? `${c.city}, ${c.state || 'India'}` : 'Mumbai, MH',
+        dealsCount: c.leads || 1,
+      }))
+    : mockCompanies;
 
   return (
     <div className="space-y-8">
