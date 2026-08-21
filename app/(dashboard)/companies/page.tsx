@@ -42,7 +42,7 @@ export default function CompaniesPage() {
         location: c.city ? `${c.city}, ${c.state || 'India'}` : 'Mumbai, MH',
         dealsCount: c.leads || 1,
       }))
-    : mockCompanies;
+    : [];
 
   return (
     <div className="space-y-8">

@@ -11,55 +11,55 @@ import {
   MapPin,
 } from 'lucide-react';
 
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+
 interface RemoteRequest {
   id: string;
   employeeName: string;
   employeeId: string;
-  department: string;
-  fromDate: string;
-  toDate: string;
+  department?: string;
+  fromDate?: string;
+  toDate?: string;
+  date?: string;
   totalDays: number;
   reason: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   appliedOn: string;
 }
 
-const mockRemoteRequests: RemoteRequest[] = [
-  {
-    id: '1',
-    employeeName: 'Priya Singh',
-    employeeId: 'EMP002',
-    department: 'Engineering',
-    fromDate: '2026-08-18',
-    toDate: '2026-08-19',
-    totalDays: 2,
-    reason: 'Deep focus work on sprint release release build',
-    status: 'PENDING',
-    appliedOn: '2026-08-14',
-  },
-  {
-    id: '2',
-    employeeName: 'Amit Verma',
-    employeeId: 'EMP003',
-    department: 'Marketing',
-    fromDate: '2026-08-15',
-    toDate: '2026-08-15',
-    totalDays: 1,
-    reason: 'Working from home due to apartment maintenance',
-    status: 'APPROVED',
-    appliedOn: '2026-08-13',
-  },
-];
-
 export default function RemoteWorkPage() {
-  const [requests, setRequests] = useState<RemoteRequest[]>(mockRemoteRequests);
+  const { data: remoteData } = useQuery({
+    queryKey: ['admin-hrm-remote-requests'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees/hrm/remote-requests');
+        return res?.data || res;
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const [localStatusMap, setLocalStatusMap] = useState<Record<string, 'APPROVED' | 'REJECTED'>>({});
+
+  const requests: RemoteRequest[] = Array.isArray(remoteData)
+    ? remoteData.map((r: any) => ({
+        ...r,
+        department: r.department || 'General',
+        fromDate: r.date || r.fromDate || '2026-08-21',
+        toDate: r.date || r.toDate || '2026-08-21',
+        totalDays: r.totalDays || 1,
+        status: localStatusMap[r.id] || r.status,
+      }))
+    : [];
 
   const handleApprove = (id: string) => {
-    setRequests(requests.map((r) => (r.id === id ? { ...r, status: 'APPROVED' } : r)));
+    setLocalStatusMap((prev) => ({ ...prev, [id]: 'APPROVED' }));
   };
 
   const handleReject = (id: string) => {
-    setRequests(requests.map((r) => (r.id === id ? { ...r, status: 'REJECTED' } : r)));
+    setLocalStatusMap((prev) => ({ ...prev, [id]: 'REJECTED' }));
   };
 
   return (

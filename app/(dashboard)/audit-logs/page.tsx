@@ -34,7 +34,7 @@ export default function AuditLogsPage() {
     },
   });
 
-  const mockLogs: AuditLog[] =
+  const logs: AuditLog[] =
     Array.isArray(auditData) && auditData.length > 0
       ? auditData.map((l: any) => ({
           id: l.id,
@@ -45,7 +45,7 @@ export default function AuditLogsPage() {
           timestamp: l.createdAt ? new Date(l.createdAt).toLocaleString() : '2026-08-21 09:00',
           status: 'SUCCESS',
         }))
-      : defaultMockLogs;
+      : [];
   return (
     <div className="space-y-8">
       {/* Top Title Card Header */}
@@ -77,7 +77,7 @@ export default function AuditLogsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {mockLogs.map((log) => (
+              {logs.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-3.5 px-4 font-mono font-bold text-indigo-600">{log.action}</td>
                   <td className="py-3.5 px-4 font-bold text-slate-900">{log.user}</td>

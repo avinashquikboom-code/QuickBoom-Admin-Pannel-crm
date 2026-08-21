@@ -15,75 +15,53 @@ import {
   FileCheck,
 } from 'lucide-react';
 
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+
 interface AttendanceRecord {
   id: string;
   employeeName: string;
   employeeId: string;
-  department: string;
+  department?: string;
   date: string;
   checkIn: string;
   checkOut: string;
-  workingHours: number;
+  workingHours: number | string;
   status: 'PRESENT' | 'ABSENT' | 'LATE' | 'REMOTE' | 'HALF_DAY';
   location: string;
 }
 
-const mockAttendance: AttendanceRecord[] = [
-  {
-    id: '1',
-    employeeName: 'Rahul Sharma',
-    employeeId: 'EMP001',
-    department: 'Sales',
-    date: '2026-08-15',
-    checkIn: '09:00 AM',
-    checkOut: '06:00 PM',
-    workingHours: 9.0,
-    status: 'PRESENT',
-    location: 'Bandra HQ (GPS Verified)',
-  },
-  {
-    id: '2',
-    employeeName: 'Priya Singh',
-    employeeId: 'EMP002',
-    department: 'Engineering',
-    date: '2026-08-15',
-    checkIn: '09:42 AM',
-    checkOut: '06:15 PM',
-    workingHours: 8.5,
-    status: 'LATE',
-    location: 'Remote / WFH',
-  },
-  {
-    id: '3',
-    employeeName: 'Amit Verma',
-    employeeId: 'EMP003',
-    department: 'Marketing',
-    date: '2026-08-15',
-    checkIn: '09:05 AM',
-    checkOut: '05:30 PM',
-    workingHours: 8.4,
-    status: 'REMOTE',
-    location: 'Client Site (Andheri)',
-  },
-  {
-    id: '4',
-    employeeName: 'Sneha Gupta',
-    employeeId: 'EMP004',
-    department: 'Operations',
-    date: '2026-08-15',
-    checkIn: '-',
-    checkOut: '-',
-    workingHours: 0,
-    status: 'ABSENT',
-    location: 'N/A',
-  },
-];
-
 export default function AttendancePage() {
-  const [records, setRecords] = useState<AttendanceRecord[]>(mockAttendance);
-  const [selectedDate, setSelectedDate] = useState('2026-08-15');
+  const { data: attendanceData } = useQuery({
+    queryKey: ['admin-hrm-attendance'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees/hrm/attendance');
+        return res?.data || res;
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const [selectedDate, setSelectedDate] = useState('2026-08-21');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+
+  const records: AttendanceRecord[] = Array.isArray(attendanceData)
+    ? attendanceData.map((a: any) => ({
+        id: a.id,
+        employeeName: a.employeeName || 'Employee',
+        employeeId: a.employeeId || 'EMP-001',
+        department: a.department || 'Production',
+        date: a.date || '2026-08-21',
+        checkIn: a.punchIn || '09:00 AM',
+        checkOut: a.punchOut || '06:00 PM',
+        workingHours: a.workingHours || 8,
+        status: (a.status as any) || 'PRESENT',
+        location: a.location || 'Office GPS',
+      }))
+    : [];
 
   const filtered = records.filter((r) => {
     return statusFilter === 'ALL' || r.status === statusFilter;

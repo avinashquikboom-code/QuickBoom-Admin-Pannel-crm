@@ -73,7 +73,7 @@ export default function FieldVisitsPage() {
           status: v.status || 'SCHEDULED',
           date: v.date ? new Date(v.date).toLocaleDateString() : '2026-08-21',
         }))
-      : mockVisits;
+      : [];
   return (
     <div className="space-y-8">
       {/* Top Title Card Header */}

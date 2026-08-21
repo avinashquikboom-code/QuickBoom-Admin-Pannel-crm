@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { ShieldCheck, Lock, Check, Plus, Edit } from 'lucide-react';
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 interface Role {
   id: string;
@@ -12,14 +14,29 @@ interface Role {
   isSystem: boolean;
 }
 
-const mockRoles: Role[] = [
-  { id: '1', name: 'Customer Super Admin', description: 'Full system control across HRM & CRM', permissionsCount: 48, isSystem: true },
-  { id: '2', name: 'HR Manager', description: 'Employee management, attendance, leave approval & payroll', permissionsCount: 32, isSystem: false },
-  { id: '3', name: 'Sales Manager', description: 'CRM leads, deal pipeline, contacts, and field visit oversight', permissionsCount: 26, isSystem: false },
-  { id: '4', name: 'Employee', description: 'Self check-in, leave application, remote request & profile view', permissionsCount: 12, isSystem: true },
-];
-
 export default function RolesPermissionsPage() {
+  const { data: rolesData, isLoading } = useQuery({
+    queryKey: ['admin-roles-list'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/auth/roles');
+        return res?.data || res;
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const roles: Role[] = Array.isArray(rolesData)
+    ? rolesData.map((r: any) => ({
+        id: String(r.id),
+        name: r.name,
+        description: r.description || 'Access role for CRM and HRM modules',
+        permissionsCount: r.permissionsCount || 24,
+        isSystem: Boolean(r.isSystem),
+      }))
+    : [];
+
   return (
     <div className="space-y-8">
       {/* Top Title Card Header */}
@@ -47,7 +64,7 @@ export default function RolesPermissionsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {mockRoles.map((role) => (
+        {roles.map((role) => (
           <div key={role.id} className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -61,16 +78,25 @@ export default function RolesPermissionsPage() {
                   </span>
                 </div>
               </div>
-              <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500">
+              <Link
+                href={`/roles-permissions/roles/${role.id}/edit`}
+                className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+              >
                 <Edit className="w-4 h-4" />
-              </button>
+              </Link>
             </div>
 
-            <p className="text-xs text-slate-600 font-medium">{role.description}</p>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              {role.description}
+            </p>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
-              <span className="text-slate-500">{role.permissionsCount} Active Permissions</span>
-              <span className="text-indigo-600 hover:underline cursor-pointer">Edit Matrix →</span>
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-medium">
+                {role.permissionsCount} Active Permissions
+              </span>
+              <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
+                <Check className="w-3.5 h-3.5" /> Enforced in JWT
+              </span>
             </div>
           </div>
         ))}

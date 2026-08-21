@@ -130,7 +130,7 @@ export default function EmployeesPage() {
             joiningDate: e.joiningDate ? new Date(e.joiningDate).toLocaleDateString() : '2024-01-15',
           };
         })
-      : mockEmployees;
+      : [];
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =

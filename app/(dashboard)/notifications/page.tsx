@@ -79,7 +79,7 @@ export default function NotificationsPage() {
           isRead: Boolean(n.isRead),
           type: n.type === 'PAYMENT_RECEIVED' ? 'PAYROLL' : 'CRM',
         }))
-      : mockNotifications;
+      : [];
 
   const markAllRead = () => {
     markAllReadMutation.mutate();

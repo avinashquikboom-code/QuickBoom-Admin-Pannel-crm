@@ -67,30 +67,18 @@ export default function SuperAdminPage() {
     ? plansResponse.data
     : null;
 
-  const defaultMockCustomers: CustomerRow[] = [
-    { id: 't-1', name: 'Acme Enterprise India', plan: 'Professional Plan', status: 'active', users: 52, storage: '2.4 GB', mrr: '₹14,999' },
-    { id: 't-2', name: 'TechCorp Solutions', plan: 'Enterprise Plan', status: 'active', users: 180, storage: '12.8 GB', mrr: '₹49,999' },
-    { id: 't-3', name: 'Reliance Logistics Hub', plan: 'Starter Plan', status: 'pending', users: 12, storage: '450 MB', mrr: '₹4,999' },
-  ];
-
-  const mockCustomers: CustomerRow[] =
-    Array.isArray(customersResponse) && customersResponse.length > 0
+  const customers: CustomerRow[] =
+    Array.isArray(customersResponse)
       ? customersResponse.map((c: any) => ({
           id: c.id,
           name: c.name,
-          plan: c.plan || 'Starter Plan',
+          plan: c.plan?.name || c.plan || 'Starter Plan',
           status: c.status || (c.isActive ? 'active' : 'inactive'),
-          users: c.users || 1,
-          storage: c.storage || '0 MB',
-          mrr: c.mrr || '₹4,999',
+          users: c.users || c._count?.users || 1,
+          storage: c.storage || `${Math.round(Number(c.storageUsed || 0) / (1024 * 1024))} MB`,
+          mrr: c.mrr || (c.subscription?.plan?.monthlyPrice ? `₹${Number(c.subscription.plan.monthlyPrice).toLocaleString('en-IN')}` : '₹0'),
         }))
-      : defaultMockCustomers;
-
-  const defaultMockPlans = [
-    { id: 'p-1', name: 'Starter Plan', price: '₹4,999/mo', userLimit: 15, features: ['CRM', 'Attendance', 'Leave'] },
-    { id: 'p-2', name: 'Professional Plan', price: '₹14,999/mo', userLimit: 60, features: ['CRM', 'HRM', 'Attendance', 'Payroll', 'Visits'] },
-    { id: 'p-3', name: 'Enterprise Plan', price: '₹49,999/mo', userLimit: 250, features: ['CRM', 'HRM', 'Payroll', 'Geo Tracking', 'Advanced Reports'] },
-  ];
+      : [];
 
   const plans =
     rawPlans !== null && rawPlans.length > 0
@@ -101,7 +89,7 @@ export default function SuperAdminPage() {
           userLimit: p.userLimit || 20,
           features: Array.isArray(p.features) ? p.features : ['CRM', 'HRM', 'Payroll'],
         }))
-      : defaultMockPlans;
+      : [];
 
   const customerColumns: ColumnDef<CustomerRow>[] = [
     {
@@ -234,7 +222,7 @@ export default function SuperAdminPage() {
       {/* Customers Table */}
       {activeTab === 'customers' && (
         <AdminCard title="Active Customer Organizations" description="Overview of provisioned enterprise accounts">
-          <AdminDataTable columns={customerColumns} data={mockCustomers} />
+          <AdminDataTable columns={customerColumns} data={customers} />
         </AdminCard>
       )}
 
