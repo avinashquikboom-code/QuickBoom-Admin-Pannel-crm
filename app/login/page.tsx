@@ -44,22 +44,23 @@ export default function LoginPage() {
         throw new Error('Invalid response structure received from authentication service');
       }
 
-      // Map backend RoleType enum to UI role names if needed
-      const roleMapping: Record<string, string> = {
-        SUPER_ADMIN: 'Super Admin',
-        CUSTOMER_ADMIN: 'Customer Owner',
-        SALES_MANAGER: 'Manager',
-        SALES_EXECUTIVE: 'Employee',
-        SUPPORT_AGENT: 'Employee',
-      };
+      // STRICT SUPER ADMIN ONLY CHECK: Block all other roles
+      const userRoles: string[] = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
+      const isSuperAdmin = userRoles.some(
+        (r: string) => r === 'SUPER_ADMIN' || r === 'Super Admin'
+      );
+
+      if (!isSuperAdmin) {
+        throw new Error('Access Denied: The Admin Panel is strictly for SUPER_ADMIN only. Other roles must use the mobile application.');
+      }
 
       const mappedUser = {
         ...user,
-        roles: (user.roles || []).map((r: string) => roleMapping[r] || r),
+        roles: ['Super Admin'],
       };
 
       setAuth(mappedUser, tokens.accessToken, tokens.refreshToken);
-      toast.success('Welcome back to QUIKBOOM CRM + HRM!');
+      toast.success('Welcome back to QUIKBOOM Super Admin Portal!');
       router.push('/dashboard');
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || err?.message || 'Authentication failed. Please check credentials.';

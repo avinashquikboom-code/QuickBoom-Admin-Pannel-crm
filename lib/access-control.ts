@@ -495,28 +495,15 @@ export const adminNavigation: {
 export const CENTRAL_NAVIGATION = adminNavigation.superAdmin;
 
 export const ADMIN_PANEL_ALLOWED_ROLES: string[] = [
-  'Super Admin',
   'SUPER_ADMIN',
-  'HR',
-  'HR Manager',
-  'HR Executive',
 ];
 
 // Helper Functions
 export function getUserRole(user: UserType | null): string {
-  if (!user || !user.roles || user.roles.length === 0) return 'Employee';
+  if (!user || !user.roles || user.roles.length === 0) return 'Unauthorized';
   const rawRole = user.roles[0];
-  if (rawRole === 'SUPER_ADMIN' || rawRole === 'Super Admin') return 'Super Admin';
-  if (
-    rawRole === 'HR' ||
-    rawRole === 'HR_MANAGER' ||
-    rawRole === 'HR Manager' ||
-    rawRole === 'HR_EXECUTIVE' ||
-    rawRole === 'HR Executive'
-  ) {
-    return 'HR';
-  }
-  if (rawRole === 'EMPLOYEE' || rawRole === 'Employee') return 'Employee';
+  const normalized = rawRole?.toUpperCase()?.replace(/\s+/g, '_');
+  if (normalized === 'SUPER_ADMIN') return 'Super Admin';
   return rawRole;
 }
 
@@ -614,16 +601,11 @@ export function filterNavigation(
 ): NavSectionConfig[] {
   const role = getUserRole(user);
 
-  if (!ADMIN_PANEL_ALLOWED_ROLES.includes(role)) {
+  if (role !== 'Super Admin') {
     return [];
   }
 
-  const baseSections =
-    role === 'Super Admin'
-      ? adminNavigation.superAdmin
-      : role === 'HR'
-        ? adminNavigation.hr
-        : [];
+  const baseSections = adminNavigation.superAdmin;
 
   return baseSections
     .filter((section) => canAccessSection(user, section))
@@ -661,7 +643,6 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
   // Public routes
   if (
     pathname === '/login' ||
-    pathname === '/register' ||
     pathname === '/forgot-password' ||
     pathname === '/reset-password' ||
     pathname === '/verify-otp'
@@ -679,30 +660,16 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
 
   const role = getUserRole(user);
 
-  // STRICT REQUIREMENT: Admin Panel is only accessible to Super Admin and HR roles
-  if (!ADMIN_PANEL_ALLOWED_ROLES.includes(role)) {
+  // STRICT REQUIREMENT: Admin Panel is strictly accessible to Super Admin only
+  if (role !== 'Super Admin') {
     return {
       allowed: false,
       reason: 'ADMIN_ONLY',
-      message: `Access Restricted: The QuikBoom Admin Panel is reserved exclusively for Super Admin and HR Administrators. Employees with role "${role}" must use the QuikBoom Mobile App.`,
+      message: `Access Restricted: The QuikBoom Admin Panel is strictly for Super Admin only. Users with role "${role}" must use the QuikBoom Mobile App.`,
     };
   }
 
-  // Check Super Admin Only routes for HR users
-  if (role === 'HR') {
-    const isSuperAdminOnly = SUPER_ADMIN_ONLY_ROUTES.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-    );
-    if (isSuperAdminOnly) {
-      return {
-        allowed: false,
-        reason: 'NO_PERMISSION',
-        message: `Access Forbidden (403): The "${pathname}" module is restricted to Super Admin only. HR users do not have access.`,
-      };
-    }
-  }
-
-  const activeNav = role === 'Super Admin' ? adminNavigation.superAdmin : adminNavigation.hr;
+  const activeNav = adminNavigation.superAdmin;
 
   // Find if route matches any navigation item
   for (const section of activeNav) {

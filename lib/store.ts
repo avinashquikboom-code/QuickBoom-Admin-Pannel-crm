@@ -37,8 +37,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       setAuth: (user: User, token: string, refreshToken: string) => {
-        const primaryRole = user.roles?.[0] || 'Employee';
-        const permissions = user.permissions || ROLE_DEFAULT_PERMISSIONS[primaryRole] || [];
+        const primaryRole = user.roles?.[0] || 'Super Admin';
+        const permissions = user.permissions || ROLE_DEFAULT_PERMISSIONS[primaryRole] || ROLE_DEFAULT_PERMISSIONS['Super Admin'] || [];
         const subscriptionFeatures = user.subscriptionFeatures || { ...DEFAULT_SUBSCRIPTION_FEATURES };
 
         set({
