@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import {
   Clock,
   Calendar,
@@ -13,8 +14,12 @@ import {
   Check,
   X,
   FileCheck,
+  Building2,
+  Coffee,
+  RefreshCw,
+  Eye,
+  Users,
 } from 'lucide-react';
-
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 
@@ -22,21 +27,62 @@ interface AttendanceRecord {
   id: string;
   employeeName: string;
   employeeId: string;
-  department?: string;
+  branch: string;
+  office: string;
   date: string;
-  checkIn: string;
-  checkOut: string;
-  workingHours: number | string;
-  status: 'PRESENT' | 'ABSENT' | 'LATE' | 'REMOTE' | 'HALF_DAY';
+  punchIn: string;
+  punchOut: string;
+  workingHours: string;
+  breaksCount: number;
+  totalBreak: string;
+  status: string;
   location: string;
 }
 
 export default function AttendancePage() {
-  const { data: attendanceData } = useQuery({
-    queryKey: ['admin-hrm-attendance'],
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [officeFilter, setOfficeFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
+
+  // Fetch real offices
+  const { data: officesData } = useQuery({
+    queryKey: ['admin-attendance-offices'],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/employees/hrm/attendance');
+        const res: any = await api.get('/employees/hrm/offices');
+        return Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // Fetch real live attendance summary & office-wise breakdown
+  const { data: liveData, isFetching: isLiveFetching, refetch: refetchLive } = useQuery({
+    queryKey: ['admin-live-attendance-summary', officeFilter, selectedDate],
+    queryFn: async () => {
+      try {
+        const params: Record<string, string> = {};
+        if (officeFilter !== 'ALL') params.branch = officeFilter;
+        if (selectedDate) params.date = selectedDate;
+        const res: any = await api.get('/employees/hrm/live-attendance', { params });
+        return res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  // Fetch real attendance logs
+  const { data: attendanceData, isLoading, refetch: refetchLogs } = useQuery({
+    queryKey: ['admin-hrm-attendance-logs', selectedDate, officeFilter],
+    queryFn: async () => {
+      try {
+        const params: Record<string, string> = {};
+        if (selectedDate) params.date = selectedDate;
+        if (officeFilter !== 'ALL') params.branch = officeFilter;
+        const res: any = await api.get('/employees/hrm/attendance', { params });
         return res?.data || res;
       } catch {
         return [];
@@ -44,198 +90,342 @@ export default function AttendancePage() {
     },
   });
 
-  const [selectedDate, setSelectedDate] = useState('2026-08-21');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+  const officesList: string[] = Array.isArray(officesData)
+    ? officesData.map((o: any) => o.name || o.branch || String(o))
+    : ['Head Office'];
+
+  const summary = liveData?.summary || {
+    totalEmployees: 0,
+    presentCount: 0,
+    onBreakCount: 0,
+    onLeaveCount: 0,
+    absentCount: 0,
+    lateCount: 0,
+    currentlyWorking: 0,
+  };
+
+  const officeBreakdown = Array.isArray(liveData?.offices) ? liveData.offices : [];
 
   const records: AttendanceRecord[] = Array.isArray(attendanceData)
     ? attendanceData.map((a: any) => ({
-        id: a.id,
+        id: String(a.id),
         employeeName: a.employeeName || 'Employee',
         employeeId: a.employeeId || 'EMP-001',
-        department: a.department || 'Production',
-        date: a.date || '2026-08-21',
-        checkIn: a.punchIn || '09:00 AM',
-        checkOut: a.punchOut || '06:00 PM',
-        workingHours: a.workingHours || 8,
-        status: (a.status as any) || 'PRESENT',
+        branch: a.branch || a.office || 'Head Office',
+        office: a.branch || a.office || 'Head Office',
+        date: a.date || selectedDate,
+        punchIn: a.punchIn || '—',
+        punchOut: a.punchOut || '—',
+        workingHours: a.workingHours || '0h 0m',
+        breaksCount: a.breaksCount || 0,
+        totalBreak: a.totalBreak || '0 min',
+        status: a.status || 'PRESENT',
         location: a.location || 'Office GPS',
       }))
     : [];
 
-  const filtered = records.filter((r) => {
-    return statusFilter === 'ALL' || r.status === statusFilter;
+  const filteredRecords = records.filter((r) => {
+    const matchesSearch =
+      r.employeeName.toLowerCase().includes(search.toLowerCase()) ||
+      r.employeeId.toLowerCase().includes(search.toLowerCase()) ||
+      r.branch.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus =
+      statusFilter === 'ALL' || r.status.toUpperCase() === statusFilter.toUpperCase();
+    return matchesSearch && matchesStatus;
   });
 
+  const handleRefresh = () => {
+    refetchLive();
+    refetchLogs();
+  };
+
   return (
-    <div className="space-y-8">
-      {/* Top Title Card Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
+    <div className="space-y-6">
+      {/* 1. Top Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-slate-800">
         <div>
-          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
-            <Clock className="w-4 h-4 text-emerald-400" /> TIME & GPS PUNCH TRACKING
+          <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-xs uppercase tracking-wider mb-1">
+            <Clock className="w-4 h-4 text-emerald-400" /> LIVE GPS & PUNCH TRACKING
           </div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-            Attendance & Time Logs
+            Employee Attendance & Operational Shifts
           </h1>
-          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-            Monitor daily check-ins, GPS-verified punch times, late arrivals, and attendance corrections.
+          <p className="text-xs md:text-sm text-slate-300 mt-1 font-medium">
+            Monitor real-time employee check-ins, active break sessions, branch movement, and daily timesheets.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowCorrectionModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
+            type="button"
+            onClick={handleRefresh}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all border border-white/10 cursor-pointer"
           >
-            <FileCheck className="w-4 h-4" /> Correction Requests (2)
+            <RefreshCw className={`w-3.5 h-3.5 ${isLiveFetching ? 'animate-spin text-emerald-400' : ''}`} />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* Date & Status Filter */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-indigo-600" />
-            <span className="text-xs font-bold text-slate-700">Date:</span>
+      {/* 2. Top Summary KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center font-bold">
+            <Users className="w-5 h-5" />
           </div>
+          <div>
+            <p className="text-[10px] font-extrabold text-slate-400 uppercase">Total Workforce</p>
+            <p className="text-xl font-black text-slate-900">{summary.totalEmployees}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-emerald-100 bg-emerald-50/20 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-[10px] font-extrabold text-emerald-700 uppercase">Present / Working</p>
+            <p className="text-xl font-black text-emerald-800">{summary.presentCount}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-amber-100 bg-amber-50/20 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+            <Coffee className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-[10px] font-extrabold text-amber-700 uppercase">On Break (Active)</p>
+            <p className="text-xl font-black text-amber-800">{summary.onBreakCount}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-purple-100 bg-purple-50/20 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+            <Calendar className="w-5 h-5 text-purple-600" />
+          </div>
+          <div>
+            <p className="text-[10px] font-extrabold text-purple-700 uppercase">On Leave</p>
+            <p className="text-xl font-black text-purple-800">{summary.onLeaveCount}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-rose-100 bg-rose-50/20 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+            <AlertCircle className="w-5 h-5 text-rose-600" />
+          </div>
+          <div>
+            <p className="text-[10px] font-extrabold text-rose-700 uppercase">Absent</p>
+            <p className="text-xl font-black text-rose-800">{summary.absentCount}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-orange-100 bg-orange-50/20 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold">
+            <Clock className="w-5 h-5 text-orange-600" />
+          </div>
+          <div>
+            <p className="text-[10px] font-extrabold text-orange-700 uppercase">Late Check-ins</p>
+            <p className="text-xl font-black text-orange-800">{summary.lateCount}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Office-wise Attendance Breakdown */}
+      {officeBreakdown.length > 0 && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-emerald-600" /> Office & Branch Attendance Distribution
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {officeBreakdown.map((off: any) => (
+              <div
+                key={off.officeName}
+                className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between"
+              >
+                <div>
+                  <p className="font-bold text-slate-900 text-xs">{off.officeName}</p>
+                  <p className="text-[11px] text-slate-500">{off.totalEmployees} total staff</p>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] font-bold">
+                  <span className="text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md">
+                    {off.present} Present
+                  </span>
+                  {off.onBreak > 0 && (
+                    <span className="text-amber-700 bg-amber-100/60 px-2 py-0.5 rounded-md">
+                      {off.onBreak} Break
+                    </span>
+                  )}
+                  {off.onLeave > 0 && (
+                    <span className="text-purple-700 bg-purple-100/60 px-2 py-0.5 rounded-md">
+                      {off.onLeave} Leave
+                    </span>
+                  )}
+                  {off.absent > 0 && (
+                    <span className="text-rose-700 bg-rose-100/60 px-2 py-0.5 rounded-md">
+                      {off.absent} Absent
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. Filter Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="relative w-full md:w-72">
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search staff, code, branch..."
+            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <span className="text-xs font-semibold text-slate-500">Status:</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-600 focus:outline-none"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="PRESENT">Present</option>
-            <option value="LATE">Late</option>
-            <option value="REMOTE">Remote</option>
-            <option value="ABSENT">Absent</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          {/* Office Filter */}
+          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 border border-slate-200 rounded-xl">
+            <Building2 className="w-3.5 h-3.5 text-slate-500" />
+            <select
+              value={officeFilter}
+              onChange={(e) => setOfficeFilter(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Offices</option>
+              {officesList.map((off) => (
+                <option key={off} value={off}>
+                  {off}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Picker */}
+          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 border border-slate-200 rounded-xl">
+            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 border border-slate-200 rounded-xl">
+            <Filter className="w-3.5 h-3.5 text-slate-500" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="PRESENT">Present</option>
+              <option value="LATE">Late</option>
+              <option value="HALF_DAY">Half Day</option>
+              <option value="ON_LEAVE">On Leave</option>
+              <option value="ABSENT">Absent</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <p className="text-[11px] font-bold text-slate-400 uppercase">Present</p>
-          <p className="text-xl font-black text-emerald-600 mt-1">210 Employees</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <p className="text-[11px] font-bold text-slate-400 uppercase">Late Check-ins</p>
-          <p className="text-xl font-black text-amber-600 mt-1">15 Employees</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <p className="text-[11px] font-bold text-slate-400 uppercase">Remote Work</p>
-          <p className="text-xl font-black text-indigo-600 mt-1">14 Employees</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <p className="text-[11px] font-bold text-slate-400 uppercase">Absent</p>
-          <p className="text-xl font-black text-rose-600 mt-1">8 Employees</p>
-        </div>
-      </div>
-
-      {/* Attendance Table */}
+      {/* 5. Real Attendance Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+          <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-4">Employee</th>
-                <th className="py-3.5 px-4">Department</th>
+                <th className="py-3.5 px-4">Office / Branch</th>
                 <th className="py-3.5 px-4">Check In</th>
                 <th className="py-3.5 px-4">Check Out</th>
-                <th className="py-3.5 px-4">Total Hours</th>
+                <th className="py-3.5 px-4">Working Hours</th>
+                <th className="py-3.5 px-4">Breaks</th>
                 <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Punch Location</th>
+                <th className="py-3.5 px-4">Location</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-3.5 px-4">
-                    <p className="font-bold text-slate-900">{r.employeeName}</p>
-                    <p className="text-[11px] font-semibold text-indigo-600">{r.employeeId}</p>
-                  </td>
-
-                  <td className="py-3.5 px-4 font-semibold text-slate-700">{r.department}</td>
-
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{r.checkIn}</td>
-
-                  <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{r.checkOut}</td>
-
-                  <td className="py-3.5 px-4 font-bold text-slate-900">{r.workingHours} hrs</td>
-
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                        r.status === 'PRESENT'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : r.status === 'LATE'
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : r.status === 'REMOTE'
-                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          : 'bg-rose-50 text-rose-700 border border-rose-200'
-                      }`}
-                    >
-                      {r.status}
-                    </span>
-                  </td>
-
-                  <td className="py-3.5 px-4 text-slate-500 font-medium flex items-center gap-1.5 pt-4">
-                    <MapPin className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>{r.location}</span>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-bold">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
+                      <span>Loading attendance logs...</span>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-bold">
+                    No attendance records found for this date and filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredRecords.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <p className="font-bold text-slate-900">{r.employeeName}</p>
+                      <p className="text-[10px] font-mono text-slate-400">{r.employeeId}</p>
+                    </td>
+
+                    <td className="py-3.5 px-4 font-semibold text-slate-700">
+                      <div className="flex items-center gap-1">
+                        <Building2 className="w-3 h-3 text-slate-400" />
+                        <span>{r.branch}</span>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{r.punchIn}</td>
+
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{r.punchOut}</td>
+
+                    <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">{r.workingHours}</td>
+
+                    <td className="py-3.5 px-4">
+                      {r.breaksCount > 0 ? (
+                        <div>
+                          <p className="font-bold text-slate-800">{r.breaksCount} breaks</p>
+                          <p className="text-[10px] text-slate-400">Total: {r.totalBreak}</p>
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 font-bold">—</span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          r.status === 'PRESENT'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : r.status === 'LATE'
+                            ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                            : r.status === 'ON_LEAVE'
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-4 text-slate-500 font-medium">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>{r.location}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Corrections Modal */}
-      {showCorrectionModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-black text-slate-900">Attendance Correction Requests</h2>
-              <button
-                onClick={() => setShowCorrectionModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-2">
-                <div className="flex justify-between font-bold text-slate-900">
-                  <span>Vikram Mehta (EMP005)</span>
-                  <span className="text-amber-600">Pending</span>
-                </div>
-                <p className="text-slate-600">Requested Check In: 09:00 AM (Reason: Network issue at entrance)</p>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button className="px-3 py-1 bg-rose-100 text-rose-700 font-bold rounded-lg flex items-center gap-1">
-                    <X className="w-3 h-3" /> Reject
-                  </button>
-                  <button className="px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg flex items-center gap-1 shadow-2xs">
-                    <Check className="w-3 h-3" /> Approve
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
