@@ -12,33 +12,19 @@ export default function VerifyOtpPage() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length < 4) {
+    if (otp.trim().length < 4) {
       toast.error('Please enter a valid OTP code');
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setAuth(
-        {
-          id: 'usr-new-01',
-          email: 'admin@quikboom.com',
-          firstName: 'Demo',
-          lastName: 'User',
-          customerId: 't-001',
-          customerName: 'QuikBoom Enterprise',
-          roles: ['Super Admin', 'HR Manager'],
-        },
-        'token-access',
-        'token-refresh'
-      );
-      toast.success('Phone verified successfully!');
-      router.push('/dashboard');
-    }, 800);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('reset_otp', otp.trim());
+    }
+    toast.success('Code captured. Proceed to set your new password.');
+    router.push(`/reset-password?token=${encodeURIComponent(otp.trim())}`);
   };
 
   return (

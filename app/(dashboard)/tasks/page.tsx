@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, CheckSquare, Clock, AlertCircle, Filter, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Task {
   id: string;
@@ -21,13 +23,54 @@ const initialTasks: Task[] = [
 ];
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const queryClient = useQueryClient();
+
+  const { data: tasksResponse, isLoading } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/tasks');
+        return res?.data || res;
+      } catch (err) {
+        return null;
+      }
+    },
+  });
+
+  const toggleTaskMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'PENDING' | 'COMPLETED' }) => {
+      return api.patch(`/tasks/${id}`, { status });
+    },
+    onSuccess: () => {
+      toast.success('Task status updated');
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Failed to update task');
+    },
+  });
+
+  const rawTasks = Array.isArray(tasksResponse)
+    ? tasksResponse
+    : Array.isArray(tasksResponse?.data)
+    ? tasksResponse.data
+    : null;
+
+  const tasks: Task[] =
+    rawTasks !== null && rawTasks.length > 0
+      ? rawTasks.map((t: any) => ({
+          id: t.id,
+          title: t.title || 'Action item',
+          priority: (t.priority || 'HIGH') as Task['priority'],
+          dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Open',
+          status: (t.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING') as Task['status'],
+        }))
+      : initialTasks;
 
   const toggleTask = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: t.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' } : t))
-    );
-    toast.success('Task status updated');
+    const task = tasks.find((t) => t.id === id);
+    const newStatus = task?.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    toggleTaskMutation.mutate({ id, status: newStatus });
   };
 
   return (

@@ -14,6 +14,8 @@ import {
   AdminTextarea,
 } from '@/components/admin';
 
+import api from '@/lib/api';
+
 export default function CreateContactPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -24,19 +26,46 @@ export default function CreateContactPage() {
     company: '',
     email: '',
     phone: '',
-    type: 'CLIENT',
+    type: 'CUSTOMER',
     city: 'Mumbai',
     notes: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const parts = formData.name.trim().split(/\s+/);
+      const firstName = parts[0] || 'Contact';
+      const lastName = parts.slice(1).join(' ') || 'Stakeholder';
+
+      const typeMap: Record<string, string> = {
+        CLIENT: 'CUSTOMER',
+        CUSTOMER: 'CUSTOMER',
+        PROSPECT: 'PROSPECT',
+        PARTNER: 'PARTNER',
+        VENDOR: 'VENDOR',
+      };
+
+      const payload = {
+        firstName,
+        lastName,
+        designation: formData.designation || undefined,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        type: typeMap[formData.type] || 'CUSTOMER',
+        notes: formData.notes ? `${formData.company ? `Company: ${formData.company}. ` : ''}${formData.notes}` : (formData.company ? `Company: ${formData.company}` : undefined),
+      };
+
+      await api.post('/contacts', payload);
       toast.success('Contact entry created successfully!');
       router.push('/contacts');
-    }, 600);
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to create contact';
+      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Failed to create contact');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

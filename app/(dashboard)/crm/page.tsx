@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, MoreHorizontal, DollarSign, Building2, Calendar, CheckCircle2, ArrowRight, Kanban } from 'lucide-react';
+import api from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 
 interface Deal {
   id: string;
@@ -61,14 +64,57 @@ const stages = [
 ];
 
 export default function PipelinePage() {
-  const [deals, setDeals] = useState<Deal[]>(initialDeals);
+  const queryClient = useQueryClient();
+
+  const { data: dealsResponse, isLoading } = useQuery({
+    queryKey: ['deals'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/deals');
+        return res?.data || res;
+      } catch (err) {
+        return null;
+      }
+    },
+  });
+
+  const updateStageMutation = useMutation({
+    mutationFn: async ({ id, stage }: { id: string; stage: string }) => {
+      return api.patch(`/deals/${id}`, { stage });
+    },
+    onSuccess: () => {
+      toast.success('Deal stage updated');
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Failed to update deal stage');
+    },
+  });
+
+  const rawDeals = Array.isArray(dealsResponse)
+    ? dealsResponse
+    : Array.isArray(dealsResponse?.data)
+    ? dealsResponse.data
+    : null;
+
+  const deals: Deal[] =
+    rawDeals !== null && rawDeals.length > 0
+      ? rawDeals.map((d: any) => ({
+          id: d.id,
+          title: d.title || d.name || 'Deal Opportunity',
+          company: d.company?.name || d.companyName || d.company || 'Direct Client',
+          value: Number(d.value || d.amount || 0),
+          stage: (d.stage?.name?.toUpperCase() || d.stage || 'QUALIFICATION') as Deal['stage'],
+          closingDays: d.closingDays || 7,
+          priority: d.priority || 'HIGH',
+        }))
+      : initialDeals;
 
   const moveDeal = (id: string, currentStage: Deal['stage']) => {
     const stageOrder: Deal['stage'][] = ['QUALIFICATION', 'PROPOSAL', 'NEGOTIATION', 'WON'];
     const nextIdx = (stageOrder.indexOf(currentStage) + 1) % stageOrder.length;
-    setDeals(
-      deals.map((d) => (d.id === id ? { ...d, stage: stageOrder[nextIdx] } : d))
-    );
+    const nextStage = stageOrder[nextIdx];
+    updateStageMutation.mutate({ id, stage: nextStage });
   };
 
   return (

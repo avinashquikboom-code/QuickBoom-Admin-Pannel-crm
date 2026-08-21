@@ -14,6 +14,8 @@ import {
   AdminTextarea,
 } from '@/components/admin';
 
+import api from '@/lib/api';
+
 export default function CreateLeadPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -32,14 +34,33 @@ export default function CreateLeadPage() {
     notes: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const payload = {
+        title: formData.company ? `${formData.company} Opportunity` : `${formData.firstName} ${formData.lastName}`,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        companyName: formData.company,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        source: formData.source,
+        status: formData.status,
+        priority: formData.priority,
+        value: formData.leadValue ? Number(formData.leadValue) : 0,
+        notes: formData.notes || undefined,
+      };
+
+      await api.post('/leads', payload);
       toast.success('CRM Lead captured successfully!');
       router.push('/leads');
-    }, 600);
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to create CRM lead';
+      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Failed to create lead');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

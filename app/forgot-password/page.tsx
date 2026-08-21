@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -20,14 +21,23 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res: any = await api.post('/auth/forgot-password', { email });
+      const message = res?.message || res?.data?.message || 'Password reset instructions sent to your corporate email';
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('reset_email', email);
+      }
       setSubmitted(true);
-      toast.success('Password reset instructions sent to your corporate email');
-    }, 800);
+      toast.success(message);
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to request password reset';
+      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Request failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

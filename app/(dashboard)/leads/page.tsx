@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Filter, Mail, Phone, Building, UserCheck, DollarSign, Calendar, Eye, Trash2, Edit } from 'lucide-react';
+import api from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 
 interface Lead {
   id: string;
@@ -61,15 +64,55 @@ const initialLeads: Lead[] = [
 ];
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const queryClient = useQueryClient();
 
-  const filtered = leads.filter(
-    (l) =>
-      `${l.firstName} ${l.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-      l.company.toLowerCase().includes(search.toLowerCase()) ||
-      l.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: leadsResponse, isLoading, isError } = useQuery({
+    queryKey: ['leads', search, statusFilter],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/leads', {
+          params: {
+            search: search || undefined,
+            status: statusFilter !== 'ALL' ? statusFilter : undefined,
+          },
+        });
+        return res?.data || res;
+      } catch (err) {
+        return null;
+      }
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return api.delete(`/leads/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Lead deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Failed to delete lead');
+    },
+  });
+
+  const rawLeads = Array.isArray(leadsResponse)
+    ? leadsResponse
+    : Array.isArray(leadsResponse?.data)
+    ? leadsResponse.data
+    : null;
+
+  const leads: any[] = rawLeads !== null ? rawLeads : initialLeads;
+
+  const filtered = leads.filter((l) => {
+    const fullName = `${l.firstName || ''} ${l.lastName || ''}`.toLowerCase();
+    const company = (l.company || l.companyName || '').toLowerCase();
+    const email = (l.email || '').toLowerCase();
+    const q = search.toLowerCase();
+    return fullName.includes(q) || company.includes(q) || email.includes(q);
+  });
 
   return (
     <div className="space-y-8">
@@ -177,12 +220,21 @@ export default function LeadsPage() {
 
                   <td className="py-3.5 px-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600">
+                      <Link
+                        href={`/leads/${lead.id}`}
+                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors"
+                        title="View Lead Details"
+                      >
                         <Eye className="w-4 h-4" />
-                      </button>
+                      </Link>
                       <button
-                        onClick={() => setLeads(leads.filter((l) => l.id !== lead.id))}
-                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-rose-600"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete lead ${lead.firstName || ''} ${lead.lastName || ''}?`)) {
+                            deleteMutation.mutate(lead.id);
+                          }
+                        }}
+                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Delete Lead"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

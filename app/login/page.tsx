@@ -36,27 +36,34 @@ export default function LoginPage() {
     try {
       // Backend API authentication
       const res: any = await api.post('/auth/login', { email, password });
-      const { user, tokens } = res.data;
-      setAuth(user, tokens.accessToken, tokens.refreshToken);
+      const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
+      const user = payload?.user;
+      const tokens = payload?.tokens;
+
+      if (!user || !tokens) {
+        throw new Error('Invalid response structure received from authentication service');
+      }
+
+      // Map backend RoleType enum to UI role names if needed
+      const roleMapping: Record<string, string> = {
+        SUPER_ADMIN: 'Super Admin',
+        CUSTOMER_ADMIN: 'Customer Owner',
+        SALES_MANAGER: 'Manager',
+        SALES_EXECUTIVE: 'Employee',
+        SUPPORT_AGENT: 'Employee',
+      };
+
+      const mappedUser = {
+        ...user,
+        roles: (user.roles || []).map((r: string) => roleMapping[r] || r),
+      };
+
+      setAuth(mappedUser, tokens.accessToken, tokens.refreshToken);
       toast.success('Welcome back to QUIKBOOM CRM + HRM!');
       router.push('/dashboard');
     } catch (err: any) {
-      // Fallback for preview/demo if backend is offline
-      setAuth(
-        {
-          id: 'usr-admin-01',
-          email: email || 'admin@quikboom.com',
-          firstName: 'Demo',
-          lastName: 'User',
-          customerId: 't-001',
-          customerName: 'QuikBoom Enterprise',
-          roles: ['Super Admin', 'HR Manager'],
-        },
-        'demo-jwt-token-access',
-        'demo-jwt-token-refresh'
-      );
-      toast.success('Logged in successfully (QuikBoom Enterprise Portal)');
-      router.push('/dashboard');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Authentication failed. Please check credentials.';
+      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Authentication failed.');
     } finally {
       setLoading(false);
     }

@@ -12,6 +12,8 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import {
   AdminPageHeader,
   AdminStatCard,
@@ -35,17 +37,46 @@ interface CustomerRow {
 export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState<'customers' | 'plans' | 'billing'>('customers');
 
+  const { data: plansResponse } = useQuery({
+    queryKey: ['subscription-plans'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/plans');
+        return res?.data || res;
+      } catch (err) {
+        return null;
+      }
+    },
+  });
+
+  const rawPlans = Array.isArray(plansResponse)
+    ? plansResponse
+    : Array.isArray(plansResponse?.data)
+    ? plansResponse.data
+    : null;
+
   const mockCustomers: CustomerRow[] = [
     { id: 't-1', name: 'Acme Enterprise India', plan: 'Professional Plan', status: 'active', users: 52, storage: '2.4 GB', mrr: '₹14,999' },
     { id: 't-2', name: 'TechCorp Solutions', plan: 'Enterprise Plan', status: 'active', users: 180, storage: '12.8 GB', mrr: '₹49,999' },
     { id: 't-3', name: 'Reliance Logistics Hub', plan: 'Starter Plan', status: 'pending', users: 12, storage: '450 MB', mrr: '₹4,999' },
   ];
 
-  const mockPlans = [
+  const defaultMockPlans = [
     { id: 'p-1', name: 'Starter Plan', price: '₹4,999/mo', userLimit: 15, features: ['CRM', 'Attendance', 'Leave'] },
     { id: 'p-2', name: 'Professional Plan', price: '₹14,999/mo', userLimit: 60, features: ['CRM', 'HRM', 'Attendance', 'Payroll', 'Visits'] },
     { id: 'p-3', name: 'Enterprise Plan', price: '₹49,999/mo', userLimit: 250, features: ['CRM', 'HRM', 'Payroll', 'Geo Tracking', 'Advanced Reports'] },
   ];
+
+  const plans =
+    rawPlans !== null && rawPlans.length > 0
+      ? rawPlans.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          price: `₹${Number(p.monthlyPrice || 0).toLocaleString('en-IN')}/mo`,
+          userLimit: p.userLimit || 20,
+          features: Array.isArray(p.features) ? p.features : ['CRM', 'HRM', 'Payroll'],
+        }))
+      : defaultMockPlans;
 
   const customerColumns: ColumnDef<CustomerRow>[] = [
     {
@@ -185,7 +216,7 @@ export default function SuperAdminPage() {
       {/* Plans Grid */}
       {activeTab === 'plans' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {mockPlans.map((p) => (
+          {plans.map((p: any) => (
             <AdminCard key={p.id} className="space-y-4">
               <div>
                 <h3 className="font-black text-slate-900 text-lg">{p.name}</h3>
@@ -193,7 +224,7 @@ export default function SuperAdminPage() {
               </div>
               <p className="text-xs font-bold text-slate-500">Up to {p.userLimit} Users included</p>
               <div className="space-y-1.5 text-xs text-slate-700">
-                {p.features.map((f, idx) => (
+                {p.features.map((f: string, idx: number) => (
                   <div key={idx} className="flex items-center gap-2">
                     <CheckCircle className="w-3.5 h-3.5 text-[#23C45E]" />
                     <span>{f}</span>

@@ -105,11 +105,22 @@ export default function DataCapturePage() {
     },
   ]);
 
-  const loadUsage = async () => {
+  const loadUsageAndJobs = async () => {
     try {
-      const res: any = await api.get('/data-capture/usage');
-      if (res) {
-        setUsage(res);
+      const [usageRes, jobsRes]: any = await Promise.allSettled([
+        api.get('/data-capture/usage'),
+        api.get('/data-capture/jobs'),
+      ]);
+
+      if (usageRes.status === 'fulfilled' && usageRes.value) {
+        const u = usageRes.value?.data || usageRes.value;
+        if (u) setUsage(u);
+      }
+      if (jobsRes.status === 'fulfilled' && jobsRes.value) {
+        const j = jobsRes.value?.data || jobsRes.value;
+        if (Array.isArray(j) && j.length > 0) {
+          setPastJobs(j);
+        }
       }
     } catch {
       // Fallback
@@ -117,7 +128,7 @@ export default function DataCapturePage() {
   };
 
   useEffect(() => {
-    loadUsage();
+    loadUsageAndJobs();
   }, []);
 
   const handleStartCapture = async (e: React.FormEvent) => {
@@ -158,7 +169,7 @@ export default function DataCapturePage() {
         setCurrentJob(jobData);
         setSelectedPlaceIds(res.places.map((p: CapturedPlace) => p.googlePlaceId));
         setPastJobs([jobData, ...pastJobs]);
-        loadUsage();
+        loadUsageAndJobs();
 
         toast.success(
           `Google Places API: Captured ${res.captured} verified places (Requested: ${res.requested}, API Calls: ${res.googleApiRequests})`

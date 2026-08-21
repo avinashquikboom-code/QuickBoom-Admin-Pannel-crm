@@ -172,14 +172,16 @@ export default function DataManagementPage() {
         api.get('/admin/data-management/history').catch(() => []),
       ]);
 
-      if (sumRes && sumRes.transactional) {
-        setSummary(sumRes);
+      const s = sumRes?.data || sumRes;
+      if (s && s.transactional) {
+        setSummary(s);
       }
-      if (Array.isArray(histRes)) {
-        setHistory(histRes);
+      const h = histRes?.data || histRes;
+      if (Array.isArray(h)) {
+        setHistory(h);
       }
-    } catch {
-      // Fallback
+    } catch (e) {
+      // Fallback state
     } finally {
       setIsLoading(false);
     }

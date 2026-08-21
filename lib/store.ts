@@ -30,21 +30,11 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      user: {
-        id: 'usr-admin-01',
-        email: 'admin@quikboom.com',
-        firstName: 'Demo',
-        lastName: 'User',
-        customerId: 't-001',
-        customerName: 'QuikBoom Enterprise',
-        roles: ['Customer Owner'],
-        permissions: ROLE_DEFAULT_PERMISSIONS['Customer Owner'],
-        subscriptionFeatures: { ...DEFAULT_SUBSCRIPTION_FEATURES },
-      },
-      token: 'demo-jwt-token-access',
-      refreshToken: 'demo-jwt-token-refresh',
-      customerId: 't-001',
-      isAuthenticated: true,
+      user: null,
+      token: null,
+      refreshToken: null,
+      customerId: null,
+      isAuthenticated: false,
 
       setAuth: (user: User, token: string, refreshToken: string) => {
         const primaryRole = user.roles?.[0] || 'Employee';

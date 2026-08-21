@@ -1,31 +1,62 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Lock, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const handleReset = (e: React.FormEvent) => {
+  const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+
+    const token =
+      searchParams.get('token') ||
+      (typeof window !== 'undefined' ? sessionStorage.getItem('reset_otp') : null) ||
+      '';
+
+    if (!token) {
+      toast.error('No reset verification token found. Please start from forgot password.');
+      router.push('/forgot-password');
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast.success('Password updated successfully! Please sign in.');
+    try {
+      const res: any = await api.post('/auth/reset-password', {
+        token,
+        newPassword: password,
+      });
+      const message = res?.message || res?.data?.message || 'Password updated successfully! Please sign in.';
+      toast.success(message);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('reset_otp');
+        sessionStorage.removeItem('reset_email');
+      }
       router.push('/login');
-    }, 800);
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Password reset failed';
+      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Password reset failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -108,5 +139,13 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">Loading...</div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

@@ -31,6 +31,8 @@ import {
   Compass,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 interface EmployeeLocationData {
   id: string;
@@ -302,6 +304,45 @@ export default function GeoTrackingPage() {
   const [historyEmployeeId, setHistoryEmployeeId] = useState('EMP001');
   const [historyDate, setHistoryDate] = useState('2026-08-15');
   const [isLiveConnected, setIsLiveConnected] = useState(true);
+
+  // Live employee locations from backend
+  const { data: liveLocationsData } = useQuery({
+    queryKey: ['admin-location-live'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/admin/location/live');
+        return res?.data || res;
+      } catch (err) {
+        return null;
+      }
+    },
+    refetchInterval: isLiveConnected ? 15000 : false,
+  });
+
+  // Branch geofences from backend
+  const { data: branchesData } = useQuery({
+    queryKey: ['admin-branches'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/admin/branches');
+        return res?.data || res;
+      } catch (err) {
+        return null;
+      }
+    },
+  });
+
+  const rawEmployees = Array.isArray(liveLocationsData)
+    ? liveLocationsData
+    : Array.isArray(liveLocationsData?.employees)
+    ? liveLocationsData.employees
+    : null;
+
+  const employees: EmployeeLocationData[] =
+    rawEmployees !== null && rawEmployees.length > 0 ? rawEmployees : mockEmployeesLocations;
+
+  const rawBranches = Array.isArray(branchesData) ? branchesData : null;
+  const branches: GeofenceBranch[] = rawBranches !== null && rawBranches.length > 0 ? rawBranches : mockBranches;
 
   // Permission Guard Check (Simulated employee.location.view rule)
   const hasPermission = true;

@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Filter, Mail, Phone, Building2, MapPin, Tag, Contact } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 
 const demoContacts = [
@@ -42,12 +43,18 @@ const demoContacts = [
 export default function ContactsPage() {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('ALL');
+  const queryClient = useQueryClient();
 
-  const { data: contactsData } = useQuery({
-    queryKey: ['contacts', search],
+  const { data: contactsResponse, isLoading } = useQuery({
+    queryKey: ['contacts', search, selectedType],
     queryFn: async () => {
       try {
-        const res: any = await api.get(`/contacts?search=${search}`);
+        const res: any = await api.get('/contacts', {
+          params: {
+            search: search || undefined,
+            type: selectedType !== 'ALL' ? selectedType : undefined,
+          },
+        });
         return res?.data || res;
       } catch (e) {
         return null;
@@ -56,13 +63,33 @@ export default function ContactsPage() {
     retry: false,
   });
 
-  const contactsList = contactsData && contactsData.length > 0 ? contactsData : demoContacts;
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return api.delete(`/contacts/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Contact deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Failed to delete contact');
+    },
+  });
+
+  const rawContacts = Array.isArray(contactsResponse)
+    ? contactsResponse
+    : Array.isArray(contactsResponse?.data)
+    ? contactsResponse.data
+    : null;
+
+  const contactsList = rawContacts !== null ? rawContacts : demoContacts;
 
   const filteredContacts = contactsList.filter((c: any) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.company.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase());
+    const name = `${c.name || `${c.firstName || ''} ${c.lastName || ''}`}`.toLowerCase();
+    const company = (c.company || c.companyName || '').toLowerCase();
+    const email = (c.email || '').toLowerCase();
+    const q = search.toLowerCase();
+    const matchesSearch = name.includes(q) || company.includes(q) || email.includes(q);
     const matchesType = selectedType === 'ALL' || c.type === selectedType;
     return matchesSearch && matchesType;
   });
