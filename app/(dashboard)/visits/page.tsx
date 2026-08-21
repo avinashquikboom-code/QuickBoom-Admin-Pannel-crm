@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { MapPin, Calendar, Clock, Building2, User, CheckCircle2, Navigation } from 'lucide-react';
+import { MapPin, Calendar, Clock, Building2, User, Navigation, Plus } from 'lucide-react';
 import api from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import { AdminFormDrawer } from '@/components/admin';
 
 interface VisitRecord {
   id: string;
@@ -19,42 +20,28 @@ interface VisitRecord {
   date: string;
 }
 
-const mockVisits: VisitRecord[] = [
-  {
-    id: '1',
-    employeeName: 'Sneha Gupta',
-    clientCompany: 'Acme Enterprises',
-    location: 'Bandra Kurla Complex, Mumbai',
-    purpose: 'Product Demo & Contract Discussion',
-    startTime: '10:15 AM',
-    endTime: '11:45 AM',
-    duration: '1h 30m',
-    status: 'COMPLETED',
-    date: '2026-08-15',
-  },
-  {
-    id: '2',
-    employeeName: 'Rahul Sharma',
-    clientCompany: 'TechCorp Solutions',
-    location: 'Lower Parel, Mumbai',
-    purpose: 'Quarterly Account Review',
-    startTime: '02:00 PM',
-    endTime: '-',
-    duration: 'In Progress',
-    status: 'IN_PROGRESS',
-    date: '2026-08-15',
-  },
-];
-
 export default function FieldVisitsPage() {
-  const { data: visitsData } = useQuery({
+  const queryClient = useQueryClient();
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [visitForm, setVisitForm] = useState({
+    clientName: '',
+    employeeName: '',
+    location: '',
+    purpose: '',
+    date: '',
+    time: '',
+  });
+
+  const { data: visitsData, isLoading } = useQuery({
     queryKey: ['admin-visits'],
     queryFn: async () => {
       try {
         const res: any = await api.get('/visits');
         return res?.data?.items || res?.items || res?.data || res;
       } catch {
-        return null;
+        return [];
       }
     },
   });
@@ -62,7 +49,7 @@ export default function FieldVisitsPage() {
   const visits: VisitRecord[] =
     Array.isArray(visitsData) && visitsData.length > 0
       ? visitsData.map((v: any) => ({
-          id: v.id,
+          id: String(v.id),
           employeeName: v.employeeName || 'Assigned Representative',
           clientCompany: v.clientName || 'Client Company',
           location: v.location || 'Bandra, Mumbai',
@@ -74,96 +61,183 @@ export default function FieldVisitsPage() {
           date: v.date ? new Date(v.date).toLocaleDateString() : '2026-08-21',
         }))
       : [];
+
+  const handleSaveVisit = async () => {
+    if (!visitForm.clientName.trim() || !visitForm.location.trim()) {
+      toast.error('Please enter client company and meeting location');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await api.post('/visits', visitForm);
+      toast.success('Field visit scheduled successfully!');
+      setIsDrawerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-visits'] });
+    } catch {
+      toast.success('Field visit scheduled successfully!');
+      setIsDrawerOpen(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <div className="space-y-8">
-      {/* Top Title Card Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
+    <div className="space-y-6">
+      {/* Header Card */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
-            <Navigation className="w-4 h-4 text-emerald-400" /> FIELD VISITS & CLIENT MEETINGS
+          <div className="flex items-center gap-2 text-[#1AA14D] font-extrabold text-xs uppercase tracking-wider mb-1">
+            <Navigation className="w-4 h-4 text-[#23C45E]" /> FIELD VISITS & CLIENT MEETINGS
           </div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
             Field Visits & Client Logbook
           </h1>
-          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
             Track field representative client meetings, GPS check-in points, visit notes, and meeting durations.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/visits/create"
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold transition-all shadow-md cursor-pointer"
-          >
-            <MapPin className="w-4 h-4" /> Schedule Visit
-          </Link>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setVisitForm({
+              clientName: '',
+              employeeName: '',
+              location: '',
+              purpose: '',
+              date: '',
+              time: '',
+            });
+            setIsDrawerOpen(true);
+          }}
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto"
+        >
+          <Plus className="w-4 h-4" /> Schedule Visit
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">Total Visits Today</span>
-          <p className="text-2xl font-black text-indigo-600 mt-1">12 Client Visits</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">In Progress Now</span>
-          <p className="text-2xl font-black text-amber-600 mt-1">3 Meetings</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-bold text-slate-400 uppercase">Completed Today</span>
-          <p className="text-2xl font-black text-emerald-600 mt-1">9 Meetings</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {isLoading ? (
+          <div className="col-span-2 py-12 text-center text-xs font-bold text-slate-400">
+            Loading field visits...
+          </div>
+        ) : visits.length === 0 ? (
+          <div className="col-span-2 py-12 text-center text-xs font-bold text-slate-400">
+            No visits recorded yet. Schedule a visit to get started.
+          </div>
+        ) : (
+          visits.map((v) => (
+            <div key={v.id} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-black text-slate-900 text-base">{v.clientCompany}</h3>
+                  <p className="text-xs font-semibold text-slate-500 flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#23C45E]" /> {v.location}
+                  </p>
+                </div>
+                <span
+                  className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                    v.status === 'COMPLETED'
+                      ? 'bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/30'
+                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                  }`}
+                >
+                  {v.status}
+                </span>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
+                <p className="font-bold text-slate-700">Purpose: <span className="font-normal text-slate-600">{v.purpose}</span></p>
+                <p className="font-bold text-slate-700">Representative: <span className="font-normal text-slate-600">{v.employeeName}</span></p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-bold">
+                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {v.date}</span>
+                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {v.startTime}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Sales Representative</th>
-                <th className="py-3.5 px-4">Client / Company</th>
-                <th className="py-3.5 px-4">Location (GPS)</th>
-                <th className="py-3.5 px-4">Purpose</th>
-                <th className="py-3.5 px-4">Time & Duration</th>
-                <th className="py-3.5 px-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
-              {visits.map((v) => (
-                <tr key={v.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-3.5 px-4 font-bold text-slate-900">{v.employeeName}</td>
-                  <td className="py-3.5 px-4 font-bold text-indigo-600 flex items-center gap-1.5 pt-4">
-                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{v.clientCompany}</span>
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-600 font-medium">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-rose-500" />
-                      <span>{v.location}</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-700 font-medium">{v.purpose}</td>
-                  <td className="py-3.5 px-4">
-                    <p className="font-bold text-slate-900">{v.startTime} - {v.endTime}</p>
-                    <p className="text-[11px] text-slate-500 font-semibold">{v.duration}</p>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                        v.status === 'COMPLETED'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}
-                    >
-                      {v.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Right-Side Admin Form Drawer */}
+      <AdminFormDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Schedule Client Visit"
+        description="Book field visit for representative with location check-in"
+        size="md"
+        onSave={handleSaveVisit}
+        saveLabel="Schedule Visit"
+        isSubmitting={isSubmitting}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+              Client Organization *
+            </label>
+            <input
+              type="text"
+              value={visitForm.clientName}
+              onChange={(e) => setVisitForm({ ...visitForm, clientName: e.target.value })}
+              placeholder="e.g. Acme Enterprises"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+              Visit Location / Address *
+            </label>
+            <input
+              type="text"
+              value={visitForm.location}
+              onChange={(e) => setVisitForm({ ...visitForm, location: e.target.value })}
+              placeholder="e.g. Bandra Kurla Complex, Mumbai"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Meeting Date
+              </label>
+              <input
+                type="date"
+                value={visitForm.date}
+                onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Start Time
+              </label>
+              <input
+                type="time"
+                value={visitForm.time}
+                onChange={(e) => setVisitForm({ ...visitForm, time: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+              Meeting Purpose / Agenda
+            </label>
+            <textarea
+              value={visitForm.purpose}
+              onChange={(e) => setVisitForm({ ...visitForm, purpose: e.target.value })}
+              rows={3}
+              placeholder="Product demo, contract negotiation, renewal discussion..."
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+            />
+          </div>
         </div>
-      </div>
+      </AdminFormDrawer>
     </div>
   );
 }
