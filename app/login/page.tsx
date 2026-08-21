@@ -10,18 +10,16 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  Users,
   Building2,
   Sparkles,
-  UserCheck,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'react-hot-toast';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@quikboom.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -34,7 +32,6 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Clear stale user and tokens before authenticating
       useAuthStore.getState().logout();
 
       // Backend API authentication
@@ -77,12 +74,6 @@ export default function LoginPage() {
     }
   };
 
-  const fillQuickDemo = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('123456');
-    toast.success(`Demo credentials filled for ${demoEmail}`);
-  };
-
   return (
     <div className="min-h-screen w-full flex bg-[#F8FAFC] font-sans text-slate-900 selection:bg-[#23C45E] selection:text-white">
       {/* Left Showcase Banner Column (Hidden on Mobile) */}
@@ -99,85 +90,77 @@ export default function LoginPage() {
               alt="QuikBoom Logo"
               width={48}
               height={48}
-              className="w-12 h-12 object-contain rounded-2xl shadow-md"
+              className="object-contain drop-shadow-sm"
               priority
             />
           </div>
           <div>
-            <span className="text-2xl font-black tracking-tight text-slate-900 block leading-none">
+            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">
               QUIKBOOM
-            </span>
-            <span className="text-[11px] font-black tracking-widest text-[#1AA14D] uppercase">
-              CRM + HRM SaaS Platform
+            </h1>
+            <span className="text-[11px] font-bold text-[#1AA14D] tracking-wider uppercase">
+              Super Admin Console
             </span>
           </div>
         </div>
 
-        {/* Hero Copy & Stats Cards */}
-        <div className="relative z-10 my-auto max-w-xl space-y-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#E8F9EE] border border-[#23C45E]/30 text-[#1AA14D] text-xs font-extrabold shadow-xs">
+        {/* Center Hero Content */}
+        <div className="relative z-10 my-auto py-12 max-w-xl space-y-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#23C45E]/20 text-[#1AA14D] text-xs font-extrabold shadow-sm">
             <Sparkles className="w-4 h-4 text-[#23C45E]" />
-            <span>All-In-One Enterprise CRM, Attendance & Payroll Suite</span>
+            Enterprise Multi-Tenant Platform
           </div>
 
-          <h1 className="text-4xl xl:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-            Empower Your Sales & Workforce Operations
-          </h1>
+          <h2 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight leading-[1.1]">
+            Global Workspace <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#23C45E] to-emerald-700">
+              Command & Analytics
+            </span>
+          </h2>
 
-          <p className="text-sm text-slate-600 leading-relaxed font-medium">
-            Manage corporate client accounts, sales pipelines, live office attendance, employee visits, and consolidated payroll — in one secure multi-customer platform.
+          <p className="text-sm text-slate-600 font-medium leading-relaxed">
+            Centralized administration hub for customer provisioning, multi-tenant subscription tiers, workforce GPS radar, and enterprise access governance.
           </p>
 
-          {/* Core Feature Highlights */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center font-bold">
-                <Users className="w-5 h-5" />
+          {/* Quick Metrics Badge List */}
+          <div className="grid grid-cols-2 gap-4 pt-4">
+            <div className="p-4 rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200/80 shadow-xs">
+              <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mb-1">
+                <ShieldCheck className="w-4 h-4 text-[#23C45E]" /> Role Enforcement
               </div>
-              <h3 className="font-extrabold text-sm text-slate-900">CRM & Field Visits</h3>
-              <p className="text-xs text-slate-500 font-medium leading-relaxed">Leads, contacts, sales pipeline, and client visit logs.</p>
+              <p className="text-sm font-black text-slate-900">SUPER_ADMIN Access</p>
             </div>
-
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center font-bold">
-                <Building2 className="w-5 h-5" />
+            <div className="p-4 rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200/80 shadow-xs">
+              <div className="flex items-center gap-2 text-slate-500 text-xs font-bold mb-1">
+                <Building2 className="w-4 h-4 text-[#23C45E]" /> Multi-Tenant
               </div>
-              <h3 className="font-extrabold text-sm text-slate-900">HRM & Live Attendance</h3>
-              <p className="text-xs text-slate-500 font-medium leading-relaxed">Office punch-in stream, leave management & consolidated payroll.</p>
+              <p className="text-sm font-black text-slate-900">Provisioning & RBAC</p>
             </div>
           </div>
         </div>
 
         {/* Footer info */}
-        <div className="relative z-10 flex items-center justify-between text-xs text-slate-500 font-bold pt-8 border-t border-slate-200">
-          <span>© 2026 QUIKBOOM SaaS Inc.</span>
-          <div className="flex items-center gap-2 text-[#1AA14D]">
-            <ShieldCheck className="w-4 h-4" />
-            <span>256-Bit SSL Encrypted Enterprise Gateway</span>
-          </div>
+        <div className="relative z-10 text-xs font-medium text-slate-400">
+          © {new Date().getFullYear()} QuikBoom Technologies Pvt Ltd. All rights reserved.
         </div>
       </div>
 
-      {/* Right Column: Authentication Card */}
-      <div className="w-full lg:w-5/12 flex items-center justify-center p-6 sm:p-12 bg-white relative">
+      {/* Right Login Column */}
+      <div className="w-full lg:w-5/12 flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo Header */}
-          <div className="flex lg:hidden items-center gap-3 justify-center mb-6">
-            <div className="w-10 h-10 relative flex items-center justify-center">
-              <Image
-                src="/app_logo.png"
-                alt="QuikBoom Logo"
-                width={40}
-                height={40}
-                className="w-10 h-10 object-contain rounded-xl shadow-xs"
-              />
-            </div>
-            <div className="text-left">
-              <span className="text-xl font-black tracking-tight text-slate-900 block leading-none">
-                QUIKBOOM
-              </span>
-              <span className="text-[10px] font-extrabold tracking-widest text-[#1AA14D] uppercase">
-                CRM + HRM Platform
+          <div className="flex lg:hidden items-center gap-3">
+            <Image
+              src="/app_logo.png"
+              alt="QuikBoom Logo"
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+            <div>
+              <h1 className="text-lg font-black text-slate-900">QUIKBOOM</h1>
+              <span className="text-[10px] font-bold text-[#1AA14D] tracking-wider uppercase">
+                Super Admin Console
               </span>
             </div>
           </div>
@@ -188,29 +171,8 @@ export default function LoginPage() {
               Sign In to Admin Portal
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              Enter your credentials to access customer administration services.
+              Enter your authorized Super Admin credentials to access administration services.
             </p>
-          </div>
-
-          {/* Quick Demo Fill Buttons */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block">
-                ⚡ Active Admin Role:
-              </span>
-              <span className="text-[9px] font-extrabold text-[#1AA14D] bg-[#E8F9EE] px-2 py-0.5 rounded border border-[#23C45E]/30">
-                Super Admin Only
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => fillQuickDemo('admin@quikboom.com')}
-                className="px-3.5 py-2 bg-[#E8F9EE] hover:bg-[#d4f5de] text-[#1AA14D] border border-[#23C45E]/30 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs w-full justify-center"
-              >
-                <UserCheck className="w-4 h-4 text-[#23C45E]" /> Fill Super Admin Credentials (admin@quikboom.com)
-              </button>
-            </div>
           </div>
 
           {/* Login Form */}
@@ -275,7 +237,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 bg-[#23C45E] hover:bg-[#1AA14D] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-[#23C45E]/20 transition-all flex items-center justify-center gap-2 cursor-pointer group active:scale-[0.99]"
+              className="w-full py-3.5 px-4 bg-[#23C45E] hover:bg-[#1AA14D] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-[#23C45E]/20 transition-all flex items-center justify-center gap-2 cursor-pointer group active:scale-[0.99] disabled:opacity-50"
             >
               {loading ? (
                 <div className="flex items-center gap-2">

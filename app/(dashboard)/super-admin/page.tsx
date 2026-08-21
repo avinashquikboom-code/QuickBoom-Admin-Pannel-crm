@@ -12,6 +12,11 @@ import {
   CheckCircle,
   Layers,
   Sparkles,
+  Sliders,
+  Calendar,
+  History,
+  Check,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -37,16 +42,30 @@ interface CustomerRow {
   mrr: string;
 }
 
+const ALL_POSSIBLE_FEATURES = [
+  { id: 'Customer Management', label: 'Customer & Contact Management' },
+  { id: 'Calendar', label: 'Calendar & Event Scheduler' },
+  { id: 'Works', label: 'Works & Deliverables Execution' },
+  { id: 'Tasks', label: 'Operational Tasks & Checklists' },
+  { id: 'Reports', label: 'Standard Reports & Exports' },
+  { id: 'Advanced Analytics', label: 'Advanced Performance Analytics' },
+  { id: 'Notifications', label: 'In-App & Email Notifications' },
+  { id: 'WhatsApp Integration', label: 'WhatsApp Business API Alerts' },
+  { id: 'HRM Attendance', label: 'HRM & GPS Attendance Check-In' },
+  { id: 'Payroll Automation', label: 'Payroll & Salary Slips Generator' },
+];
+
 export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState<'customers' | 'plans' | 'billing'>('customers');
 
   // Drawer states
   const [isCustomerDrawerOpen, setIsCustomerDrawerOpen] = useState(false);
+  const [isCustomizeDrawerOpen, setIsCustomizeDrawerOpen] = useState(false);
   const [isPlanDrawerOpen, setIsPlanDrawerOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
 
-  // Form states
+  // New Customer Provisioning Form
   const [customerForm, setCustomerForm] = useState({
     name: '',
     email: '',
@@ -56,6 +75,25 @@ export default function SuperAdminPage() {
     maxUsers: 25,
   });
 
+  // Customer Plan Customization Form
+  const [customPlanForm, setCustomPlanForm] = useState({
+    customerId: '',
+    customerName: '',
+    planId: '',
+    planName: '',
+    basePrice: 0,
+    customPrice: '',
+    userLimit: 15,
+    leadLimit: 1000,
+    features: ['Customer Management', 'Calendar', 'Works', 'Tasks', 'Reports'],
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'ACTIVE',
+  });
+
+  const [planHistory, setPlanHistory] = useState<any[]>([]);
+
+  // Subscription Plan Config Form
   const [planForm, setPlanForm] = useState({
     name: '',
     monthlyPrice: '',
@@ -65,6 +103,7 @@ export default function SuperAdminPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 1. Fetch Plans
   const { data: plansResponse, refetch: refetchPlans } = useQuery({
     queryKey: ['subscription-plans'],
     queryFn: async () => {
@@ -77,6 +116,7 @@ export default function SuperAdminPage() {
     },
   });
 
+  // 2. Fetch Customers
   const { data: customersResponse, refetch: refetchCustomers } = useQuery({
     queryKey: ['admin-customers'],
     queryFn: async () => {
@@ -93,12 +133,12 @@ export default function SuperAdminPage() {
     ? plansResponse
     : Array.isArray(plansResponse?.data)
     ? plansResponse.data
-    : null;
+    : [];
 
   const customers: CustomerRow[] =
     Array.isArray(customersResponse)
       ? customersResponse.map((c: any) => ({
-          id: c.id,
+          id: String(c.id),
           name: c.name,
           plan: c.plan?.name || c.plan || 'Starter Plan',
           status: c.status || (c.isActive ? 'active' : 'inactive'),
@@ -109,15 +149,135 @@ export default function SuperAdminPage() {
       : [];
 
   const plans =
-    rawPlans !== null && rawPlans.length > 0
+    rawPlans.length > 0
       ? rawPlans.map((p: any) => ({
           id: p.id,
           name: p.name,
+          code: p.code,
           price: `₹${Number(p.monthlyPrice || 0).toLocaleString('en-IN')}/mo`,
+          monthlyPrice: Number(p.monthlyPrice || 0),
+          yearlyPrice: Number(p.yearlyPrice || 0),
           userLimit: p.userLimit || 20,
+          leadLimit: p.leadLimit || 1000,
           features: Array.isArray(p.features) ? p.features : ['CRM', 'HRM', 'Payroll'],
         }))
       : [];
+
+  // Open Customize Plan Drawer
+  const handleOpenCustomizePlan = async (customer: CustomerRow) => {
+    setSelectedCustomer(customer);
+    try {
+      // Fetch current plan details and history
+      const [planRes, historyRes]: any = await Promise.all([
+        api.get(`/customers/${customer.id}/plan`).catch(() => null),
+        api.get(`/customers/${customer.id}/plan/history`).catch(() => []),
+      ]);
+
+      const planData = planRes?.data || planRes || {};
+      const historyData = Array.isArray(historyRes?.data) ? historyRes.data : Array.isArray(historyRes) ? historyRes : [];
+
+      const initialPlan = plans.find((p: any) => String(p.id) === String(planData.planId)) || plans[0];
+
+      setCustomPlanForm({
+        customerId: customer.id,
+        customerName: customer.name,
+        planId: String(initialPlan?.id || '1'),
+        planName: initialPlan?.name || 'Standard Package',
+        basePrice: initialPlan?.monthlyPrice || 0,
+        customPrice: planData.customPrice !== undefined && planData.customPrice !== null ? String(planData.customPrice) : String(initialPlan?.monthlyPrice || 0),
+        userLimit: planData.userLimit || initialPlan?.userLimit || 15,
+        leadLimit: planData.leadLimit || initialPlan?.leadLimit || 1000,
+        features: Array.isArray(planData.features) ? planData.features : (initialPlan?.features || ['Customer Management', 'Calendar', 'Works', 'Tasks', 'Reports']),
+        startDate: planData.startDate ? new Date(planData.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        endDate: planData.endDate ? new Date(planData.endDate).toISOString().split('T')[0] : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: planData.status || 'ACTIVE',
+      });
+
+      setPlanHistory(historyData);
+    } catch {
+      const initialPlan = plans[0];
+      setCustomPlanForm({
+        customerId: customer.id,
+        customerName: customer.name,
+        planId: String(initialPlan?.id || '1'),
+        planName: initialPlan?.name || 'Standard Package',
+        basePrice: initialPlan?.monthlyPrice || 0,
+        customPrice: String(initialPlan?.monthlyPrice || 0),
+        userLimit: 15,
+        leadLimit: 1000,
+        features: ['Customer Management', 'Calendar', 'Works', 'Tasks', 'Reports'],
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'ACTIVE',
+      });
+      setPlanHistory([]);
+    }
+
+    setIsCustomizeDrawerOpen(true);
+  };
+
+  // Base Plan Dropdown change handler
+  const handleBasePlanChange = (planId: string) => {
+    const foundPlan = plans.find((p: any) => String(p.id) === String(planId));
+    if (foundPlan) {
+      setCustomPlanForm((prev) => ({
+        ...prev,
+        planId: String(foundPlan.id),
+        planName: foundPlan.name,
+        basePrice: foundPlan.monthlyPrice,
+        customPrice: String(foundPlan.monthlyPrice),
+        userLimit: foundPlan.userLimit,
+        leadLimit: foundPlan.leadLimit,
+        features: Array.isArray(foundPlan.features) ? foundPlan.features : prev.features,
+      }));
+    }
+  };
+
+  // Toggle Feature in Customize Plan Drawer
+  const handleToggleFeature = (featureLabel: string) => {
+    setCustomPlanForm((prev) => {
+      const exists = prev.features.includes(featureLabel);
+      if (exists) {
+        return { ...prev, features: prev.features.filter((f) => f !== featureLabel) };
+      } else {
+        return { ...prev, features: [...prev.features, featureLabel] };
+      }
+    });
+  };
+
+  // Save Customized Customer Plan
+  const handleSaveCustomPlan = async () => {
+    if (!customPlanForm.planId) {
+      toast.error('Please select a base plan');
+      return;
+    }
+    if (new Date(customPlanForm.endDate) < new Date(customPlanForm.startDate)) {
+      toast.error('End date must be after or equal to Start date');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await api.post(`/customers/${customPlanForm.customerId}/customize-plan`, {
+        planId: Number(customPlanForm.planId),
+        customPrice: customPlanForm.customPrice ? Number(customPlanForm.customPrice) : null,
+        userLimit: Number(customPlanForm.userLimit),
+        leadLimit: Number(customPlanForm.leadLimit),
+        features: customPlanForm.features,
+        startDate: customPlanForm.startDate,
+        endDate: customPlanForm.endDate,
+        status: customPlanForm.status,
+      });
+
+      toast.success(`Custom plan assigned to ${customPlanForm.customerName} successfully!`);
+      setIsCustomizeDrawerOpen(false);
+      refetchCustomers();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to assign custom plan');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSaveCustomer = async () => {
     if (!customerForm.name.trim()) {
@@ -166,7 +326,7 @@ export default function SuperAdminPage() {
     {
       key: 'plan',
       header: 'Plan Tier',
-      render: (t) => <span className="font-bold text-indigo-600">{t.plan}</span>,
+      render: (t) => <span className="font-bold text-[#1AA14D]">{t.plan}</span>,
     },
     {
       key: 'status',
@@ -180,8 +340,8 @@ export default function SuperAdminPage() {
     },
     {
       key: 'users',
-      header: 'Users',
-      render: (t) => <span className="font-bold text-slate-700">{t.users}</span>,
+      header: 'Users Limit',
+      render: (t) => <span className="font-bold text-slate-700">{t.users} Seats</span>,
     },
     {
       key: 'storage',
@@ -190,8 +350,8 @@ export default function SuperAdminPage() {
     },
     {
       key: 'mrr',
-      header: 'MRR',
-      render: (t) => <span className="font-bold text-slate-900">{t.mrr}</span>,
+      header: 'Effective Price',
+      render: (t) => <span className="font-black text-slate-900">{t.mrr}</span>,
     },
     {
       key: 'actions',
@@ -201,21 +361,10 @@ export default function SuperAdminPage() {
       render: (row) => (
         <button
           type="button"
-          onClick={() => {
-            setSelectedCustomer(row);
-            setCustomerForm({
-              name: row.name,
-              email: `${row.name.toLowerCase().replace(/\s+/g, '')}@workspace.com`,
-              phone: '+91 98765 43210',
-              subdomain: row.name.toLowerCase().replace(/\s+/g, ''),
-              plan: row.plan,
-              maxUsers: row.users || 20,
-            });
-            setIsCustomerDrawerOpen(true);
-          }}
-          className="text-indigo-600 font-bold hover:underline cursor-pointer text-xs"
+          onClick={() => handleOpenCustomizePlan(row)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F9EE] text-[#1AA14D] hover:bg-[#23C45E] hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
         >
-          Manage Subscription
+          <Sliders className="w-3.5 h-3.5" /> Customize Plan
         </button>
       ),
     },
@@ -226,7 +375,7 @@ export default function SuperAdminPage() {
       {/* Super Admin Title Header */}
       <AdminPageHeader
         title="QuikBoom SaaS Super Admin Portal"
-        description="Manage multi-customer subscriptions, platform billing, SaaS feature flags, and customer provisioning."
+        description="Manage multi-customer subscriptions, customer-specific customized plans, platform billing, and tenant provisioning."
         badge={{
           text: 'PLATFORM SUPER ADMIN CONTROLS',
           icon: ShieldCheck,
@@ -298,7 +447,7 @@ export default function SuperAdminPage() {
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          Customer Management
+          Customer Management & Custom Plans
         </button>
         <button
           onClick={() => setActiveTab('plans')}
@@ -308,18 +457,21 @@ export default function SuperAdminPage() {
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          Subscription Plans
+          Global Subscription Plans
         </button>
       </div>
 
       {/* Customers Table */}
       {activeTab === 'customers' && (
-        <AdminCard title="Active Customer Organizations" description="Overview of provisioned enterprise accounts">
+        <AdminCard
+          title="Active Customer Organizations"
+          description="Overview of provisioned enterprise accounts and customized plan subscriptions"
+        >
           <AdminDataTable columns={customerColumns} data={customers} />
         </AdminCard>
       )}
 
-      {/* Plans Grid */}
+      {/* Global Plans Grid */}
       {activeTab === 'plans' && (
         <div className="space-y-4">
           <div className="flex justify-end">
@@ -366,7 +518,7 @@ export default function SuperAdminPage() {
                     setSelectedPlan(p);
                     setPlanForm({
                       name: p.name,
-                      monthlyPrice: p.price.replace(/[^\d]/g, ''),
+                      monthlyPrice: String(p.monthlyPrice),
                       userLimit: String(p.userLimit),
                       description: 'Custom SaaS tier configuration',
                     });
@@ -382,7 +534,226 @@ export default function SuperAdminPage() {
       )}
 
       {/* =====================================================================
-          RIGHT SIDE DRAWER 1: Customer Provisioning / Edit Drawer
+          RIGHT SIDE DRAWER: CUSTOMIZE CUSTOMER PLAN (Customer-Specific Overrides)
+          ===================================================================== */}
+      <AdminFormDrawer
+        isOpen={isCustomizeDrawerOpen}
+        onClose={() => setIsCustomizeDrawerOpen(false)}
+        title={`Customize Plan: ${customPlanForm.customerName}`}
+        description="Override features, limits, custom pricing, and validity for this customer"
+        size="lg"
+        onSave={handleSaveCustomPlan}
+        saveLabel="Save Customer Plan"
+        isSubmitting={isSubmitting}
+      >
+        <div className="space-y-5">
+          {/* Customer Organization Banner */}
+          <div className="p-3.5 bg-[#E8F9EE] rounded-xl border border-[#23C45E]/20 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-black uppercase text-[#1AA14D] tracking-wider block">Customer Organization</span>
+              <p className="text-sm font-black text-slate-900">{customPlanForm.customerName}</p>
+            </div>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-[#23C45E]/30 text-[#1AA14D]">
+              ID: {customPlanForm.customerId}
+            </span>
+          </div>
+
+          {/* 1. Base Plan Selector */}
+          <div>
+            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+              Select Base Plan *
+            </label>
+            <select
+              value={customPlanForm.planId}
+              onChange={(e) => handleBasePlanChange(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+            >
+              {plans.map((p: any) => (
+                <option key={p.id} value={String(p.id)}>
+                  {p.name} — Base Price ₹{p.monthlyPrice.toLocaleString('en-IN')}/mo ({p.userLimit} Users)
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400 mt-1 font-medium">
+              Base plan defines default features and baseline quota limits.
+            </p>
+          </div>
+
+          {/* 2. Customer-Specific Features Checklist */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                Enabled Customer Features
+              </label>
+              <span className="text-[11px] font-bold text-[#1AA14D]">
+                {customPlanForm.features.length} Enabled
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+              {ALL_POSSIBLE_FEATURES.map((feature) => {
+                const isChecked = customPlanForm.features.includes(feature.id);
+                return (
+                  <label
+                    key={feature.id}
+                    onClick={() => handleToggleFeature(feature.id)}
+                    className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer select-none ${
+                      isChecked
+                        ? 'bg-white border-[#23C45E]/40 text-slate-900 shadow-2xs'
+                        : 'bg-transparent border-transparent text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                        isChecked
+                          ? 'bg-[#23C45E] border-[#23C45E] text-white'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <span>{feature.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. Customer-Specific Limits */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Seat Limit (Users)
+              </label>
+              <input
+                type="number"
+                value={customPlanForm.userLimit}
+                onChange={(e) => setCustomPlanForm({ ...customPlanForm, userLimit: Number(e.target.value) })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Monthly Lead Limit
+              </label>
+              <input
+                type="number"
+                value={customPlanForm.leadLimit}
+                onChange={(e) => setCustomPlanForm({ ...customPlanForm, leadLimit: Number(e.target.value) })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* 4. Pricing: Global Base Price vs Customer Custom Price */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
+            <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block">
+              Pricing Configuration
+            </span>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                  Global Base Price
+                </label>
+                <div className="px-3.5 py-2.5 bg-slate-200/60 rounded-xl text-xs font-black text-slate-700 font-mono">
+                  ₹{customPlanForm.basePrice.toLocaleString('en-IN')}/mo
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Standard catalog rate</p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-[#1AA14D] mb-1">
+                  Custom Charged Price (₹) *
+                </label>
+                <input
+                  type="number"
+                  value={customPlanForm.customPrice}
+                  onChange={(e) => setCustomPlanForm({ ...customPlanForm, customPrice: e.target.value })}
+                  placeholder={String(customPlanForm.basePrice)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-[#23C45E]/40 rounded-xl text-xs font-black text-slate-900 font-mono focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Amount charged specifically to this tenant</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. Plan Validity Dates & Status */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Start Date *
+              </label>
+              <input
+                type="date"
+                value={customPlanForm.startDate}
+                onChange={(e) => setCustomPlanForm({ ...customPlanForm, startDate: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                End Date *
+              </label>
+              <input
+                type="date"
+                value={customPlanForm.endDate}
+                onChange={(e) => setCustomPlanForm({ ...customPlanForm, endDate: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                Status
+              </label>
+              <select
+                value={customPlanForm.status}
+                onChange={(e) => setCustomPlanForm({ ...customPlanForm, status: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="TRIAL">TRIAL</option>
+                <option value="EXPIRED">EXPIRED</option>
+                <option value="CANCELED">CANCELED</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 6. Historical Subscriptions Log */}
+          {planHistory.length > 0 && (
+            <div className="pt-3 border-t border-slate-200 space-y-2">
+              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-slate-400" /> Plan Assignment History
+              </span>
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {planHistory.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/60 text-xs flex items-center justify-between"
+                  >
+                    <div>
+                      <span className="font-black text-slate-900">{item.planName}</span>
+                      <span className="text-slate-400 font-mono text-[10px] ml-2">
+                        {item.startDate ? new Date(item.startDate).toLocaleDateString() : 'N/A'} → {item.endDate ? new Date(item.endDate).toLocaleDateString() : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-slate-700">₹{Number(item.effectivePrice || item.basePrice || 0).toLocaleString('en-IN')}</span>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 uppercase">
+                        {item.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </AdminFormDrawer>
+
+      {/* =====================================================================
+          RIGHT SIDE DRAWER: Customer Provisioning / Edit Drawer
           ===================================================================== */}
       <AdminFormDrawer
         isOpen={isCustomerDrawerOpen}
@@ -390,7 +761,7 @@ export default function SuperAdminPage() {
         title={selectedCustomer ? 'Manage Customer Organization' : 'Provision New Customer'}
         description={
           selectedCustomer
-            ? `Update subscription settings for ${selectedCustomer.name}`
+            ? `Update settings for ${selectedCustomer.name}`
             : 'Enter workspace details to provision a new tenant'
         }
         size="md"
@@ -475,13 +846,13 @@ export default function SuperAdminPage() {
       </AdminFormDrawer>
 
       {/* =====================================================================
-          RIGHT SIDE DRAWER 2: Subscription Plan Drawer
+          RIGHT SIDE DRAWER: Subscription Plan Config Drawer
           ===================================================================== */}
       <AdminFormDrawer
         isOpen={isPlanDrawerOpen}
         onClose={() => setIsPlanDrawerOpen(false)}
         title={selectedPlan ? `Configure Plan: ${selectedPlan.name}` : 'Create Subscription Plan'}
-        description="Configure pricing tiers and feature allocations"
+        description="Configure global pricing tiers and baseline feature allocations"
         size="md"
         onSave={handleSavePlan}
         saveLabel={selectedPlan ? 'Update Plan' : 'Save Plan'}

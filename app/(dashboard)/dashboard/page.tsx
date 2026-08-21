@@ -66,8 +66,12 @@ export default function AdminDashboardPage() {
   } = useQuery({
     queryKey: ['admin-dashboard-customers'],
     queryFn: async () => {
-      const res: any = await api.get('/super-admin/customers');
-      return res?.data?.items || res?.data || res || [];
+      try {
+        const res: any = await api.get('/customers');
+        return res?.data?.items || res?.items || res?.data || res || [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -80,8 +84,12 @@ export default function AdminDashboardPage() {
   } = useQuery({
     queryKey: ['admin-dashboard-plans'],
     queryFn: async () => {
-      const res: any = await api.get('/super-admin/plans');
-      return res?.data || res || [];
+      try {
+        const res: any = await api.get('/plans');
+        return res?.data || res || [];
+      } catch {
+        return [];
+      }
     },
   });
 
