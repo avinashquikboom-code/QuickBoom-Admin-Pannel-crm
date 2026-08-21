@@ -9,6 +9,7 @@ export interface User {
   lastName: string;
   customerId: number | string | null;
   customerName?: string;
+  role?: string;
   roles: string[];
   permissions?: string[];
   subscriptionFeatures?: SubscriptionFeatures;

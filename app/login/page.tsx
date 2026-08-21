@@ -34,6 +34,9 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // Clear stale user and tokens before authenticating
+      useAuthStore.getState().logout();
+
       // Backend API authentication
       const res: any = await api.post('/auth/login', { email, password });
       const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
@@ -44,10 +47,13 @@ export default function LoginPage() {
         throw new Error('Invalid response structure received from authentication service');
       }
 
-      // STRICT SUPER ADMIN ONLY CHECK: Block all other roles
+      // STRICT SUPER ADMIN ONLY CHECK: Inspect database/backend authenticated roles
       const userRoles: string[] = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
       const isSuperAdmin = userRoles.some(
-        (r: string) => r === 'SUPER_ADMIN' || r === 'Super Admin'
+        (r: string) => {
+          const normalized = String(r).toUpperCase().replace(/\s+/g, '_');
+          return normalized === 'SUPER_ADMIN';
+        }
       );
 
       if (!isSuperAdmin) {
@@ -56,7 +62,8 @@ export default function LoginPage() {
 
       const mappedUser = {
         ...user,
-        roles: ['Super Admin'],
+        role: 'SUPER_ADMIN',
+        roles: ['SUPER_ADMIN'],
       };
 
       setAuth(mappedUser, tokens.accessToken, tokens.refreshToken);
