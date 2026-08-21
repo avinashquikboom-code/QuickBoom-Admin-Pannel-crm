@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import {
-  Zap,
   Mail,
   Lock,
   ArrowRight,
@@ -77,9 +77,16 @@ export default function LoginPage() {
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Brand Header */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-[#23C45E] shadow-lg shadow-[#23C45E]/20 flex items-center justify-center text-white">
-            <Zap className="w-6 h-6 fill-white text-white" />
+        <div className="relative z-10 flex items-center gap-3.5">
+          <div className="w-12 h-12 relative flex items-center justify-center">
+            <Image
+              src="/app_logo.png"
+              alt="QuikBoom Logo"
+              width={48}
+              height={48}
+              className="w-12 h-12 object-contain rounded-2xl shadow-md"
+              priority
+            />
           </div>
           <div>
             <span className="text-2xl font-black tracking-tight text-slate-900 block leading-none">
@@ -141,8 +148,14 @@ export default function LoginPage() {
         <div className="w-full max-w-md space-y-8">
           {/* Mobile Logo Header */}
           <div className="flex lg:hidden items-center gap-3 justify-center mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-[#23C45E] flex items-center justify-center text-white shadow-lg shadow-[#23C45E]/20">
-              <Zap className="w-5 h-5 fill-white text-white" />
+            <div className="w-10 h-10 relative flex items-center justify-center">
+              <Image
+                src="/app_logo.png"
+                alt="QuikBoom Logo"
+                width={40}
+                height={40}
+                className="w-10 h-10 object-contain rounded-xl shadow-xs"
+              />
             </div>
             <div className="text-left">
               <span className="text-xl font-black tracking-tight text-slate-900 block leading-none">

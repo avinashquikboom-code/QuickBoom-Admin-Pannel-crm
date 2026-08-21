@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import {
   LogOut,
-  Zap,
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
@@ -80,20 +80,35 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse }: 
       {/* QuikBoom Brand Header */}
       <div
         className={`h-16 flex items-center ${
-          isCollapsed ? 'justify-center px-2' : 'justify-between px-5'
+          isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
         } border-b border-slate-200 bg-slate-50/60`}
       >
-        <div className="flex items-center gap-3 font-extrabold text-lg text-slate-900 overflow-hidden">
-          <div className="w-9 h-9 min-w-[36px] rounded-xl bg-[#23C45E] flex items-center justify-center text-white shadow-md shadow-[#23C45E]/20">
-            <Zap className="w-5 h-5 fill-white text-white" />
-          </div>
-          {!isCollapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="tracking-tight text-base font-black leading-tight text-slate-900 truncate">
-                QUIKBOOM
-              </span>
-              <span className="text-[10px] font-extrabold tracking-widest text-[#23C45E] uppercase truncate">
-                {role === 'Super Admin' ? 'Super Admin' : role === 'HR' ? 'HR Operations' : 'Admin Portal'}
+        <div className="flex items-center gap-2.5 overflow-hidden">
+          {isCollapsed ? (
+            <div className="w-10 h-10 relative flex items-center justify-center">
+              <Image
+                src="/logo.png"
+                alt="QuikBoom Logo"
+                width={40}
+                height={40}
+                className="w-9 h-9 object-contain"
+                priority
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="relative h-9 max-w-[130px] flex items-center">
+                <Image
+                  src="/logo.png"
+                  alt="QuikBoom Logo"
+                  width={130}
+                  height={36}
+                  className="h-8 w-auto object-contain"
+                  priority
+                />
+              </div>
+              <span className="text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 uppercase shrink-0 truncate">
+                {role === 'Super Admin' ? 'Super Admin' : role === 'HR' ? 'HR' : 'Admin'}
               </span>
             </div>
           )}

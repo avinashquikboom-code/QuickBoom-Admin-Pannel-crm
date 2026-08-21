@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Zap, Mail, Phone, User, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
+import { Mail, Phone, User, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function RegisterPage() {
@@ -30,10 +31,15 @@ export default function RegisterPage() {
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 p-4 font-sans text-slate-100">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-emerald-400 p-0.5 mb-2 shadow-lg shadow-indigo-500/20">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <Zap className="w-6 h-6 text-emerald-400 fill-emerald-400" />
-            </div>
+          <div className="inline-flex items-center justify-center w-14 h-14 relative mb-2">
+            <Image
+              src="/app_logo.png"
+              alt="QuikBoom Logo"
+              width={56}
+              height={56}
+              className="w-14 h-14 object-contain rounded-2xl shadow-md"
+              priority
+            />
           </div>
           <h1 className="text-2xl font-black text-white">Employee Registration</h1>
           <p className="text-xs text-slate-400 font-medium">

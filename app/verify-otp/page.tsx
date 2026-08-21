@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Zap, Key, ArrowRight, ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
+import { Key, ArrowRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@/lib/store';
 
@@ -44,8 +45,15 @@ export default function VerifyOtpPage() {
     <div className="min-h-screen w-full flex items-center justify-center bg-[#F8FAFC] p-4 font-sans text-slate-900 selection:bg-[#23C45E] selection:text-white">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-8 shadow-xl space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#23C45E] mb-2 shadow-lg shadow-[#23C45E]/20 text-white">
-            <Zap className="w-6 h-6 fill-white text-white" />
+          <div className="inline-flex items-center justify-center w-14 h-14 relative mb-2">
+            <Image
+              src="/app_logo.png"
+              alt="QuikBoom Logo"
+              width={56}
+              height={56}
+              className="w-14 h-14 object-contain rounded-2xl shadow-md"
+              priority
+            />
           </div>
           <h1 className="text-2xl font-black text-slate-900">Verify Phone OTP</h1>
           <p className="text-xs text-slate-500 font-medium leading-relaxed">

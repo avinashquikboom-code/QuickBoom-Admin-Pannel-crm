@@ -5,6 +5,11 @@ import { Providers } from './providers';
 export const metadata: Metadata = {
   title: 'QuikBoom CRM - Enterprise SaaS Platform',
   description: 'Enterprise Multi-Customer SaaS CRM Platform for QuikBoom',
+  icons: {
+    icon: '/app_logo.png',
+    shortcut: '/app_logo.png',
+    apple: '/app_logo.png',
+  },
 };
 
 export default function RootLayout({

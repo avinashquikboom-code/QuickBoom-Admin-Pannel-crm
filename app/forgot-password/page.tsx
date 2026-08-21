@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import {
-  Zap,
   Mail,
   ArrowRight,
   ArrowLeft,
@@ -38,8 +38,15 @@ export default function ForgotPasswordPage() {
       <div className="relative z-10 w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#23C45E] mb-2 shadow-lg shadow-[#23C45E]/20 text-white">
-            <Zap className="w-6 h-6 fill-white text-white" />
+          <div className="inline-flex items-center justify-center w-14 h-14 relative mb-2">
+            <Image
+              src="/app_logo.png"
+              alt="QuikBoom Logo"
+              width={56}
+              height={56}
+              className="w-14 h-14 object-contain rounded-2xl shadow-md"
+              priority
+            />
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Forgot Password</h1>
           <p className="text-xs text-slate-500 font-medium leading-relaxed">

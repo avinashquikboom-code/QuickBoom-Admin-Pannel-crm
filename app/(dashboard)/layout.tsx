@@ -3,12 +3,12 @@
 import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { RouteGuard } from '@/components/RouteGuard';
+import Image from 'next/image';
 import {
   Bell,
   Search,
   Menu,
   X,
-  Zap,
   Shield,
   Layers,
   ChevronDown,
@@ -82,11 +82,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
           <div className="relative flex-1 max-w-xs w-full bg-white shadow-2xl z-10 flex flex-col">
             <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2 font-black text-slate-900 text-sm">
-                <div className="w-7 h-7 rounded-lg bg-[#23C45E] flex items-center justify-center text-white">
-                  <Zap className="w-4 h-4 fill-white" />
-                </div>
-                <span>QUIKBOOM</span>
+              <div className="flex items-center gap-2.5 font-black text-slate-900 text-sm">
+                <Image
+                  src="/logo.png"
+                  alt="QuikBoom"
+                  width={110}
+                  height={28}
+                  className="h-7 w-auto object-contain"
+                />
               </div>
               <button
                 onClick={() => setMobileOpen(false)}
