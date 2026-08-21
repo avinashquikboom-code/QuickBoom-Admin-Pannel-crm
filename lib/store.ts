@@ -3,11 +3,11 @@ import { persist } from 'zustand/middleware';
 import { ROLE_DEFAULT_PERMISSIONS, DEFAULT_SUBSCRIPTION_FEATURES, SubscriptionFeatures } from './access-control';
 
 export interface User {
-  id: string;
+  id: number | string;
   email: string;
   firstName: string;
   lastName: string;
-  customerId: string | null;
+  customerId: number | string | null;
   customerName?: string;
   roles: string[];
   permissions?: string[];
@@ -18,10 +18,10 @@ interface AuthState {
   user: User | null;
   token: string | null;
   refreshToken: string | null;
-  customerId: string | null;
+  customerId: number | string | null;
   isAuthenticated: boolean;
   setAuth: (user: User, token: string, refreshToken: string) => void;
-  setCustomerId: (customerId: string) => void;
+  setCustomerId: (customerId: number | string) => void;
   switchRole: (role: string) => void;
   toggleSubscriptionFeature: (feature: keyof SubscriptionFeatures, enabled: boolean) => void;
   logout: () => void;
@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      setCustomerId: (customerId: string) => set({ customerId }),
+      setCustomerId: (customerId: number | string) => set({ customerId }),
 
       switchRole: (role: string) => {
         const currentUser = get().user;
