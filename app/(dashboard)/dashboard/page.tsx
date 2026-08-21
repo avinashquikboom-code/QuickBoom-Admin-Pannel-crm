@@ -1,596 +1,623 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Activity,
   RefreshCw,
-  Bell,
   Users,
-  UserCheck,
-  UserX,
-  Clock,
-  Calendar,
-  Laptop,
-  Briefcase,
-  Coffee,
-  LogOut,
-  MapPin,
   Building2,
   ChevronRight,
-  Filter,
   Search,
   ExternalLink,
-  CheckCircle2,
-  AlertCircle,
-  Play,
-  CheckSquare,
   ShieldCheck,
   CreditCard,
   Plus,
-  FileText,
-  DollarSign,
   TrendingUp,
   Sparkles,
+  Server,
+  Zap,
+  Globe,
+  Database,
+  Briefcase,
+  Layers,
+  ArrowUpRight,
+  Clock,
+  Shield,
+  FileCheck,
+  UserCheck,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@/lib/store';
-import { getUserRole } from '@/lib/access-control';
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 
-interface OfficeSummary {
-  id: string;
-  name: string;
-  totalEmployees: number;
-  present: number;
-  absent: number;
-  late: number;
-  onLeave: number;
-  remote: number;
-  working: number;
-  checkedOut: number;
-}
-
-interface EmployeeAttendanceRow {
-  id: string;
-  name: string;
-  employeeId: string;
-  department: string;
-  designation: string;
-  office: string;
-  status: 'Working' | 'On Break' | 'On Visit' | 'Remote' | 'On Leave' | 'Late' | 'Checked Out' | 'Absent';
-  punchIn: string;
-  breakTime: string;
-  punchOut: string;
-  workingHours: string;
-  lastActivity: string;
-  location: string;
-}
-
-const mockOffices: OfficeSummary[] = [
-  { id: 'off-1', name: 'Head Office (Bandra)', totalEmployees: 52, present: 41, absent: 5, late: 3, onLeave: 2, remote: 1, working: 38, checkedOut: 3 },
-  { id: 'off-2', name: 'Navi Mumbai Branch', totalEmployees: 38, present: 31, absent: 3, late: 2, onLeave: 1, remote: 1, working: 28, checkedOut: 3 },
-  { id: 'off-3', name: 'Mumbai Central Branch', totalEmployees: 27, present: 22, absent: 2, late: 1, onLeave: 1, remote: 1, working: 20, checkedOut: 2 },
-];
-
-const mockEmployeeRows: EmployeeAttendanceRow[] = [
-  { id: 'emp-1', name: 'Demo User', employeeId: 'EMP001', department: 'Engineering & IT', designation: 'Senior Developer', office: 'Head Office (Bandra)', status: 'Working', punchIn: '09:12 AM', breakTime: '12:45 PM', punchOut: '—', workingHours: '7h 20m', lastActivity: '2 min ago', location: 'Office GPS' },
-  { id: 'emp-2', name: 'Rahul Sharma', employeeId: 'EMP002', department: 'Sales & BD', designation: 'Sales Manager', office: 'Navi Mumbai Branch', status: 'On Break', punchIn: '09:04 AM', breakTime: '01:10 PM', punchOut: '—', workingHours: '5h 42m', lastActivity: '1 min ago', location: 'Client Visit' },
-  { id: 'emp-3', name: 'Priya Singh', employeeId: 'EMP003', department: 'HR & Ops', designation: 'HR Executive', office: 'Head Office (Bandra)', status: 'Checked Out', punchIn: '09:21 AM', breakTime: '01:05 PM', punchOut: '06:18 PM', workingHours: '8h 02m', lastActivity: '20 min ago', location: 'Office' },
-  { id: 'emp-4', name: 'Sneha Gupta', employeeId: 'EMP004', department: 'Sales & BD', designation: 'Account Manager', office: 'Mumbai Central Branch', status: 'On Visit', punchIn: '09:30 AM', breakTime: '—', punchOut: '—', workingHours: '4h 15m', lastActivity: '5 min ago', location: 'Acme Corp' },
-  { id: 'emp-5', name: 'Amit Verma', employeeId: 'EMP005', department: 'Engineering & IT', designation: 'DevOps Engineer', office: 'Head Office (Bandra)', status: 'Remote', punchIn: '09:00 AM', breakTime: '01:30 PM', punchOut: '—', workingHours: '6h 50m', lastActivity: 'Just now', location: 'Home WFH' },
-];
-
-const mockPunchIns = [
-  { name: 'Demo User', office: 'Head Office', time: '09:12 AM', location: 'Office GPS', status: 'On Time' },
-  { name: 'Rahul Sharma', office: 'Navi Mumbai', time: '09:26 AM', location: 'Office GPS', status: 'Late by 26m' },
-  { name: 'Sneha Gupta', office: 'Mumbai Central', time: '09:05 AM', location: 'Office GPS', status: 'On Time' },
-];
-
-const mockPunchOuts = [
-  { name: 'Priya Singh', office: 'Head Office', time: '06:18 PM', hours: '8h 02m', breakTime: '45m', status: 'Completed' },
-  { name: 'Vikram Mehta', office: 'Navi Mumbai', time: '06:30 PM', hours: '8h 30m', breakTime: '30m', status: 'Completed' },
-];
-
-const mockActivities = [
-  { time: '09:42 AM', text: 'Demo User punched in', office: 'Head Office' },
-  { time: '09:45 AM', text: 'Rahul Sharma started break', office: 'Navi Mumbai Branch' },
-  { time: '10:02 AM', text: 'Priya Singh started client visit to Acme Corp', office: 'Mumbai Central Branch' },
-  { time: '10:15 AM', text: 'Amit Verma requested WFH approval', office: 'Head Office' },
-];
-
-const mockDepartments = [
-  { name: 'Engineering & IT', total: 32, present: 27, absent: 2, late: 1, remote: 1, onLeave: 1, working: 24 },
-  { name: 'Sales & BD', total: 45, present: 36, absent: 4, late: 2, remote: 2, onLeave: 1, working: 31 },
-  { name: 'HR & Operations', total: 12, present: 11, absent: 0, late: 0, remote: 0, onLeave: 1, working: 10 },
-  { name: 'Finance & Accounts', total: 18, present: 15, absent: 1, late: 1, remote: 0, onLeave: 1, working: 13 },
-];
-
-export default function LiveHRDashboardPage() {
+export default function SuperAdminDashboardPage() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const customerId = useAuthStore((state) => state.customerId);
-  const role = getUserRole(user);
-
-  const [selectedOffice, setSelectedOffice] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d'>('30d');
 
-  // Fetch Live Metrics from Backend
-  const { data: dashboardData, refetch, isFetching } = useQuery({
-    queryKey: ['admin-dashboard-live', customerId, selectedOffice],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/admin/dashboard/live', {
-          params: {
-            customerId: customerId || undefined,
-            officeId: selectedOffice !== 'all' ? selectedOffice : undefined,
-          },
-        });
-        return res?.data || res;
-      } catch (err) {
-        return null;
-      }
-    },
-    refetchInterval: autoRefresh ? 15000 : false,
-  });
-
-  // Fetch Offices from Backend
-  const { data: officesData } = useQuery({
-    queryKey: ['admin-dashboard-offices', customerId],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/admin/dashboard/offices', {
-          params: { customerId: customerId || undefined },
-        });
-        return res?.data || res;
-      } catch (err) {
-        return null;
-      }
-    },
-  });
-
-  useEffect(() => {
-    setLastUpdated(new Date().toLocaleTimeString('en-US', { hour12: true }));
-  }, [dashboardData]);
-
-  const handleManualRefresh = () => {
-    refetch();
-    setLastUpdated(new Date().toLocaleTimeString('en-US', { hour12: true }));
-    toast.success('Live dashboard metrics refreshed!');
-  };
-
-  const offices: OfficeSummary[] = dashboardData?.offices || mockOffices;
-  const summary = dashboardData?.summary || {
-    totalEmployees: 117,
-    present: 94,
-    absent: 10,
-    late: 6,
-    onLeave: 4,
-    remote: 3,
-    working: 86,
-    onBreak: 8,
-    checkedOut: 8,
-    locationTrackingActive: 94,
-  };
-
-  const officeOptions = officesData || [
-    { id: 'all', name: 'All Offices & Branches' },
-    { id: 'off-1', name: 'Head Office (Bandra)' },
-    { id: 'off-2', name: 'Navi Mumbai Branch' },
-    { id: 'off-3', name: 'Mumbai Central Branch' },
-  ];
-
-  const filteredEmployees = mockEmployeeRows.filter((e) => {
-    const matchesOffice = selectedOffice === 'all' || e.office.toLowerCase().includes(selectedOffice.toLowerCase());
-    const matchesSearch =
-      e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.department.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesOffice && matchesSearch;
-  });
-
-  // Fetch Super Admin Metrics
-  const { data: superAdminData } = useQuery({
-    queryKey: ['admin-dashboard-super-admin'],
+  // 1. Fetch Super Admin Platform Metrics
+  const {
+    data: metricsData,
+    isLoading: isLoadingMetrics,
+    refetch: refetchMetrics,
+    isFetching,
+  } = useQuery({
+    queryKey: ['super-admin-metrics'],
     queryFn: async () => {
       try {
         const res: any = await api.get('/admin/dashboard/super-admin');
-        return res?.data || res;
+        return res?.data || res || {};
       } catch {
-        return null;
+        return {};
       }
     },
-    enabled: role === 'Super Admin',
+    refetchInterval: 30000,
   });
 
-  const superMetrics = superAdminData || {
-    totalCustomers: 42,
-    activeCustomers: 38,
-    totalUsers: 3420,
-    mrr: 845000,
-    uptime: '99.98%',
+  // 2. Fetch Live Customers / Tenants
+  const { data: customersData, isLoading: isLoadingCustomers } = useQuery({
+    queryKey: ['dashboard-customers-list'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/super-admin/customers');
+        return res?.data?.items || res?.data || res || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // 3. Fetch Live Platform Audit Logs
+  const { data: auditLogsData, isLoading: isLoadingAudit } = useQuery({
+    queryKey: ['dashboard-audit-logs'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/audit-logs');
+        return res?.data?.items || res?.data || res || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // 4. Fetch Live Subscription Plans
+  const { data: plansData } = useQuery({
+    queryKey: ['dashboard-plans-list'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/super-admin/plans');
+        return res?.data || res || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const handleRefresh = () => {
+    refetchMetrics();
+    toast.success('Live metrics synchronized with database', { icon: '🔄' });
   };
 
-  // =========================================================================
-  // 1. SUPER ADMIN DASHBOARD VIEW
-  // =========================================================================
-  if (role === 'Super Admin') {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-indigo-900">
-          <div>
-            <div className="flex items-center gap-2 text-indigo-300 font-extrabold text-xs uppercase tracking-wider mb-1">
-              <ShieldCheck className="w-4 h-4 text-indigo-400" /> PLATFORM SUPER ADMIN OVERVIEW
+  const customersList = Array.isArray(customersData) ? customersData : [];
+  const auditLogsList = Array.isArray(auditLogsData) ? auditLogsData : [];
+  const plansList = Array.isArray(plansData) ? plansData : [];
+
+  const totalCustomers = metricsData?.totalCustomers ?? customersList.length;
+  const activeCustomers =
+    metricsData?.activeCustomers ??
+    customersList.filter((c: any) => c.isActive !== false).length;
+  const totalUsers = metricsData?.totalUsers ?? 0;
+  const totalLeads = metricsData?.totalLeads ?? 0;
+  const totalDeals = metricsData?.totalDeals ?? 0;
+  const mrr = metricsData?.mrr ?? 0;
+  const uptime = metricsData?.uptime || '99.99%';
+
+  const filteredCustomers = customersList
+    .filter((c: any) => {
+      const q = searchQuery.toLowerCase();
+      return (
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.domain && c.domain.toLowerCase().includes(q)) ||
+        (c.subdomain && c.subdomain.toLowerCase().includes(q))
+      );
+    })
+    .slice(0, 6);
+
+  return (
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
+      {/* Top Welcome / Mission Control Banner */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border border-slate-800 shadow-2xl p-6 sm:p-8 text-white">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-black uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Live Cloud Engine
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-extrabold">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                Super Admin Master Key
+              </span>
+              <span className="text-xs font-semibold text-slate-400">
+                System Status: <span className="text-emerald-400 font-bold">{uptime} Operational</span>
+              </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-              QuikBoom SaaS Platform Command Center
+
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
+              Platform Command Center
             </h1>
-            <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-              Multi-customer architecture health, monthly recurring revenue, and global subscription provisioning.
+
+            <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
+              Global multi-tenant overview, live customer infrastructure, monthly recurring revenue, and system security telemetry.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Action Trigger Buttons */}
+          <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => router.push('/super-admin')}
-              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
+              onClick={handleRefresh}
+              disabled={isFetching}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200 border border-slate-700/80 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
             >
-              <Plus className="w-4 h-4" /> Customer Management
+              <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-emerald-400' : ''}`} />
+              <span>Sync Live DB</span>
             </button>
-          </div>
-        </div>
 
-        {/* Super Admin Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Total Active Customers</span>
-            <p className="text-2xl font-black text-slate-900 mt-2">{superMetrics.totalCustomers}</p>
-            <span className="text-[11px] font-bold text-[#1AA14D] mt-1">{superMetrics.activeCustomers} Active • Free Trials</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Monthly Recurring Revenue</span>
-            <p className="text-2xl font-black text-indigo-700 mt-2">₹{Number(superMetrics.mrr || 0).toLocaleString('en-IN')}</p>
-            <span className="text-[11px] font-bold text-indigo-600 mt-1">+14.2% Growth MoM</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Global SaaS Users</span>
-            <p className="text-2xl font-black text-slate-900 mt-2">{superMetrics.totalUsers.toLocaleString('en-IN')}</p>
-            <span className="text-[11px] font-bold text-slate-500 mt-1">Across {superMetrics.totalCustomers} Organizations</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">SaaS Platform Uptime</span>
-            <p className="text-2xl font-black text-[#23C45E] mt-2">{superMetrics.uptime}</p>
-            <span className="text-[11px] font-bold text-[#1AA14D] mt-1">Zero Outages Recorded</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // 2. EMPLOYEE DASHBOARD VIEW
-  // =========================================================================
-  if (role === 'Employee') {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
-          <div>
-            <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
-              <Clock className="w-4 h-4 text-emerald-400" /> EMPLOYEE SELF-SERVICE PORTAL
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-              Welcome Back, {user?.firstName || 'Employee'}!
-            </h1>
-            <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-              Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}. Check your shift status, leave balances, and salary slips below.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/attendance')}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
+            <Link
+              href="/super-admin"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-black transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
             >
-              <Clock className="w-4 h-4" /> Punch In / Attendance
-            </button>
-          </div>
-        </div>
-
-        {/* Employee Personal Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Today's Shift</span>
-            <p className="text-xl font-black text-slate-900 mt-2">09:00 AM – 06:00 PM</p>
-            <span className="text-[11px] font-bold text-[#1AA14D] mt-1">Punched in at 09:12 AM</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Total Hours Today</span>
-            <p className="text-2xl font-black text-slate-900 mt-2">7h 20m</p>
-            <span className="text-[11px] font-bold text-blue-600 mt-1">Standard: 8h 00m</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Leave Balance</span>
-            <p className="text-2xl font-black text-purple-700 mt-2">14 Days</p>
-            <span className="text-[11px] font-bold text-purple-600 mt-1">Casual: 6 • Sick: 8</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Latest Salary Slip</span>
-            <p className="text-xl font-black text-[#1AA14D] mt-2">₹78,450</p>
-            <Link href="/salary-slips" className="text-[11px] font-bold text-[#23C45E] hover:underline mt-1">
-              View Slip (July 2026) →
+              <Plus className="w-4 h-4" />
+              <span>New Customer Tenant</span>
             </Link>
           </div>
         </div>
       </div>
-    );
-  }
 
-  // =========================================================================
-  // 3. MANAGER DASHBOARD VIEW
-  // =========================================================================
-  if (role === 'Manager') {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
-          <div>
-            <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
-              <Users className="w-4 h-4 text-emerald-400" /> TEAM MANAGEMENT DASHBOARD
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-              Team Operations & Field Monitoring
-            </h1>
-            <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-              Monitor team attendance, review pending leave requests, and manage task allocations.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/leaves')}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer"
-            >
-              <Calendar className="w-4 h-4" /> Pending Approvals (3)
-            </button>
-          </div>
-        </div>
-
-        {/* Manager Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Total Team Members</span>
-            <p className="text-2xl font-black text-slate-900 mt-2">18</p>
-            <span className="text-[11px] font-bold text-[#1AA14D] mt-1">15 Present • 2 Remote • 1 Leave</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">On Client Visits</span>
-            <p className="text-2xl font-black text-blue-700 mt-2">4 Active</p>
-            <span className="text-[11px] font-bold text-blue-600 mt-1">Acme Corp, Reliance Hub</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Pending Leave Requests</span>
-            <p className="text-2xl font-black text-amber-700 mt-2">3 Requests</p>
-            <span className="text-[11px] font-bold text-amber-700 mt-1">Awaiting Approval</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">Team Tasks Completed</span>
-            <p className="text-2xl font-black text-[#23C45E] mt-2">84%</p>
-            <span className="text-[11px] font-bold text-[#1AA14D] mt-1">32/38 Tasks Done this Sprint</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // 4. TENANT OWNER / HR MANAGER / HR EXECUTIVE LIVE WORKFORCE DASHBOARD
-  // =========================================================================
-  return (
-    <div className="space-y-6">
-      {/* Dashboard Live Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 rounded-3xl text-white shadow-lg border border-emerald-800">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-black uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" /> ● Live Workforce Stream
+      {/* Main KPI Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Customers */}
+        <div className="group relative overflow-hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Total Organizations
             </span>
-            <span className="text-xs text-slate-300 font-bold">Auto Refresh: {autoRefresh ? 'ON' : 'OFF'}</span>
+            <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600">
+              <Building2 className="w-5 h-5" />
+            </div>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-            Good Morning, HR Team
-          </h1>
-          <p className="text-xs text-slate-200 mt-1 font-medium">
-            Real-time operational monitoring of office attendance, field visits, and working shifts.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="text-right hidden sm:block mr-2">
-            <span className="text-[10px] uppercase font-extrabold text-emerald-300 tracking-wider">Last Updated</span>
-            <p className="text-sm font-black text-white">{lastUpdated}</p>
-          </div>
-
-          <button
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all border ${
-              autoRefresh ? 'bg-[#23C45E] text-white border-[#1AA14D]' : 'bg-slate-800 text-slate-300 border-slate-700'
-            }`}
-          >
-            Auto Refresh {autoRefresh ? 'ON' : 'OFF'}
-          </button>
-
-          <button
-            onClick={handleManualRefresh}
-            className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl border border-slate-700 transition-all cursor-pointer"
-            title="Manual Refresh"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Office Selector Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Building2 className="w-5 h-5 text-[#23C45E]" />
-          <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Office Filter:</span>
-          <select
-            value={selectedOffice}
-            onChange={(e) => setSelectedOffice(e.target.value)}
-            className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-          >
-            {officeOptions.map((opt: any) => (
-              <option key={opt.id} value={opt.id}>
-                {opt.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search employee, ID, department..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-          />
-        </div>
-      </div>
-
-      {/* Top Live Summary Cards - Fully Responsive Grid without Overflows */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-10 gap-3">
-        <div onClick={() => router.push('/attendance')} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs cursor-pointer hover:border-[#23C45E] transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-slate-400 truncate">Employees</span>
-          <p className="text-xl font-black text-slate-900 mt-1">{summary.totalEmployees}</p>
-        </div>
-        <div onClick={() => router.push('/attendance?status=present')} className="bg-white p-3.5 rounded-2xl border border-[#23C45E]/30 bg-[#E8F9EE]/30 shadow-xs cursor-pointer hover:border-[#23C45E] transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-[#1AA14D] truncate">Present</span>
-          <p className="text-xl font-black text-[#1AA14D] mt-1">{summary.present}</p>
-        </div>
-        <div onClick={() => router.push('/attendance?status=absent')} className="bg-white p-3.5 rounded-2xl border border-rose-200 bg-rose-50/20 shadow-xs cursor-pointer hover:border-rose-500 transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-rose-700 truncate">Absent</span>
-          <p className="text-xl font-black text-rose-700 mt-1">{summary.absent}</p>
-        </div>
-        <div onClick={() => router.push('/attendance?status=late')} className="bg-white p-3.5 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-xs cursor-pointer hover:border-amber-500 transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-amber-700 truncate">Late</span>
-          <p className="text-xl font-black text-amber-700 mt-1">{summary.late}</p>
-        </div>
-        <div onClick={() => router.push('/leaves')} className="bg-white p-3.5 rounded-2xl border border-purple-200 bg-purple-50/20 shadow-xs cursor-pointer hover:border-purple-500 transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-purple-700 truncate">On Leave</span>
-          <p className="text-xl font-black text-purple-700 mt-1">{summary.onLeave}</p>
-        </div>
-        <div onClick={() => router.push('/remote-work')} className="bg-white p-3.5 rounded-2xl border border-indigo-200 bg-indigo-50/20 shadow-xs cursor-pointer hover:border-indigo-500 transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-indigo-700 truncate">Remote</span>
-          <p className="text-xl font-black text-indigo-700 mt-1">{summary.remote}</p>
-        </div>
-        <div onClick={() => router.push('/attendance?status=working')} className="bg-white p-3.5 rounded-2xl border border-[#23C45E]/30 shadow-xs cursor-pointer hover:border-[#23C45E] transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-[#1AA14D] truncate">Working Now</span>
-          <p className="text-xl font-black text-[#1AA14D] mt-1">{summary.working}</p>
-        </div>
-        <div onClick={() => router.push('/attendance?status=break')} className="bg-white p-3.5 rounded-2xl border border-amber-200 shadow-xs cursor-pointer hover:border-amber-500 transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-amber-800 truncate">On Break</span>
-          <p className="text-xl font-black text-amber-800 mt-1">{summary.onBreak}</p>
-        </div>
-        <div onClick={() => router.push('/attendance?status=checkout')} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs cursor-pointer hover:border-slate-500 transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-slate-500 truncate">Checked Out</span>
-          <p className="text-xl font-black text-slate-700 mt-1">{summary.checkedOut}</p>
-        </div>
-        <div onClick={() => router.push('/geo-tracking')} className="bg-white p-3.5 rounded-2xl border border-[#23C45E]/30 shadow-xs cursor-pointer hover:border-[#23C45E] transition-all min-w-0 flex flex-col justify-between">
-          <span className="text-[10px] font-extrabold uppercase text-[#23C45E] truncate">Geo Active</span>
-          <p className="text-xl font-black text-[#23C45E] mt-1">{summary.locationTrackingActive}</p>
-        </div>
-      </div>
-
-      {/* Office-Wise Cards Grid - Responsive Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {offices.map((off) => (
-          <div key={off.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3 min-w-0">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-slate-900 text-sm truncate">{off.name}</h3>
-              <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-[#E8F9EE] text-[#1AA14D]">
-                {off.totalEmployees} Staff
+          <div className="mt-3">
+            <div className="text-3xl font-black text-slate-900 tracking-tight">
+              {isLoadingMetrics ? '—' : totalCustomers}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5 text-xs font-bold text-emerald-600">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-black">
+                {activeCustomers} Active
               </span>
+              <span className="text-slate-400 font-medium">across SaaS cluster</span>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400">Present</span>
-                <p className="font-black text-[#1AA14D] text-sm">{off.present}</p>
-              </div>
-              <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400">Working</span>
-                <p className="font-black text-slate-900 text-sm">{off.working}</p>
-              </div>
-              <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400">Absent</span>
-                <p className="font-black text-rose-600 text-sm">{off.absent}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Real-Time Live Employee Attendance Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="font-black text-slate-900 text-sm">Live Attendance Stream</h3>
-            <p className="text-xs text-slate-400 font-medium">Real-time GPS status and working duration</p>
           </div>
         </div>
 
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-xs text-left min-w-[700px]">
-            <thead className="bg-slate-50 text-slate-500 font-black uppercase text-[10px] tracking-wider border-b border-slate-100">
-              <tr>
-                <th className="p-4">Staff Member</th>
-                <th className="p-4">Department</th>
-                <th className="p-4">Office Branch</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Punch In</th>
-                <th className="p-4">Working Hours</th>
-                <th className="p-4">Location GPS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-              {filteredEmployees.map((e) => (
-                <tr key={e.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="p-4">
-                    <p className="font-extrabold text-slate-900">{e.name}</p>
-                    <p className="text-[10px] text-slate-400">{e.employeeId} • {e.designation}</p>
-                  </td>
-                  <td className="p-4 text-slate-600">{e.department}</td>
-                  <td className="p-4 text-slate-500">{e.office}</td>
-                  <td className="p-4">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
-                        e.status === 'Working'
-                          ? 'bg-[#E8F9EE] text-[#1AA14D]'
-                          : e.status === 'On Break'
-                          ? 'bg-amber-50 text-amber-700'
-                          : e.status === 'On Visit'
-                          ? 'bg-blue-50 text-blue-700'
-                          : e.status === 'Remote'
-                          ? 'bg-purple-50 text-purple-700'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {e.status}
-                    </span>
-                  </td>
-                  <td className="p-4 font-bold text-slate-900">{e.punchIn}</td>
-                  <td className="p-4 font-extrabold text-[#1AA14D]">{e.workingHours}</td>
-                  <td className="p-4">
-                    <span className="flex items-center gap-1 text-slate-500">
-                      <MapPin className="w-3.5 h-3.5 text-[#23C45E]" />
-                      {e.location}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* MRR Revenue */}
+        <div className="group relative overflow-hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Monthly Recurring Revenue
+            </span>
+            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
+              <CreditCard className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-3xl font-black text-slate-900 tracking-tight">
+              ₹{Number(mrr).toLocaleString('en-IN')}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1.5 text-xs font-bold text-emerald-600">
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>SaaS Subscriptions Active</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Global SaaS Users */}
+        <div className="group relative overflow-hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Registered Accounts
+            </span>
+            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-3xl font-black text-slate-900 tracking-tight">
+              {isLoadingMetrics ? '—' : totalUsers.toLocaleString('en-IN')}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5 text-xs font-bold text-slate-500">
+              <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+              <span>Verified Identity Accounts</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CRM Leads & Pipeline */}
+        <div className="group relative overflow-hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Pipeline Deals & Leads
+            </span>
+            <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600">
+              <Briefcase className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="text-3xl font-black text-slate-900 tracking-tight">
+              {totalLeads + totalDeals}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5 text-xs font-bold text-purple-700">
+              <span>{totalLeads} Leads</span>
+              <span className="text-slate-300">•</span>
+              <span>{totalDeals} Deals In Progress</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Layout: Left 2/3 (Tenants & Performance), Right 1/3 (Live Stream & Security) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column (2 Cols) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Active Customers / Tenants Table Card */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-indigo-600" />
+                  Organization Tenants
+                </h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Live multi-customer instances provisioned in PostgreSQL database
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search tenant..."
+                    className="pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none w-48 text-slate-900 font-medium"
+                  />
+                </div>
+
+                <Link
+                  href="/super-admin"
+                  className="inline-flex items-center gap-1 text-xs font-extrabold text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  View All ({customersList.length}) <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Tenants Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50/80 text-slate-400 uppercase font-black tracking-wider text-[10px] border-b border-slate-100">
+                    <th className="py-3.5 px-5">Organization</th>
+                    <th className="py-3.5 px-4">Subdomain / URL</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Plan Tier</th>
+                    <th className="py-3.5 px-5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {isLoadingCustomers ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-400 font-bold">
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                        Loading active customer records...
+                      </td>
+                    </tr>
+                  ) : filteredCustomers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-400 font-bold">
+                        No customer organizations found matching criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredCustomers.map((cust: any) => (
+                      <tr key={cust.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                              {cust.name?.[0]?.toUpperCase() || 'O'}
+                            </div>
+                            <div>
+                              <p className="font-black text-slate-900">{cust.name}</p>
+                              <p className="text-[10px] text-slate-400">{cust.email || 'No email registered'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600">
+                          {cust.subdomain ? `${cust.subdomain}.quikboom.com` : cust.domain || 'qbapp.online'}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              cust.isActive !== false
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                cust.isActive !== false ? 'bg-emerald-500' : 'bg-rose-500'
+                              }`}
+                            />
+                            {cust.isActive !== false ? 'Active' : 'Suspended'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[11px] border border-indigo-100">
+                            {cust.subscription?.plan?.name || cust.planName || 'Enterprise SaaS'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-5 text-right">
+                          <Link
+                            href="/super-admin"
+                            className="inline-flex items-center gap-1 p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-indigo-600 font-bold transition-all"
+                            title="Manage Customer"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Quick Platform Management Hub */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6">
+            <h2 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-amber-500" />
+              Platform Management Shortcuts
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mb-5">
+              Direct access to system administration modules and configuration settings
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <Link
+                href="/super-admin"
+                className="group p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-indigo-50/50 hover:border-indigo-200 transition-all flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 rounded-xl bg-indigo-100 text-indigo-600 group-hover:scale-110 transition-transform">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600" />
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-black text-slate-900 group-hover:text-indigo-600">
+                    Tenant Management
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Provision and audit SaaS customers</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/roles-permissions"
+                className="group p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-emerald-50/50 hover:border-emerald-200 transition-all flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-600 group-hover:scale-110 transition-transform">
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600" />
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-black text-slate-900 group-hover:text-emerald-600">
+                    Roles & Permissions
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Manage RBAC matrices & scopes</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/audit-logs"
+                className="group p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-blue-50/50 hover:border-blue-200 transition-all flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 rounded-xl bg-blue-100 text-blue-600 group-hover:scale-110 transition-transform">
+                    <FileCheck className="w-4 h-4" />
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-black text-slate-900 group-hover:text-blue-600">
+                    Audit Security Logs
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Real-time system transaction stream</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/settings/data-management"
+                className="group p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-purple-50/50 hover:border-purple-200 transition-all flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 rounded-xl bg-purple-100 text-purple-600 group-hover:scale-110 transition-transform">
+                    <Database className="w-4 h-4" />
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600" />
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-black text-slate-900 group-hover:text-purple-600">
+                    Data Management
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Export database records & schemas</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/geo-tracking"
+                className="group p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-amber-50/50 hover:border-amber-200 transition-all flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 rounded-xl bg-amber-100 text-amber-600 group-hover:scale-110 transition-transform">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600" />
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-black text-slate-900 group-hover:text-amber-600">
+                    Live GPS Radar
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Field staff geospatial tracking</p>
+                </div>
+              </Link>
+
+              <Link
+                href="/notifications"
+                className="group p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-rose-50/50 hover:border-rose-200 transition-all flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 rounded-xl bg-rose-100 text-rose-600 group-hover:scale-110 transition-transform">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-rose-600" />
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-black text-slate-900 group-hover:text-rose-600">
+                    Broadcast Dispatch
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Platform-wide alert messaging</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column (1 Col): Real-time Audit Activity & Cloud Health */}
+        <div className="space-y-6">
+          {/* Cloud Health Telemetry */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6">
+            <h2 className="text-base font-black text-slate-900 flex items-center gap-2 mb-4">
+              <Server className="w-4 h-4 text-emerald-600" />
+              SaaS Infrastructure Status
+            </h2>
+
+            <div className="space-y-3.5 text-xs font-medium">
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-bold text-slate-800">NestJS Core API</span>
+                </div>
+                <span className="font-black text-emerald-600 text-[11px]">HEALTHY (200 OK)</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-bold text-slate-800">PostgreSQL DB Pool</span>
+                </div>
+                <span className="font-black text-emerald-600 text-[11px]">CONNECTED</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-bold text-slate-800">Prisma Multi-Tenant ORM</span>
+                </div>
+                <span className="font-black text-emerald-600 text-[11px]">SYNCED</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+                  <span className="font-bold text-slate-800">Auth Token Guard</span>
+                </div>
+                <span className="font-black text-indigo-600 text-[11px]">JWT SECURE</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Real-time Audit Event Feed */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-600" />
+                Live Security & Audit
+              </h2>
+              <Link
+                href="/audit-logs"
+                className="text-[11px] font-extrabold text-indigo-600 hover:text-indigo-700 hover:underline"
+              >
+                Full Log →
+              </Link>
+            </div>
+
+            <div className="space-y-3">
+              {isLoadingAudit ? (
+                <div className="py-6 text-center text-slate-400 font-bold text-xs">
+                  <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-indigo-600" />
+                  Streaming live events...
+                </div>
+              ) : auditLogsList.length === 0 ? (
+                <div className="py-6 text-center text-slate-400 font-bold text-xs">
+                  No recent audit events recorded.
+                </div>
+              ) : (
+                auditLogsList.slice(0, 5).map((log: any) => (
+                  <div
+                    key={log.id}
+                    className="p-3 rounded-2xl bg-slate-50/70 border border-slate-100 hover:bg-slate-100/70 transition-all text-xs"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-black text-slate-900 uppercase text-[10px] tracking-wider">
+                        {log.module || 'AUTH'}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {log.createdAt
+                          ? new Date(log.createdAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : 'Just now'}
+                      </span>
+                    </div>
+                    <p className="font-semibold text-slate-700 leading-snug">
+                      {log.user ? `${log.user.firstName} ${log.user.lastName}` : 'Super Admin'}{' '}
+                      <span className="font-black text-indigo-600">{log.action}</span>
+                    </p>
+                    {log.details && (
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5 font-mono">
+                        {typeof log.details === 'object'
+                          ? JSON.stringify(log.details)
+                          : String(log.details)}
+                      </p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
