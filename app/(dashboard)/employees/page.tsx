@@ -873,40 +873,46 @@ export default function EmployeesPage() {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800">
       {/* =========================================================================
-          1. PAGE HEADER
+          1. PAGE HERO HEADER CARD
           ========================================================================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Employees
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
+                Workforce Directory
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Employee Master
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-extrabold">
-              Master Roster
-            </span>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
+              Manage complete employee profiles, assigned branch geofences, and organizational directory.
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Manage employee profiles and organizational information.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="p-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-xl border border-slate-200/80 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
-            title="Refresh employees"
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
+              title="Refresh employees"
+            >
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
+            </button>
 
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl text-xs font-extrabold shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer group active:scale-[0.98]"
-          >
-            <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span>+ Add Employee</span>
-          </button>
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer group active:scale-[0.98]"
+            >
+              <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>+ Add Employee</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -915,9 +921,9 @@ export default function EmployeesPage() {
           ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Total Employees */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
               Total Employees
             </span>
             <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
@@ -933,37 +939,37 @@ export default function EmployeesPage() {
         </div>
 
         {/* Active Employees */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
               Active Employees
             </span>
             <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">
               {isLoading ? '...' : activeCount}
             </p>
-            <span className="text-xs font-bold text-emerald-700/80 mt-0.5 block">
-              Authorized organizational staff
+            <span className="text-xs font-bold text-emerald-700 mt-0.5 block">
+              Currently operational
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
-            <UserCheck className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#1AA14D] border border-emerald-100 flex items-center justify-center">
+            <UserCheck className="w-6 h-6 text-[#23C45E]" />
           </div>
         </div>
 
         {/* Inactive Employees */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
               Inactive Employees
             </span>
-            <p className="text-2xl sm:text-3xl font-black text-slate-500 mt-1">
+            <p className="text-2xl sm:text-3xl font-black text-rose-600 mt-1">
               {isLoading ? '...' : inactiveCount}
             </p>
-            <span className="text-xs font-bold text-slate-400 mt-0.5 block">
-              Deactivated or archived accounts
+            <span className="text-xs font-bold text-rose-700 mt-0.5 block">
+              Deactivated or archived
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center">
             <UserX className="w-6 h-6" />
           </div>
         </div>

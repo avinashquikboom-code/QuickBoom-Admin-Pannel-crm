@@ -9,7 +9,8 @@ export interface AdminPageHeaderProps {
   badge?: {
     text: string;
     icon?: LucideIcon;
-    variant?: 'primary' | 'indigo' | 'purple' | 'amber';
+    variant?: 'primary' | 'indigo' | 'purple' | 'amber' | 'blue' | 'emerald';
+    pulsingDot?: boolean;
   };
   actions?: React.ReactNode;
   breadcrumbs?: { label: string; href?: string }[];
@@ -24,10 +25,12 @@ export function AdminPageHeader({
   className = '',
 }: AdminPageHeaderProps) {
   const badgeClasses = {
-    primary: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-    indigo: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
-    purple: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-    amber: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+    primary: 'bg-emerald-500/20 text-[#23C45E] border-emerald-500/30',
+    emerald: 'bg-emerald-500/20 text-[#23C45E] border-emerald-500/30',
+    indigo: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+    purple: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    amber: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    blue: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
   };
 
   const selectedBadgeVariant = badge?.variant || 'primary';
@@ -35,34 +38,45 @@ export function AdminPageHeader({
 
   return (
     <div
-      className={`flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800 ${className}`}
+      className={`relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl ${className}`}
     >
-      <div className="min-w-0 flex-1">
-        {badge && (
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider border ${badgeClasses[selectedBadgeVariant]}`}
-            >
-              {BadgeIcon && <BadgeIcon className="w-3.5 h-3.5" />}
-              {badge.text}
-            </span>
+      {/* Ambient Glows */}
+      <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+      <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-1.5 flex-1 min-w-0">
+          {badge && (
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-2xs ${badgeClasses[selectedBadgeVariant]}`}
+              >
+                {badge.pulsingDot !== false && (
+                  <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
+                )}
+                {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
+                {badge.text}
+              </span>
+            </div>
+          )}
+
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight break-words">
+            {title}
+          </h1>
+
+          {description && (
+            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
+              {description}
+            </p>
+          )}
+        </div>
+
+        {actions && (
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 z-10">
+            {actions}
           </div>
         )}
-
-        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white truncate break-words">
-          {title}
-        </h1>
-
-        {description && (
-          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium leading-relaxed max-w-3xl">
-            {description}
-          </p>
-        )}
       </div>
-
-      {actions && (
-        <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">{actions}</div>
-      )}
     </div>
   );
 }
