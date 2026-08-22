@@ -35,6 +35,7 @@ import {
   Lock,
   DollarSign,
   FileCheck,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -52,6 +53,8 @@ export interface EmployeeMaster {
   gender: string | null;
   dob: string | null;
   joiningDate: string;
+  departmentId?: number | null;
+  designationId?: number | null;
   department: string;
   designation: string;
   branch: string;
@@ -111,6 +114,17 @@ export default function EmployeesPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Quick Add Master dialog states (from inside Step 3 of Employee Wizard)
+  const [quickDeptModalOpen, setQuickDeptModalOpen] = useState(false);
+  const [quickDeptName, setQuickDeptName] = useState('');
+  const [quickDeptCode, setQuickDeptCode] = useState('');
+  const [isQuickDeptSubmitting, setIsQuickDeptSubmitting] = useState(false);
+
+  const [quickDesigModalOpen, setQuickDesigModalOpen] = useState(false);
+  const [quickDesigName, setQuickDesigName] = useState('');
+  const [quickDesigCode, setQuickDesigCode] = useState('');
+  const [isQuickDesigSubmitting, setIsQuickDesigSubmitting] = useState(false);
+
   // Form state structured into 6 distinct sections (shared state across all steps)
   const [formData, setFormData] = useState({
     // Step 1: Personal Details
@@ -129,10 +143,12 @@ export default function EmployeesPage() {
     status: 'ACTIVE',
     managerId: '',
 
-    // Step 3: Organization / Work Information
+    // Step 3: Organization / Work Information (Dynamic Master Linkage)
     branch: 'Head Office',
-    departmentName: 'Engineering & IT',
-    designationName: 'Software Engineer',
+    departmentId: '' as string | number,
+    departmentName: '',
+    designationId: '' as string | number,
+    designationName: '',
 
     // Step 4: Emergency & Identity Details
     emergencyName: '',
@@ -169,7 +185,45 @@ export default function EmployeesPage() {
     },
   });
 
-  // 2. Fetch Employee Master Records with server-side filters & pagination (NO attendance/leave APIs called)
+  // 2. Fetch Active Departments dynamically from Department Master API
+  const { data: activeDeptsRes, isLoading: isLoadingDepts, refetch: refetchDepts } = useQuery({
+    queryKey: ['active-departments'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/departments', { params: { isActive: true } });
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const activeDepartments: { id: number; name: string; code: string }[] = useMemo(() => {
+    return Array.isArray(activeDeptsRes) ? activeDeptsRes : [];
+  }, [activeDeptsRes]);
+
+  // 3. Fetch Active Designations dynamically from Designation Master API (filtered by selected department)
+  const { data: activeDesigsRes, isLoading: isLoadingDesigs, refetch: refetchDesigs } = useQuery({
+    queryKey: ['active-designations', formData.departmentId],
+    queryFn: async () => {
+      try {
+        const params: any = { isActive: true };
+        if (formData.departmentId) {
+          params.departmentId = formData.departmentId;
+        }
+        const res: any = await api.get('/designations', { params });
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const activeDesignations: { id: number; name: string; code: string; departmentId?: number }[] = useMemo(() => {
+    return Array.isArray(activeDesigsRes) ? activeDesigsRes : [];
+  }, [activeDesigsRes]);
+
+  // 4. Fetch Employee Master Records with server-side filters & pagination
   const {
     data: employeesRes,
     isLoading,
@@ -337,8 +391,10 @@ export default function EmployeesPage() {
         password: formData.password?.trim() || undefined,
         confirmPassword: formData.confirmPassword?.trim() || undefined,
         branch: formData.branch,
-        departmentName: formData.departmentName,
-        designationName: formData.designationName,
+        departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
+        departmentName: formData.departmentName || undefined,
+        designationId: formData.designationId ? Number(formData.designationId) : undefined,
+        designationName: formData.designationName || undefined,
         managerId: formData.managerId ? Number(formData.managerId) : undefined,
         documents: {
           panNumber: formData.panNumber || undefined,
@@ -389,6 +445,74 @@ export default function EmployeesPage() {
       toast.error(typeof msg === 'string' ? msg : 'Validation error');
     },
   });
+
+  // Quick Add Department from inside Step 3
+  const handleQuickAddDepartment = async () => {
+    if (!quickDeptName.trim()) {
+      toast.error('Please enter department name');
+      return;
+    }
+    setIsQuickDeptSubmitting(true);
+    try {
+      const res: any = await api.post('/departments', {
+        name: quickDeptName.trim(),
+        code: quickDeptCode.trim().toUpperCase() || undefined,
+        isActive: true,
+      });
+      const created = res?.data || res;
+      toast.success(`Department "${created.name}" created!`);
+      await queryClient.invalidateQueries({ queryKey: ['active-departments'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-departments'] });
+      setFormData((prev) => ({
+        ...prev,
+        departmentId: created.id,
+        departmentName: created.name,
+      }));
+      setQuickDeptName('');
+      setQuickDeptCode('');
+      setQuickDeptModalOpen(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to create department';
+      toast.error(typeof msg === 'string' ? msg : 'Error creating department');
+    } finally {
+      setIsQuickDeptSubmitting(false);
+    }
+  };
+
+  // Quick Add Designation from inside Step 3
+  const handleQuickAddDesignation = async () => {
+    if (!quickDesigName.trim()) {
+      toast.error('Please enter designation title');
+      return;
+    }
+    setIsQuickDesigSubmitting(true);
+    try {
+      const res: any = await api.post('/designations', {
+        name: quickDesigName.trim(),
+        code: quickDesigCode.trim().toUpperCase() || undefined,
+        departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
+        level: 1,
+        isActive: true,
+      });
+      const created = res?.data || res;
+      toast.success(`Designation "${created.name}" created!`);
+      await queryClient.invalidateQueries({ queryKey: ['active-designations'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-designations'] });
+      setFormData((prev) => ({
+        ...prev,
+        designationId: created.id,
+        designationName: created.name,
+      }));
+      setQuickDesigName('');
+      setQuickDesigCode('');
+      setQuickDesigModalOpen(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to create designation';
+      toast.error(typeof msg === 'string' ? msg : 'Error creating designation');
+    } finally {
+      setIsQuickDesigSubmitting(false);
+    }
+  };
 
   // Delete Employee state & mutation
   const [deleteConfirmEmp, setDeleteConfirmEmp] = useState<EmployeeMaster | null>(null);
@@ -443,6 +567,10 @@ export default function EmployeesPage() {
     setCurrentStep(1);
     setShowPassword(false);
     setShowConfirmPassword(false);
+
+    const defaultDept = activeDepartments[0];
+    const defaultDesig = activeDesignations[0];
+
     setFormData({
       firstName: '',
       lastName: '',
@@ -457,8 +585,10 @@ export default function EmployeesPage() {
       status: 'ACTIVE',
       managerId: '',
       branch: officesList[0] || 'Head Office',
-      departmentName: departmentsList[0] || 'Engineering & IT',
-      designationName: designationsList[0] || 'Software Engineer',
+      departmentId: defaultDept ? defaultDept.id : '',
+      departmentName: defaultDept ? defaultDept.name : 'Engineering & IT',
+      designationId: defaultDesig ? defaultDesig.id : '',
+      designationName: defaultDesig ? defaultDesig.name : 'Software Engineer',
       panNumber: '',
       aadhaarNumber: '',
       emergencyName: '',
@@ -489,6 +619,14 @@ export default function EmployeesPage() {
     const bk = emp.bankDetails || null;
     const docs = emp.documents || null;
 
+    const matchedDept =
+      activeDepartments.find((d) => d.id === emp.departmentId) ||
+      activeDepartments.find((d) => d.name.toLowerCase() === emp.department.toLowerCase());
+
+    const matchedDesig =
+      activeDesignations.find((d) => d.id === emp.designationId) ||
+      activeDesignations.find((d) => d.name.toLowerCase() === emp.designation.toLowerCase());
+
     setFormData({
       firstName: emp.firstName,
       lastName: emp.lastName,
@@ -503,8 +641,10 @@ export default function EmployeesPage() {
       status: emp.status,
       managerId: emp.managerId ? String(emp.managerId) : '',
       branch: emp.branch || 'Head Office',
-      departmentName: emp.department || 'Engineering & IT',
-      designationName: emp.designation || 'Software Engineer',
+      departmentId: emp.departmentId || (matchedDept ? matchedDept.id : ''),
+      departmentName: emp.department || (matchedDept ? matchedDept.name : 'Engineering & IT'),
+      designationId: emp.designationId || (matchedDesig ? matchedDesig.id : ''),
+      designationName: emp.designation || (matchedDesig ? matchedDesig.name : 'Software Engineer'),
       panNumber: docs?.panNumber || '',
       aadhaarNumber: docs?.aadhaarNumber || '',
       emergencyName: em?.name || '',
@@ -1814,33 +1954,105 @@ export default function EmployeesPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                        Department *
-                      </label>
-                      <input
-                        type="text"
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase">
+                          Department *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickDeptName('');
+                            setQuickDeptCode('');
+                            setQuickDeptModalOpen(true);
+                          }}
+                          className="text-[10px] font-bold text-[#1AA14D] hover:underline flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" /> New
+                        </button>
+                      </div>
+                      <select
                         required
-                        value={formData.departmentName}
-                        onChange={(e) => setFormData({ ...formData, departmentName: e.target.value })}
-                        placeholder="e.g. Engineering & IT"
+                        value={formData.departmentId || ''}
+                        onChange={(e) => {
+                          const deptId = e.target.value;
+                          const found = activeDepartments.find((d) => String(d.id) === String(deptId));
+                          setFormData((prev) => ({
+                            ...prev,
+                            departmentId: deptId ? Number(deptId) : '',
+                            departmentName: found ? found.name : '',
+                          }));
+                        }}
                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                      />
+                      >
+                        <option value="">-- Select Department --</option>
+                        {isLoadingDepts ? (
+                          <option value="" disabled>Loading departments...</option>
+                        ) : activeDepartments.length === 0 ? (
+                          <option value="" disabled>No active departments found</option>
+                        ) : (
+                          activeDepartments.map((dept) => (
+                            <option key={dept.id} value={dept.id}>
+                              {dept.name} ({dept.code})
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      {formData.departmentName && !formData.departmentId && (
+                        <p className="text-[10px] text-amber-600 mt-0.5 font-bold">
+                          Current: {formData.departmentName}
+                        </p>
+                      )}
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                        Designation *
-                      </label>
-                      <input
-                        type="text"
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase">
+                          Designation *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickDesigName('');
+                            setQuickDesigCode('');
+                            setQuickDesigModalOpen(true);
+                          }}
+                          className="text-[10px] font-bold text-[#1AA14D] hover:underline flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" /> New
+                        </button>
+                      </div>
+                      <select
                         required
-                        value={formData.designationName}
-                        onChange={(e) =>
-                          setFormData({ ...formData, designationName: e.target.value })
-                        }
-                        placeholder="e.g. Software Engineer"
+                        value={formData.designationId || ''}
+                        onChange={(e) => {
+                          const desId = e.target.value;
+                          const found = activeDesignations.find((d) => String(d.id) === String(desId));
+                          setFormData((prev) => ({
+                            ...prev,
+                            designationId: desId ? Number(desId) : '',
+                            designationName: found ? found.name : '',
+                          }));
+                        }}
                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                      />
+                      >
+                        <option value="">-- Select Designation --</option>
+                        {isLoadingDesigs ? (
+                          <option value="" disabled>Loading designations...</option>
+                        ) : activeDesignations.length === 0 ? (
+                          <option value="" disabled>No designations found</option>
+                        ) : (
+                          activeDesignations.map((desig) => (
+                            <option key={desig.id} value={desig.id}>
+                              {desig.name} ({desig.code})
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      {formData.designationName && !formData.designationId && (
+                        <p className="text-[10px] text-amber-600 mt-0.5 font-bold">
+                          Current: {formData.designationName}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -2464,6 +2676,155 @@ export default function EmployeesPage() {
                   <Trash2 className="w-4 h-4" />
                 )}
                 <span>Confirm Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 8. QUICK ADD DEPARTMENT MODAL */}
+      {quickDeptModalOpen && (
+        <div className="fixed inset-0 z-60 overflow-hidden flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !isQuickDeptSubmitting && setQuickDeptModalOpen(false)}
+          />
+          <div className="relative bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <Building2 className="w-5 h-5 text-[#23C45E]" />
+              <div>
+                <h3 className="text-base font-black text-slate-900">Add New Department</h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Directly create a master department and link to this employee
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  Department Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quickDeptName}
+                  onChange={(e) => setQuickDeptName(e.target.value)}
+                  placeholder="e.g. Quality Assurance"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  Department Code (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={quickDeptCode}
+                  onChange={(e) => setQuickDeptCode(e.target.value.toUpperCase())}
+                  placeholder="QA (Auto-generated if empty)"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isQuickDeptSubmitting}
+                onClick={() => setQuickDeptModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isQuickDeptSubmitting}
+                onClick={handleQuickAddDepartment}
+                className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl font-extrabold text-xs transition-all shadow-md shadow-[#23C45E]/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isQuickDeptSubmitting ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5" />
+                )}
+                <span>Save Department</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. QUICK ADD DESIGNATION MODAL */}
+      {quickDesigModalOpen && (
+        <div className="fixed inset-0 z-60 overflow-hidden flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !isQuickDesigSubmitting && setQuickDesigModalOpen(false)}
+          />
+          <div className="relative bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <Award className="w-5 h-5 text-[#23C45E]" />
+              <div>
+                <h3 className="text-base font-black text-slate-900">Add New Designation</h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Directly create a master designation and link to this employee
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  Designation Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quickDesigName}
+                  onChange={(e) => setQuickDesigName(e.target.value)}
+                  placeholder="e.g. QA Automation Specialist"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  Designation Code (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={quickDesigCode}
+                  onChange={(e) => setQuickDesigCode(e.target.value.toUpperCase())}
+                  placeholder="QA-AUTO (Auto-generated if empty)"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isQuickDesigSubmitting}
+                onClick={() => setQuickDesigModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isQuickDesigSubmitting}
+                onClick={handleQuickAddDesignation}
+                className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl font-extrabold text-xs transition-all shadow-md shadow-[#23C45E]/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isQuickDesigSubmitting ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5" />
+                )}
+                <span>Save Designation</span>
               </button>
             </div>
           </div>
