@@ -11,11 +11,30 @@ const api = axios.create({
   },
 });
 
-// Request interceptor: attach bearer token and customer headers
+// Request interceptor: attach bearer token and customer headers with localStorage fallback
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      const { token, customerId } = useAuthStore.getState();
+      let { token, customerId } = useAuthStore.getState();
+
+      // Fast fallback to persisted storage in case Zustand hydration is still settling
+      if (!token) {
+        try {
+          const raw = localStorage.getItem('quikboom-next-auth-storage');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.state?.token) {
+              token = parsed.state.token;
+            }
+            if (parsed?.state?.customerId) {
+              customerId = parsed.state.customerId;
+            }
+          }
+        } catch {
+          // ignore parsing errors
+        }
+      }
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -61,7 +80,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Attempt token refresh on 401
+    // Attempt token refresh ONLY on 401 (Authentication/Expiration) — NEVER on 403 (Forbidden)
     if (error?.response?.status === 401 && !originalRequest._retry && typeof window !== 'undefined') {
       const { refreshToken, setAuth, logout, user } = useAuthStore.getState();
 

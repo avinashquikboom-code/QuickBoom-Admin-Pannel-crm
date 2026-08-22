@@ -21,6 +21,8 @@ interface AuthState {
   refreshToken: string | null;
   customerId: number | string | null;
   isAuthenticated: boolean;
+  _hasHydrated: boolean;
+  setHasHydrated: (hasHydrated: boolean) => void;
   setAuth: (user: User, token: string, refreshToken: string) => void;
   setCustomerId: (customerId: number | string) => void;
   switchRole: (role: string) => void;
@@ -36,6 +38,9 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       customerId: null,
       isAuthenticated: false,
+      _hasHydrated: false,
+
+      setHasHydrated: (hasHydrated: boolean) => set({ _hasHydrated: hasHydrated }),
 
       setAuth: (user: User, token: string, refreshToken: string) => {
         const primaryRole = user.roles?.[0] || 'Super Admin';
@@ -52,6 +57,7 @@ export const useAuthStore = create<AuthState>()(
           refreshToken,
           customerId: user.customerId,
           isAuthenticated: true,
+          _hasHydrated: true,
         });
       },
 
@@ -119,10 +125,14 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: null,
           customerId: null,
           isAuthenticated: false,
+          _hasHydrated: true,
         }),
     }),
     {
       name: 'quikboom-next-auth-storage',
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

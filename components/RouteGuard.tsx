@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { checkRouteAccess, getUserRole } from '@/lib/access-control';
-import { ShieldAlert, Lock, Sparkles, ArrowLeft, LayoutDashboard, Layers } from 'lucide-react';
+import { ShieldAlert, Lock, ArrowLeft, LayoutDashboard, Layers, Loader2 } from 'lucide-react';
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -14,6 +14,48 @@ export function RouteGuard({ children }: RouteGuardProps) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+  const [isClientReady, setIsClientReady] = useState(false);
+
+  useEffect(() => {
+    setIsClientReady(true);
+  }, []);
+
+  // Wait for client mount and Zustand hydration from localStorage before evaluating route access
+  if (!isClientReady || !hasHydrated) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-[#23C45E] animate-spin" />
+          <span className="text-xs font-bold text-slate-500">Restoring administrative session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // If client hydrated but unauthenticated on dashboard routes, redirect smoothly to login
+  if (!isAuthenticated || !user) {
+    const isPublicRoute =
+      pathname === '/login' ||
+      pathname === '/forgot-password' ||
+      pathname === '/reset-password' ||
+      pathname === '/verify-otp';
+
+    if (!isPublicRoute) {
+      if (typeof window !== 'undefined') {
+        router.replace('/login');
+      }
+      return (
+        <div className="min-h-[70vh] flex items-center justify-center p-4">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-[#23C45E] animate-spin" />
+            <span className="text-xs font-bold text-slate-500">Redirecting to login...</span>
+          </div>
+        </div>
+      );
+    }
+  }
 
   const access = checkRouteAccess(pathname, user);
 
@@ -23,7 +65,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
 
   const role = getUserRole(user);
 
-  // ADMIN PANEL ACCESS RESTRICTION: Only Super Admin and HR roles
+  // ADMIN PANEL ACCESS RESTRICTION: Only Super Admin
   if (access.reason === 'ADMIN_ONLY') {
     return (
       <div className="min-h-[75vh] flex items-center justify-center p-4">
@@ -128,7 +170,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
     );
   }
 
-  // NO PERMISSION (Role-based restriction e.g. Employee navigating to /payroll or /employees)
+  // NO PERMISSION
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-xl p-8 text-center space-y-6">
