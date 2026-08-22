@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Mail, Phone, Building2, Award, Calendar, DollarSign, Shield, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
 import {
   AdminFormPage,
   AdminFormSection,
@@ -35,14 +36,43 @@ export default function CreateEmployeePage() {
     address: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.firstName.trim() || !formData.email.trim()) {
+      toast.error('First name and corporate email are required');
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast.success('Employee profile created successfully!');
+    try {
+      await api.post('/employees', {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        employeeCode: formData.employeeCode,
+        email: formData.email,
+        phone: formData.phone,
+        departmentName: formData.department,
+        designationName: formData.designation,
+        branch: formData.officeLocation,
+        joiningDate: formData.joiningDate,
+        employmentType: formData.employmentType === 'Full-Time' ? 'FULL_TIME' : (formData.employmentType === 'Contract' ? 'CONTRACT' : 'INTERN'),
+        address: formData.address,
+        documents: {
+          panNumber: formData.panNumber || undefined,
+        },
+        bankDetails: {
+          basicSalary: formData.monthlySalary || undefined,
+        },
+      });
+
+      toast.success('Employee profile created successfully in database!');
       router.push('/employees');
-    }, 600);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to create employee profile';
+      toast.error(typeof msg === 'string' ? msg : 'Validation error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

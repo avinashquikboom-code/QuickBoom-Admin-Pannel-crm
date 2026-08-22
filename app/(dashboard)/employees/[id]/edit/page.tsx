@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { User, Mail, Phone, Building2, DollarSign } from 'lucide-react';
+import { User, Mail, Phone, Building2, DollarSign, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AdminFormPage,
   AdminFormSection,
@@ -16,43 +18,128 @@ import {
 
 export default function EditEmployeePage() {
   const params = useParams();
-  const id = (params?.id as string) || 'EMP001';
+  const id = (params?.id as string) || '1';
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
-    firstName: 'Rahul',
-    lastName: 'Sharma',
-    employeeCode: id,
-    email: 'rahul.sharma@quikboom.com',
-    phone: '9876543210',
-    department: 'Sales',
-    designation: 'Sales Executive',
-    joiningDate: '2024-01-15',
-    employmentType: 'Full-Time',
-    monthlySalary: '75000',
-    officeLocation: 'Headquarters (Mumbai)',
+    firstName: '',
+    lastName: '',
+    employeeCode: '',
+    email: '',
+    phone: '',
+    department: 'Engineering & IT',
+    designation: 'Software Engineer',
+    joiningDate: new Date().toISOString().split('T')[0],
+    employmentType: 'FULL_TIME',
+    monthlySalary: '',
+    officeLocation: 'Head Office',
     status: 'ACTIVE',
-    address: 'Flat 402, Green Meadows, Andheri East, Mumbai, Maharashtra 400069',
+    address: '',
+  });
+
+  // Fetch real employee profile from database
+  const { data: employeeData, isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin-employee-edit-detail', id],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get(`/employees/${id}`);
+        return res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (employeeData) {
+      setFormData({
+        firstName: employeeData.firstName || '',
+        lastName: employeeData.lastName || '',
+        employeeCode: employeeData.employeeCode || employeeData.employeeId || `EMP-${id}`,
+        email: employeeData.email || '',
+        phone: employeeData.phone || '',
+        department: employeeData.department || 'Engineering & IT',
+        designation: employeeData.designation || 'Software Engineer',
+        joiningDate: employeeData.joiningDate ? new Date(employeeData.joiningDate).toISOString().split('T')[0] : '',
+        employmentType: employeeData.employmentType || 'FULL_TIME',
+        monthlySalary: employeeData.bankDetails?.basicSalary ? String(employeeData.bankDetails.basicSalary) : '',
+        officeLocation: employeeData.branch || employeeData.office || 'Head Office',
+        status: employeeData.status || 'ACTIVE',
+        address: employeeData.address || '',
+      });
+    }
+  }, [employeeData, id]);
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      return api.patch(`/employees/${id}`, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        departmentName: formData.department,
+        designationName: formData.designation,
+        branch: formData.officeLocation,
+        employmentType: formData.employmentType,
+        status: formData.status,
+        address: formData.address,
+        bankDetails: {
+          basicSalary: formData.monthlySalary || undefined,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success('Employee profile updated successfully in database!');
+      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-edit-detail', id] });
+      router.push('/employees');
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || 'Failed to update employee';
+      toast.error(typeof msg === 'string' ? msg : 'Validation error');
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast.success(`Employee profile ${id} updated successfully!`);
-      router.push('/employees');
-    }, 600);
+    if (!formData.firstName.trim() || !formData.email.trim()) {
+      toast.error('First name and email are required');
+      return;
+    }
+    updateMutation.mutate();
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-16 text-center space-y-3">
+        <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#23C45E]" />
+        <p className="text-xs font-bold text-slate-500">Loading employee master record...</p>
+      </div>
+    );
+  }
+
+  if (isError || !employeeData) {
+    return (
+      <div className="p-16 text-center space-y-3">
+        <p className="text-sm font-bold text-slate-800">Unable to load employee profile.</p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <AdminFormPage
-      title={`Edit Employee (${id})`}
+      title={`Edit Employee (${formData.employeeCode})`}
       description={`Update employment status, contact coordinates, and department assignment for ${formData.firstName} ${formData.lastName}.`}
       backHref="/employees"
       backLabel="Back to Employee Directory"
-      badge="Edit Profile"
+      badge="Master Record"
       maxWidthClass="max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -89,10 +176,8 @@ export default function EditEmployeePage() {
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               options={[
-                { value: 'ACTIVE', label: 'Active Staff' },
-                { value: 'ON_LEAVE', label: 'On Extended Leave' },
-                { value: 'SUSPENDED', label: 'Suspended' },
-                { value: 'TERMINATED', label: 'Terminated / Resigned' },
+                { value: 'ACTIVE', label: 'Active' },
+                { value: 'INACTIVE', label: 'Inactive' },
               ]}
             />
           </AdminFormField>
@@ -100,17 +185,11 @@ export default function EditEmployeePage() {
 
         <AdminFormSection title="Employment & Department" description="Job assignment and office location" icon={Building2} columns={2}>
           <AdminFormField label="Department" required>
-            <AdminSelect
+            <AdminInput
+              type="text"
+              required
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              options={[
-                { value: 'Sales', label: 'Sales & BD' },
-                { value: 'Engineering', label: 'Engineering' },
-                { value: 'Marketing', label: 'Marketing' },
-                { value: 'Operations', label: 'Operations' },
-                { value: 'Finance', label: 'Finance' },
-                { value: 'HR', label: 'Human Resources' },
-              ]}
             />
           </AdminFormField>
 
@@ -128,23 +207,20 @@ export default function EditEmployeePage() {
               value={formData.employmentType}
               onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })}
               options={[
-                { value: 'Full-Time', label: 'Full-Time (Permanent)' },
-                { value: 'Contract', label: 'Contract / Consultant' },
-                { value: 'Probation', label: 'Probation Period' },
+                { value: 'FULL_TIME', label: 'Full Time' },
+                { value: 'PART_TIME', label: 'Part Time' },
+                { value: 'CONTRACT', label: 'Contract' },
+                { value: 'INTERN', label: 'Intern' },
               ]}
             />
           </AdminFormField>
 
-          <AdminFormField label="Work Location" required>
-            <AdminSelect
+          <AdminFormField label="Assigned Office / Work Location" required>
+            <AdminInput
+              type="text"
+              required
               value={formData.officeLocation}
               onChange={(e) => setFormData({ ...formData, officeLocation: e.target.value })}
-              options={[
-                { value: 'Headquarters (Mumbai)', label: 'Headquarters (Mumbai)' },
-                { value: 'Tech Hub (Bengaluru)', label: 'Tech Hub (Bengaluru)' },
-                { value: 'Regional Office (Delhi)', label: 'Regional Office (Delhi)' },
-                { value: 'Remote / Field', label: 'Remote / Field Workforce' },
-              ]}
             />
           </AdminFormField>
         </AdminFormSection>
@@ -160,10 +236,9 @@ export default function EditEmployeePage() {
             />
           </AdminFormField>
 
-          <AdminFormField label="Mobile Phone Number" required>
+          <AdminFormField label="Mobile Phone Number">
             <AdminInput
               type="tel"
-              required
               icon={Phone}
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -180,10 +255,9 @@ export default function EditEmployeePage() {
         </AdminFormSection>
 
         <AdminFormSection title="Payroll & Compensation" description="Base salary structure" icon={DollarSign} columns={2}>
-          <AdminFormField label="Monthly Base Compensation (₹)" required>
+          <AdminFormField label="Monthly Base Compensation (₹)">
             <AdminInput
               type="number"
-              required
               value={formData.monthlySalary}
               onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
             />
@@ -194,7 +268,7 @@ export default function EditEmployeePage() {
           backHref="/employees"
           cancelLabel="Cancel"
           submitLabel="Save Changes"
-          loading={loading}
+          loading={updateMutation.isPending}
           sticky
         />
       </form>
