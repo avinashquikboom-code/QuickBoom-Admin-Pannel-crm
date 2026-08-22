@@ -323,8 +323,6 @@ export default function EmployeesPage() {
         gender: formData.gender,
         dob: formData.dob || undefined,
         address: formData.address || undefined,
-        employeeCode: drawerMode === 'create' && autoGenerateId ? undefined : formData.employeeCode,
-        autoGenerateCode: drawerMode === 'create' ? autoGenerateId : false,
         joiningDate: formData.joiningDate || undefined,
         employmentType: formData.employmentType,
         status: formData.status,
@@ -351,7 +349,12 @@ export default function EmployeesPage() {
       };
 
       if (drawerMode === 'create') {
-        return api.post('/employees', payload);
+        const createPayload = {
+          ...payload,
+          employeeCode: autoGenerateId ? undefined : formData.employeeCode,
+          autoGenerateCode: autoGenerateId,
+        };
+        return api.post('/employees', createPayload);
       } else {
         if (!selectedEmployee) return;
         return api.patch(`/employees/${selectedEmployee.id}`, payload);
