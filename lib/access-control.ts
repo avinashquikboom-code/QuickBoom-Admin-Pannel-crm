@@ -671,7 +671,7 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
     return {
       allowed: false,
       reason: 'ADMIN_ONLY',
-      message: `Access Restricted: The QuikBoom Admin Panel is strictly for Super Admin only. Users with role "${role}" must use the QuikBoom Mobile App.`,
+      message: 'Access Denied: The Admin Panel is strictly for SUPER_ADMIN only. Other roles must use the mobile application.',
     };
   }
 

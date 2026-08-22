@@ -40,7 +40,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
               Super Admin Access Only
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed max-w-md mx-auto">
-              The QuikBoom Admin Panel is reserved exclusively for the Super Admin. Employees must access their self-service portal via the QuikBoom Mobile App.
+              Access Denied: The Admin Panel is strictly for SUPER_ADMIN only. Other roles must use the mobile application.
             </p>
           </div>
 
