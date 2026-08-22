@@ -36,6 +36,9 @@ export default function EditEmployeePage() {
     officeLocation: 'Head Office',
     status: 'ACTIVE',
     address: '',
+    mobileLoginEnabled: true,
+    password: '',
+    confirmPassword: '',
   });
 
   // Fetch real employee profile from database
@@ -67,6 +70,9 @@ export default function EditEmployeePage() {
         officeLocation: employeeData.branch || employeeData.office || 'Head Office',
         status: employeeData.status || 'ACTIVE',
         address: employeeData.address || '',
+        mobileLoginEnabled: employeeData.mobileLoginEnabled !== false,
+        password: '',
+        confirmPassword: '',
       });
     }
   }, [employeeData, id]);
@@ -84,6 +90,9 @@ export default function EditEmployeePage() {
         employmentType: formData.employmentType,
         status: formData.status,
         address: formData.address,
+        mobileLoginEnabled: formData.mobileLoginEnabled,
+        password: formData.password?.trim() || undefined,
+        confirmPassword: formData.confirmPassword?.trim() || undefined,
         bankDetails: {
           basicSalary: formData.monthlySalary || undefined,
         },
@@ -106,6 +115,16 @@ export default function EditEmployeePage() {
     if (!formData.firstName.trim() || !formData.email.trim()) {
       toast.error('First name and email are required');
       return;
+    }
+    if (formData.password.trim()) {
+      if (formData.password.length < 6) {
+        toast.error('Password must be at least 6 characters');
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        toast.error('Password and Confirm Password do not match');
+        return;
+      }
     }
     updateMutation.mutate();
   };
@@ -262,6 +281,55 @@ export default function EditEmployeePage() {
               onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
             />
           </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Mobile App Access & Security" description="QuickBoom Mobile App authentication and password credentials" icon={Phone} columns={2}>
+          <div className="col-span-2 p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
+                  Mobile App Login Access
+                </span>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Allow employee to authenticate into the QuickBoom mobile application
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.mobileLoginEnabled}
+                  onChange={(e) =>
+                    setFormData({ ...formData, mobileLoginEnabled: e.target.checked })
+                  }
+                  className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
+                />
+                <span className="ml-2 text-xs font-bold text-slate-700">
+                  {formData.mobileLoginEnabled ? 'Allowed' : 'Disabled'}
+                </span>
+              </label>
+            </div>
+
+            {formData.mobileLoginEnabled && (
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/50">
+                <AdminFormField label="Reset Password (Optional, Leave blank to keep)">
+                  <AdminInput
+                    type="password"
+                    placeholder="Enter new password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  />
+                </AdminFormField>
+                <AdminFormField label="Confirm Reset Password">
+                  <AdminInput
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  />
+                </AdminFormField>
+              </div>
+            )}
+          </div>
         </AdminFormSection>
 
         <AdminFormActions

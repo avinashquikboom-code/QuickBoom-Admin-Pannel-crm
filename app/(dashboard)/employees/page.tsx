@@ -30,9 +30,11 @@ import {
   HeartHandshake,
   Settings,
   ChevronRight,
+  ChevronLeft,
   Filter,
   Lock,
   DollarSign,
+  FileCheck,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -99,17 +101,19 @@ export default function EmployeesPage() {
   const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeMaster | null>(null);
-  const [activeFormTab, setActiveFormTab] = useState<FormTab>('personal');
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [activeDetailsTab, setActiveDetailsTab] = useState<FormTab>('personal');
 
   // Masking toggles for sensitive data
   const [showAadhaar, setShowAadhaar] = useState(false);
   const [showPan, setShowPan] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Form state structured into 6 distinct sections
+  // Form state structured into 6 distinct sections (shared state across all steps)
   const [formData, setFormData] = useState({
-    // 1. Personal Details
+    // Step 1: Personal Details
     firstName: '',
     lastName: '',
     email: '',
@@ -118,34 +122,34 @@ export default function EmployeesPage() {
     dob: '',
     address: '',
 
-    // 2. Employment Details
+    // Step 2: Employment Details
     employeeCode: '',
     joiningDate: new Date().toISOString().split('T')[0],
     employmentType: 'FULL_TIME',
     status: 'ACTIVE',
-    mobileLoginEnabled: true,
     managerId: '',
 
-    // 3. Government / Identity Details
-    panNumber: '',
-    aadhaarNumber: '',
+    // Step 3: Organization / Work Information
+    branch: 'Head Office',
+    departmentName: 'Engineering & IT',
+    designationName: 'Software Engineer',
 
-    // 4. Emergency Contact
+    // Step 4: Emergency & Identity Details
     emergencyName: '',
     emergencyRelationship: 'Spouse',
     emergencyPhone: '',
-
-    // 5. Bank & Payroll Details
+    panNumber: '',
+    aadhaarNumber: '',
     bankName: '',
     accountHolderName: '',
     accountNumber: '',
     ifscCode: '',
     basicSalary: '',
 
-    // 6. Work Configuration
-    branch: 'Head Office',
-    departmentName: 'Engineering & IT',
-    designationName: 'Software Engineer',
+    // Step 5: Mobile Login / Account
+    mobileLoginEnabled: true,
+    password: '',
+    confirmPassword: '',
   });
 
   // Pagination state
@@ -315,14 +319,14 @@ export default function EmployeesPage() {
     },
   });
 
-  // Save / Update mutation
+  // Save / Update mutation (executed ONLY on Final Step review submit)
   const saveEmployeeMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone || undefined,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone?.trim() || undefined,
         gender: formData.gender,
         dob: formData.dob || undefined,
         address: formData.address || undefined,
@@ -330,6 +334,8 @@ export default function EmployeesPage() {
         employmentType: formData.employmentType,
         status: formData.status,
         mobileLoginEnabled: formData.mobileLoginEnabled,
+        password: formData.password?.trim() || undefined,
+        confirmPassword: formData.confirmPassword?.trim() || undefined,
         branch: formData.branch,
         departmentName: formData.departmentName,
         designationName: formData.designationName,
@@ -364,11 +370,16 @@ export default function EmployeesPage() {
         return api.patch(`/employees/${selectedEmployee.id}`, payload);
       }
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
+      const generatedCode =
+        res?.employeeCode ||
+        res?.data?.employeeCode ||
+        formData.employeeCode ||
+        'QB0001';
       toast.success(
         drawerMode === 'create'
-          ? 'Employee master profile created successfully'
-          : 'Employee master profile updated successfully'
+          ? `Employee created successfully (${generatedCode})`
+          : 'Employee profile updated successfully'
       );
       setIsFormDrawerOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
@@ -429,7 +440,9 @@ export default function EmployeesPage() {
     setAutoGenerateId(true);
     setDrawerMode('create');
     setSelectedEmployee(null);
-    setActiveFormTab('personal');
+    setCurrentStep(1);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setFormData({
       firstName: '',
       lastName: '',
@@ -442,8 +455,10 @@ export default function EmployeesPage() {
       joiningDate: new Date().toISOString().split('T')[0],
       employmentType: 'FULL_TIME',
       status: 'ACTIVE',
-      mobileLoginEnabled: true,
       managerId: '',
+      branch: officesList[0] || 'Head Office',
+      departmentName: departmentsList[0] || 'Engineering & IT',
+      designationName: designationsList[0] || 'Software Engineer',
       panNumber: '',
       aadhaarNumber: '',
       emergencyName: '',
@@ -454,9 +469,9 @@ export default function EmployeesPage() {
       accountNumber: '',
       ifscCode: '',
       basicSalary: '',
-      branch: officesList[0] || 'Head Office',
-      departmentName: departmentsList[0] || 'Engineering & IT',
-      designationName: designationsList[0] || 'Software Engineer',
+      mobileLoginEnabled: true,
+      password: '',
+      confirmPassword: '',
     });
     handleFetchNextId();
     setIsDetailsDrawerOpen(false);
@@ -466,7 +481,9 @@ export default function EmployeesPage() {
   const handleOpenEdit = (emp: EmployeeMaster) => {
     setDrawerMode('edit');
     setSelectedEmployee(emp);
-    setActiveFormTab('personal');
+    setCurrentStep(1);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
 
     const em = typeof emp.emergencyContact === 'object' ? emp.emergencyContact : null;
     const bk = emp.bankDetails || null;
@@ -484,8 +501,10 @@ export default function EmployeesPage() {
       joiningDate: emp.joiningDate || new Date().toISOString().split('T')[0],
       employmentType: emp.employmentType || 'FULL_TIME',
       status: emp.status,
-      mobileLoginEnabled: emp.mobileLoginEnabled !== false,
       managerId: emp.managerId ? String(emp.managerId) : '',
+      branch: emp.branch || 'Head Office',
+      departmentName: emp.department || 'Engineering & IT',
+      designationName: emp.designation || 'Software Engineer',
       panNumber: docs?.panNumber || '',
       aadhaarNumber: docs?.aadhaarNumber || '',
       emergencyName: em?.name || '',
@@ -496,25 +515,129 @@ export default function EmployeesPage() {
       accountNumber: bk?.accountNumber || '',
       ifscCode: bk?.ifscCode || '',
       basicSalary: bk?.basicSalary ? String(bk.basicSalary) : '',
-      branch: emp.branch || 'Head Office',
-      departmentName: emp.department || 'Engineering & IT',
-      designationName: emp.designation || 'Software Engineer',
+      mobileLoginEnabled: emp.mobileLoginEnabled !== false,
+      password: '',
+      confirmPassword: '',
     });
     setIsDetailsDrawerOpen(false);
     setIsFormDrawerOpen(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.firstName.trim() || !formData.email.trim()) {
-      toast.error('First name and email are required');
-      setActiveFormTab('personal');
-      return;
+  // Step validation and navigation logic (Frontend state only - NO API calls on Next/Previous)
+  const validateStep = (stepNumber: number): boolean => {
+    if (stepNumber === 1) {
+      if (!formData.firstName.trim()) {
+        toast.error('First Name is required');
+        return false;
+      }
+      if (!formData.lastName.trim()) {
+        toast.error('Last Name is required');
+        return false;
+      }
+      if (!formData.email.trim() || !formData.email.includes('@')) {
+        toast.error('Valid corporate email address is required');
+        return false;
+      }
+      return true;
     }
-    if (!formData.employeeCode.trim()) {
-      toast.error('Employee Code / ID is required');
-      setActiveFormTab('employment');
-      return;
+
+    if (stepNumber === 2) {
+      if (!formData.joiningDate) {
+        toast.error('Joining Date is required');
+        return false;
+      }
+      if (!autoGenerateId && !formData.employeeCode.trim()) {
+        toast.error('Employee ID is required');
+        return false;
+      }
+      return true;
+    }
+
+    if (stepNumber === 3) {
+      if (!formData.branch.trim()) {
+        toast.error('Assigned office / branch is required');
+        return false;
+      }
+      if (!formData.departmentName.trim()) {
+        toast.error('Department is required');
+        return false;
+      }
+      if (!formData.designationName.trim()) {
+        toast.error('Designation is required');
+        return false;
+      }
+      return true;
+    }
+
+    if (stepNumber === 4) {
+      // Emergency / Identity are optional but if filled, validate phone format
+      if (formData.emergencyPhone && formData.emergencyPhone.trim().length > 0 && formData.emergencyPhone.trim().length < 7) {
+        toast.error('Please enter a valid emergency phone number');
+        return false;
+      }
+      return true;
+    }
+
+    if (stepNumber === 5) {
+      if (formData.mobileLoginEnabled) {
+        if (drawerMode === 'create' && formData.password.trim().length > 0) {
+          if (formData.password.length < 6) {
+            toast.error('Password must be at least 6 characters long');
+            return false;
+          }
+          if (formData.password !== formData.confirmPassword) {
+            toast.error('Password and Confirm Password do not match');
+            return false;
+          }
+        } else if (drawerMode === 'edit' && formData.password.trim().length > 0) {
+          if (formData.password.length < 6) {
+            toast.error('New password must be at least 6 characters long');
+            return false;
+          }
+          if (formData.password !== formData.confirmPassword) {
+            toast.error('New password and Confirm Password do not match');
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (validateStep(currentStep)) {
+      if (currentStep < 6) {
+        setCurrentStep((prev) => (prev + 1) as any);
+      }
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => (prev - 1) as any);
+    }
+  };
+
+  const handleJumpToStep = (targetStep: 1 | 2 | 3 | 4 | 5 | 6) => {
+    // If jumping forward, validate current step first
+    if (targetStep > currentStep) {
+      for (let s = currentStep; s < targetStep; s++) {
+        if (!validateStep(s)) return;
+      }
+    }
+    setCurrentStep(targetStep);
+  };
+
+  const handleFinalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Validate all steps before submitting
+    for (let s = 1; s <= 5; s++) {
+      if (!validateStep(s)) {
+        setCurrentStep(s as any);
+        return;
+      }
     }
     saveEmployeeMutation.mutate();
   };
@@ -533,6 +656,15 @@ export default function EmployeesPage() {
     { id: 'emergency', label: 'Emergency', icon: HeartHandshake },
     { id: 'bank', label: 'Bank & Payroll', icon: CreditCard },
     { id: 'work', label: 'Work & Org', icon: Building2 },
+  ];
+
+  const WIZARD_STEPS = [
+    { step: 1 as const, title: 'Personal', fullTitle: 'Personal Information', desc: 'Identity & contact', icon: Users },
+    { step: 2 as const, title: 'Employment', fullTitle: 'Employment Information', desc: 'ID, joining & status', icon: Briefcase },
+    { step: 3 as const, title: 'Organization', fullTitle: 'Work & Organization', desc: 'Branch, dept & role', icon: Building2 },
+    { step: 4 as const, title: 'Emergency', fullTitle: 'Emergency & Identity', desc: 'Contacts & documents', icon: HeartHandshake },
+    { step: 5 as const, title: 'Mobile Login', fullTitle: 'Mobile Login / Account', desc: 'App access & credentials', icon: Lock },
+    { step: 6 as const, title: 'Review', fullTitle: 'Review & Create', desc: 'Verify before save', icon: FileCheck },
   ];
 
   return (
@@ -1342,312 +1474,462 @@ export default function EmployeesPage() {
       )}
 
       {/* =========================================================================
-          6. RIGHT-SIDE DRAWER: ADD / EDIT EMPLOYEE MASTER FORM (6 SECTIONS)
+          6. RIGHT-SIDE DRAWER: MULTI-STEP EMPLOYEE MASTER FORM WIZARD (6 STEPS)
           ========================================================================= */}
       {isFormDrawerOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-            onClick={() => setIsFormDrawerOpen(false)}
+            onClick={() => !saveEmployeeMutation.isPending && setIsFormDrawerOpen(false)}
           />
 
           {/* Form Drawer Container */}
-          <div className="relative w-full max-w-xl bg-white shadow-2xl z-10 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-200">
+          <div className="relative w-full max-w-2xl bg-white shadow-2xl z-10 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-200">
             {/* Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
               <div>
-                <h2 className="text-base font-black text-slate-900">
-                  {drawerMode === 'create' ? 'Add Employee Master' : 'Edit Employee Master'}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-black text-slate-900">
+                    {drawerMode === 'create' ? 'Add Employee Master' : 'Edit Employee Master'}
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full bg-[#23C45E]/10 text-[#1AA14D] font-extrabold text-[10px] uppercase tracking-wide">
+                    Step {currentStep} of 6
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Complete workforce profile & organizational setup.
+                  {WIZARD_STEPS[currentStep - 1].fullTitle} — {WIZARD_STEPS[currentStep - 1].desc}
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={() => setIsFormDrawerOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* 6 Section Form Tabs */}
-            <div className="flex items-center border-b border-slate-100 bg-white px-4 overflow-x-auto no-scrollbar shrink-0">
-              {TAB_ITEMS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeFormTab === tab.id;
+            {/* Stepper Navigation Bar */}
+            <div className="flex items-center border-b border-slate-100 bg-white px-3 py-2.5 overflow-x-auto no-scrollbar shrink-0 gap-1">
+              {WIZARD_STEPS.map((s) => {
+                const Icon = s.icon;
+                const isCurrent = currentStep === s.step;
+                const isCompleted = currentStep > s.step;
                 return (
                   <button
-                    key={tab.id}
+                    key={s.step}
                     type="button"
-                    onClick={() => setActiveFormTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 font-extrabold text-xs transition-all whitespace-nowrap cursor-pointer ${
-                      isActive
-                        ? 'border-[#23C45E] text-[#1AA14D] bg-emerald-50/40'
-                        : 'border-transparent text-slate-500 hover:text-slate-900'
+                    onClick={() => handleJumpToStep(s.step)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer ${
+                      isCurrent
+                        ? 'bg-[#23C45E] text-white shadow-xs'
+                        : isCompleted
+                        ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100/70'
+                        : 'text-slate-500 hover:bg-slate-100/70'
                     }`}
                   >
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#23C45E]' : 'text-slate-400'}`} />
-                    <span>{tab.label}</span>
+                    <span
+                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+                        isCurrent
+                          ? 'bg-white text-[#23C45E]'
+                          : isCompleted
+                          ? 'bg-emerald-200 text-emerald-800'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {isCompleted ? '✓' : s.step}
+                    </span>
+                    <span className="hidden sm:inline">{s.title}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Form Fields Body */}
-            <form onSubmit={handleFormSubmit} className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-6 space-y-5 flex-1 overflow-y-auto text-xs">
-                {/* 1. PERSONAL DETAILS */}
-                {activeFormTab === 'personal' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          First Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.firstName}
-                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                          placeholder="e.g. Rahul"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
-                        />
-                      </div>
+            {/* Step Body */}
+            <div className="flex-1 overflow-y-auto p-6 text-xs">
+              {/* -------------------------------------------------------------
+                  STEP 1: PERSONAL INFORMATION
+                  ------------------------------------------------------------- */}
+              {currentStep === 1 && (
+                <div className="space-y-4 animate-in fade-in-50 duration-150">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <Users className="w-4 h-4 text-[#23C45E]" />
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Step 1: Personal & Contact Information
+                    </h3>
+                  </div>
 
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Last Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.lastName}
-                          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                          placeholder="e.g. Sharma"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
-                        />
-                      </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        placeholder="e.g. Rahul"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                      />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                        Corporate Email *
+                        Last Name *
                       </label>
                       <input
-                        type="email"
+                        type="text"
                         required
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="e.g. rahul.sharma@company.com"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        placeholder="e.g. Sharma"
                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                      Corporate Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="e.g. rahul.sharma@company.com"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="e.g. +91 98765 43210"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Gender
+                      </label>
+                      <select
+                        value={formData.gender}
+                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Date of Birth
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.dob}
+                        onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                      Residential Address
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Full residential street address..."
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* -------------------------------------------------------------
+                  STEP 2: EMPLOYMENT INFORMATION
+                  ------------------------------------------------------------- */}
+              {currentStep === 2 && (
+                <div className="space-y-4 animate-in fade-in-50 duration-150">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <Briefcase className="w-4 h-4 text-[#23C45E]" />
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Step 2: Employment Information
+                    </h3>
+                  </div>
+
+                  {/* Employee ID Block */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <label className="text-[11px] font-extrabold text-slate-700 uppercase">
+                          Employee ID *
+                        </label>
+                        {drawerMode === 'create' && autoGenerateId && (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-black uppercase">
+                            Auto-generated on save
+                          </span>
+                        )}
+                        {drawerMode === 'edit' && (
+                          <span className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded-full text-[10px] font-black uppercase">
+                            Permanent / Read-only
+                          </span>
+                        )}
+                      </div>
+
+                      {drawerMode === 'create' && (
+                        <button
+                          type="button"
+                          onClick={handleFetchNextId}
+                          disabled={isFetchingNextId}
+                          className="flex items-center gap-1 text-[11px] font-extrabold text-[#1AA14D] hover:text-emerald-800 transition-colors cursor-pointer disabled:opacity-50"
+                          title="Preview next sequential Employee ID"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isFetchingNextId ? 'animate-spin' : ''}`} />
+                          <span>Preview Next ID</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      required
+                      disabled={drawerMode === 'edit' || (drawerMode === 'create' && autoGenerateId)}
+                      value={formData.employeeCode}
+                      onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
+                      placeholder="e.g. QB0001"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    />
+
+                    {drawerMode === 'create' && (
+                      <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer pt-1 select-none">
+                        <input
+                          type="checkbox"
+                          checked={autoGenerateId}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setAutoGenerateId(checked);
+                            if (checked) {
+                              handleFetchNextId();
+                            }
+                          }}
+                          className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
+                        />
+                        <span>Auto Generate Employee ID (QB0001 format)</span>
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Joining Date *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={formData.joiningDate}
+                        onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Employment Type
+                      </label>
+                      <select
+                        value={formData.employmentType}
+                        onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                      >
+                        <option value="FULL_TIME">Full Time</option>
+                        <option value="PART_TIME">Part Time</option>
+                        <option value="CONTRACT">Contract</option>
+                        <option value="INTERN">Intern</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Account Status
+                      </label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                      >
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* -------------------------------------------------------------
+                  STEP 3: ORGANIZATION / WORK INFORMATION
+                  ------------------------------------------------------------- */}
+              {currentStep === 3 && (
+                <div className="space-y-4 animate-in fade-in-50 duration-150">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <Building2 className="w-4 h-4 text-[#23C45E]" />
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Step 3: Organization & Work Setup
+                    </h3>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                      Assigned Office / Branch *
+                    </label>
+                    <select
+                      value={formData.branch}
+                      onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                    >
+                      {officesList.map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Department *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.departmentName}
+                        onChange={(e) => setFormData({ ...formData, departmentName: e.target.value })}
+                        placeholder="e.g. Engineering & IT"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Designation *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.designationName}
+                        onChange={(e) =>
+                          setFormData({ ...formData, designationName: e.target.value })
+                        }
+                        placeholder="e.g. Software Engineer"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                      Reporting Manager ID (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.managerId}
+                      onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
+                      placeholder="e.g. 1"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* -------------------------------------------------------------
+                  STEP 4: EMERGENCY & IDENTITY INFORMATION
+                  ------------------------------------------------------------- */}
+              {currentStep === 4 && (
+                <div className="space-y-4 animate-in fade-in-50 duration-150">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <HeartHandshake className="w-4 h-4 text-[#23C45E]" />
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Step 4: Emergency Contacts & Identification
+                    </h3>
+                  </div>
+
+                  {/* Emergency Contact Block */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                    <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
+                      Emergency Contact Person
+                    </span>
+
+                    <div>
+                      <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                        Contact Person Name
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.emergencyName}
+                        onChange={(e) => setFormData({ ...formData, emergencyName: e.target.value })}
+                        placeholder="Full name of emergency contact"
+                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Phone Number
-                        </label>
-                        <input
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          placeholder="e.g. +91 98765 43210"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Gender
+                        <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                          Relationship
                         </label>
                         <select
-                          value={formData.gender}
-                          onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          value={formData.emergencyRelationship}
+                          onChange={(e) =>
+                            setFormData({ ...formData, emergencyRelationship: e.target.value })
+                          }
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                         >
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
+                          <option value="Spouse">Spouse</option>
+                          <option value="Parent">Parent</option>
+                          <option value="Sibling">Sibling</option>
+                          <option value="Guardian">Guardian</option>
+                          <option value="Friend">Friend</option>
                           <option value="Other">Other</option>
                         </select>
                       </div>
 
-                      <div className="col-span-2">
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Date of Birth
+                      <div>
+                        <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                          Emergency Phone
                         </label>
                         <input
-                          type="date"
-                          value={formData.dob}
-                          onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                        Residential Address
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        placeholder="Full residential street address..."
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. EMPLOYMENT DETAILS */}
-                {activeFormTab === 'employment' && (
-                  <div className="space-y-4">
-                    {/* Employee ID Master Block */}
-                    <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <label className="text-[11px] font-extrabold text-slate-700 uppercase">
-                            Employee ID *
-                          </label>
-                          {(drawerMode === 'create' && autoGenerateId) && (
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-black uppercase">
-                              Auto-generated
-                            </span>
-                          )}
-                          {drawerMode === 'edit' && (
-                            <span className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded-full text-[10px] font-black uppercase">
-                              Read-only
-                            </span>
-                          )}
-                        </div>
-
-                        {drawerMode === 'create' && (
-                          <button
-                            type="button"
-                            onClick={handleFetchNextId}
-                            disabled={isFetchingNextId}
-                            className="flex items-center gap-1 text-[11px] font-extrabold text-[#1AA14D] hover:text-emerald-800 transition-colors cursor-pointer disabled:opacity-50"
-                            title="Preview next sequential Employee ID from backend"
-                          >
-                            <RefreshCw className={`w-3.5 h-3.5 ${isFetchingNextId ? 'animate-spin' : ''}`} />
-                            <span>Generate Next ID</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <input
-                        type="text"
-                        required
-                        disabled={drawerMode === 'edit' || (drawerMode === 'create' && autoGenerateId)}
-                        value={formData.employeeCode}
-                        onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
-                        placeholder="e.g. QB0001"
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
-                      />
-
-                      {drawerMode === 'create' && (
-                        <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer pt-1 select-none">
-                          <input
-                            type="checkbox"
-                            checked={autoGenerateId}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              setAutoGenerateId(checked);
-                              if (checked) {
-                                handleFetchNextId();
-                              }
-                            }}
-                            className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
-                          />
-                          <span>Auto Generate Employee ID</span>
-                        </label>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Joining Date *
-                        </label>
-                        <input
-                          type="date"
-                          required
-                          value={formData.joiningDate}
-                          onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Employment Type
-                        </label>
-                        <select
-                          value={formData.employmentType}
-                          onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                        >
-                          <option value="FULL_TIME">Full Time</option>
-                          <option value="PART_TIME">Part Time</option>
-                          <option value="CONTRACT">Contract</option>
-                          <option value="INTERN">Intern</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Account Status
-                        </label>
-                        <select
-                          value={formData.status}
-                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                        >
-                          <option value="ACTIVE">Active</option>
-                          <option value="INACTIVE">Inactive</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Mobile App Access Configuration */}
-                    <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
-                      <div>
-                        <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
-                          Mobile App Login Access
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          Allow employee to sign in from the QuickBoom mobile application
-                        </span>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.mobileLoginEnabled}
+                          type="tel"
+                          value={formData.emergencyPhone}
                           onChange={(e) =>
-                            setFormData({ ...formData, mobileLoginEnabled: e.target.checked })
+                            setFormData({ ...formData, emergencyPhone: e.target.value })
                           }
-                          className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
+                          placeholder="e.g. +91 98765 00000"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                         />
-                        <span className="ml-2 text-xs font-bold text-slate-700">
-                          {formData.mobileLoginEnabled ? 'Allowed' : 'Disabled'}
-                        </span>
-                      </label>
+                      </div>
                     </div>
                   </div>
-                )}
 
-                {/* 3. GOVERNMENT / IDENTITY DETAILS */}
-                {activeFormTab === 'identity' && (
-                  <div className="space-y-4">
-                    <div className="p-3 bg-amber-50/60 border border-amber-200/60 rounded-xl flex items-center gap-2 text-amber-800 text-[11px] font-bold">
-                      <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Confidential compliance data. Stored securely.</span>
-                    </div>
-
+                  {/* Government IDs */}
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
                         Aadhaar Card Number
@@ -1668,71 +1950,24 @@ export default function EmployeesPage() {
                       <input
                         type="text"
                         value={formData.panNumber}
-                        onChange={(e) => setFormData({ ...formData, panNumber: e.target.value.toUpperCase() })}
-                        placeholder="10-character PAN (e.g. ABCDE1234F)"
+                        onChange={(e) =>
+                          setFormData({ ...formData, panNumber: e.target.value.toUpperCase() })
+                        }
+                        placeholder="10-character PAN"
                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
                       />
                     </div>
                   </div>
-                )}
 
-                {/* 4. EMERGENCY CONTACT */}
-                {activeFormTab === 'emergency' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                        Emergency Contact Person
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.emergencyName}
-                        onChange={(e) => setFormData({ ...formData, emergencyName: e.target.value })}
-                        placeholder="Full name of emergency contact"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
-                      />
-                    </div>
+                  {/* Bank Details */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                    <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
+                      Bank & Salary Details
+                    </span>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Relationship
-                        </label>
-                        <select
-                          value={formData.emergencyRelationship}
-                          onChange={(e) => setFormData({ ...formData, emergencyRelationship: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                        >
-                          <option value="Spouse">Spouse</option>
-                          <option value="Parent">Parent</option>
-                          <option value="Sibling">Sibling</option>
-                          <option value="Guardian">Guardian</option>
-                          <option value="Friend">Friend</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Emergency Phone
-                        </label>
-                        <input
-                          type="tel"
-                          value={formData.emergencyPhone}
-                          onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
-                          placeholder="e.g. +91 98765 00000"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 5. BANK & PAYROLL DETAILS */}
-                {activeFormTab === 'bank' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
                           Bank Name
                         </label>
                         <input
@@ -1740,150 +1975,444 @@ export default function EmployeesPage() {
                           value={formData.bankName}
                           onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
                           placeholder="e.g. HDFC Bank"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Account Holder Name
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.accountHolderName}
-                          onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })}
-                          placeholder="As per bank passbook"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
-                        />
-                      </div>
-
-                      <div className="col-span-2">
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Bank Account Number
+                        <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                          Account Number
                         </label>
                         <input
                           type="text"
                           value={formData.accountNumber}
                           onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
                           placeholder="Account number"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
                           IFSC Code
                         </label>
                         <input
                           type="text"
                           value={formData.ifscCode}
-                          onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })}
+                          onChange={(e) =>
+                            setFormData({ ...formData, ifscCode: e.target.value.toUpperCase() })
+                          }
                           placeholder="e.g. HDFC0001234"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Base Salary (₹ / Mo)
+                        <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                          Base Monthly Salary (₹)
                         </label>
                         <input
                           type="number"
                           value={formData.basicSalary}
                           onChange={(e) => setFormData({ ...formData, basicSalary: e.target.value })}
                           placeholder="e.g. 50000"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                         />
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* 6. WORK CONFIGURATION & ORGANIZATION */}
-                {activeFormTab === 'work' && (
-                  <div className="space-y-4">
+              {/* -------------------------------------------------------------
+                  STEP 5: MOBILE LOGIN / ACCOUNT
+                  ------------------------------------------------------------- */}
+              {currentStep === 5 && (
+                <div className="space-y-5 animate-in fade-in-50 duration-150">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <Lock className="w-4 h-4 text-[#23C45E]" />
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Step 5: Employee Mobile Login & Account Setup
+                    </h3>
+                  </div>
+
+                  {/* Role Boundary Notice Banner */}
+                  <div className="p-4 bg-emerald-50/70 border border-emerald-200/70 rounded-2xl flex items-start gap-3">
+                    <Shield className="w-5 h-5 text-[#23C45E] shrink-0 mt-0.5" />
                     <div>
-                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                        Assigned Office / Branch *
-                      </label>
-                      <select
-                        value={formData.branch}
-                        onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                      >
-                        {officesList.map((o) => (
-                          <option key={o} value={o}>
-                            {o}
-                          </option>
-                        ))}
-                      </select>
+                      <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                        Employee Mobile App Isolation
+                      </h4>
+                      <p className="text-[11px] text-emerald-800 font-medium mt-0.5 leading-relaxed">
+                        Employee accounts are strictly provisioned for the <strong>QuickBoom Employee Mobile App</strong>. Direct access to the Company Admin Panel and Customer Portal is prohibited for this role.
+                      </p>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                  {/* Allow Mobile Login Toggle */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black text-slate-900 block">
+                        Allow Employee Mobile Login
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Enable employee authentication using Corporate Email or Mobile Number
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.mobileLoginEnabled}
+                        onChange={(e) =>
+                          setFormData({ ...formData, mobileLoginEnabled: e.target.checked })
+                        }
+                        className="w-5 h-5 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
+                      />
+                      <span className="ml-2.5 text-xs font-extrabold text-slate-800">
+                        {formData.mobileLoginEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Password Configuration */}
+                  {formData.mobileLoginEnabled && (
+                    <div className="space-y-4 p-4 bg-slate-50/60 border border-slate-200/80 rounded-2xl">
                       <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Department *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.departmentName}
-                          onChange={(e) => setFormData({ ...formData, departmentName: e.target.value })}
-                          placeholder="e.g. Engineering & IT"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                        />
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-[11px] font-extrabold text-slate-700 uppercase">
+                            {drawerMode === 'create'
+                              ? 'Password (Mobile App)'
+                              : 'New Password'}
+                          </label>
+                          {drawerMode === 'edit' && (
+                            <span className="text-[10px] font-bold text-slate-400">
+                              Leave blank to keep existing password
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="relative">
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            placeholder={
+                              drawerMode === 'create'
+                                ? 'Set password (default: Password@123)'
+                                : 'Enter new password or leave blank'
+                            }
+                            className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
                       </div>
 
                       <div>
                         <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Designation *
+                          Confirm Password
                         </label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.designationName}
-                          onChange={(e) =>
-                            setFormData({ ...formData, designationName: e.target.value })
-                          }
-                          placeholder="e.g. Software Engineer"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            value={formData.confirmPassword}
+                            onChange={(e) =>
+                              setFormData({ ...formData, confirmPassword: e.target.value })
+                            }
+                            placeholder="Confirm password"
+                            className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* -------------------------------------------------------------
+                  STEP 6: REVIEW & CREATE / UPDATE
+                  ------------------------------------------------------------- */}
+              {currentStep === 6 && (
+                <div className="space-y-4 animate-in fade-in-50 duration-150">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <FileCheck className="w-4 h-4 text-[#23C45E]" />
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Step 6: Review & Final Confirmation
+                    </h3>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Please verify all information before committing. Click <strong>Edit</strong> on any section to make changes.
+                  </p>
+
+                  {/* Review Card 1: Personal */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-800 uppercase flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-[#23C45E]" />
+                        Personal Information
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(1)}
+                        className="text-[11px] font-extrabold text-[#1AA14D] hover:underline cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200/50">
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">FULL NAME</span>
+                        <span className="font-extrabold text-slate-800">
+                          {formData.firstName} {formData.lastName}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">CORPORATE EMAIL</span>
+                        <span className="font-bold text-slate-800">{formData.email}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">PHONE</span>
+                        <span className="font-bold text-slate-800">{formData.phone || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">GENDER / DOB</span>
+                        <span className="font-bold text-slate-800">
+                          {formData.gender} {formData.dob ? `• ${formData.dob}` : ''}
+                        </span>
                       </div>
                     </div>
                   </div>
+
+                  {/* Review Card 2: Employment */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-800 uppercase flex items-center gap-1.5">
+                        <Briefcase className="w-3.5 h-3.5 text-[#23C45E]" />
+                        Employment Details
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(2)}
+                        className="text-[11px] font-extrabold text-[#1AA14D] hover:underline cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200/50">
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">EMPLOYEE ID</span>
+                        <span className="font-mono font-black text-[#1AA14D]">
+                          {drawerMode === 'create' && autoGenerateId
+                            ? 'Auto Generated (QB000X)'
+                            : formData.employeeCode}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">JOINING DATE</span>
+                        <span className="font-bold text-slate-800">{formData.joiningDate}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">EMPLOYMENT TYPE</span>
+                        <span className="font-bold text-slate-800">{formData.employmentType}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">STATUS</span>
+                        <span
+                          className={`font-black px-2 py-0.5 rounded text-[10px] inline-block ${
+                            formData.status === 'ACTIVE'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {formData.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Review Card 3: Organization */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-800 uppercase flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-[#23C45E]" />
+                        Organization & Work Setup
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(3)}
+                        className="text-[11px] font-extrabold text-[#1AA14D] hover:underline cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200/50">
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">OFFICE / BRANCH</span>
+                        <span className="font-extrabold text-slate-800">{formData.branch}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">DEPARTMENT</span>
+                        <span className="font-bold text-slate-800">{formData.departmentName}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">DESIGNATION</span>
+                        <span className="font-bold text-slate-800">{formData.designationName}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Review Card 4: Emergency & Identity */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-800 uppercase flex items-center gap-1.5">
+                        <HeartHandshake className="w-3.5 h-3.5 text-[#23C45E]" />
+                        Emergency & Identification
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(4)}
+                        className="text-[11px] font-extrabold text-[#1AA14D] hover:underline cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200/50">
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">EMERGENCY CONTACT</span>
+                        <span className="font-bold text-slate-800">
+                          {formData.emergencyName
+                            ? `${formData.emergencyName} (${formData.emergencyRelationship}) - ${formData.emergencyPhone || ''}`
+                            : '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">PAN / AADHAAR</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          {formData.panNumber || '—'} / {maskValue(formData.aadhaarNumber, 4)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">BANK ACCOUNT</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          {formData.bankName ? `${formData.bankName} • ${maskValue(formData.accountNumber, 4)}` : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Review Card 5: Mobile Login */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-800 uppercase flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-[#23C45E]" />
+                        Mobile Login & Account
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(5)}
+                        className="text-[11px] font-extrabold text-[#1AA14D] hover:underline cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200/50">
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">MOBILE LOGIN STATUS</span>
+                        <span
+                          className={`font-black px-2 py-0.5 rounded text-[10px] inline-block ${
+                            formData.mobileLoginEnabled
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {formData.mobileLoginEnabled ? 'Allowed (Enabled)' : 'Disabled'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">LOGIN CREDENTIALS</span>
+                        <span className="font-bold text-slate-800">
+                          Password: <span className="font-mono text-slate-600">••••••••</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Drawer Footer Actions (Wizard Navigation) */}
+            <div className="p-4 border-t border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+              {/* Left actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFormDrawerOpen(false)}
+                  disabled={saveEmployeeMutation.isPending}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={handlePrevStep}
+                    disabled={saveEmployeeMutation.isPending}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Previous</span>
+                  </button>
                 )}
               </div>
 
-              {/* Drawer Footer Actions */}
-              <div className="p-4 border-t border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-bold">
-                  <span>* Required fields</span>
-                </div>
-
-                <div className="flex items-center gap-2">
+              {/* Right actions */}
+              <div>
+                {currentStep < 6 ? (
                   <button
                     type="button"
-                    onClick={() => setIsFormDrawerOpen(false)}
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors"
+                    onClick={handleNextStep}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl font-extrabold text-xs transition-all shadow-md shadow-[#23C45E]/20 cursor-pointer"
                   >
-                    Cancel
+                    <span>Next Step</span>
+                    <ChevronRight className="w-4 h-4" />
                   </button>
-
+                ) : (
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleFinalSubmit}
                     disabled={saveEmployeeMutation.isPending}
-                    className="px-6 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl font-extrabold text-xs transition-all shadow-md shadow-[#23C45E]/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl font-extrabold text-xs transition-all shadow-md shadow-[#23C45E]/20 cursor-pointer disabled:opacity-50"
                   >
                     {saveEmployeeMutation.isPending ? (
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <CheckCircle className="w-4 h-4" />
                     )}
-                    <span>{drawerMode === 'create' ? 'Save Employee' : 'Update Profile'}</span>
+                    <span>
+                      {drawerMode === 'create' ? 'Create Employee' : 'Update Employee'}
+                    </span>
                   </button>
-                </div>
+                )}
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
