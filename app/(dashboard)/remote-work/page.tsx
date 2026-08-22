@@ -9,200 +9,660 @@ import {
   Check,
   X,
   Plus,
+  Search,
+  Building2,
+  Calendar,
+  User,
+  Users,
+  Eye,
+  RefreshCw,
+  AlertCircle,
+  FileText,
+  Briefcase,
+  Sliders,
+  CalendarDays,
+  Coffee,
+  ShieldCheck,
+  MapPin,
+  TrendingUp,
 } from 'lucide-react';
 import api from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminFormDrawer } from '@/components/admin';
+import { getErrorMessage } from '@/lib/utils';
 
-interface RemoteRequest {
-  id: string;
+type RequestTab = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+type DateRangeFilter = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH';
+
+interface RemoteRequestItem {
+  id: number | string;
+  customerId: number;
+  employeeId: number;
+  employeeCode: string;
   employeeName: string;
-  employeeId: string;
-  department?: string;
-  fromDate?: string;
-  toDate?: string;
-  date?: string;
-  totalDays: number;
+  employee: {
+    id: number;
+    employeeCode: string;
+    name: string;
+    email: string;
+    phone?: string;
+    department: string;
+    designation: string;
+    office: string;
+    officeCity?: string;
+  } | null;
+  office: string;
+  department: string;
+  designation: string;
+  remoteWorkDate: string;
+  fromDate: string;
+  toDate: string;
+  days: number;
+  duration: string;
   reason: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  attachmentUrl?: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  rejectionReason?: string | null;
+  approvedByName?: string | null;
+  approvedAt?: string | null;
+  rejectedByName?: string | null;
+  rejectedAt?: string | null;
   appliedOn: string;
+  createdAt: string;
+}
+
+interface TodayRemoteWorkerItem {
+  id: number;
+  employeeId: number;
+  employeeCode: string;
+  name: string;
+  office: string;
+  department: string;
+  designation: string;
+  remoteWorkDate: string;
+  attendanceStatus: string;
+  punchIn: string;
+  break: string;
+  punchOut: string;
+  workingHours: number;
 }
 
 export default function RemoteWorkPage() {
-  const { data: remoteData, refetch } = useQuery({
-    queryKey: ['admin-hrm-remote-requests'],
+  const queryClient = useQueryClient();
+
+  // Primary Tab state (default: PENDING as per requirement)
+  const [requestTab, setRequestTab] = useState<RequestTab>('PENDING');
+
+  // Search and Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOffice, setSelectedOffice] = useState('ALL');
+  const [selectedDept, setSelectedDept] = useState('ALL');
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>('ALL');
+
+  // Drawers and Modals
+  const [selectedRequest, setSelectedRequest] = useState<RemoteRequestItem | null>(null);
+  const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
+
+  // Approval & Rejection dialogs
+  const [confirmApproveReq, setConfirmApproveReq] = useState<RemoteRequestItem | null>(null);
+  const [rejectModalReq, setRejectModalReq] = useState<RemoteRequestItem | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  // Apply new Remote Work Drawer
+  const [isApplyDrawerOpen, setIsApplyDrawerOpen] = useState(false);
+  const [applyForm, setApplyForm] = useState({
+    employeeId: '',
+    fromDate: new Date().toISOString().split('T')[0],
+    toDate: new Date().toISOString().split('T')[0],
+    reason: '',
+  });
+
+  // ==========================================
+  // 1. DATA QUERIES
+  // ==========================================
+
+  // Query 1: Remote Work Requests List & Summary
+  const {
+    data: remoteData,
+    isLoading: isLoadingRequests,
+    refetch: refetchRequests,
+    isFetching: isFetchingRequests,
+  } = useQuery({
+    queryKey: [
+      'admin-remote-requests',
+      requestTab,
+      searchTerm,
+      selectedOffice,
+      selectedDept,
+      selectedDateRange,
+    ],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/employees/hrm/remote-requests');
-        return res?.data || res;
+        const res: any = await api.get('/remote-requests', {
+          params: {
+            status: requestTab !== 'ALL' ? requestTab : undefined,
+            search: searchTerm.trim() || undefined,
+            officeId: selectedOffice !== 'ALL' ? selectedOffice : undefined,
+            departmentId: selectedDept !== 'ALL' ? selectedDept : undefined,
+            dateRange: selectedDateRange !== 'ALL' ? selectedDateRange : undefined,
+          },
+        });
+        return res?.data || res || { summary: {}, requests: [] };
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+        return { summary: {}, requests: [] };
+      }
+    },
+  });
+
+  // Query 2: Today's Remote Workers Roster with Live Attendance
+  const {
+    data: todayRemoteData,
+    isLoading: isLoadingToday,
+    refetch: refetchToday,
+    isFetching: isFetchingToday,
+  } = useQuery({
+    queryKey: ['admin-today-remote-workers'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/remote-requests/today');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+    refetchInterval: 30000,
+  });
+
+  // Query 3: Offices & Departments for Filters & Form
+  const { data: officesData } = useQuery({
+    queryKey: ['active-offices-remote'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/offices', { params: { isActive: true } });
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       } catch {
         return [];
       }
     },
   });
 
-  const [localStatusMap, setLocalStatusMap] = useState<Record<string, 'APPROVED' | 'REJECTED'>>({});
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [remoteForm, setRemoteForm] = useState({
-    employeeName: '',
-    date: '',
-    reason: '',
+  const { data: departmentsData } = useQuery({
+    queryKey: ['active-departments-remote'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/departments', { params: { isActive: true } });
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
   });
 
-  const requests: RemoteRequest[] = Array.isArray(remoteData)
-    ? remoteData.map((r: any) => ({
-        ...r,
-        department: r.department || 'General',
-        fromDate: r.date || r.fromDate || '2026-08-21',
-        toDate: r.date || r.toDate || '2026-08-21',
-        totalDays: r.totalDays || 1,
-        status: localStatusMap[r.id] || r.status,
-      }))
+  const { data: employeesData } = useQuery({
+    queryKey: ['active-employees-remote-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees', { params: { limit: 200 } });
+        const list = res?.data?.employees || res?.employees || res?.data || res;
+        return Array.isArray(list) ? list : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const offices = Array.isArray(officesData) ? officesData : [];
+  const departments = Array.isArray(departmentsData) ? departmentsData : [];
+  const employeesList = Array.isArray(employeesData) ? employeesData : [];
+
+  const summary = remoteData?.summary || {
+    totalRequests: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    todayRemoteWork: 0,
+  };
+
+  const requests: RemoteRequestItem[] = Array.isArray(remoteData?.requests)
+    ? remoteData.requests
+    : Array.isArray(remoteData?.data)
+    ? remoteData.data
     : [];
 
-  const handleApprove = (id: string) => {
-    setLocalStatusMap((prev) => ({ ...prev, [id]: 'APPROVED' }));
-    toast.success('Remote work request approved');
+  const todayWorkers: TodayRemoteWorkerItem[] = Array.isArray(todayRemoteData)
+    ? todayRemoteData
+    : [];
+
+  const handleManualRefreshAll = () => {
+    refetchRequests();
+    refetchToday();
+    toast.success('Live remote work requests & attendance refreshed');
   };
 
-  const handleReject = (id: string) => {
-    setLocalStatusMap((prev) => ({ ...prev, [id]: 'REJECTED' }));
-    toast.error('Remote work request rejected');
-  };
+  // ==========================================
+  // 2. MUTATIONS
+  // ==========================================
 
-  const handleSaveRemote = async () => {
-    if (!remoteForm.employeeName.trim() || !remoteForm.date) {
-      toast.error('Please enter employee name and date');
+  // Approve Mutation
+  const approveMutation = useMutation({
+    mutationFn: async (id: number | string) => {
+      return api.patch(`/remote-requests/${id}/approve`, {});
+    },
+    onSuccess: (res: any) => {
+      const msg = res?.data?.message || res?.message || 'Remote work request approved successfully';
+      toast.success(typeof msg === 'string' ? msg : 'Approved');
+      setConfirmApproveReq(null);
+      setIsViewDrawerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-remote-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-today-remote-workers'] });
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Reject Mutation
+  const rejectMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: number | string; reason: string }) => {
+      return api.patch(`/remote-requests/${id}/reject`, {
+        rejectionReason: reason,
+      });
+    },
+    onSuccess: (res: any) => {
+      const msg = res?.data?.message || res?.message || 'Remote work request rejected';
+      toast.success(typeof msg === 'string' ? msg : 'Rejected');
+      setRejectModalReq(null);
+      setRejectionReason('');
+      setIsViewDrawerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-remote-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-today-remote-workers'] });
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Create Remote Request Mutation
+  const createMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return api.post('/remote-requests', payload);
+    },
+    onSuccess: (res: any) => {
+      const msg = res?.data?.message || res?.message || 'Remote work request submitted successfully';
+      toast.success(typeof msg === 'string' ? msg : 'Submitted');
+      setIsApplyDrawerOpen(false);
+      setApplyForm({
+        employeeId: '',
+        fromDate: new Date().toISOString().split('T')[0],
+        toDate: new Date().toISOString().split('T')[0],
+        reason: '',
+      });
+      queryClient.invalidateQueries({ queryKey: ['admin-remote-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-today-remote-workers'] });
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  const handleApplySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!applyForm.employeeId) {
+      toast.error('Please select an employee');
       return;
     }
-    setIsSubmitting(true);
-    try {
-      toast.success('Remote work request submitted successfully!');
-      setIsDrawerOpen(false);
-      refetch();
-    } finally {
-      setIsSubmitting(false);
+    if (!applyForm.fromDate || !applyForm.toDate) {
+      toast.error('Start and end dates are required');
+      return;
     }
+
+    createMutation.mutate({
+      employeeId: Number(applyForm.employeeId),
+      fromDate: applyForm.fromDate,
+      toDate: applyForm.toDate,
+      reason: applyForm.reason.trim() || undefined,
+    });
   };
 
+  const isAnyFetching = isFetchingRequests || isFetchingToday;
+
   return (
-    <div className="space-y-6">
-      {/* Top Title Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+      {/* =========================================================================
+          1. HEADER & PRIMARY ACTIONS
+          ========================================================================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs">
         <div>
-          <div className="flex items-center gap-2 text-[#1AA14D] font-extrabold text-xs uppercase tracking-wider mb-1">
-            <Laptop className="w-4 h-4 text-[#23C45E]" /> REMOTE WORK & WFH APPROVALS
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Remote Work
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#1AA14D] text-[11px] font-black uppercase tracking-wider border border-emerald-200/60">
+              Work From Home
+            </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-            Remote Work & WFH Applications
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">
-            Manage staff work-from-home requests, task commitments, and remote attendance permissions.
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+            Review and manage employee remote work requests.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setRemoteForm({
-              employeeName: '',
-              date: '',
-              reason: '',
-            });
-            setIsDrawerOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-        >
-          <Plus className="w-4 h-4" /> Request WFH
-        </button>
-      </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={handleManualRefreshAll}
+            disabled={isAnyFetching}
+            className="p-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl border border-slate-200/80 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            title="Refresh all data"
+          >
+            <RefreshCw className={`w-4 h-4 ${isAnyFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
+          </button>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Pending Requests</span>
-          <p className="text-2xl font-black text-amber-600 mt-1">1 Application</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Approved This Month</span>
-          <p className="text-2xl font-black text-indigo-600 mt-1">14 Days</p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Remote Employees Today</span>
-          <p className="text-2xl font-black text-[#1AA14D] mt-1">4 Employees</p>
+          <button
+            onClick={() => setIsApplyDrawerOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-2xl text-xs font-black shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Apply Remote Work</span>
+          </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* =========================================================================
+          2. TOP SUMMARY 5 KPI CARDS
+          ========================================================================= */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        {/* TOTAL REQUESTS */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Total Requests
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+              <Laptop className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              {summary.totalRequests ?? 0}
+            </span>
+            <span className="text-[11px] font-bold text-slate-400 block mt-0.5">All Submissions</span>
+          </div>
+        </div>
+
+        {/* PENDING */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-amber-200/80 shadow-xs flex flex-col justify-between bg-gradient-to-b from-white to-amber-50/30">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-amber-800">
+              Pending
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-amber-950 tracking-tight">
+              {summary.pending ?? 0}
+            </span>
+            <span className="text-[11px] font-bold text-amber-700 block mt-0.5">
+              Requires HR Action
+            </span>
+          </div>
+        </div>
+
+        {/* APPROVED */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-emerald-200/80 shadow-xs flex flex-col justify-between bg-gradient-to-b from-white to-emerald-50/30">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-emerald-800">
+              Approved
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#1AA14D] flex items-center justify-center">
+              <CheckCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-emerald-950 tracking-tight">
+              {summary.approved ?? 0}
+            </span>
+            <span className="text-[11px] font-bold text-emerald-700 block mt-0.5">
+              Authorized WFH
+            </span>
+          </div>
+        </div>
+
+        {/* REJECTED */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-rose-200/80 shadow-xs flex flex-col justify-between bg-gradient-to-b from-white to-rose-50/30">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-rose-800">
+              Rejected
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
+              <XCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-rose-950 tracking-tight">
+              {summary.rejected ?? 0}
+            </span>
+            <span className="text-[11px] font-bold text-rose-700 block mt-0.5">Declined / Closed</span>
+          </div>
+        </div>
+
+        {/* TODAY REMOTE WORK */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-indigo-200/80 shadow-xs flex flex-col justify-between bg-gradient-to-b from-white to-indigo-50/30 col-span-2 sm:col-span-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-indigo-800">
+              Today Remote Work
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+              <Building2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-black text-indigo-950 tracking-tight">
+              {summary.todayRemoteWork ?? todayWorkers.length}
+            </span>
+            <span className="text-[11px] font-bold text-indigo-700 block mt-0.5">
+              Active Today Off-Site
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          3. REQUEST TABS & FILTERS
+          ========================================================================= */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden space-y-4">
+        <div className="p-5 sm:p-6 border-b border-slate-100 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Status Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {[
+                { key: 'PENDING' as RequestTab, label: 'Pending', count: summary.pending },
+                { key: 'APPROVED' as RequestTab, label: 'Approved', count: summary.approved },
+                { key: 'REJECTED' as RequestTab, label: 'Rejected', count: summary.rejected },
+                { key: 'ALL' as RequestTab, label: 'All', count: summary.totalRequests },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setRequestTab(tab.key)}
+                  className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+                    requestTab === tab.key
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      requestTab === tab.key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {tab.count ?? 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Search */}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search staff name or ID..."
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+              />
+            </div>
+          </div>
+
+          {/* Secondary Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <select
+              value={selectedOffice}
+              onChange={(e) => setSelectedOffice(e.target.value)}
+              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+            >
+              <option value="ALL">All Assigned Offices</option>
+              {offices.map((o: any) => (
+                <option key={o.id} value={o.id}>
+                  {o.name} {o.city ? `(${o.city})` : ''}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+            >
+              <option value="ALL">All Departments</option>
+              {departments.map((d: any) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedDateRange}
+              onChange={(e) => setSelectedDateRange(e.target.value as DateRangeFilter)}
+              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+            >
+              <option value="ALL">All Dates</option>
+              <option value="TODAY">Today</option>
+              <option value="THIS_WEEK">This Week</option>
+              <option value="THIS_MONTH">This Month</option>
+            </select>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            4. REMOTE WORK REQUESTS TABLE
+            ========================================================================= */}
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
-            <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-slate-100">
-              <tr>
-                <th className="p-4">Staff Member</th>
-                <th className="p-4">Department</th>
-                <th className="p-4">Date</th>
-                <th className="p-4">Reason & Task Plan</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-right">Approval Actions</th>
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="bg-slate-50 text-slate-400 uppercase font-black tracking-wider text-[10px] border-b border-slate-100">
+                <th className="py-3 px-6">Employee</th>
+                <th className="py-3 px-6">Employee ID</th>
+                <th className="py-3 px-6">Office</th>
+                <th className="py-3 px-6">Department</th>
+                <th className="py-3 px-6">Designation</th>
+                <th className="py-3 px-6">Remote Work Date</th>
+                <th className="py-3 px-6">Duration</th>
+                <th className="py-3 px-6">Reason</th>
+                <th className="py-3 px-6">Applied On</th>
+                <th className="py-3 px-6">Status</th>
+                <th className="py-3 px-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {requests.length === 0 ? (
+              {isLoadingRequests ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400 font-bold">
-                    No remote work requests found in database.
+                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#23C45E]" />
+                    <p className="mt-2 text-xs font-bold">Loading remote work requests...</p>
+                  </td>
+                </tr>
+              ) : requests.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                    <Laptop className="w-8 h-8 mx-auto text-slate-300" />
+                    <p className="mt-2 text-xs font-bold text-slate-600">
+                      No remote work requests found.
+                    </p>
                   </td>
                 </tr>
               ) : (
-                requests.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="p-4">
-                      <p className="font-black text-slate-900">{r.employeeName}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">{r.employeeId}</p>
+                requests.map((req) => (
+                  <tr key={req.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-6 font-extrabold text-slate-900">{req.employeeName}</td>
+                    <td className="py-3.5 px-6 font-mono font-bold text-slate-600">
+                      {req.employeeCode}
                     </td>
-                    <td className="p-4 text-slate-800">{r.department}</td>
-                    <td className="p-4 font-semibold text-slate-700">{r.fromDate}</td>
-                    <td className="p-4 text-slate-600 max-w-xs truncate">{r.reason}</td>
-                    <td className="p-4">
+                    <td className="py-3.5 px-6 font-bold text-slate-800">{req.office}</td>
+                    <td className="py-3.5 px-6 text-slate-700">{req.department}</td>
+                    <td className="py-3.5 px-6 text-slate-600">{req.designation}</td>
+                    <td className="py-3.5 px-6 font-mono font-bold text-slate-800">
+                      {req.remoteWorkDate}
+                    </td>
+                    <td className="py-3.5 px-6 font-black text-[#1AA14D]">{req.duration}</td>
+                    <td className="py-3.5 px-6 text-slate-600 max-w-[180px] truncate" title={req.reason}>
+                      {req.reason || '—'}
+                    </td>
+                    <td className="py-3.5 px-6 font-mono text-[11px] text-slate-500">
+                      {req.appliedOn}
+                    </td>
+                    <td className="py-3.5 px-6">
                       <span
-                        className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
-                          r.status === 'APPROVED'
-                            ? 'bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/30'
-                            : r.status === 'REJECTED'
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${
+                          req.status === 'APPROVED'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : req.status === 'PENDING'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-rose-100 text-rose-800'
                         }`}
                       >
-                        {r.status}
+                        {req.status === 'APPROVED' && <CheckCircle className="w-3 h-3" />}
+                        {req.status === 'PENDING' && <Clock className="w-3 h-3" />}
+                        {req.status === 'REJECTED' && <XCircle className="w-3 h-3" />}
+                        {req.status}
                       </span>
                     </td>
-                    <td className="p-4 text-right">
-                      {r.status === 'PENDING' ? (
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleApprove(r.id)}
-                            className="p-1.5 rounded-lg bg-[#E8F9EE] text-[#1AA14D] hover:bg-[#23C45E] hover:text-white transition-colors cursor-pointer"
-                            title="Approve WFH"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleReject(r.id)}
-                            className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
-                            title="Reject WFH"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] font-bold">Processed</span>
-                      )}
+                    <td className="py-3.5 px-6 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            setSelectedRequest(req);
+                            setIsViewDrawerOpen(true);
+                          }}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-[11px] transition-colors cursor-pointer"
+                        >
+                          View
+                        </button>
+
+                        {req.status === 'PENDING' && (
+                          <>
+                            <button
+                              onClick={() => setConfirmApproveReq(req)}
+                              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#1AA14D] border border-emerald-200/60 rounded-xl font-black text-[11px] transition-colors cursor-pointer"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRejectModalReq(req);
+                                setRejectionReason('');
+                              }}
+                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 rounded-xl font-black text-[11px] transition-colors cursor-pointer"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -212,57 +672,514 @@ export default function RemoteWorkPage() {
         </div>
       </div>
 
-      {/* Right-Side Admin Form Drawer */}
+      {/* =========================================================================
+          5. TODAY'S REMOTE WORK SECTION (LIVE ATTENDANCE INTEGRATED)
+          ========================================================================= */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden space-y-4">
+        <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-indigo-600" />
+              Today's Remote Work
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">
+              Real-time attendance, check-in time and breaks of employees on authorized remote work today.
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-2xl bg-indigo-50 text-indigo-800 font-mono font-black text-xs border border-indigo-200/60 w-fit">
+            {todayWorkers.length} Active Today
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="bg-slate-50 text-slate-400 uppercase font-black tracking-wider text-[10px] border-b border-slate-100">
+                <th className="py-3 px-6">Employee</th>
+                <th className="py-3 px-6">Employee ID</th>
+                <th className="py-3 px-6">Office</th>
+                <th className="py-3 px-6">Department</th>
+                <th className="py-3 px-6">Remote Work Date</th>
+                <th className="py-3 px-6">Attendance Status</th>
+                <th className="py-3 px-6">Punch In</th>
+                <th className="py-3 px-6">Break</th>
+                <th className="py-3 px-6">Punch Out</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+              {isLoadingToday ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+                    <p className="mt-2 text-xs font-bold">Querying today's remote workers...</p>
+                  </td>
+                </tr>
+              ) : todayWorkers.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <AlertCircle className="w-8 h-8 mx-auto text-slate-300" />
+                    <p className="mt-2 text-xs font-bold text-slate-600">
+                      No employees scheduled for remote work today.
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                todayWorkers.map((w) => (
+                  <tr key={w.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-6 font-extrabold text-slate-900">{w.name}</td>
+                    <td className="py-3.5 px-6 font-mono font-bold text-slate-600">{w.employeeCode}</td>
+                    <td className="py-3.5 px-6 font-bold text-slate-800">{w.office}</td>
+                    <td className="py-3.5 px-6 text-slate-700">{w.department}</td>
+                    <td className="py-3.5 px-6 font-mono font-bold text-slate-800">{w.remoteWorkDate}</td>
+                    <td className="py-3.5 px-6">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-800 font-black text-[10px] uppercase tracking-wider border border-indigo-200/60">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                        REMOTE
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-6 font-mono font-bold text-slate-800">{w.punchIn}</td>
+                    <td className="py-3.5 px-6 font-mono text-slate-600">{w.break}</td>
+                    <td className="py-3.5 px-6 font-mono text-slate-600">{w.punchOut}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          DRAWER 1: VIEW REMOTE WORK REQUEST DETAILS
+          ========================================================================= */}
       <AdminFormDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Request Work From Home (WFH)"
-        description="Submit remote attendance application"
-        size="md"
-        onSave={handleSaveRemote}
-        saveLabel="Submit WFH Request"
-        isSubmitting={isSubmitting}
+        isOpen={isViewDrawerOpen}
+        onClose={() => setIsViewDrawerOpen(false)}
+        title={selectedRequest ? `Remote Work Request #${selectedRequest.id}` : 'Request Details'}
+        subtitle="Review employee remote work application & take administrative action"
+        icon={Laptop}
+        maxWidth="max-w-xl"
+        footer={
+          selectedRequest && selectedRequest.status === 'PENDING' ? (
+            <div className="flex items-center justify-end gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectModalReq(selectedRequest);
+                  setRejectionReason('');
+                }}
+                className="px-5 py-2.5 rounded-2xl border border-rose-200 text-rose-600 hover:bg-rose-50 font-black text-xs transition-colors cursor-pointer"
+              >
+                Reject Request
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmApproveReq(selectedRequest)}
+                className="px-6 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-2xl font-black text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer"
+              >
+                Approve Request
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsViewDrawerOpen(false)}
+              className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-xs transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+          )
+        }
       >
-        <div className="space-y-4">
+        {selectedRequest && (
+          <div className="space-y-6">
+            {/* Status Banner */}
+            <div
+              className={`p-4 rounded-2xl flex items-center justify-between border ${
+                selectedRequest.status === 'APPROVED'
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                  : selectedRequest.status === 'PENDING'
+                  ? 'bg-amber-50 text-amber-900 border-amber-200'
+                  : 'bg-rose-50 text-rose-900 border-rose-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {selectedRequest.status === 'APPROVED' && (
+                  <CheckCircle className="w-5 h-5 text-[#23C45E]" />
+                )}
+                {selectedRequest.status === 'PENDING' && (
+                  <Clock className="w-5 h-5 text-amber-600" />
+                )}
+                {selectedRequest.status === 'REJECTED' && (
+                  <XCircle className="w-5 h-5 text-rose-600" />
+                )}
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider block">
+                    Status: {selectedRequest.status}
+                  </span>
+                  <span className="text-[11px] font-medium opacity-80">
+                    Applied on {selectedRequest.appliedOn}
+                  </span>
+                </div>
+              </div>
+
+              <span className="text-xs font-mono font-black px-2.5 py-1 rounded-xl bg-white/70 shadow-2xs">
+                {selectedRequest.duration}
+              </span>
+            </div>
+
+            {/* Employee Information */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                <User className="w-4 h-4 text-[#23C45E]" />
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                  Employee Information
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">Name</span>
+                  <span className="font-extrabold text-slate-900 text-sm">
+                    {selectedRequest.employeeName}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    Employee ID
+                  </span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {selectedRequest.employeeCode}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    Department
+                  </span>
+                  <span className="font-bold text-slate-800">{selectedRequest.department}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    Designation
+                  </span>
+                  <span className="font-bold text-slate-800">{selectedRequest.designation}</span>
+                </div>
+
+                <div className="col-span-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    Assigned Office
+                  </span>
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                    {selectedRequest.office}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Remote Work Information */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                <CalendarDays className="w-4 h-4 text-[#23C45E]" />
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                  Remote Work Information
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    Start Date
+                  </span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {selectedRequest.fromDate}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    End Date
+                  </span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {selectedRequest.toDate}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    Total Duration
+                  </span>
+                  <span className="font-black text-[#1AA14D]">{selectedRequest.duration}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    Applied On
+                  </span>
+                  <span className="font-mono text-slate-600">{selectedRequest.appliedOn}</span>
+                </div>
+
+                <div className="col-span-2 pt-1 border-t border-slate-200/50">
+                  <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">
+                    Employee Reason
+                  </span>
+                  <p className="text-xs font-medium text-slate-700 bg-white p-3 rounded-xl border border-slate-200/70 leading-relaxed">
+                    {selectedRequest.reason || 'No specific reason provided.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Audit & Resolution Info */}
+            {(selectedRequest.approvedByName || selectedRequest.rejectionReason) && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                <span className="text-[10px] font-black uppercase text-slate-400 block">
+                  Administrative Resolution
+                </span>
+                {selectedRequest.approvedByName && (
+                  <p className="text-emerald-800 font-bold">
+                    Approved by {selectedRequest.approvedByName}{' '}
+                    {selectedRequest.approvedAt ? `on ${selectedRequest.approvedAt.split('T')[0]}` : ''}
+                  </p>
+                )}
+                {selectedRequest.rejectionReason && (
+                  <div className="space-y-1">
+                    <p className="text-rose-700 font-bold">
+                      Rejected by {selectedRequest.rejectedByName || 'HR Administrator'}:
+                    </p>
+                    <p className="p-2.5 bg-rose-50 rounded-xl border border-rose-200 text-rose-900 italic font-medium">
+                      "{selectedRequest.rejectionReason}"
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </AdminFormDrawer>
+
+      {/* =========================================================================
+          DRAWER 2: APPLY FOR REMOTE WORK REQUEST
+          ========================================================================= */}
+      <AdminFormDrawer
+        isOpen={isApplyDrawerOpen}
+        onClose={() => setIsApplyDrawerOpen(false)}
+        title="Apply Remote Work"
+        subtitle="Submit a remote work application on behalf of an employee"
+        icon={Plus}
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <button
+              type="button"
+              disabled={createMutation.isPending}
+              onClick={() => setIsApplyDrawerOpen(false)}
+              className="px-4 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={createMutation.isPending}
+              onClick={handleApplySubmit}
+              className="px-6 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-2xl font-black text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer disabled:opacity-50"
+            >
+              {createMutation.isPending ? 'Submitting...' : 'Submit Request'}
+            </button>
+          </div>
+        }
+      >
+        <form onSubmit={handleApplySubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
-              Employee Name *
+            <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
+              Select Employee *
             </label>
-            <input
-              type="text"
-              value={remoteForm.employeeName}
-              onChange={(e) => setRemoteForm({ ...remoteForm, employeeName: e.target.value })}
-              placeholder="e.g. Amit Verma"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-            />
+            <select
+              required
+              value={applyForm.employeeId}
+              onChange={(e) => setApplyForm({ ...applyForm, employeeId: e.target.value })}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+            >
+              <option value="">Choose Employee...</option>
+              {employeesList.map((emp: any) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.firstName} {emp.lastName} ({emp.employeeCode || `EMP-${emp.id}`})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
+                Start Date *
+              </label>
+              <input
+                type="date"
+                required
+                value={applyForm.fromDate}
+                onChange={(e) => setApplyForm({ ...applyForm, fromDate: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
+                End Date *
+              </label>
+              <input
+                type="date"
+                required
+                value={applyForm.toDate}
+                onChange={(e) => setApplyForm({ ...applyForm, toDate: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
-              Target Date *
-            </label>
-            <input
-              type="date"
-              value={remoteForm.date}
-              onChange={(e) => setRemoteForm({ ...remoteForm, date: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
-              Work Deliverables / Reason
+            <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
+              Reason / Justification
             </label>
             <textarea
-              value={remoteForm.reason}
-              onChange={(e) => setRemoteForm({ ...remoteForm, reason: e.target.value })}
               rows={3}
-              placeholder="Describe tasks to be executed remotely..."
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              value={applyForm.reason}
+              onChange={(e) => setApplyForm({ ...applyForm, reason: e.target.value })}
+              placeholder="e.g. Remote work due to travel / client meeting nearby home..."
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
             />
           </div>
-        </div>
+        </form>
       </AdminFormDrawer>
+
+      {/* =========================================================================
+          CONFIRMATION MODALS (APPROVE / REJECT)
+          ========================================================================= */}
+      {/* Approve Confirmation Modal */}
+      {confirmApproveReq && (
+        <div className="fixed inset-0 z-60 overflow-hidden flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !approveMutation.isPending && setConfirmApproveReq(null)}
+          />
+          <div className="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#1AA14D] flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-[#23C45E]" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Approve Remote Work</h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Confirm approval for {confirmApproveReq.employeeName}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              Approve remote work request for <strong>{confirmApproveReq.employeeName}</strong> on{' '}
+              <strong>{confirmApproveReq.remoteWorkDate}</strong> ({confirmApproveReq.duration})?
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={approveMutation.isPending}
+                onClick={() => setConfirmApproveReq(null)}
+                className="px-4 py-2 rounded-2xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={approveMutation.isPending}
+                onClick={() => approveMutation.mutate(confirmApproveReq.id)}
+                className="px-6 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-2xl font-black text-xs transition-all shadow-md shadow-[#23C45E]/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {approveMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" />
+                )}
+                <span>Confirm Approve</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectModalReq && (
+        <div className="fixed inset-0 z-60 overflow-hidden flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !rejectMutation.isPending && setRejectModalReq(null)}
+          />
+          <div className="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <XCircle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Reject Remote Work</h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Provide reason for declining {rejectModalReq.employeeName}'s request
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
+                Rejection Reason *
+              </label>
+              <textarea
+                rows={3}
+                required
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Enter mandatory reason for declining request..."
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={rejectMutation.isPending}
+                onClick={() => setRejectModalReq(null)}
+                className="px-4 py-2 rounded-2xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={rejectMutation.isPending}
+                onClick={() => {
+                  if (!rejectionReason.trim()) {
+                    toast.error('Rejection reason is required');
+                    return;
+                  }
+                  rejectMutation.mutate({
+                    id: rejectModalReq.id,
+                    reason: rejectionReason.trim(),
+                  });
+                }}
+                className="px-6 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {rejectMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <X className="w-3.5 h-3.5" />
+                )}
+                <span>Reject Request</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
