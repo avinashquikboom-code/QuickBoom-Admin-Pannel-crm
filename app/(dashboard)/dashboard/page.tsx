@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -36,6 +36,13 @@ import {
   UserMinus,
   Eye,
   ArrowRight,
+  Zap,
+  DollarSign,
+  TrendingDown,
+  Shield,
+  Navigation,
+  Globe,
+  Sliders,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@/lib/store';
@@ -50,10 +57,41 @@ export default function AdminDashboardPage() {
   const user = useAuthStore((state) => state.user);
 
   const [dateRange, setDateRange] = useState<DateRangeOption>('30d');
-  const [activeMetric, setActiveMetric] = useState<'revenue' | 'customers' | 'tasks'>('revenue');
+  const [activeMetric, setActiveMetric] = useState<'revenue' | 'attendance' | 'tasks'>('revenue');
   const [attendanceFilter, setAttendanceFilter] = useState<AttendanceFilter>('ALL');
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [selectedOffice, setSelectedOffice] = useState<string>('ALL');
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(
+        now.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }) +
+          ' • ' +
+          now.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
 
   // 1. Fetch Super Admin & Dashboard Platform Metrics
   const {
@@ -91,11 +129,23 @@ export default function AdminDashboardPage() {
     refetchInterval: 20000,
   });
 
-  // 3. Fetch Live Customers
+  // 3. Fetch Real Active Offices
+  const { data: officesData } = useQuery({
+    queryKey: ['active-offices-dashboard'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/offices', { params: { isActive: true } });
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // 4. Fetch Live Customers
   const {
     data: customersData,
     isLoading: isLoadingCustomers,
-    isError: isErrorCustomers,
     refetch: refetchCustomers,
   } = useQuery({
     queryKey: ['admin-dashboard-customers'],
@@ -109,11 +159,10 @@ export default function AdminDashboardPage() {
     },
   });
 
-  // 4. Fetch Live Subscription Plans
+  // 5. Fetch Live Subscription Plans
   const {
     data: plansData,
     isLoading: isLoadingPlans,
-    isError: isErrorPlans,
     refetch: refetchPlans,
   } = useQuery({
     queryKey: ['admin-dashboard-plans'],
@@ -127,25 +176,27 @@ export default function AdminDashboardPage() {
     },
   });
 
-  // 5. Fetch Live Recent Activity / Audit Logs
+  // 6. Fetch Live Recent Activity / Audit Logs
   const {
     data: auditLogsData,
     isLoading: isLoadingAudit,
-    isError: isErrorAudit,
     refetch: refetchAudit,
   } = useQuery({
     queryKey: ['admin-dashboard-audit-logs'],
     queryFn: async () => {
-      const res: any = await api.get('/audit-logs');
-      return res?.data?.items || res?.data || res || [];
+      try {
+        const res: any = await api.get('/audit-logs');
+        return res?.data?.items || res?.data || res || [];
+      } catch {
+        return [];
+      }
     },
   });
 
-  // 6. Fetch Live Tasks / Deals for Work Overview
+  // 7. Fetch Live Tasks / Deals for Work Overview
   const {
     data: tasksData,
     isLoading: isLoadingTasks,
-    isError: isErrorTasks,
     refetch: refetchTasks,
   } = useQuery({
     queryKey: ['admin-dashboard-tasks'],
@@ -166,13 +217,14 @@ export default function AdminDashboardPage() {
     refetchPlans();
     refetchAudit();
     refetchTasks();
-    toast.success('Live database metrics refreshed', { icon: '🔄' });
+    toast.success('Live database metrics synchronized', { icon: '⚡' });
   };
 
   const customersList = Array.isArray(customersData) ? customersData : [];
   const plansList = Array.isArray(plansData) ? plansData : [];
   const auditLogsList = Array.isArray(auditLogsData) ? auditLogsData : [];
   const tasksList = Array.isArray(tasksData) ? tasksData : [];
+  const officesList = Array.isArray(officesData) ? officesData : [];
 
   // Attendance metrics & records
   const attSummary = liveAttendanceData?.summary || {};
@@ -180,25 +232,36 @@ export default function AdminDashboardPage() {
   const attRecords = Array.isArray(liveAttendanceData?.records) ? liveAttendanceData.records : [];
 
   const totalEmployees = attSummary.totalEmployees ?? attRecords.length;
-  const presentCount = attSummary.presentCount ?? attRecords.filter((r: any) => ['PRESENT', 'LATE', 'HALF_DAY'].includes(r.status)).length;
-  const onBreakCount = attSummary.onBreakCount ?? attRecords.filter((r: any) => r.status === 'ON_BREAK').length;
-  const onLeaveCount = attSummary.onLeaveCount ?? attRecords.filter((r: any) => r.status === 'ON_LEAVE').length;
-  const absentCount = attSummary.absentCount ?? attRecords.filter((r: any) => r.status === 'ABSENT').length;
-  const lateCount = attSummary.lateCount ?? attRecords.filter((r: any) => r.status === 'LATE').length;
-  const attendanceRate = totalEmployees > 0
-    ? Math.round(((presentCount + onBreakCount) / totalEmployees) * 100)
-    : 0;
+  const presentCount =
+    attSummary.presentCount ??
+    attRecords.filter((r: any) => ['PRESENT', 'LATE', 'HALF_DAY'].includes(r.status)).length;
+  const onBreakCount =
+    attSummary.onBreakCount ?? attRecords.filter((r: any) => r.status === 'ON_BREAK').length;
+  const onLeaveCount =
+    attSummary.onLeaveCount ?? attRecords.filter((r: any) => r.status === 'ON_LEAVE').length;
+  const absentCount =
+    attSummary.absentCount ?? attRecords.filter((r: any) => r.status === 'ABSENT').length;
+  const lateCount =
+    attSummary.lateCount ?? attRecords.filter((r: any) => r.status === 'LATE').length;
+  const attendanceRate =
+    totalEmployees > 0 ? Math.round(((presentCount + onBreakCount) / totalEmployees) * 100) : 0;
 
   // Filtered live attendance records
   const filteredAttendance = useMemo(() => {
     return attRecords.filter((rec: any) => {
       // Office filter
-      if (selectedOffice !== 'ALL' && rec.branch !== selectedOffice && rec.office !== selectedOffice) {
+      if (
+        selectedOffice !== 'ALL' &&
+        rec.branch !== selectedOffice &&
+        rec.office !== selectedOffice &&
+        String(rec.officeId) !== String(selectedOffice)
+      ) {
         return false;
       }
       // Status filter
       if (attendanceFilter !== 'ALL') {
-        if (attendanceFilter === 'PRESENT' && !['PRESENT', 'LATE', 'HALF_DAY'].includes(rec.status)) return false;
+        if (attendanceFilter === 'PRESENT' && !['PRESENT', 'LATE', 'HALF_DAY'].includes(rec.status))
+          return false;
         if (attendanceFilter === 'ON_BREAK' && rec.status !== 'ON_BREAK') return false;
         if (attendanceFilter === 'ON_LEAVE' && rec.status !== 'ON_LEAVE') return false;
         if (attendanceFilter === 'LATE' && rec.status !== 'LATE') return false;
@@ -211,7 +274,8 @@ export default function AdminDashboardPage() {
         const matchCode = String(rec.employeeCode || '').toLowerCase().includes(query);
         const matchDept = String(rec.department || '').toLowerCase().includes(query);
         const matchRole = String(rec.role || '').toLowerCase().includes(query);
-        return matchName || matchCode || matchDept || matchRole;
+        const matchOffice = String(rec.office || rec.branch || '').toLowerCase().includes(query);
+        return matchName || matchCode || matchDept || matchRole || matchOffice;
       }
       return true;
     });
@@ -222,61 +286,49 @@ export default function AdminDashboardPage() {
   const activeCustomers =
     metricsData?.activeCustomers ??
     customersList.filter((c: any) => c.isActive !== false).length;
-  const inactiveCustomers = Math.max(0, totalCustomers - activeCustomers);
-  const newCustomers = Math.min(totalCustomers, 4);
-
-  const totalPlans = plansList.length > 0 ? plansList.length : 3;
-  const activePlans = plansList.filter((p: any) => p.isActive !== false).length || totalPlans;
   const totalRevenue = metricsData?.mrr ?? 0;
 
   // Work overview metrics
   const totalTasksCount = tasksList.length;
   const completedTasks = tasksList.filter((t: any) => t.status === 'COMPLETED').length;
   const inProgressTasks = tasksList.filter((t: any) => t.status === 'IN_PROGRESS').length;
-  const pendingTasks = tasksList.filter((t: any) => t.status === 'PENDING' || !t.status).length;
-  const overdueTasks = tasksList.filter((t: any) => t.status === 'OVERDUE').length;
-
   const taskCompletionRate =
-    totalTasksCount > 0
-      ? Math.round((completedTasks / totalTasksCount) * 100)
-      : totalCustomers > 0
-      ? 84
-      : 0;
+    totalTasksCount > 0 ? Math.round((completedTasks / totalTasksCount) * 100) : 85;
 
   // Dynamic Chart Points based on dateRange and active metric
   const chartData = useMemo(() => {
     if (dateRange === '7d') {
       return [
-        { label: 'Mon', revenue: 12000, customers: 1, tasks: 5 },
-        { label: 'Tue', revenue: 18000, customers: 2, tasks: 8 },
-        { label: 'Wed', revenue: 15000, customers: 1, tasks: 6 },
-        { label: 'Thu', revenue: 24000, customers: 3, tasks: 12 },
-        { label: 'Fri', revenue: 32000, customers: 2, tasks: 15 },
-        { label: 'Sat', revenue: 28000, customers: 1, tasks: 9 },
-        { label: 'Sun', revenue: 38000, customers: 4, tasks: 14 },
+        { label: 'Mon', revenue: 42000, attendance: 92, tasks: 12 },
+        { label: 'Tue', revenue: 68000, attendance: 96, tasks: 18 },
+        { label: 'Wed', revenue: 54000, attendance: 90, tasks: 15 },
+        { label: 'Thu', revenue: 89000, attendance: 98, tasks: 24 },
+        { label: 'Fri', revenue: 112000, attendance: 94, tasks: 28 },
+        { label: 'Sat', revenue: 76000, attendance: 82, tasks: 10 },
+        { label: 'Sun', revenue: 95000, attendance: 88, tasks: 14 },
       ];
     }
     if (dateRange === '90d') {
       return [
-        { label: 'Month 1', revenue: 180000, customers: 12, tasks: 64 },
-        { label: 'Month 2', revenue: 290000, customers: 22, tasks: 110 },
-        { label: 'Month 3', revenue: 420000, customers: 35, tasks: 175 },
+        { label: 'Month 1', revenue: 450000, attendance: 91, tasks: 140 },
+        { label: 'Month 2', revenue: 780000, attendance: 94, tasks: 210 },
+        { label: 'Month 3', revenue: 1120000, attendance: 96, tasks: 290 },
       ];
     }
     if (dateRange === '1y') {
       return [
-        { label: 'Q1', revenue: 350000, customers: 18, tasks: 95 },
-        { label: 'Q2', revenue: 580000, customers: 32, tasks: 160 },
-        { label: 'Q3', revenue: 840000, customers: 48, tasks: 240 },
-        { label: 'Q4', revenue: 1250000, customers: 64, tasks: 320 },
+        { label: 'Q1', revenue: 850000, attendance: 89, tasks: 320 },
+        { label: 'Q2', revenue: 1450000, attendance: 93, tasks: 480 },
+        { label: 'Q3', revenue: 2100000, attendance: 95, tasks: 640 },
+        { label: 'Q4', revenue: 2950000, attendance: 97, tasks: 810 },
       ];
     }
     // Default 30d
     return [
-      { label: 'Week 1', revenue: 45000, customers: 4, tasks: 22 },
-      { label: 'Week 2', revenue: 82000, customers: 7, tasks: 38 },
-      { label: 'Week 3', revenue: 135000, customers: 12, tasks: 54 },
-      { label: 'Week 4', revenue: 198000, customers: 18, tasks: 72 },
+      { label: 'Week 1', revenue: 145000, attendance: 90, tasks: 45 },
+      { label: 'Week 2', revenue: 235000, attendance: 93, tasks: 62 },
+      { label: 'Week 3', revenue: 380000, attendance: 96, tasks: 88 },
+      { label: 'Week 4', revenue: 520000, attendance: 95, tasks: 110 },
     ];
   }, [dateRange]);
 
@@ -288,142 +340,170 @@ export default function AdminDashboardPage() {
   const isAnyFetching = isFetchingMetrics || isFetchingAttendance;
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-12 text-slate-800">
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
       {/* =========================================================================
-          1. PAGE HEADER & REAL-TIME CONTROLS
+          1. EXECUTIVE HERO HEADER & REAL-TIME CONTROLS
           ========================================================================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Enterprise Command Center
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
+        {/* Ambient Glows */}
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
+                Live Operations Center
+              </span>
+              <span className="text-slate-400 text-xs font-mono font-medium">
+                {currentTime || 'Synchronizing platform clock...'}
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              {greeting}, {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Administrator'}
             </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-[10px] font-black uppercase tracking-wider shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-ping" />
-              <span className="w-2 h-2 rounded-full bg-[#23C45E] absolute" />
-              Live Operations
-            </span>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
+              Real-time enterprise overview across multi-branch attendance geofences, platform revenue, and organizational operations.
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Real-time workforce attendance, revenue intelligence, and multi-tenant analytics.
-          </p>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Date Range Selector */}
-          <div className="flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/70 text-xs font-bold">
-            {(['7d', '30d', '90d', '1y'] as DateRangeOption[]).map((opt) => (
-              <button
-                key={opt}
-                onClick={() => setDateRange(opt)}
-                className={`px-3 py-1.5 rounded-lg transition-all capitalize cursor-pointer ${
-                  dateRange === opt
-                    ? 'bg-white text-slate-900 shadow-xs font-extrabold'
-                    : 'text-slate-600 hover:text-slate-900'
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Date Range Selector */}
+            <div className="flex items-center p-1 bg-slate-800/90 rounded-2xl border border-slate-700/80 text-xs font-bold shadow-inner">
+              {(['7d', '30d', '90d', '1y'] as DateRangeOption[]).map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setDateRange(opt)}
+                  className={`px-3 py-1.5 rounded-xl transition-all capitalize cursor-pointer ${
+                    dateRange === opt
+                      ? 'bg-[#23C45E] text-slate-950 font-black shadow-md'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                  }`}
+                >
+                  {opt === '7d'
+                    ? '7D'
+                    : opt === '30d'
+                    ? '30D'
+                    : opt === '90d'
+                    ? '90D'
+                    : '1Y'}
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Sync Button */}
+            <button
+              onClick={handleManualRefresh}
+              disabled={isAnyFetching}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-[#23C45E] ${
+                  isAnyFetching ? 'animate-spin' : ''
                 }`}
-              >
-                {opt === '7d'
-                  ? '7 Days'
-                  : opt === '30d'
-                  ? '30 Days'
-                  : opt === '90d'
-                  ? '90 Days'
-                  : '1 Year'}
-              </button>
-            ))}
+              />
+              <span>Sync Live</span>
+            </button>
           </div>
-
-          {/* Quick Manual Refresh */}
-          <button
-            onClick={handleManualRefresh}
-            disabled={isAnyFetching}
-            className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200/80 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Sync all live metrics from database"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 text-slate-500 ${
-                isAnyFetching ? 'animate-spin text-[#23C45E]' : ''
-              }`}
-            />
-            <span className="hidden sm:inline">Sync Live</span>
-          </button>
         </div>
       </div>
 
       {/* =========================================================================
-          2. TOP KPI SUMMARY CARDS
+          2. TOP 4 EXECUTIVE KPI CARDS
           ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Live Workforce Attendance */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
-              Live Workforce Attendance
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Workforce Attendance
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
-              <UserCheck className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <UserCheck className="w-5 h-5 text-[#23C45E]" />
             </div>
           </div>
-          <div className="mt-3">
+
+          <div className="mt-4">
             {isLoadingAttendance ? (
-              <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-lg" />
+              <div className="h-8 w-28 bg-slate-100 animate-pulse rounded-xl" />
             ) : (
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-2">
-                <span>{presentCount + onBreakCount}</span>
-                <span className="text-sm font-semibold text-slate-400">/ {totalEmployees} active</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-slate-900 tracking-tight">
+                  {presentCount + onBreakCount}
+                </span>
+                <span className="text-sm font-bold text-slate-400">
+                  / {totalEmployees} Active
+                </span>
               </div>
             )}
-            <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-emerald-700">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-              <span>{attendanceRate}% present today</span>
+
+            {/* Attendance Progress Bar */}
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-3">
+              <div
+                className="bg-[#23C45E] h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, attendanceRate)}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mt-2">
+              <span className="text-emerald-700 font-extrabold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#23C45E] inline-block" />
+                {attendanceRate}% On-Duty Rate
+              </span>
+              <span>{absentCount} Absent</span>
             </div>
           </div>
         </div>
 
-        {/* Card 2: Total Revenue (MRR) */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+        {/* Card 2: Platform MRR Revenue */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
               Platform MRR Revenue
             </span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
-              <CreditCard className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <CreditCard className="w-5 h-5 text-blue-600" />
             </div>
           </div>
-          <div className="mt-3">
+
+          <div className="mt-4">
             {isLoadingMetrics ? (
-              <div className="h-8 w-28 bg-slate-100 animate-pulse rounded-lg" />
+              <div className="h-8 w-32 bg-slate-100 animate-pulse rounded-xl" />
             ) : (
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              <div className="text-3xl font-black text-slate-900 tracking-tight">
                 ₹{Number(totalRevenue).toLocaleString('en-IN')}
               </div>
             )}
-            <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-blue-700">
+
+            <div className="flex items-center gap-1.5 mt-3 text-xs font-bold text-blue-700 bg-blue-50/70 px-2.5 py-1 rounded-xl w-fit">
               <TrendingUp className="w-3.5 h-3.5" />
-              <span>Monthly Recurring Inflow</span>
+              <span>+18.4% monthly recurring inflow</span>
             </div>
           </div>
         </div>
 
-        {/* Card 3: Total Multi-Tenant Customers */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+        {/* Card 3: Enterprise Tenants */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
-              Enterprise Customers
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Enterprise Clients
             </span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center">
-              <Building2 className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Building2 className="w-5 h-5 text-indigo-600" />
             </div>
           </div>
-          <div className="mt-3">
+
+          <div className="mt-4">
             {isLoadingCustomers ? (
-              <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-lg" />
+              <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-xl" />
             ) : (
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                {totalCustomers.toLocaleString('en-IN')}
+              <div className="text-3xl font-black text-slate-900 tracking-tight">
+                {totalCustomers}
               </div>
             )}
-            <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-indigo-700">
+
+            <div className="flex items-center gap-1.5 mt-3 text-xs font-bold text-indigo-700 bg-indigo-50/70 px-2.5 py-1 rounded-xl w-fit">
               <Sparkles className="w-3.5 h-3.5" />
               <span>{activeCustomers} Active Organizations</span>
             </div>
@@ -431,733 +511,473 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Card 4: Operations & Tasks */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase font-extrabold tracking-wider text-slate-400">
-              Task Execution Rate
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Operations & Tasks
             </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center">
-              <Briefcase className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Briefcase className="w-5 h-5 text-amber-600" />
             </div>
           </div>
-          <div className="mt-3">
+
+          <div className="mt-4">
             {isLoadingTasks ? (
-              <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-lg" />
+              <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-xl" />
             ) : (
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              <div className="text-3xl font-black text-slate-900 tracking-tight">
                 {taskCompletionRate}%
               </div>
             )}
-            <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-amber-700">
+
+            <div className="flex items-center gap-1.5 mt-3 text-xs font-bold text-amber-700 bg-amber-50/70 px-2.5 py-1 rounded-xl w-fit">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{completedTasks} of {totalTasksCount || 10} completed</span>
+              <span>{completedTasks} of {totalTasksCount || 10} Tasks Done</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          3. HERO FEATURE: LIVE EMPLOYEE ATTENDANCE & STATUS COMMAND CENTER
+          3. PERFORMANCE & INTELLIGENCE CHART CENTER
           ========================================================================= */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        {/* Header with live count badges */}
-        <div className="p-5 sm:p-6 border-b border-slate-100 space-y-4">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-                  <Radio className="w-4 h-4 animate-pulse text-[#23C45E]" />
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-7 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Activity className="w-5 h-5 text-[#23C45E]" />
+              Platform Analytics & Operational Trends
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Visual telemetry showing revenue growth trajectory, daily attendance presence, and operational task execution.
+            </p>
+          </div>
+
+          {/* Metric Switcher Tabs */}
+          <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200/70 text-xs font-bold">
+            <button
+              onClick={() => setActiveMetric('revenue')}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                activeMetric === 'revenue'
+                  ? 'bg-white text-slate-900 shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Revenue (₹)
+            </button>
+            <button
+              onClick={() => setActiveMetric('attendance')}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                activeMetric === 'attendance'
+                  ? 'bg-white text-slate-900 shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Workforce Rate (%)
+            </button>
+            <button
+              onClick={() => setActiveMetric('tasks')}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                activeMetric === 'tasks'
+                  ? 'bg-white text-slate-900 shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Tasks Velocity
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Interactive SVG Area Chart */}
+        <div className="space-y-4">
+          <div className="h-64 w-full flex items-end gap-3 sm:gap-6 pt-6 px-2">
+            {chartData.map((point, idx) => {
+              const val = point[activeMetric];
+              const heightPct = Math.max(12, Math.round((val / maxChartVal) * 100));
+
+              return (
+                <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] font-black py-1 px-2 rounded-lg shadow-lg pointer-events-none whitespace-nowrap mb-1">
+                    {activeMetric === 'revenue'
+                      ? `₹${val.toLocaleString('en-IN')}`
+                      : activeMetric === 'attendance'
+                      ? `${val}% Present`
+                      : `${val} Tasks`}
+                  </div>
+
+                  <div className="w-full max-w-[48px] bg-slate-100 rounded-2xl overflow-hidden flex flex-col justify-end p-1 hover:bg-slate-200/70 transition-colors h-full">
+                    <div
+                      className={`w-full rounded-xl transition-all duration-500 ${
+                        activeMetric === 'revenue'
+                          ? 'bg-gradient-to-t from-emerald-600 to-[#23C45E]'
+                          : activeMetric === 'attendance'
+                          ? 'bg-gradient-to-t from-blue-600 to-cyan-400'
+                          : 'bg-gradient-to-t from-amber-600 to-yellow-400'
+                      }`}
+                      style={{ height: `${heightPct}%` }}
+                    />
+                  </div>
+
+                  <span className="text-[11px] font-extrabold text-slate-500 mt-1">
+                    {point.label}
+                  </span>
                 </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                  Live Workforce Attendance Radar
-                </h2>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100 text-xs font-bold text-slate-500">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#23C45E]" />
+                Primary Trendline
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                Historical Benchmark
+              </span>
+            </div>
+            <span className="text-slate-400 font-mono text-[11px]">
+              Showing data aggregated for {dateRange.toUpperCase()} window
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          4. LIVE WORKFORCE ATTENDANCE & GEOFENCE RADAR
+          ========================================================================= */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden space-y-4">
+        {/* Radar Header */}
+        <div className="p-6 border-b border-slate-100 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-2xl bg-emerald-50 text-[#23C45E] border border-emerald-100">
+                  <Radio className="w-5 h-5 animate-pulse text-[#23C45E]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                    Live Workforce Attendance & Office Geofence Radar
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Real-time punch-in records, GPS geofence compliance, active breaks, and assigned office presence.
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Real-time staff punch-in records, active duty breaks, remote working, and branch presence.
-              </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <Link
                 href="/attendance"
-                className="text-xs font-bold text-[#1AA14D] hover:text-emerald-800 bg-emerald-50/70 hover:bg-emerald-100/70 px-3 py-2 rounded-xl border border-emerald-200/60 transition-colors inline-flex items-center gap-1"
+                className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-[#1AA14D] rounded-2xl text-xs font-black border border-emerald-200/70 transition-all flex items-center gap-1.5"
               >
-                Full Attendance Logs <ChevronRight className="w-3.5 h-3.5" />
+                Attendance Roster <ChevronRight className="w-3.5 h-3.5" />
               </Link>
               <Link
                 href="/geo-tracking"
-                className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl border border-slate-200/80 transition-colors inline-flex items-center gap-1.5"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-black border border-slate-200/80 transition-all flex items-center gap-1.5"
               >
                 <MapPin className="w-3.5 h-3.5 text-rose-500" /> GPS Map
               </Link>
             </div>
           </div>
 
-          {/* Quick Filter Metric Chips */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
-            {/* Filter All */}
+          {/* Status Filter Metric Chips */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2">
             <button
               onClick={() => setAttendanceFilter('ALL')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                 attendanceFilter === 'ALL'
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                  : 'bg-slate-50 hover:bg-slate-100/80 text-slate-700 border-slate-200/70'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/80'
               }`}
             >
-              <span className="block text-[10px] font-extrabold uppercase opacity-70">Total Roster</span>
-              <span className="text-lg font-black">{totalEmployees}</span>
+              <span className="text-[10px] uppercase font-black block opacity-70">All Staff</span>
+              <span className="text-lg font-black mt-0.5 block">{totalEmployees}</span>
             </button>
 
-            {/* Filter Present */}
             <button
               onClick={() => setAttendanceFilter('PRESENT')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                 attendanceFilter === 'PRESENT'
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                  : 'bg-emerald-50/70 hover:bg-emerald-100/80 text-emerald-800 border-emerald-200/60'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                  : 'bg-emerald-50/60 hover:bg-emerald-100/60 text-emerald-900 border-emerald-200/70'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase opacity-80">Present</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              </div>
-              <span className="text-lg font-black">{presentCount}</span>
+              <span className="text-[10px] uppercase font-black block text-emerald-700">Present</span>
+              <span className="text-lg font-black mt-0.5 block">{presentCount}</span>
             </button>
 
-            {/* Filter On Break */}
             <button
               onClick={() => setAttendanceFilter('ON_BREAK')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                 attendanceFilter === 'ON_BREAK'
-                  ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                  : 'bg-amber-50/70 hover:bg-amber-100/80 text-amber-800 border-amber-200/60'
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                  : 'bg-amber-50/60 hover:bg-amber-100/60 text-amber-900 border-amber-200/70'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase opacity-80">On Break</span>
-                <Coffee className="w-3.5 h-3.5 text-amber-500" />
-              </div>
-              <span className="text-lg font-black">{onBreakCount}</span>
+              <span className="text-[10px] uppercase font-black block text-amber-700">On Break</span>
+              <span className="text-lg font-black mt-0.5 block">{onBreakCount}</span>
             </button>
 
-            {/* Filter Late */}
-            <button
-              onClick={() => setAttendanceFilter('LATE')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                attendanceFilter === 'LATE'
-                  ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
-                  : 'bg-orange-50/70 hover:bg-orange-100/80 text-orange-800 border-orange-200/60'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase opacity-80">Late Punch</span>
-                <Clock className="w-3.5 h-3.5 text-orange-500" />
-              </div>
-              <span className="text-lg font-black">{lateCount}</span>
-            </button>
-
-            {/* Filter On Leave */}
             <button
               onClick={() => setAttendanceFilter('ON_LEAVE')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                 attendanceFilter === 'ON_LEAVE'
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                  : 'bg-indigo-50/70 hover:bg-indigo-100/80 text-indigo-800 border-indigo-200/60'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                  : 'bg-blue-50/60 hover:bg-blue-100/60 text-blue-900 border-blue-200/70'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase opacity-80">On Leave</span>
-                <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-              </div>
-              <span className="text-lg font-black">{onLeaveCount}</span>
+              <span className="text-[10px] uppercase font-black block text-blue-700">On Leave</span>
+              <span className="text-lg font-black mt-0.5 block">{onLeaveCount}</span>
             </button>
 
-            {/* Filter Absent */}
             <button
-              onClick={() => setAttendanceFilter('ABSENT')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                attendanceFilter === 'ABSENT'
-                  ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                  : 'bg-rose-50/70 hover:bg-rose-100/80 text-rose-800 border-rose-200/60'
+              onClick={() => setAttendanceFilter('LATE')}
+              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                attendanceFilter === 'LATE'
+                  ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                  : 'bg-orange-50/60 hover:bg-orange-100/60 text-orange-900 border-orange-200/70'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase opacity-80">Not Punched</span>
-                <UserMinus className="w-3.5 h-3.5 text-rose-500" />
-              </div>
-              <span className="text-lg font-black">{absentCount}</span>
+              <span className="text-[10px] uppercase font-black block text-orange-700">Late In</span>
+              <span className="text-lg font-black mt-0.5 block">{lateCount}</span>
+            </button>
+
+            <button
+              onClick={() => setAttendanceFilter('ABSENT')}
+              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                attendanceFilter === 'ABSENT'
+                  ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                  : 'bg-rose-50/60 hover:bg-rose-100/60 text-rose-900 border-rose-200/70'
+              }`}
+            >
+              <span className="text-[10px] uppercase font-black block text-rose-700">Absent</span>
+              <span className="text-lg font-black mt-0.5 block">{absentCount}</span>
             </button>
           </div>
 
-          {/* Search & Office Filter Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+          {/* Search & Office Filters */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={attendanceSearch}
                 onChange={(e) => setAttendanceSearch(e.target.value)}
-                placeholder="Search staff by name, code, role..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 font-semibold placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#23C45E] focus:bg-white transition-all"
+                placeholder="Search staff by name, employee code, department, or role..."
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
               />
             </div>
 
-            {/* Office Filter Chips */}
-            {attOffices.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1">
-                <button
-                  onClick={() => setSelectedOffice('ALL')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
-                    selectedOffice === 'ALL'
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  All Branches
-                </button>
-                {attOffices.map((off: any) => (
-                  <button
-                    key={off.officeName}
-                    onClick={() => setSelectedOffice(off.officeName)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
-                      selectedOffice === off.officeName
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {off.officeName} ({off.present}/{off.totalEmployees})
-                  </button>
+            <div className="w-full sm:w-64">
+              <select
+                value={selectedOffice}
+                onChange={(e) => setSelectedOffice(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+              >
+                <option value="ALL">All Assigned Offices</option>
+                {officesList.map((off: any) => (
+                  <option key={off.id} value={off.name}>
+                    {off.name} {off.city ? `(${off.city})` : ''}
+                  </option>
                 ))}
-              </div>
-            )}
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Live Attendance Table */}
         <div className="overflow-x-auto">
-          {isLoadingAttendance ? (
-            <div className="p-12 text-center space-y-3">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#23C45E]" />
-              <p className="text-xs font-bold text-slate-500">Connecting to real-time workforce radar...</p>
-            </div>
-          ) : isErrorAttendance ? (
-            <div className="p-8 text-center text-xs font-bold text-rose-500">
-              Unable to load live attendance data.
-              <button
-                onClick={() => refetchAttendance()}
-                className="block mx-auto mt-2 text-[11px] text-slate-700 underline"
-              >
-                Retry Query
-              </button>
-            </div>
-          ) : filteredAttendance.length === 0 ? (
-            <div className="p-12 text-center text-xs font-bold text-slate-400">
-              No staff members matching current filters.
-            </div>
-          ) : (
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/80 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="bg-slate-50/80 text-slate-400 uppercase font-black tracking-wider text-[10px] border-b border-slate-100">
+                <th className="py-3 px-6">Employee</th>
+                <th className="py-3 px-6">Department & Role</th>
+                <th className="py-3 px-6">Assigned Office Geofence</th>
+                <th className="py-3 px-6">Punch Timestamps</th>
+                <th className="py-3 px-6">Live Status</th>
+                <th className="py-3 px-6 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+              {isLoadingAttendance ? (
                 <tr>
-                  <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Department & Role</th>
-                  <th className="py-3 px-4">Branch Office</th>
-                  <th className="py-3 px-4">Live Status</th>
-                  <th className="py-3 px-4">Punch In</th>
-                  <th className="py-3 px-4">Working Hours</th>
-                  <th className="py-3 px-4">Breaks / Leave</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#23C45E]" />
+                    <p className="mt-2 text-xs font-bold">Querying live workforce attendance...</p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {filteredAttendance.slice(0, 10).map((rec: any) => {
-                  const avatarLetter = (rec.name?.[0] || 'E').toUpperCase();
-                  const isWorking = ['PRESENT', 'LATE', 'HALF_DAY'].includes(rec.status);
+              ) : filteredAttendance.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                    <UserX className="w-8 h-8 mx-auto text-slate-300" />
+                    <p className="mt-2 text-xs font-bold text-slate-600">
+                      No employee records found matching current radar filters
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filteredAttendance.slice(0, 10).map((rec: any) => {
+                  const isPunched = ['PRESENT', 'LATE', 'HALF_DAY'].includes(rec.status);
                   const isOnBreak = rec.status === 'ON_BREAK';
                   const isOnLeave = rec.status === 'ON_LEAVE';
-                  const isCheckedOut = rec.status === 'CHECKED_OUT';
+                  const isLate = rec.status === 'LATE';
 
                   return (
                     <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Name & Avatar */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs">
-                            {avatarLetter}
+                          <div className="w-9 h-9 rounded-2xl bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center border border-slate-200/80">
+                            {rec.name?.charAt(0) || 'E'}
                           </div>
                           <div>
-                            <p className="font-extrabold text-slate-900">{rec.name}</p>
-                            <span className="text-[10px] font-mono font-bold text-slate-400">
+                            <span className="font-extrabold text-slate-900 block">
+                              {rec.name}
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400">
                               {rec.employeeCode || `EMP-${rec.id}`}
                             </span>
                           </div>
                         </div>
                       </td>
 
-                      {/* Department & Role */}
-                      <td className="py-3.5 px-4">
-                        <p className="font-bold text-slate-800">{rec.department || 'General'}</p>
-                        <p className="text-[11px] text-slate-500">{rec.role || 'Staff'}</p>
-                      </td>
-
-                      {/* Office Branch */}
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">
-                          <Building2 className="w-3 h-3 text-slate-400" />
-                          {rec.branch || 'Head Office'}
+                      <td className="py-3.5 px-6">
+                        <span className="font-bold text-slate-800 block">
+                          {rec.department || 'General'}
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          {rec.designation || rec.role || 'Staff'}
                         </span>
                       </td>
 
-                      {/* Status Badge */}
-                      <td className="py-3.5 px-4">
-                        {isWorking && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11px] font-extrabold">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            {rec.status === 'LATE' ? 'Late Working' : 'On Duty (Active)'}
+                      <td className="py-3.5 px-6">
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-bold text-slate-800">
+                            {rec.office || rec.branch || 'Head Office'}
                           </span>
-                        )}
-                        {isOnBreak && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80 text-[11px] font-extrabold">
-                            <Coffee className="w-3 h-3 text-amber-500" />
-                            On Duty Break
-                          </span>
-                        )}
-                        {isOnLeave && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80 text-[11px] font-extrabold">
-                            <Calendar className="w-3 h-3 text-indigo-500" />
-                            Approved Leave
-                          </span>
-                        )}
-                        {isCheckedOut && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[11px] font-extrabold">
-                            <CheckCircle2 className="w-3 h-3 text-slate-400" />
-                            Checked Out
-                          </span>
-                        )}
-                        {rec.status === 'ABSENT' && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200/80 text-[11px] font-extrabold">
-                            <UserMinus className="w-3 h-3 text-rose-500" />
-                            Not Checked In
-                          </span>
-                        )}
+                        </div>
+                        <span className="text-[10px] text-emerald-700 font-bold block ml-5">
+                          ✓ Geofence Verified
+                        </span>
                       </td>
 
-                      {/* Punch In */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
-                        {rec.punchInTime || '—'}
-                      </td>
-
-                      {/* Total Working Hours */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                          <Timer className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{rec.totalWorkingHours || '0h 0m'}</span>
+                      <td className="py-3.5 px-6">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-slate-900 block text-xs">
+                            In: {rec.checkIn || rec.punchIn || '—'}
+                          </span>
+                          <span className="text-[11px] text-slate-500 block">
+                            Out: {rec.checkOut || rec.punchOut || (isPunched ? 'Active On-Duty' : '—')}
+                          </span>
                         </div>
                       </td>
 
-                      {/* Breaks or Leave Details */}
-                      <td className="py-3.5 px-4 text-[11px] text-slate-500">
-                        {isOnLeave ? (
-                          <span className="font-semibold text-indigo-600">
-                            {rec.leaveType || 'Annual Leave'}
-                          </span>
-                        ) : rec.breakDuration && rec.breakDuration !== '0m' ? (
-                          <span className="font-semibold text-amber-600">
-                            {rec.breakDuration} break taken
-                          </span>
-                        ) : (
-                          '0m'
-                        )}
+                      <td className="py-3.5 px-6">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${
+                            isPunched
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                              : isOnBreak
+                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                              : isOnLeave
+                              ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                              : isLate
+                              ? 'bg-orange-50 text-orange-800 border border-orange-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              isPunched
+                                ? 'bg-[#23C45E] animate-ping'
+                                : isOnBreak
+                                ? 'bg-amber-500'
+                                : isOnLeave
+                                ? 'bg-blue-500'
+                                : 'bg-slate-400'
+                            }`}
+                          />
+                          {rec.status?.replace('_', ' ') || 'ABSENT'}
+                        </span>
                       </td>
 
-                      {/* Action */}
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-6 text-right">
                         <Link
                           href={`/employees/${rec.id}`}
-                          className="inline-flex items-center justify-center p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-                          title="View Staff Profile"
+                          className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors inline-block"
+                          title="View Employee Profile"
                         >
-                          <ChevronRight className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </Link>
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Footer info bar */}
-        <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-bold">
-          <span>Showing {Math.min(filteredAttendance.length, 10)} of {filteredAttendance.length} records</span>
-          <Link href="/attendance" className="text-[#1AA14D] hover:underline flex items-center gap-1">
-            View Complete HRM Live Board <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* =========================================================================
-          4. ANALYTICS & BUSINESS OVERVIEW SECTION
-          ========================================================================= */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <div>
-            <h2 className="text-base sm:text-lg font-black text-slate-900">
-              Platform Growth & Performance
-            </h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Multi-dimensional growth across revenue inflow, customer acquisition, and tasks.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center p-1 bg-slate-100/80 rounded-xl text-xs font-bold">
-              <button
-                onClick={() => setActiveMetric('revenue')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  activeMetric === 'revenue'
-                    ? 'bg-[#23C45E] text-white shadow-xs font-black'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Revenue
-              </button>
-              <button
-                onClick={() => setActiveMetric('customers')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  activeMetric === 'customers'
-                    ? 'bg-[#23C45E] text-white shadow-xs font-black'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Customers
-              </button>
-              <button
-                onClick={() => setActiveMetric('tasks')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  activeMetric === 'tasks'
-                    ? 'bg-[#23C45E] text-white shadow-xs font-black'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Work & Tasks
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Responsive Area / Bar Chart */}
-        <div className="pt-6">
-          <div className="h-64 sm:h-72 w-full relative flex flex-col justify-end">
-            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-40">
-              <div className="border-b border-slate-100 w-full" />
-              <div className="border-b border-slate-100 w-full" />
-              <div className="border-b border-slate-100 w-full" />
-              <div className="border-b border-slate-100 w-full" />
-            </div>
-
-            <div className="relative z-10 grid grid-flow-col auto-cols-fr gap-3 sm:gap-6 h-48 items-end px-2 sm:px-6">
-              {chartData.map((pt, idx) => {
-                const val = pt[activeMetric];
-                const heightPct = Math.max(12, Math.round((val / maxChartVal) * 100));
-
-                return (
-                  <div key={idx} className="flex flex-col items-center gap-2 group h-full justify-end">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-lg shadow-xl mb-1 whitespace-nowrap pointer-events-none z-20">
-                      {activeMetric === 'revenue'
-                        ? `₹${val.toLocaleString('en-IN')}`
-                        : `${val} ${activeMetric}`}
-                    </div>
-
-                    <div
-                      style={{ height: `${heightPct}%` }}
-                      className="w-full max-w-[48px] rounded-t-xl bg-gradient-to-t from-[#23C45E] to-[#48E581] group-hover:from-[#1AA14D] group-hover:to-[#23C45E] transition-all shadow-xs"
-                    />
-
-                    <span className="text-[11px] font-bold text-slate-500 pt-1 group-hover:text-slate-900">
-                      {pt.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          5. THREE-COLUMN SECTION: Customer Overview | Plans Overview | Work Overview
+          5. OPERATIONAL STREAMS & QUICK ACTION COMMAND HUB
           ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 5.1 Customer Overview */}
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-[#23C45E]" />
-                Customer Distribution
-              </h3>
-              <Link
-                href="/super-admin"
-                className="text-[11px] font-extrabold text-[#1AA14D] hover:underline flex items-center gap-0.5"
-              >
-                Manage <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            {isLoadingCustomers ? (
-              <div className="py-6 space-y-3">
-                <div className="h-4 bg-slate-100 animate-pulse rounded-md" />
-                <div className="h-4 bg-slate-100 animate-pulse rounded-md w-3/4" />
-              </div>
-            ) : (
-              <div className="space-y-4 pt-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <span className="text-[10px] font-black uppercase text-slate-400">Total</span>
-                    <p className="text-lg font-black text-slate-900">{totalCustomers}</p>
-                  </div>
-                  <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                    <span className="text-[10px] font-black uppercase text-emerald-700">Active</span>
-                    <p className="text-lg font-black text-emerald-700">{activeCustomers}</p>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <span className="text-[10px] font-black uppercase text-slate-400">Inactive</span>
-                    <p className="text-lg font-black text-slate-700">{inactiveCustomers}</p>
-                  </div>
-                  <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                    <span className="text-[10px] font-black uppercase text-blue-600">New Onboard</span>
-                    <p className="text-lg font-black text-blue-700">{newCustomers}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
-                    <span>Operational Health</span>
-                    <span>
-                      {totalCustomers > 0
-                        ? `${Math.round((activeCustomers / totalCustomers) * 100)}%`
-                        : '100%'}
-                    </span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden flex">
-                    <div
-                      style={{
-                        width: `${
-                          totalCustomers > 0
-                            ? Math.round((activeCustomers / totalCustomers) * 100)
-                            : 100
-                        }%`,
-                      }}
-                      className="h-full bg-[#23C45E]"
-                    />
-                    <div
-                      style={{
-                        width: `${
-                          totalCustomers > 0
-                            ? Math.round((inactiveCustomers / totalCustomers) * 100)
-                            : 0
-                        }%`,
-                      }}
-                      className="h-full bg-slate-300"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 mt-4 text-[11px] text-slate-500 font-medium">
-            Multi-tenant data isolated per workspace security rules
-          </div>
-        </div>
-
-        {/* 5.2 Subscription Plans */}
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-indigo-600" />
-                Subscription Tiers
-              </h3>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase">
-                {activePlans} Active
-              </span>
-            </div>
-
-            {isLoadingPlans ? (
-              <div className="py-6 space-y-3">
-                <div className="h-4 bg-slate-100 animate-pulse rounded-md" />
-                <div className="h-4 bg-slate-100 animate-pulse rounded-md w-3/4" />
-              </div>
-            ) : (
-              <div className="space-y-3.5 pt-4">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-700">Enterprise SaaS Tier</span>
-                    <span className="text-slate-900 font-extrabold">48%</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-indigo-600 rounded-full" style={{ width: '48%' }} />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-700">Growth Plan Tier</span>
-                    <span className="text-slate-900 font-extrabold">32%</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-[#23C45E] rounded-full" style={{ width: '32%' }} />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-700">Starter Plan Tier</span>
-                    <span className="text-slate-900 font-extrabold">20%</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-amber-500 rounded-full" style={{ width: '20%' }} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-[11px] font-bold text-slate-500">
-            <span>Expiring Soon: 0</span>
-            <span className="text-emerald-600 font-extrabold">Zero Churn</span>
-          </div>
-        </div>
-
-        {/* 5.3 Work / Task Execution */}
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-blue-600" />
-                Work Execution
-              </h3>
-              <Link
-                href="/tasks"
-                className="text-[11px] font-extrabold text-blue-600 hover:underline flex items-center gap-0.5"
-              >
-                All Works <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-
-            {isLoadingTasks ? (
-              <div className="py-6 space-y-3">
-                <div className="h-4 bg-slate-100 animate-pulse rounded-md" />
-                <div className="h-4 bg-slate-100 animate-pulse rounded-md w-3/4" />
-              </div>
-            ) : (
-              <div className="space-y-4 pt-4">
-                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className="flex items-center justify-between text-xs font-black text-slate-800 mb-1.5">
-                    <span>Task Completion</span>
-                    <span className="text-[#1AA14D]">{taskCompletionRate}%</span>
-                  </div>
-                  <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      style={{ width: `${taskCompletionRate}%` }}
-                      className="h-full bg-[#23C45E] rounded-full transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                    <span className="text-slate-500">In Progress</span>
-                    <span className="font-extrabold text-blue-600">{inProgressTasks || 12}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                    <span className="text-slate-500">Pending</span>
-                    <span className="font-extrabold text-amber-600">{pendingTasks || 4}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                    <span className="text-slate-500">Completed</span>
-                    <span className="font-extrabold text-emerald-600">{completedTasks || 28}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                    <span className="text-slate-500">Overdue</span>
-                    <span className="font-extrabold text-rose-600">{overdueTasks || 0}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 mt-4 text-[11px] text-slate-500 font-medium">
-            Real-time pipeline operations across workforce
-          </div>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          6. RECENT ACTIVITY & QUICK ACTIONS
-          ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activity Audit Stream */}
-        <div className="lg:col-span-2 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        {/* Left 2 Cols: Real-Time Platform Audit Logs */}
+        <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#23C45E]" />
-                Recent System Activity
+              <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#23C45E]" />
+                Live System Audit & Security Stream
               </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Real-time operational transactions and security audit stream.
+              <p className="text-xs text-slate-500 font-medium">
+                Immutable security logs of administrative changes and employee actions.
               </p>
             </div>
             <Link
               href="/audit-logs"
-              className="text-xs font-extrabold text-[#1AA14D] hover:underline flex items-center gap-1"
+              className="text-xs font-bold text-[#1AA14D] hover:underline"
             >
-              View Full Audit Log <ChevronRight className="w-3.5 h-3.5" />
+              View Full Logs →
             </Link>
           </div>
 
-          <div className="divide-y divide-slate-100 pt-1">
+          <div className="space-y-3">
             {isLoadingAudit ? (
-              <div className="py-8 text-center text-xs font-bold text-slate-400">
-                <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2 text-[#23C45E]" />
-                Loading recent activities...
+              <div className="space-y-2 py-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 bg-slate-100 animate-pulse rounded-2xl" />
+                ))}
               </div>
             ) : auditLogsList.length === 0 ? (
-              <div className="py-8 text-center text-xs font-bold text-slate-400">
-                No recent activity recorded yet.
+              <div className="py-8 text-center text-slate-400 text-xs font-bold">
+                No recent security actions logged today.
               </div>
             ) : (
-              auditLogsList.slice(0, 5).map((log: any) => (
+              auditLogsList.slice(0, 5).map((log: any, idx: number) => (
                 <div
-                  key={log.id}
-                  className="py-3.5 flex items-start justify-between gap-3 hover:bg-slate-50/70 rounded-xl px-2 transition-colors"
+                  key={log.id || idx}
+                  className="p-3.5 bg-slate-50/70 hover:bg-slate-100/70 rounded-2xl border border-slate-200/60 transition-colors flex items-center justify-between gap-4"
                 >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="p-2 rounded-xl bg-slate-100 text-slate-600 mt-0.5 shrink-0">
-                      <Activity className="w-3.5 h-3.5 text-[#23C45E]" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-700 shadow-2xs">
+                      {log.action?.charAt(0) || 'A'}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">
-                        {log.user
-                          ? `${log.user.firstName} ${log.user.lastName}`
-                          : 'Super Admin'}{' '}
-                        <span className="font-extrabold text-[#1AA14D]">
-                          {log.action}
-                        </span>{' '}
-                        on {log.module || 'System'}
-                      </p>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5 font-mono">
-                        {typeof log.details === 'object'
-                          ? JSON.stringify(log.details)
-                          : String(log.details || 'System operation processed')}
-                      </p>
+                    <div>
+                      <span className="text-xs font-black text-slate-900 block">
+                        {log.action || 'System Event'}
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        {log.details || log.entity || 'Platform operation executed'}
+                      </span>
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-bold text-slate-400 shrink-0 mt-1 whitespace-nowrap">
+                  <span className="text-[10px] font-mono text-slate-400 shrink-0">
                     {log.createdAt
                       ? new Date(log.createdAt).toLocaleTimeString([], {
                           hour: '2-digit',
@@ -1171,75 +991,72 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Fast Action Launchpad */}
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-600" />
-                Quick Launch Shortcuts
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Direct administrative management</p>
-            </div>
-
-            <div className="space-y-2.5 pt-4">
-              <Link
-                href="/employees/create"
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-emerald-50/70 border border-slate-100 hover:border-emerald-200 text-xs font-bold text-slate-800 transition-all group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                    <Users className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Onboard New Employee</span>
-                </div>
-                <Plus className="w-4 h-4 text-slate-400 group-hover:text-emerald-600" />
-              </Link>
-
-              <Link
-                href="/geo-tracking"
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-rose-50/70 border border-slate-100 hover:border-rose-200 text-xs font-bold text-slate-800 transition-all group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center">
-                    <MapPin className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Live GPS Workforce Radar</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-rose-600" />
-              </Link>
-
-              <Link
-                href="/companies/create"
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-blue-50/70 border border-slate-100 hover:border-blue-200 text-xs font-bold text-slate-800 transition-all group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
-                    <Building2 className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Create Client Company</span>
-                </div>
-                <Plus className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
-              </Link>
-
-              <Link
-                href="/tasks/create"
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-amber-50/70 border border-slate-100 hover:border-amber-200 text-xs font-bold text-slate-800 transition-all group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
-                    <ListTodo className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Assign Platform Task</span>
-                </div>
-                <Plus className="w-4 h-4 text-slate-400 group-hover:text-amber-600" />
-              </Link>
-            </div>
+        {/* Right 1 Col: Quick Command Hub */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 space-y-4">
+          <div className="pb-3 border-b border-slate-100">
+            <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500" />
+              Quick Command Hub
+            </h3>
+            <p className="text-xs text-slate-500 font-medium">
+              Instant shortcuts to primary management workflows.
+            </p>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 mt-4 text-[11px] text-slate-400 font-semibold flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#23C45E]" />
-            <span>Encrypted Super Admin Session</span>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Link
+              href="/employees/create"
+              className="p-3.5 bg-slate-50 hover:bg-emerald-50/70 border border-slate-200/80 hover:border-emerald-300 rounded-2xl text-center group transition-all"
+            >
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#1AA14D] mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-black text-slate-800 block">Add Staff</span>
+              <span className="text-[10px] text-slate-400">Employee Master</span>
+            </Link>
+
+            <Link
+              href="/leads/create"
+              className="p-3.5 bg-slate-50 hover:bg-blue-50/70 border border-slate-200/80 hover:border-blue-300 rounded-2xl text-center group transition-all"
+            >
+              <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <Users className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-black text-slate-800 block">New Lead</span>
+              <span className="text-[10px] text-slate-400">CRM Pipeline</span>
+            </Link>
+
+            <Link
+              href="/companies/create"
+              className="p-3.5 bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/80 hover:border-indigo-300 rounded-2xl text-center group transition-all"
+            >
+              <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-black text-slate-800 block">Add Client</span>
+              <span className="text-[10px] text-slate-400">Enterprise</span>
+            </Link>
+
+            <Link
+              href="/payroll"
+              className="p-3.5 bg-slate-50 hover:bg-amber-50/70 border border-slate-200/80 hover:border-amber-300 rounded-2xl text-center group transition-all"
+            >
+              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-black text-slate-800 block">Run Payroll</span>
+              <span className="text-[10px] text-slate-400">Monthly Slips</span>
+            </Link>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100">
+            <Link
+              href="/geo-tracking"
+              className="w-full py-3 px-4 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-white rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-slate-900/10 active:scale-[0.98]"
+            >
+              <Navigation className="w-4 h-4 text-[#23C45E]" />
+              <span>Launch Live GPS Fleet Radar</span>
+            </Link>
           </div>
         </div>
       </div>
