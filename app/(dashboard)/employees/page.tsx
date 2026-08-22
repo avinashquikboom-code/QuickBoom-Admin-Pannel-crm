@@ -57,6 +57,7 @@ export interface EmployeeMaster {
   employmentType: string;
   address: string | null;
   status: 'ACTIVE' | 'INACTIVE';
+  mobileLoginEnabled?: boolean;
   managerId: number | null;
   documents?: {
     panNumber?: string;
@@ -122,6 +123,7 @@ export default function EmployeesPage() {
     joiningDate: new Date().toISOString().split('T')[0],
     employmentType: 'FULL_TIME',
     status: 'ACTIVE',
+    mobileLoginEnabled: true,
     managerId: '',
 
     // 3. Government / Identity Details
@@ -238,6 +240,7 @@ export default function EmployeesPage() {
         employmentType: e.employmentType || 'FULL_TIME',
         address: e.address || null,
         status: e.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
+        mobileLoginEnabled: e.mobileLoginEnabled !== false,
         managerId: e.managerId || null,
         documents: e.documents || null,
         bankDetails: e.bankDetails || null,
@@ -326,6 +329,7 @@ export default function EmployeesPage() {
         joiningDate: formData.joiningDate || undefined,
         employmentType: formData.employmentType,
         status: formData.status,
+        mobileLoginEnabled: formData.mobileLoginEnabled,
         branch: formData.branch,
         departmentName: formData.departmentName,
         designationName: formData.designationName,
@@ -438,6 +442,7 @@ export default function EmployeesPage() {
       joiningDate: new Date().toISOString().split('T')[0],
       employmentType: 'FULL_TIME',
       status: 'ACTIVE',
+      mobileLoginEnabled: true,
       managerId: '',
       panNumber: '',
       aadhaarNumber: '',
@@ -479,6 +484,7 @@ export default function EmployeesPage() {
       joiningDate: emp.joiningDate || new Date().toISOString().split('T')[0],
       employmentType: emp.employmentType || 'FULL_TIME',
       status: emp.status,
+      mobileLoginEnabled: emp.mobileLoginEnabled !== false,
       managerId: emp.managerId ? String(emp.managerId) : '',
       panNumber: docs?.panNumber || '',
       aadhaarNumber: docs?.aadhaarNumber || '',
@@ -859,22 +865,27 @@ export default function EmployeesPage() {
                         {emp.joiningDate}
                       </td>
 
-                      {/* 8. Status */}
+                      {/* 8. Status & Mobile Access */}
                       <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold ${
-                            isActive
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-slate-100 text-slate-500 border border-slate-200'
-                          }`}
-                        >
+                        <div className="space-y-1">
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${
+                              isActive
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-500 border border-slate-200'
                             }`}
-                          />
-                          {isActive ? 'Active' : 'Inactive'}
-                        </span>
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                              }`}
+                            />
+                            {isActive ? 'Active' : 'Inactive'}
+                          </span>
+                          <span className={`block text-[10px] font-bold ${emp.mobileLoginEnabled !== false ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            App: {emp.mobileLoginEnabled !== false ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* 9. Actions Menu */}
@@ -1110,6 +1121,15 @@ export default function EmployeesPage() {
                     <div className="p-3.5 bg-slate-50 rounded-xl">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Account Status</span>
                       <p className="font-extrabold text-slate-900 mt-1">{selectedEmployee.status}</p>
+                    </div>
+                    <div className="p-3.5 bg-slate-50 rounded-xl">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Mobile App Access</span>
+                      <p className="font-extrabold mt-1 flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${selectedEmployee.mobileLoginEnabled !== false ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                        <span className={selectedEmployee.mobileLoginEnabled !== false ? 'text-emerald-700 font-black' : 'text-slate-500'}>
+                          {selectedEmployee.mobileLoginEnabled !== false ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </p>
                     </div>
                     <div className="p-3.5 bg-slate-50 rounded-xl col-span-2">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Reporting Manager</span>
@@ -1591,6 +1611,31 @@ export default function EmployeesPage() {
                           <option value="INACTIVE">Inactive</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Mobile App Access Configuration */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
+                          Mobile App Login Access
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          Allow employee to sign in from the QuickBoom mobile application
+                        </span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.mobileLoginEnabled}
+                          onChange={(e) =>
+                            setFormData({ ...formData, mobileLoginEnabled: e.target.checked })
+                          }
+                          className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
+                        />
+                        <span className="ml-2 text-xs font-bold text-slate-700">
+                          {formData.mobileLoginEnabled ? 'Allowed' : 'Disabled'}
+                        </span>
+                      </label>
                     </div>
                   </div>
                 )}

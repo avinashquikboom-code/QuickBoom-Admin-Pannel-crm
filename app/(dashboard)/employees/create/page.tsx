@@ -35,6 +35,7 @@ export default function CreateEmployeePage() {
     monthlySalary: '75000',
     panNumber: '',
     address: '',
+    mobileLoginEnabled: true,
   });
 
   const fetchNextId = async () => {
@@ -75,6 +76,7 @@ export default function CreateEmployeePage() {
         branch: formData.officeLocation,
         joiningDate: formData.joiningDate,
         employmentType: formData.employmentType === 'Full-Time' ? 'FULL_TIME' : (formData.employmentType === 'Contract' ? 'CONTRACT' : 'INTERN'),
+        mobileLoginEnabled: formData.mobileLoginEnabled,
         address: formData.address,
         documents: {
           panNumber: formData.panNumber || undefined,
@@ -229,6 +231,30 @@ export default function CreateEmployeePage() {
               onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
             />
           </AdminFormField>
+
+          <div className="col-span-2 p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between mt-2">
+            <div>
+              <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
+                Mobile App Login Access
+              </span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                Allow employee to authenticate into the QuickBoom mobile application
+              </span>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.mobileLoginEnabled}
+                onChange={(e) =>
+                  setFormData({ ...formData, mobileLoginEnabled: e.target.checked })
+                }
+                className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
+              />
+              <span className="ml-2 text-xs font-bold text-slate-700">
+                {formData.mobileLoginEnabled ? 'Allowed' : 'Disabled'}
+              </span>
+            </label>
+          </div>
         </AdminFormSection>
 
         {/* Section 3: Contact & Communication */}
