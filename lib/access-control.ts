@@ -222,38 +222,7 @@ export const adminNavigation: {
       ],
     },
 
-    // 2. CRM
-    {
-      id: 'crm',
-      category: 'CRM',
-      sectionIcon: Users,
-      feature: 'crm',
-      roles: ['Super Admin'],
-      items: [
-        { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
-        { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
-        { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
-        { name: 'Deals', href: '/crm', icon: Kanban, permission: 'deals.view' },
-        { name: 'Tasks', href: '/tasks', icon: CheckSquare, permission: 'tasks.view' },
-        { name: 'Activities', href: '/activities', icon: Activity, permission: 'activities.view' },
-      ],
-    },
-
-    // 3. Data Capture
-    {
-      id: 'data-capture',
-      category: 'Data Capture',
-      sectionIcon: Target,
-      feature: 'data_capture',
-      roles: ['Super Admin'],
-      items: [
-        { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
-        { name: 'Capture History', href: '/data-capture?tab=history', icon: History, permission: 'data_capture.view' },
-        { name: 'Usage', href: '/data-capture?tab=usage', icon: Activity, permission: 'data_capture.view' },
-      ],
-    },
-
-    // 4. HRM
+    // 2. HRM
     {
       id: 'hrm',
       category: 'HRM',
@@ -270,6 +239,37 @@ export const adminNavigation: {
         { name: 'Visits', href: '/visits', icon: Activity, permission: 'visits.view_all' },
         { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, feature: 'geo_tracking', permission: 'geo_tracking.view' },
         { name: 'Payroll', href: '/payroll', icon: Banknote, feature: 'payroll', permission: 'payroll.view' },
+      ],
+    },
+
+    // 3. CRM
+    {
+      id: 'crm',
+      category: 'CRM',
+      sectionIcon: Users,
+      feature: 'crm',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
+        { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
+        { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
+        { name: 'Deals', href: '/crm', icon: Kanban, permission: 'deals.view' },
+        { name: 'Tasks', href: '/tasks', icon: CheckSquare, permission: 'tasks.view' },
+        { name: 'Activities', href: '/activities', icon: Activity, permission: 'activities.view' },
+      ],
+    },
+
+    // 4. Data Capture
+    {
+      id: 'data-capture',
+      category: 'Data Capture',
+      sectionIcon: Target,
+      feature: 'data_capture',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
+        { name: 'Capture History', href: '/data-capture?tab=history', icon: History, permission: 'data_capture.view' },
+        { name: 'Usage', href: '/data-capture?tab=usage', icon: Activity, permission: 'data_capture.view' },
       ],
     },
 
