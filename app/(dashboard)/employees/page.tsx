@@ -323,7 +323,8 @@ export default function EmployeesPage() {
         gender: formData.gender,
         dob: formData.dob || undefined,
         address: formData.address || undefined,
-        employeeCode: formData.employeeCode,
+        employeeCode: drawerMode === 'create' && autoGenerateId ? undefined : formData.employeeCode,
+        autoGenerateCode: drawerMode === 'create' ? autoGenerateId : false,
         joiningDate: formData.joiningDate || undefined,
         employmentType: formData.employmentType,
         status: formData.status,
@@ -371,6 +372,23 @@ export default function EmployeesPage() {
     },
   });
 
+  // Employee ID Auto-generation state
+  const [autoGenerateId, setAutoGenerateId] = useState(true);
+  const [isFetchingNextId, setIsFetchingNextId] = useState(false);
+
+  const handleFetchNextId = async () => {
+    setIsFetchingNextId(true);
+    try {
+      const res: any = await api.get('/employees/next-id');
+      const nextId = res?.nextEmployeeId || res?.data?.nextEmployeeId || 'QB0001';
+      setFormData((prev) => ({ ...prev, employeeCode: nextId }));
+    } catch {
+      // Fallback
+    } finally {
+      setIsFetchingNextId(false);
+    }
+  };
+
   // Handlers for Drawer
   const handleOpenDetails = (emp: EmployeeMaster) => {
     setSelectedEmployee(emp);
@@ -382,6 +400,7 @@ export default function EmployeesPage() {
   };
 
   const handleOpenCreate = () => {
+    setAutoGenerateId(true);
     setDrawerMode('create');
     setSelectedEmployee(null);
     setActiveFormTab('personal');
@@ -393,7 +412,7 @@ export default function EmployeesPage() {
       gender: 'Male',
       dob: '',
       address: '',
-      employeeCode: `EMP-${Math.floor(100 + Math.random() * 900)}`,
+      employeeCode: 'QB0001',
       joiningDate: new Date().toISOString().split('T')[0],
       employmentType: 'FULL_TIME',
       status: 'ACTIVE',
@@ -412,6 +431,7 @@ export default function EmployeesPage() {
       departmentName: departmentsList[0] || 'Engineering & IT',
       designationName: designationsList[0] || 'Software Engineer',
     });
+    handleFetchNextId();
     setIsDetailsDrawerOpen(false);
     setIsFormDrawerOpen(true);
   };
@@ -1427,22 +1447,69 @@ export default function EmployeesPage() {
                 {/* 2. EMPLOYMENT DETAILS */}
                 {activeFormTab === 'employment' && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                          Employee ID / Code *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          disabled={drawerMode === 'edit'}
-                          value={formData.employeeCode}
-                          onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
-                          placeholder="EMP-101"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] disabled:bg-slate-100 disabled:text-slate-500"
-                        />
+                    {/* Employee ID Master Block */}
+                    <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <label className="text-[11px] font-extrabold text-slate-700 uppercase">
+                            Employee ID *
+                          </label>
+                          {(drawerMode === 'create' && autoGenerateId) && (
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-black uppercase">
+                              Auto-generated
+                            </span>
+                          )}
+                          {drawerMode === 'edit' && (
+                            <span className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded-full text-[10px] font-black uppercase">
+                              Read-only
+                            </span>
+                          )}
+                        </div>
+
+                        {drawerMode === 'create' && (
+                          <button
+                            type="button"
+                            onClick={handleFetchNextId}
+                            disabled={isFetchingNextId}
+                            className="flex items-center gap-1 text-[11px] font-extrabold text-[#1AA14D] hover:text-emerald-800 transition-colors cursor-pointer disabled:opacity-50"
+                            title="Preview next sequential Employee ID from backend"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isFetchingNextId ? 'animate-spin' : ''}`} />
+                            <span>Generate Next ID</span>
+                          </button>
+                        )}
                       </div>
 
+                      <input
+                        type="text"
+                        required
+                        disabled={drawerMode === 'edit' || (drawerMode === 'create' && autoGenerateId)}
+                        value={formData.employeeCode}
+                        onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
+                        placeholder="e.g. QB0001"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                      />
+
+                      {drawerMode === 'create' && (
+                        <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer pt-1 select-none">
+                          <input
+                            type="checkbox"
+                            checked={autoGenerateId}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setAutoGenerateId(checked);
+                              if (checked) {
+                                handleFetchNextId();
+                              }
+                            }}
+                            className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
+                          />
+                          <span>Auto Generate Employee ID</span>
+                        </label>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
                           Joining Date *
