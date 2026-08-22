@@ -11,6 +11,7 @@ const api = axios.create({
   },
 });
 
+// Request interceptor: attach bearer token and customer headers
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
@@ -30,6 +31,25 @@ api.interceptors.request.use(
   }
 );
 
+// Concurrency-safe refresh queue state
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor: handle data unwrapping, 401 token refresh & error notifications
 api.interceptors.response.use(
   (response) => {
     return response.data;
@@ -37,32 +57,73 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Attempt token refresh on 401 if refreshToken exists and not already retried
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    // Attempt token refresh on 401
     if (error?.response?.status === 401 && !originalRequest._retry && typeof window !== 'undefined') {
-      originalRequest._retry = true;
       const { refreshToken, setAuth, logout, user } = useAuthStore.getState();
 
-      if (refreshToken && user) {
-        try {
-          const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.qbapp.online/api/v1';
-          const refreshRes = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
-          const newTokens = refreshRes?.data?.tokens || refreshRes?.data;
-          
-          if (newTokens?.accessToken) {
-            setAuth(user, newTokens.accessToken, newTokens.refreshToken || refreshToken);
-            originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
-            return api(originalRequest);
-          }
-        } catch {
-          logout();
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
-          return Promise.reject(error);
-        }
-      } else if (window.location.pathname !== '/login') {
+      // If already on login page or no refresh token/user, clear session and exit
+      if (!refreshToken || !user) {
         logout();
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+
+      // If refresh is currently in flight, queue this request until refresh completes
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((newAccessToken) => {
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return api(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const baseURL = api.defaults.baseURL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.qbapp.online/api/v1';
+        const refreshRes = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
+        
+        // Normalize response payload across raw and TransformInterceptor wrappers
+        const resData = refreshRes?.data;
+        const payload = resData?.data || resData?.tokens || resData;
+        const newAccessToken = payload?.accessToken || payload?.token;
+        const newRefreshToken = payload?.refreshToken || refreshToken;
+
+        if (!newAccessToken) {
+          throw new Error('No access token returned from refresh endpoint');
+        }
+
+        // Update auth store with new tokens
+        setAuth(user, newAccessToken, newRefreshToken);
+        
+        // Notify and drain all queued requests
+        processQueue(null, newAccessToken);
+
+        // Retry original request with newly issued token
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        logout();
+        if (window.location.pathname !== '/login') {
+          toast.error('Session expired. Please log in again.');
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
       }
     }
 
