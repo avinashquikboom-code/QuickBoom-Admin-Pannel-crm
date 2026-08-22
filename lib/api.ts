@@ -34,7 +34,38 @@ api.interceptors.response.use(
   (response) => {
     return response.data;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Attempt token refresh on 401 if refreshToken exists and not already retried
+    if (error?.response?.status === 401 && !originalRequest._retry && typeof window !== 'undefined') {
+      originalRequest._retry = true;
+      const { refreshToken, setAuth, logout, user } = useAuthStore.getState();
+
+      if (refreshToken && user) {
+        try {
+          const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.qbapp.online/api/v1';
+          const refreshRes = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
+          const newTokens = refreshRes?.data?.tokens || refreshRes?.data;
+          
+          if (newTokens?.accessToken) {
+            setAuth(user, newTokens.accessToken, newTokens.refreshToken || refreshToken);
+            originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
+            return api(originalRequest);
+          }
+        } catch {
+          logout();
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+          return Promise.reject(error);
+        }
+      } else if (window.location.pathname !== '/login') {
+        logout();
+        window.location.href = '/login';
+      }
+    }
+
     let message = 'An unexpected error occurred';
 
     if (error && error.response && error.response.data) {
@@ -53,12 +84,7 @@ api.interceptors.response.use(
     }
 
     if (typeof message === 'string' && message !== '[object Event]' && message !== '[object Object]') {
-      if (typeof window !== 'undefined' && error?.response?.status === 401) {
-        if (window.location.pathname !== '/login') {
-          useAuthStore.getState().logout();
-          window.location.href = '/login';
-        }
-      } else {
+      if (error?.response?.status !== 401) {
         toast.error(message);
       }
     }
