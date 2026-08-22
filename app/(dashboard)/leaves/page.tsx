@@ -1970,93 +1970,412 @@ export default function LeaveManagementPage() {
         }
       >
         <form onSubmit={handleSavePolicySubmit} className="space-y-4 text-xs">
-          {/* Attendance Policy Fields */}
+          {/* Attendance Policy Fields Organized into 6 Sections */}
           {editingPolicyCategory === 'attendance' && (
-            <>
-              <div>
-                <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-                  Policy Name
-                </label>
-                <input
-                  type="text"
-                  value={policyFormData.name || ''}
-                  onChange={(e) => setPolicyFormData({ ...policyFormData, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold"
-                />
+            <div className="space-y-5">
+              {/* SECTION 1: WORKING HOURS */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block border-b border-slate-200 pb-1">
+                  1. Working Hours & Schedule
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Office Start Time
+                    </label>
+                    <input
+                      type="time"
+                      value={policyFormData.officeStartTime || '09:30'}
+                      onChange={(e) =>
+                        setPolicyFormData({ ...policyFormData, officeStartTime: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Office End Time
+                    </label>
+                    <input
+                      type="time"
+                      value={policyFormData.officeEndTime || '18:30'}
+                      onChange={(e) =>
+                        setPolicyFormData({ ...policyFormData, officeEndTime: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Working Days / Week
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.workingDaysPerWeek || 5}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          workingDaysPerWeek: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Working Hours / Day
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={policyFormData.workingHoursPerDay || 8.0}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          workingHoursPerDay: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-                    Working Days / Week
-                  </label>
-                  <input
-                    type="number"
-                    value={policyFormData.workingDaysPerWeek || 5}
-                    onChange={(e) =>
-                      setPolicyFormData({ ...policyFormData, workingDaysPerWeek: Number(e.target.value) })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold"
-                  />
+              {/* SECTION 2: PUNCH IN */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block border-b border-slate-200 pb-1">
+                  2. Punch In Rules
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Grace Period (Minutes)
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.gracePeriodMinutes ?? 15}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          gracePeriodMinutes: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Late Arrival Rule
+                    </label>
+                    <select
+                      value={policyFormData.lateRuleAction || 'MARK_LATE'}
+                      onChange={(e) =>
+                        setPolicyFormData({ ...policyFormData, lateRuleAction: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    >
+                      <option value="MARK_LATE">Mark Late</option>
+                      <option value="DEDUCT_PAY">Deduct Pay</option>
+                      <option value="HALF_DAY">Mark Half Day</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-                    Daily Hours Required
+
+                <div className="flex flex-wrap gap-4 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={policyFormData.punchInRequired ?? true}
+                      onChange={(e) =>
+                        setPolicyFormData({ ...policyFormData, punchInRequired: e.target.checked })
+                      }
+                      className="rounded text-[#23C45E]"
+                    />
+                    <span className="text-xs font-bold text-slate-700">Punch In Required</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={policyFormData.workingHoursPerDay || 8.0}
-                    onChange={(e) =>
-                      setPolicyFormData({ ...policyFormData, workingHoursPerDay: Number(e.target.value) })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold"
-                  />
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={policyFormData.earlyPunchInAllowed ?? true}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          earlyPunchInAllowed: e.target.checked,
+                        })
+                      }
+                      className="rounded text-[#23C45E]"
+                    />
+                    <span className="text-xs font-bold text-slate-700">Early Punch-In Allowed</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={policyFormData.multiplePunchInAllowed ?? false}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          multiplePunchInAllowed: e.target.checked,
+                        })
+                      }
+                      className="rounded text-[#23C45E]"
+                    />
+                    <span className="text-xs font-bold text-slate-700">Multiple Punch-In Allowed</span>
+                  </label>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-                    Grace (Mins)
-                  </label>
-                  <input
-                    type="number"
-                    value={policyFormData.gracePeriodMinutes || 15}
-                    onChange={(e) =>
-                      setPolicyFormData({ ...policyFormData, gracePeriodMinutes: Number(e.target.value) })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold"
-                  />
+              {/* SECTION 3: PUNCH OUT */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block border-b border-slate-200 pb-1">
+                  3. Punch Out Rules
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Min Working Hours
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={policyFormData.minWorkingHours || 8.0}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          minWorkingHours: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Early Checkout Grace (Mins)
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.earlyCheckoutGraceMinutes ?? 15}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          earlyCheckoutGraceMinutes: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
                 </div>
+
                 <div>
-                  <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-                    Late Deduct (%)
+                  <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                    Early Checkout Action
                   </label>
-                  <input
-                    type="number"
-                    value={policyFormData.lateArrivalDeductionPct || 25}
+                  <select
+                    value={policyFormData.earlyCheckoutAction || 'MARK_EARLY'}
                     onChange={(e) =>
-                      setPolicyFormData({ ...policyFormData, lateArrivalDeductionPct: Number(e.target.value) })
+                      setPolicyFormData({
+                        ...policyFormData,
+                        earlyCheckoutAction: e.target.value,
+                      })
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-                    Max Break (Mins)
-                  </label>
-                  <input
-                    type="number"
-                    value={policyFormData.maxBreakDurationMins || 60}
-                    onChange={(e) =>
-                      setPolicyFormData({ ...policyFormData, maxBreakDurationMins: Number(e.target.value) })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold"
-                  />
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                  >
+                    <option value="MARK_EARLY">Mark Early Checkout</option>
+                    <option value="DEDUCT_PAY">Deduct Proportionate Pay</option>
+                    <option value="HALF_DAY">Convert to Half Day</option>
+                  </select>
                 </div>
               </div>
-            </>
+
+              {/* SECTION 4: LOCATION & GEOFENCING */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block border-b border-slate-200 pb-1">
+                  4. Location & Geofencing Policy
+                </span>
+                <div className="flex flex-wrap gap-4 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={policyFormData.officeAttendanceRequired ?? true}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          officeAttendanceRequired: e.target.checked,
+                        })
+                      }
+                      className="rounded text-[#23C45E]"
+                    />
+                    <span className="text-xs font-bold text-slate-700">Office Location Required</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={policyFormData.gpsRequired ?? true}
+                      onChange={(e) =>
+                        setPolicyFormData({ ...policyFormData, gpsRequired: e.target.checked })
+                      }
+                      className="rounded text-[#23C45E]"
+                    />
+                    <span className="text-xs font-bold text-slate-700">GPS Validation Enforced</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* SECTION 5: BREAK POLICY */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block border-b border-slate-200 pb-1">
+                  5. Break Policy
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Max Duration (Mins)
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.maxBreakDurationMins || 60}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          maxBreakDurationMins: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Max Breaks / Day
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.maxBreaksPerDay || 2}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          maxBreaksPerDay: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Break Type
+                    </label>
+                    <select
+                      value={policyFormData.breakType || 'UNPAID'}
+                      onChange={(e) =>
+                        setPolicyFormData({ ...policyFormData, breakType: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    >
+                      <option value="UNPAID">Unpaid</option>
+                      <option value="PAID">Paid</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                    Break Excess Action
+                  </label>
+                  <select
+                    value={policyFormData.breakExcessAction || 'DEDUCT_EXCESS'}
+                    onChange={(e) =>
+                      setPolicyFormData({
+                        ...policyFormData,
+                        breakExcessAction: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                  >
+                    <option value="DEDUCT_EXCESS">Deduct Excess Time</option>
+                    <option value="MARK_EXCEPTION">Mark Attendance Exception</option>
+                    <option value="HR_REVIEW">Flag for HR Review</option>
+                    <option value="NONE">None</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* SECTION 6: DEDUCTIONS */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                <span className="text-[11px] font-black text-slate-900 uppercase tracking-wider block border-b border-slate-200 pb-1">
+                  6. Attendance Deductions & Penalties
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Late Arrival Deduction (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.lateArrivalDeductionPct ?? 25}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          lateArrivalDeductionPct: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Early Checkout Deduction (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.earlyCheckoutDeductionPct ?? 25}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          earlyCheckoutDeductionPct: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Full Day Absence (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.fullDayAbsenceDeductionPct ?? 100}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          fullDayAbsenceDeductionPct: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                      Half Day Deduction (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={policyFormData.halfDayDeductionPct ?? 50}
+                      onChange={(e) =>
+                        setPolicyFormData({
+                          ...policyFormData,
+                          halfDayDeductionPct: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-bold text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Leave Policy Fields */}

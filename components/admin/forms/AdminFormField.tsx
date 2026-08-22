@@ -1,12 +1,10 @@
-'use client';
-
-import React from 'react';
+import { getErrorMessage } from '@/lib/utils';
 
 export interface AdminFormFieldProps {
   label: string;
   required?: boolean;
   hint?: string;
-  error?: string;
+  error?: string | any;
   fullWidth?: boolean;
   children: React.ReactNode;
   className?: string;
@@ -21,6 +19,8 @@ export function AdminFormField({
   children,
   className = '',
 }: AdminFormFieldProps) {
+  const errorMsg = error ? getErrorMessage(error) : null;
+
   return (
     <div className={`space-y-1.5 ${fullWidth ? 'col-span-full' : ''} ${className}`}>
       <div className="flex items-center justify-between">
@@ -32,8 +32,8 @@ export function AdminFormField({
 
       {children}
 
-      {hint && !error && <p className="text-[11px] text-slate-400 font-medium">{hint}</p>}
-      {error && <p className="text-[11px] text-rose-500 font-bold">{error}</p>}
+      {hint && !errorMsg && <p className="text-[11px] text-slate-400 font-medium">{hint}</p>}
+      {errorMsg && <p className="text-[11px] text-rose-500 font-bold">{errorMsg}</p>}
     </div>
   );
 }

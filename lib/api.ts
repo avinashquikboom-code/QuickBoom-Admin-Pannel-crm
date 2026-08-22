@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from './store';
+import { getErrorMessage } from './utils';
 
 const api = axios.create({
   baseURL:
@@ -146,22 +147,7 @@ api.interceptors.response.use(
       }
     }
 
-    let message = 'An unexpected error occurred';
-
-    if (error && error.response && error.response.data) {
-      const dataMsg = error.response.data.message;
-      if (typeof dataMsg === 'string') {
-        message = dataMsg;
-      } else if (Array.isArray(dataMsg) && dataMsg.length > 0) {
-        message = typeof dataMsg[0] === 'string' ? dataMsg[0] : JSON.stringify(dataMsg[0]);
-      } else if (typeof dataMsg === 'object') {
-        message = JSON.stringify(dataMsg);
-      }
-    } else if (error && typeof error.message === 'string' && error.message.trim().length > 0) {
-      message = error.message;
-    } else if (typeof error === 'string') {
-      message = error;
-    }
+    const message = getErrorMessage(error);
 
     if (typeof message === 'string' && message !== '[object Event]' && message !== '[object Object]') {
       if (error?.response?.status !== 401) {
