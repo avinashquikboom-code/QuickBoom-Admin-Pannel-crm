@@ -9,6 +9,8 @@ export interface AdminFormActionsProps {
   cancelLabel?: string;
   submitLabel?: string;
   loading?: boolean;
+  isSubmitting?: boolean;
+  isPending?: boolean;
   onCancel?: () => void;
   sticky?: boolean;
   extraActions?: React.ReactNode;
@@ -19,10 +21,13 @@ export function AdminFormActions({
   cancelLabel = 'Cancel',
   submitLabel = 'Save Changes',
   loading = false,
+  isSubmitting = false,
+  isPending = false,
   onCancel,
   sticky = false,
   extraActions,
 }: AdminFormActionsProps) {
+  const isLoading = loading || isSubmitting || isPending;
   return (
     <div
       className={`bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4 ${
@@ -36,7 +41,7 @@ export function AdminFormActions({
           <button
             type="button"
             onClick={onCancel}
-            disabled={loading}
+            disabled={isLoading}
             className="w-full sm:w-auto px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-black transition-all cursor-pointer text-center"
           >
             {cancelLabel}
@@ -55,10 +60,10 @@ export function AdminFormActions({
         {extraActions}
         <button
           type="submit"
-          disabled={loading}
+          disabled={isLoading}
           className="w-full sm:w-auto px-6 py-3 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-2xl text-xs font-black transition-all shadow-md shadow-[#23C45E]/20 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:opacity-50"
         >
-          {loading ? (
+          {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Saving...</span>

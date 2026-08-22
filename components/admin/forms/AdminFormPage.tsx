@@ -14,6 +14,8 @@ export interface AdminFormPageProps {
   children: React.ReactNode;
   headerActions?: React.ReactNode;
   badge?: string;
+  icon?: any;
+  breadcrumbContext?: string;
 }
 
 export function AdminFormPage({
@@ -25,6 +27,8 @@ export function AdminFormPage({
   children,
   headerActions,
   badge,
+  icon: Icon,
+  breadcrumbContext,
 }: AdminFormPageProps) {
   const router = useRouter();
 

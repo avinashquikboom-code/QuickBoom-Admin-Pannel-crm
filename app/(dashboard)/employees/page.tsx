@@ -55,6 +55,8 @@ export interface EmployeeMaster {
   joiningDate: string;
   departmentId?: number | null;
   designationId?: number | null;
+  officeId?: number | null;
+  officeObj?: any;
   department: string;
   designation: string;
   branch: string;
@@ -125,6 +127,14 @@ export default function EmployeesPage() {
   const [quickDesigCode, setQuickDesigCode] = useState('');
   const [isQuickDesigSubmitting, setIsQuickDesigSubmitting] = useState(false);
 
+  const [quickOfficeModalOpen, setQuickOfficeModalOpen] = useState(false);
+  const [quickOfficeName, setQuickOfficeName] = useState('');
+  const [quickOfficeCity, setQuickOfficeCity] = useState('');
+  const [quickOfficeLat, setQuickOfficeLat] = useState('19.0760');
+  const [quickOfficeLng, setQuickOfficeLng] = useState('72.8777');
+  const [quickOfficeRadius, setQuickOfficeRadius] = useState('200');
+  const [isQuickOfficeSubmitting, setIsQuickOfficeSubmitting] = useState(false);
+
   // Form state structured into 6 distinct sections (shared state across all steps)
   const [formData, setFormData] = useState({
     // Step 1: Personal Details
@@ -144,6 +154,7 @@ export default function EmployeesPage() {
     managerId: '',
 
     // Step 3: Organization / Work Information (Dynamic Master Linkage)
+    officeId: '' as string | number,
     branch: 'Head Office',
     departmentId: '' as string | number,
     departmentName: '',
@@ -172,18 +183,27 @@ export default function EmployeesPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
-  // 1. Fetch Real Offices for Filter & Form
-  const { data: officesData } = useQuery({
-    queryKey: ['admin-hrm-offices'],
+  // 1. Fetch Real Active Offices dynamically for Filter & Form
+  const { data: officesData, isLoading: isLoadingOffices, refetch: refetchOffices } = useQuery({
+    queryKey: ['active-offices'],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/employees/hrm/offices');
+        const res: any = await api.get('/offices', { params: { isActive: true } });
         return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       } catch {
-        return [];
+        try {
+          const res2: any = await api.get('/employees/hrm/offices');
+          return Array.isArray(res2?.data) ? res2.data : Array.isArray(res2) ? res2 : [];
+        } catch {
+          return [];
+        }
       }
     },
   });
+
+  const activeOffices: { id: number; name: string; city?: string; latitude?: number; longitude?: number; radiusMeters?: number }[] = useMemo(() => {
+    return Array.isArray(officesData) ? officesData : [];
+  }, [officesData]);
 
   // 2. Fetch Active Departments dynamically from Department Master API
   const { data: activeDeptsRes, isLoading: isLoadingDepts, refetch: refetchDepts } = useQuery({
@@ -390,7 +410,8 @@ export default function EmployeesPage() {
         mobileLoginEnabled: formData.mobileLoginEnabled,
         password: formData.password?.trim() || undefined,
         confirmPassword: formData.confirmPassword?.trim() || undefined,
-        branch: formData.branch,
+        officeId: formData.officeId ? Number(formData.officeId) : undefined,
+        branch: formData.branch || 'Head Office',
         departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
         departmentName: formData.departmentName || undefined,
         designationId: formData.designationId ? Number(formData.designationId) : undefined,
@@ -514,6 +535,41 @@ export default function EmployeesPage() {
     }
   };
 
+  // Quick Add Office from inside Step 3
+  const handleQuickAddOffice = async () => {
+    if (!quickOfficeName.trim()) {
+      toast.error('Please enter office name');
+      return;
+    }
+    setIsQuickOfficeSubmitting(true);
+    try {
+      const res: any = await api.post('/offices', {
+        name: quickOfficeName.trim(),
+        city: quickOfficeCity.trim() || undefined,
+        latitude: quickOfficeLat ? parseFloat(quickOfficeLat) : 19.076,
+        longitude: quickOfficeLng ? parseFloat(quickOfficeLng) : 72.8777,
+        radiusMeters: quickOfficeRadius ? parseFloat(quickOfficeRadius) : 200,
+        isActive: true,
+      });
+      const created = res?.data || res;
+      toast.success(`Office "${created.name}" created!`);
+      await refetchOffices();
+      setFormData((prev) => ({
+        ...prev,
+        officeId: created.id,
+        branch: created.name,
+      }));
+      setQuickOfficeName('');
+      setQuickOfficeCity('');
+      setQuickOfficeModalOpen(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to create office';
+      toast.error(typeof msg === 'string' ? msg : 'Error creating office');
+    } finally {
+      setIsQuickOfficeSubmitting(false);
+    }
+  };
+
   // Delete Employee state & mutation
   const [deleteConfirmEmp, setDeleteConfirmEmp] = useState<EmployeeMaster | null>(null);
 
@@ -570,6 +626,7 @@ export default function EmployeesPage() {
 
     const defaultDept = activeDepartments[0];
     const defaultDesig = activeDesignations[0];
+    const defaultOffice = activeOffices[0];
 
     setFormData({
       firstName: '',
@@ -584,7 +641,8 @@ export default function EmployeesPage() {
       employmentType: 'FULL_TIME',
       status: 'ACTIVE',
       managerId: '',
-      branch: officesList[0] || 'Head Office',
+      officeId: defaultOffice ? defaultOffice.id : '',
+      branch: defaultOffice ? defaultOffice.name : (officesList[0] || 'Head Office'),
       departmentId: defaultDept ? defaultDept.id : '',
       departmentName: defaultDept ? defaultDept.name : 'Engineering & IT',
       designationId: defaultDesig ? defaultDesig.id : '',
@@ -627,6 +685,10 @@ export default function EmployeesPage() {
       activeDesignations.find((d) => d.id === emp.designationId) ||
       activeDesignations.find((d) => d.name.toLowerCase() === emp.designation.toLowerCase());
 
+    const matchedOffice =
+      activeOffices.find((o) => o.id === emp.officeId) ||
+      activeOffices.find((o) => o.name.toLowerCase() === (emp.office || emp.branch || '').toLowerCase());
+
     setFormData({
       firstName: emp.firstName,
       lastName: emp.lastName,
@@ -640,7 +702,8 @@ export default function EmployeesPage() {
       employmentType: emp.employmentType || 'FULL_TIME',
       status: emp.status,
       managerId: emp.managerId ? String(emp.managerId) : '',
-      branch: emp.branch || 'Head Office',
+      officeId: emp.officeId || (matchedOffice ? matchedOffice.id : ''),
+      branch: emp.office || emp.branch || (matchedOffice ? matchedOffice.name : 'Head Office'),
       departmentId: emp.departmentId || (matchedDept ? matchedDept.id : ''),
       departmentName: emp.department || (matchedDept ? matchedDept.name : 'Engineering & IT'),
       designationId: emp.designationId || (matchedDesig ? matchedDesig.id : ''),
@@ -1936,20 +1999,54 @@ export default function EmployeesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                      Assigned Office / Branch *
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase">
+                        Assigned Office (Attendance Geofence) *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickOfficeName('');
+                          setQuickOfficeCity('');
+                          setQuickOfficeModalOpen(true);
+                        }}
+                        className="text-[10px] font-bold text-[#1AA14D] hover:underline flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" /> New
+                      </button>
+                    </div>
                     <select
-                      value={formData.branch}
-                      onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                      required
+                      value={formData.officeId || ''}
+                      onChange={(e) => {
+                        const offId = e.target.value;
+                        const found = activeOffices.find((o) => String(o.id) === String(offId));
+                        setFormData((prev) => ({
+                          ...prev,
+                          officeId: offId ? Number(offId) : '',
+                          branch: found ? found.name : 'Head Office',
+                        }));
+                      }}
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                     >
-                      {officesList.map((o) => (
-                        <option key={o} value={o}>
-                          {o}
-                        </option>
-                      ))}
+                      <option value="">-- Select Assigned Office --</option>
+                      {isLoadingOffices ? (
+                        <option value="" disabled>Loading offices...</option>
+                      ) : activeOffices.length === 0 ? (
+                        <option value="" disabled>No active offices configured</option>
+                      ) : (
+                        activeOffices.map((off) => (
+                          <option key={off.id} value={off.id}>
+                            {off.name} {off.city ? `(${off.city})` : ''} • Radius: {off.radiusMeters || 200}m
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {formData.branch && !formData.officeId && (
+                      <p className="text-[10px] text-amber-600 mt-0.5 font-bold">
+                        Assigned: {formData.branch}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -2825,6 +2922,124 @@ export default function EmployeesPage() {
                   <Plus className="w-3.5 h-3.5" />
                 )}
                 <span>Save Designation</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. QUICK ADD OFFICE MODAL */}
+      {quickOfficeModalOpen && (
+        <div className="fixed inset-0 z-60 overflow-hidden flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !isQuickOfficeSubmitting && setQuickOfficeModalOpen(false)}
+          />
+          <div className="relative bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <MapPin className="w-5 h-5 text-[#23C45E]" />
+              <div>
+                <h3 className="text-base font-black text-slate-900">Add Office Geofence</h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Create a new physical office location with GPS attendance radius
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  Office Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quickOfficeName}
+                  onChange={(e) => setQuickOfficeName(e.target.value)}
+                  placeholder="e.g. Pune Regional Hub"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  City
+                </label>
+                <input
+                  type="text"
+                  value={quickOfficeCity}
+                  onChange={(e) => setQuickOfficeCity(e.target.value)}
+                  placeholder="e.g. Pune"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                    Latitude
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={quickOfficeLat}
+                    onChange={(e) => setQuickOfficeLat(e.target.value)}
+                    placeholder="18.5204"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                    Longitude
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={quickOfficeLng}
+                    onChange={(e) => setQuickOfficeLng(e.target.value)}
+                    placeholder="73.8567"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  Allowed Attendance Radius (Meters)
+                </label>
+                <input
+                  type="number"
+                  value={quickOfficeRadius}
+                  onChange={(e) => setQuickOfficeRadius(e.target.value)}
+                  placeholder="200"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isQuickOfficeSubmitting}
+                onClick={() => setQuickOfficeModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isQuickOfficeSubmitting}
+                onClick={handleQuickAddOffice}
+                className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl font-extrabold text-xs transition-all shadow-md shadow-[#23C45E]/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isQuickOfficeSubmitting ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Plus className="w-3.5 h-3.5" />
+                )}
+                <span>Save Office Location</span>
               </button>
             </div>
           </div>

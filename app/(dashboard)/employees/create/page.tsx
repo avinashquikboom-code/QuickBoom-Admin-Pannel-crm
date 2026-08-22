@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Phone, Building2, Calendar, DollarSign, RefreshCw } from 'lucide-react';
+import { User, Mail, Phone, Building2, Calendar, DollarSign, RefreshCw, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -32,8 +32,9 @@ export default function CreateEmployeePage() {
     departmentName: '',
     designationId: '' as string | number,
     designationName: '',
-    joiningDate: new Date().toISOString().split('T')[0],
+    officeId: '' as string | number,
     officeLocation: 'Head Office',
+    joiningDate: new Date().toISOString().split('T')[0],
     employmentType: 'Full-Time',
     monthlySalary: '75000',
     panNumber: '',
@@ -42,6 +43,17 @@ export default function CreateEmployeePage() {
     password: '',
     confirmPassword: '',
   });
+
+  // Dynamic Offices query
+  const { data: officesRes } = useQuery({
+    queryKey: ['active-offices'],
+    queryFn: async () => {
+      const res: any = await api.get('/offices', { params: { isActive: true } });
+      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+    },
+  });
+
+  const offices: any[] = Array.isArray(officesRes) ? officesRes : [];
 
   // Dynamic Departments query
   const { data: departmentsRes } = useQuery({
@@ -86,6 +98,17 @@ export default function CreateEmployeePage() {
     fetchNextId();
   }, []);
 
+  // Set default office when offices load
+  useEffect(() => {
+    if (offices.length > 0 && !formData.officeId) {
+      setFormData((prev) => ({
+        ...prev,
+        officeId: offices[0].id,
+        officeLocation: offices[0].name,
+      }));
+    }
+  }, [offices]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.firstName.trim() || !formData.email.trim()) {
@@ -98,45 +121,45 @@ export default function CreateEmployeePage() {
         toast.error('Password must be at least 6 characters');
         return;
       }
-      if (formData.password !== formData.confirmPassword) {
-        toast.error('Password and Confirm Password do not match');
+      if (formData.confirmPassword && formData.password !== formData.confirmPassword) {
+        toast.error('Passwords do not match');
         return;
       }
     }
 
     setLoading(true);
+
     try {
-      await api.post('/employees', {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        employeeCode: autoGenerateId ? undefined : formData.employeeCode,
+      const payload: any = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        employeeCode: autoGenerateId ? undefined : formData.employeeCode.trim(),
         autoGenerateCode: autoGenerateId,
-        email: formData.email,
-        phone: formData.phone,
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone.trim() || undefined,
         departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
         departmentName: formData.departmentName || undefined,
         designationId: formData.designationId ? Number(formData.designationId) : undefined,
         designationName: formData.designationName || undefined,
-        branch: formData.officeLocation,
+        officeId: formData.officeId ? Number(formData.officeId) : undefined,
+        branch: formData.officeLocation || 'Head Office',
         joiningDate: formData.joiningDate,
-        employmentType: formData.employmentType === 'Full-Time' ? 'FULL_TIME' : (formData.employmentType === 'Contract' ? 'CONTRACT' : 'INTERN'),
+        employmentType: formData.employmentType === 'Full-Time' ? 'FULL_TIME' : formData.employmentType.toUpperCase().replace(/\s+/g, '_'),
+        status: 'ACTIVE',
+        address: formData.address.trim() || undefined,
+        documents: formData.panNumber.trim() ? { panNumber: formData.panNumber.trim() } : undefined,
+        bankDetails: formData.monthlySalary ? { basicSalary: Number(formData.monthlySalary) } : undefined,
         mobileLoginEnabled: formData.mobileLoginEnabled,
-        password: formData.password?.trim() || undefined,
-        confirmPassword: formData.confirmPassword?.trim() || undefined,
-        address: formData.address,
-        documents: {
-          panNumber: formData.panNumber || undefined,
-        },
-        bankDetails: {
-          basicSalary: formData.monthlySalary || undefined,
-        },
-      });
+        password: formData.password.trim() || undefined,
+        confirmPassword: formData.confirmPassword.trim() || undefined,
+      };
 
-      toast.success('Employee profile created successfully in database!');
+      await api.post('/employees', payload);
+      toast.success('Employee created successfully in Master Registry!');
       router.push('/employees');
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Failed to create employee profile';
-      toast.error(typeof msg === 'string' ? msg : 'Validation error');
+      const msg = err?.response?.data?.message || err?.message || 'Failed to create employee record';
+      toast.error(typeof msg === 'string' ? msg : 'Validation error occurred');
     } finally {
       setLoading(false);
     }
@@ -144,20 +167,20 @@ export default function CreateEmployeePage() {
 
   return (
     <AdminFormPage
-      title="Add Employee"
-      description="Create a new employee record with employment details, contact information, and payroll settings."
+      title="Add New Employee"
+      description="Register a new workforce member in the centralized master database"
       backHref="/employees"
-      backLabel="Back to Employee Directory"
-      badge="Master Record"
+      icon={User}
+      breadcrumbContext="HRM / Employees"
     >
-      <form onSubmit={handleSubmit}>
-        {/* Section 1: Personal & Contact Information */}
-        <AdminFormSection title="Personal Information" description="Basic details, contact and government ID" icon={User} columns={2}>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Section 1: Personal & Identity Information */}
+        <AdminFormSection title="Personal Information" description="Basic employee identification details" icon={User} columns={2}>
           <AdminFormField label="First Name" required>
             <AdminInput
               type="text"
               required
-              placeholder="John"
+              placeholder="e.g. John"
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
             />
@@ -167,13 +190,13 @@ export default function CreateEmployeePage() {
             <AdminInput
               type="text"
               required
-              placeholder="Doe"
+              placeholder="e.g. Doe"
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Email Address" required>
+          <AdminFormField label="Corporate Email" required>
             <AdminInput
               type="email"
               required
@@ -238,7 +261,31 @@ export default function CreateEmployeePage() {
         </AdminFormSection>
 
         {/* Section 2: Employment Information */}
-        <AdminFormSection title="Employment Details" description="Department, designation, and joining date" icon={Building2} columns={2}>
+        <AdminFormSection title="Employment Details" description="Office geofence, department, designation, and joining date" icon={Building2} columns={2}>
+          <AdminFormField label="Assigned Office (Attendance Geofence)" required>
+            <select
+              required
+              value={formData.officeId}
+              onChange={(e) => {
+                const id = e.target.value;
+                const found = offices.find((o) => String(o.id) === String(id));
+                setFormData({
+                  ...formData,
+                  officeId: id,
+                  officeLocation: found ? found.name : 'Head Office',
+                });
+              }}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+            >
+              <option value="">-- Select Assigned Office --</option>
+              {offices.map((off) => (
+                <option key={off.id} value={off.id}>
+                  {off.name} {off.city ? `(${off.city})` : ''} • Radius: {off.radiusMeters || 200}m
+                </option>
+              ))}
+            </select>
+          </AdminFormField>
+
           <AdminFormField label="Department" required>
             <select
               required
@@ -323,39 +370,50 @@ export default function CreateEmployeePage() {
                 <input
                   type="checkbox"
                   checked={formData.mobileLoginEnabled}
-                  onChange={(e) => setFormData({ ...formData, mobileLoginEnabled: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, mobileLoginEnabled: e.target.checked })
+                  }
                   className="sr-only peer"
                 />
-                <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#23C45E]"></div>
+                <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#23C45E]" />
               </label>
             </div>
 
             {formData.mobileLoginEnabled && (
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
-                <AdminFormField label="Initial App Password">
-                  <AdminInput
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60 animate-in fade-in-50 duration-150">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                    Initial Password
+                  </label>
+                  <input
                     type="password"
-                    placeholder="Min. 6 characters"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Min 6 chars (default: Password@123)"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                   />
-                </AdminFormField>
-
-                <AdminFormField label="Confirm Password">
-                  <AdminInput
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                    Confirm Password
+                  </label>
+                  <input
                     type="password"
-                    placeholder="Confirm initial password"
                     value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, confirmPassword: e.target.value })
+                    }
+                    placeholder="Repeat password"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                   />
-                </AdminFormField>
+                </div>
               </div>
             )}
           </div>
         </AdminFormSection>
 
-        {/* Section 3: Compensation & Location */}
-        <AdminFormSection title="Compensation & Location" description="Salary and office assignment" icon={DollarSign} columns={2}>
+        {/* Section 3: Additional Details */}
+        <AdminFormSection title="Additional Details" description="Address & Compensation" icon={DollarSign} columns={2}>
           <AdminFormField label="Monthly Basic Salary (₹)">
             <AdminInput
               type="number"
@@ -365,35 +423,21 @@ export default function CreateEmployeePage() {
             />
           </AdminFormField>
 
-          <AdminFormField label="Office Location" required>
-            <AdminSelect
-              value={formData.officeLocation}
-              onChange={(e) => setFormData({ ...formData, officeLocation: e.target.value })}
-              options={[
-                { value: 'Head Office', label: 'Head Office - Mumbai' },
-                { value: 'Pune Tech Park', label: 'Pune Tech Park' },
-                { value: 'Bangalore Office', label: 'Bangalore Office' },
-                { value: 'Delhi Hub', label: 'Delhi NCR Hub' },
-                { value: 'Remote / WFH', label: 'Remote / Work From Home' },
-              ]}
+          <AdminFormField label="Residential Address" className="col-span-2">
+            <AdminTextarea
+              placeholder="Enter full permanent / residential address..."
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              rows={3}
             />
           </AdminFormField>
-
-          <div className="col-span-2">
-            <AdminFormField label="Residential Address">
-              <AdminTextarea
-                placeholder="Full residential address..."
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-            </AdminFormField>
-          </div>
         </AdminFormSection>
 
+        {/* Form Actions */}
         <AdminFormActions
           backHref="/employees"
-          submitLabel={loading ? 'Creating Profile...' : 'Save Employee Profile'}
-          loading={loading}
+          submitLabel={loading ? 'Registering Employee...' : 'Create Employee Master'}
+          isSubmitting={loading}
         />
       </form>
     </AdminFormPage>
