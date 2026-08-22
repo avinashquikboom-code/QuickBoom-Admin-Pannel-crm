@@ -269,8 +269,8 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
-        { name: 'Capture History', href: '/data-capture?tab=history', icon: History, permission: 'data_capture.view' },
-        { name: 'Usage', href: '/data-capture?tab=usage', icon: Activity, permission: 'data_capture.view' },
+        { name: 'Capture History', href: '/data-capture/history', icon: History, permission: 'data_capture.view' },
+        { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity, permission: 'data_capture.view' },
       ],
     },
 
@@ -297,28 +297,18 @@ export const adminNavigation: {
       ],
     },
 
-    // 7. Customers / Companies
+    // 7. Customers & Subscriptions
     {
       id: 'customers',
-      category: 'Customers / Companies',
+      category: 'Customers',
       sectionIcon: Building2,
       roles: ['Super Admin'],
       items: [
-        { name: 'Customers', href: '/super-admin', icon: Building2, permission: 'customers.manage' },
-      ],
-    },
-
-    // 8. Subscription
-    {
-      id: 'subscription',
-      category: 'Subscription',
-      sectionIcon: CreditCard,
-      roles: ['Super Admin'],
-      items: [
-        { name: 'Plans', href: '/super-admin?tab=plans', icon: Layers, permission: 'plans.manage' },
-        { name: 'Subscriptions', href: '/super-admin?tab=subscriptions', icon: ShieldCheck, permission: 'subscriptions.manage' },
-        { name: 'Billing', href: '/super-admin?tab=billing', icon: CreditCard, permission: 'billing.manage' },
-        { name: 'Usage', href: '/super-admin?tab=usage', icon: Activity, permission: 'subscription.view' },
+        { name: 'All Customers', href: '/customers', icon: Building2, permission: 'customers.manage' },
+        { name: 'Subscription Plans', href: '/customers/plans', icon: Layers, permission: 'plans.manage' },
+        { name: 'Active Subscriptions', href: '/customers/subscriptions', icon: ShieldCheck, permission: 'subscriptions.manage' },
+        { name: 'Resource Usage', href: '/customers/usage', icon: Activity, permission: 'subscription.view' },
+        { name: 'Super Admin Hub', href: '/super-admin', icon: ShieldCheck, permission: 'customers.manage' },
       ],
     },
 
