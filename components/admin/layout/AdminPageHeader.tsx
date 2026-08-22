@@ -3,27 +3,29 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 
-export interface AdminPageHeaderProps {
+export interface AdminPageHeroProps {
   title: string;
   description?: string;
-  badge?: {
-    text: string;
-    icon?: LucideIcon;
-    variant?: 'primary' | 'indigo' | 'purple' | 'amber' | 'blue' | 'emerald';
-    pulsingDot?: boolean;
-  };
+  badge?:
+    | string
+    | {
+        text: string;
+        icon?: LucideIcon;
+        variant?: 'primary' | 'indigo' | 'purple' | 'amber' | 'blue' | 'emerald';
+        pulsingDot?: boolean;
+      };
   actions?: React.ReactNode;
   breadcrumbs?: { label: string; href?: string }[];
   className?: string;
 }
 
-export function AdminPageHeader({
+export function AdminPageHero({
   title,
   description,
   badge,
   actions,
   className = '',
-}: AdminPageHeaderProps) {
+}: AdminPageHeroProps) {
   const badgeClasses = {
     primary: 'bg-emerald-500/20 text-[#23C45E] border-emerald-500/30',
     emerald: 'bg-emerald-500/20 text-[#23C45E] border-emerald-500/30',
@@ -33,8 +35,11 @@ export function AdminPageHeader({
     blue: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
   };
 
-  const selectedBadgeVariant = badge?.variant || 'primary';
-  const BadgeIcon = badge?.icon;
+  const isBadgeString = typeof badge === 'string';
+  const badgeText = isBadgeString ? badge : badge?.text;
+  const selectedBadgeVariant = (!isBadgeString && badge?.variant) || 'primary';
+  const BadgeIcon = !isBadgeString ? badge?.icon : undefined;
+  const showPulsingDot = isBadgeString ? true : badge?.pulsingDot !== false;
 
   return (
     <div
@@ -46,16 +51,16 @@ export function AdminPageHeader({
 
       <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-1.5 flex-1 min-w-0">
-          {badge && (
+          {badgeText && (
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-2xs ${badgeClasses[selectedBadgeVariant]}`}
               >
-                {badge.pulsingDot !== false && (
+                {showPulsingDot && (
                   <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
                 )}
                 {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
-                {badge.text}
+                {badgeText}
               </span>
             </div>
           )}
@@ -80,3 +85,8 @@ export function AdminPageHeader({
     </div>
   );
 }
+
+// Alias for backward compatibility
+export const AdminPageHeader = AdminPageHero;
+export type AdminPageHeaderProps = AdminPageHeroProps;
+

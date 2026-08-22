@@ -21,8 +21,10 @@ const defaultMockLogs: AuditLog[] = [
   { id: '3', action: 'PAYMENT_VERIFIED', user: 'System Webhook', ipAddress: '127.0.0.1', entity: 'Subscription Order (#ORD-9821)', timestamp: '2026-08-21 08:45:10', status: 'SUCCESS' },
 ];
 
+import { AdminPageHero } from '@/components/admin';
+
 export default function AuditLogsPage() {
-  const { data: auditData } = useQuery({
+  const { data: auditData, isLoading } = useQuery({
     queryKey: ['admin-audit-logs'],
     queryFn: async () => {
       try {
@@ -37,7 +39,7 @@ export default function AuditLogsPage() {
   const logs: AuditLog[] =
     Array.isArray(auditData) && auditData.length > 0
       ? auditData.map((l: any) => ({
-          id: l.id,
+          id: String(l.id),
           action: l.action || 'MUTATION',
           user: l.actor || 'Administrator',
           ipAddress: l.ipAddress || '127.0.0.1',
@@ -46,22 +48,19 @@ export default function AuditLogsPage() {
           status: 'SUCCESS',
         }))
       : [];
+
   return (
-    <div className="space-y-8">
-      {/* Top Title Card Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-900 via-emerald-800 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg border border-emerald-800">
-        <div>
-          <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-xs uppercase tracking-wider mb-1">
-            <History className="w-4 h-4 text-emerald-400" /> IMMUTABLE SYSTEM AUDIT TRAIL
-          </div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-            Audit Trail & Security Event Logs
-          </h1>
-          <p className="text-xs md:text-sm text-slate-200 mt-1 font-medium">
-            Immutably track system data mutations, administrative authentication events, and client IP signatures.
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+      {/* Top Hero Card */}
+      <AdminPageHero
+        badge={{
+          text: 'SYSTEM AUDIT TRAIL',
+          icon: History,
+          variant: 'emerald',
+        }}
+        title="Audit Logs"
+        description="Immutably track system data mutations, administrative authentication events, and client IP signatures."
+      />
 
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">

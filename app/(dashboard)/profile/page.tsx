@@ -6,6 +6,8 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 
+import { AdminPageHero } from '@/components/admin';
+
 export default function ProfilePage() {
   const storeUser = useAuthStore((state) => state.user);
 
@@ -32,13 +34,17 @@ export default function ProfilePage() {
   const avatarLetter = (user?.firstName?.[0] || user?.name?.[0] || user?.email?.[0] || 'U').toUpperCase();
 
   return (
-    <div className="space-y-8 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">User Account Profile</h1>
-        <p className="text-xs text-slate-500 mt-1 font-medium">
-          Personal contact information, assigned organizational role, and security settings.
-        </p>
-      </div>
+    <div className="space-y-6 max-w-4xl mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+      {/* Top Hero Card */}
+      <AdminPageHero
+        badge={{
+          text: 'USER ACCOUNT PROFILE',
+          icon: User,
+          variant: 'emerald',
+        }}
+        title="User Profile"
+        description="Personal contact information, assigned organizational role, and security settings."
+      />
 
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8 space-y-8">
         <div className="flex items-center gap-6 pb-6 border-b border-slate-100">

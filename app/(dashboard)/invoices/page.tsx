@@ -35,6 +35,8 @@ const demoInvoices = [
   },
 ];
 
+import { AdminPageHero, AdminStatCard } from '@/components/admin';
+
 export default function InvoicesPage() {
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
@@ -75,52 +77,46 @@ export default function InvoicesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#111827]">Billing & Invoices</h1>
-          <p className="text-sm text-[#64748B]">Generate, manage, and track client invoice payments via Razorpay.</p>
-        </div>
-        <button className="inline-flex items-center justify-center gap-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-all shadow-xs cursor-pointer">
-          <Plus className="w-4 h-4" /> Create New Invoice
-        </button>
-      </div>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+      {/* Header Hero Card */}
+      <AdminPageHero
+        badge={{
+          text: 'BILLING & INVOICES',
+          icon: DollarSign,
+          variant: 'emerald',
+        }}
+        title="Client Invoices & Billing"
+        description="Generate, manage, and track client invoice payments via Razorpay."
+        actions={
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95">
+            <Plus className="w-4 h-4" /> Create New Invoice
+          </button>
+        }
+      />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#64748B] uppercase">Total Billed</span>
-            <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#23C45E] flex items-center justify-center">
-              <DollarSign className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-[#111827] mt-3">₹4,45,000</p>
-          <p className="text-xs text-[#64748B] mt-1">3 total active invoices</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#64748B] uppercase">Paid Revenue</span>
-            <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#23C45E] flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-[#23C45E] mt-3">₹1,50,000</p>
-          <p className="text-xs text-[#23C45E] font-medium mt-1">Settled via Razorpay</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#64748B] uppercase">Pending Balance</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-[#F59E0B] flex items-center justify-center">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-[#F59E0B] mt-3">₹2,95,000</p>
-          <p className="text-xs text-[#DC2626] font-medium mt-1">₹2,10,000 overdue</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <AdminStatCard
+          title="Total Billed"
+          value="₹4,45,000"
+          description="3 total active invoices"
+          icon={DollarSign}
+          iconBg="primary"
+        />
+        <AdminStatCard
+          title="Paid Revenue"
+          value="₹1,50,000"
+          description="Settled via Razorpay"
+          icon={CheckCircle2}
+          iconBg="blue"
+        />
+        <AdminStatCard
+          title="Pending Collection"
+          value="₹2,95,000"
+          description="1 overdue, 1 pending"
+          icon={Clock}
+          iconBg="amber"
+        />
       </div>
 
       {/* Filter Toolbar */}

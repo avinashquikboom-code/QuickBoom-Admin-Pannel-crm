@@ -18,10 +18,12 @@ import {
   ExternalLink,
   ShieldCheck,
   UserPlus,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import {
+  AdminPageHero,
   AdminPageHeader,
   AdminStatCard,
   AdminCard,
@@ -313,16 +315,27 @@ export default function DataCapturePage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Title Header using Reusable AdminPageHeader */}
-      <AdminPageHeader
-        title="Data Capture & Prospect Extraction"
-        description="Search verified local businesses, phone numbers, ratings, and addresses using server-side Google Places Text Search."
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+      {/* Title Header using Reusable AdminPageHero */}
+      <AdminPageHero
+        title="Data Capture"
+        description="Monitor captured operational data and related employee activity."
         badge={{
-          text: 'GOOGLE MAPS PLATFORM • PLACES API (NEW)',
+          text: 'DATA CAPTURE',
           icon: Globe,
-          variant: 'primary',
+          variant: 'emerald',
         }}
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={loadUsageAndJobs}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95"
+              title="Refresh capture logs"
+            >
+              <RefreshCw className="w-4 h-4 text-[#23C45E]" />
+            </button>
+          </div>
+        }
       />
 
       {/* Usage & Quota KPI Cards using Reusable AdminStatCard */}
