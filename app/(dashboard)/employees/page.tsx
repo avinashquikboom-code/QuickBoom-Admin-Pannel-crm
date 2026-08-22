@@ -375,6 +375,25 @@ export default function EmployeesPage() {
     },
   });
 
+  // Delete Employee state & mutation
+  const [deleteConfirmEmp, setDeleteConfirmEmp] = useState<EmployeeMaster | null>(null);
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (id: string | number) => {
+      return api.delete(`/employees/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Employee record deleted successfully');
+      setDeleteConfirmEmp(null);
+      setIsDetailsDrawerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || 'Failed to delete employee';
+      toast.error(typeof msg === 'string' ? msg : 'Error deleting employee');
+    },
+  });
+
   // Employee ID Auto-generation state
   const [autoGenerateId, setAutoGenerateId] = useState(true);
   const [isFetchingNextId, setIsFetchingNextId] = useState(false);
@@ -900,6 +919,14 @@ export default function EmployeesPage() {
                               <UserCheck className="w-4 h-4" />
                             )}
                           </button>
+
+                          <button
+                            onClick={() => setDeleteConfirmEmp(emp)}
+                            className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Employee"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1256,7 +1283,7 @@ export default function EmployeesPage() {
             </div>
 
             {/* Drawer Actions Footer */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center gap-3 shrink-0">
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center gap-2.5 shrink-0">
               <button
                 onClick={() => handleOpenEdit(selectedEmployee)}
                 className="flex-1 py-2.5 px-4 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl font-extrabold text-xs transition-all shadow-md shadow-[#23C45E]/20 flex items-center justify-center gap-2 cursor-pointer"
@@ -1272,13 +1299,22 @@ export default function EmployeesPage() {
                     newStatus: selectedEmployee.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
                   })
                 }
-                className={`py-2.5 px-4 rounded-xl font-extrabold text-xs transition-all border cursor-pointer ${
+                className={`py-2.5 px-3.5 rounded-xl font-extrabold text-xs transition-all border cursor-pointer ${
                   selectedEmployee.status === 'ACTIVE'
-                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
                     : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
                 }`}
               >
                 {selectedEmployee.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+              </button>
+
+              <button
+                onClick={() => setDeleteConfirmEmp(selectedEmployee)}
+                className="py-2.5 px-3.5 rounded-xl font-extrabold text-xs transition-all border bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 cursor-pointer flex items-center gap-1.5"
+                title="Delete Employee"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete</span>
               </button>
             </div>
           </div>
@@ -1803,6 +1839,59 @@ export default function EmployeesPage() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 7. DELETE CONFIRMATION MODAL */}
+      {deleteConfirmEmp && (
+        <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => !deleteEmployeeMutation.isPending && setDeleteConfirmEmp(null)}
+          />
+          <div className="relative bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-black text-slate-900">
+                Delete Employee Profile?
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Are you sure you want to delete{' '}
+                <strong className="text-slate-800 font-bold">
+                  {deleteConfirmEmp.name} ({deleteConfirmEmp.employeeCode})
+                </strong>
+                ? This will remove the employee profile and unassign linked active directories.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={deleteEmployeeMutation.isPending}
+                onClick={() => setDeleteConfirmEmp(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={deleteEmployeeMutation.isPending}
+                onClick={() => deleteEmployeeMutation.mutate(deleteConfirmEmp.id)}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {deleteEmployeeMutation.isPending ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                <span>Confirm Delete</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
