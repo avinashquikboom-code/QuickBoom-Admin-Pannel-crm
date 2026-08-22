@@ -9,7 +9,10 @@ export interface AdminFormDrawerProps {
   onClose: () => void;
   title: string;
   description?: string;
+  subtitle?: string;
+  icon?: any;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  maxWidth?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
   onSave?: (e?: React.FormEvent) => void;
@@ -24,7 +27,10 @@ export function AdminFormDrawer({
   onClose,
   title,
   description,
+  subtitle,
+  icon: Icon,
   size = 'md',
+  maxWidth,
   children,
   footer,
   onSave,
@@ -33,6 +39,7 @@ export function AdminFormDrawer({
   isSubmitting = false,
   isLoading = false,
 }: AdminFormDrawerProps) {
+  const displayDescription = description || subtitle;
   // Lock body scroll when drawer is open
   useEffect(() => {
     if (isOpen) {
@@ -52,7 +59,7 @@ export function AdminFormDrawer({
 
   if (!isOpen) return null;
 
-  const sizeClasses = {
+  const sizeClasses = maxWidth || {
     sm: 'sm:max-w-[420px]',
     md: 'sm:max-w-[480px]',
     lg: 'sm:max-w-[560px]',
@@ -77,15 +84,22 @@ export function AdminFormDrawer({
         >
           {/* 1. Fixed Header */}
           <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-            <div className="min-w-0 pr-4">
-              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight truncate">
-                {title}
-              </h2>
-              {description && (
-                <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
-                  {description}
-                </p>
+            <div className="min-w-0 pr-4 flex items-center gap-3">
+              {Icon && (
+                <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-[#1AA14D] flex items-center justify-center shrink-0 border border-emerald-200/60">
+                  <Icon className="w-5 h-5 text-[#23C45E]" />
+                </div>
               )}
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight truncate">
+                  {title}
+                </h2>
+                {displayDescription && (
+                  <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                    {displayDescription}
+                  </p>
+                )}
+              </div>
             </div>
 
             <button
