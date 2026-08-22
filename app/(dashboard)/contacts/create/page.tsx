@@ -141,7 +141,7 @@ export default function CreateContactPage() {
             <AdminInput
               type="email"
               required
-              placeholder="ramesh@relianceretail.com"
+              placeholder="Enter corporate email address"
               icon={Mail}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -152,7 +152,7 @@ export default function CreateContactPage() {
             <AdminInput
               type="tel"
               required
-              placeholder="+91 98765 43210"
+              placeholder="Enter phone number"
               icon={Phone}
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}

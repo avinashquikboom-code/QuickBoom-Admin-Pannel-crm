@@ -152,7 +152,7 @@ export default function CreateEmployeePage() {
             <AdminInput
               type="email"
               required
-              placeholder="rahul.sharma@quikboom.com"
+              placeholder="Enter corporate email address"
               icon={Mail}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}

@@ -791,7 +791,7 @@ export default function SuperAdminPage() {
               type="email"
               value={customerForm.email}
               onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-              placeholder="admin@organization.com"
+              placeholder="Enter admin email address"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
             />
           </div>

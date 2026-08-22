@@ -688,7 +688,7 @@ export default function EmployeesPage() {
               type="email"
               value={empForm.email}
               onChange={(e) => setEmpForm({ ...empForm, email: e.target.value })}
-              placeholder="rahul.sharma@workspace.com"
+              placeholder="Enter corporate email address"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
           </div>
@@ -701,7 +701,7 @@ export default function EmployeesPage() {
               type="tel"
               value={empForm.phone}
               onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value })}
-              placeholder="+91 98765 43210"
+              placeholder="Enter phone number"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
           </div>
