@@ -103,8 +103,12 @@ export default function AdminDashboardPage() {
   } = useQuery({
     queryKey: ['admin-dashboard-metrics', dateRange],
     queryFn: async () => {
-      const res: any = await api.get('/admin/dashboard/super-admin');
-      return res?.data || res || {};
+      try {
+        const res: any = await api.get('/admin/dashboard/super-admin');
+        return res?.data || res || {};
+      } catch {
+        return {};
+      }
     },
     refetchInterval: 30000,
   });
@@ -958,35 +962,52 @@ export default function AdminDashboardPage() {
                 No recent security actions logged today.
               </div>
             ) : (
-              auditLogsList.slice(0, 5).map((log: any, idx: number) => (
-                <div
-                  key={log.id || idx}
-                  className="p-3.5 bg-slate-50/70 hover:bg-slate-100/70 rounded-2xl border border-slate-200/60 transition-colors flex items-center justify-between gap-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-700 shadow-2xs">
-                      {log.action?.charAt(0) || 'A'}
-                    </div>
-                    <div>
-                      <span className="text-xs font-black text-slate-900 block">
-                        {log.action || 'System Event'}
-                      </span>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        {log.details || log.entity || 'Platform operation executed'}
-                      </span>
-                    </div>
-                  </div>
+              auditLogsList.slice(0, 5).map((log: any, idx: number) => {
+                const logDetail =
+                  typeof log.details === 'string'
+                    ? log.details
+                    : log.details && typeof log.details === 'object'
+                    ? log.details.message ||
+                      log.details.action ||
+                      log.details.description ||
+                      (typeof log.entity === 'string' ? log.entity : 'Platform operation executed')
+                    : typeof log.entity === 'string'
+                    ? log.entity
+                    : 'Platform operation executed';
 
-                  <span className="text-[10px] font-mono text-slate-400 shrink-0">
-                    {log.createdAt
-                      ? new Date(log.createdAt).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : 'Just now'}
-                  </span>
-                </div>
-              ))
+                const logAction =
+                  typeof log.action === 'string' ? log.action : 'System Event';
+
+                return (
+                  <div
+                    key={log.id || idx}
+                    className="p-3.5 bg-slate-50/70 hover:bg-slate-100/70 rounded-2xl border border-slate-200/60 transition-colors flex items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-700 shadow-2xs">
+                        {logAction.charAt(0) || 'A'}
+                      </div>
+                      <div>
+                        <span className="text-xs font-black text-slate-900 block">
+                          {logAction}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          {logDetail}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                      {log.createdAt && !isNaN(new Date(log.createdAt).getTime())
+                        ? new Date(log.createdAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Just now'}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
