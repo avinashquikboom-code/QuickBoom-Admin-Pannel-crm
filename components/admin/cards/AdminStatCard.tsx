@@ -58,7 +58,7 @@ export function AdminStatCard({
   return (
     <div
       onClick={onClick}
-      className={`bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between transition-all duration-200 min-w-0 min-h-[100px] ${
+      className={`bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between transition-all duration-200 min-w-0 min-h-[110px] ${
         onClick ? 'cursor-pointer hover:border-[#23C45E] hover:shadow-sm active:scale-[0.99]' : ''
       } ${className}`}
     >
