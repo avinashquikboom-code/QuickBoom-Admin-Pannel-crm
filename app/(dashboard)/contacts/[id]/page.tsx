@@ -1,95 +1,502 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { ArrowLeft, Mail, Phone, Building2, User, MapPin } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  Building,
+  User,
+  MapPin,
+  Calendar,
+  Globe,
+  DollarSign,
+  Clock,
+  CheckCircle2,
+  Trash2,
+  Edit,
+  ExternalLink,
+  MessageSquare,
+  AlertCircle,
+  Plus,
+} from 'lucide-react';
 import api from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import { AdminFormDrawer } from '@/components/admin';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function ContactDetailPage() {
   const params = useParams();
-  const id = (params?.id as string) || '1';
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const id = (params?.id as string) || '';
 
-  const { data: contactData, isLoading } = useQuery({
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'DEALS' | 'VISITS' | 'TIMELINE'>('OVERVIEW');
+  const [isVisitDrawerOpen, setIsVisitDrawerOpen] = useState(false);
+
+  const [visitForm, setVisitForm] = useState({
+    purpose: 'Client Consultation & Review',
+    visitType: 'CLIENT_MEETING',
+    date: new Date().toISOString().split('T')[0],
+    time: '11:00 AM',
+    location: '',
+    notes: '',
+  });
+
+  const { data: contact, isLoading, isError } = useQuery({
     queryKey: ['contact-detail', id],
     queryFn: async () => {
-      try {
-        const res: any = await api.get(`/contacts/${id}`);
-        return res?.data || res;
-      } catch (err) {
-        return null;
-      }
+      const res: any = await api.get(`/contacts/${id}`);
+      return res?.data || res;
+    },
+    enabled: Boolean(id),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      return api.delete(`/contacts/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Contact archived');
+      router.push('/contacts');
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
     },
   });
 
-  const contact = contactData || {
-    id,
-    firstName: 'Rajesh',
-    lastName: 'Sharma',
-    email: 'rajesh@techcorp.in',
-    phone: '+91 98765 43210',
-    designation: 'VP of Technology',
-    type: 'CUSTOMER',
-    notes: 'Key contact for Q3 enterprise deployment.',
-  };
+  const scheduleVisitMutation = useMutation({
+    mutationFn: async () => {
+      return api.post('/visits', {
+        customerName: `${contact?.firstName} ${contact?.lastName}`,
+        purpose: visitForm.purpose,
+        visitType: visitForm.visitType,
+        date: new Date(visitForm.date).toISOString(),
+        time: visitForm.time,
+        location: visitForm.location || contact?.company?.address || 'Client Office',
+        companyId: contact?.companyId ? String(contact?.companyId) : undefined,
+        contactId: String(id),
+        notes: visitForm.notes || undefined,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Visit scheduled successfully');
+      setIsVisitDrawerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['contact-detail', id] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
 
-  const name = contact.name || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Contact Details';
-  const initials = name
-    .split(' ')
-    .map((p: string) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto py-24 text-center">
+        <div className="w-10 h-10 border-4 border-[#23C45E] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-slate-500 font-bold text-sm">Loading contact profile...</p>
+      </div>
+    );
+  }
+
+  if (isError || !contact) {
+    return (
+      <div className="max-w-xl mx-auto py-24 text-center space-y-4">
+        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
+        <h2 className="text-xl font-black text-slate-900">Contact Not Found</h2>
+        <p className="text-xs text-slate-500">This contact does not exist or has been deleted.</p>
+        <Link
+          href="/contacts"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-2xl text-xs font-black"
+        >
+          <ArrowLeft className="w-4 h-4" /> Return to Contacts
+        </Link>
+      </div>
+    );
+  }
+
+  const name = `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Contact';
 
   return (
-    <div className="space-y-8 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Link href="/contacts" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">{name}</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Record ID: #{id}</p>
+    <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+      {/* Top Hero Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Link
+                href="/contacts"
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-slate-300 hover:text-white transition-all backdrop-blur-xs"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider">
+                Contact #{contact.id}
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/15 text-white text-[10px] font-black uppercase tracking-wider">
+                {contact.status || 'ACTIVE'}
+              </span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{name}</h1>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium flex items-center gap-2">
+              <span>{contact.designation || 'Key Stakeholder'}</span>
+              {contact.company && <span>• {contact.company.name}</span>}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                setVisitForm({
+                  purpose: 'Client Consultation & Review',
+                  visitType: 'CLIENT_MEETING',
+                  date: new Date().toISOString().split('T')[0],
+                  time: '11:00 AM',
+                  location: contact.company?.address || contact.company?.city || 'Client HQ',
+                  notes: '',
+                });
+                setIsVisitDrawerOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600/30 hover:bg-blue-600/40 text-blue-200 border border-blue-500/40 rounded-2xl text-xs font-black transition-all cursor-pointer active:scale-95"
+            >
+              <Calendar className="w-4 h-4 text-blue-400" />
+              <span>Schedule Visit</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (confirm(`Archive contact "${name}"?`)) {
+                  deleteMutation.mutate();
+                }
+              }}
+              className="p-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-2xl text-xs font-black transition-all cursor-pointer"
+              title="Archive Contact"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8 space-y-6 text-xs">
-        <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
-          <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 text-white font-bold text-lg flex items-center justify-center">
-            {initials || 'CT'}
+      {/* Main 2-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Contact & Associated Company */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <User className="w-4 h-4 text-[#23C45E]" /> Contact Information
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <span className="text-slate-400 text-[10px] font-bold uppercase block">Designation</span>
+                <p className="font-extrabold text-slate-900 mt-0.5">{contact.designation || 'N/A'}</p>
+              </div>
+
+              {(contact.phone || contact.mobile) && (
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">Primary Mobile</span>
+                  <a
+                    href={`tel:${contact.phone || contact.mobile}`}
+                    className="font-bold text-slate-800 hover:text-[#1AA14D] flex items-center gap-1.5 mt-0.5"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-[#23C45E]" /> {contact.phone || contact.mobile}
+                  </a>
+                </div>
+              )}
+
+              {contact.alternateMobile && (
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">Alternate Phone</span>
+                  <p className="font-bold text-slate-800 mt-0.5">{contact.alternateMobile}</p>
+                </div>
+              )}
+
+              {contact.email && (
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">Email Address</span>
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="font-bold text-slate-800 hover:text-[#1AA14D] flex items-center gap-1.5 mt-0.5"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-slate-400" /> {contact.email}
+                  </a>
+                </div>
+              )}
+
+              {contact.website && (
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">Website</span>
+                  <a
+                    href={contact.website.startsWith('http') ? contact.website : `https://${contact.website}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-bold text-blue-600 hover:underline flex items-center gap-1.5 mt-0.5"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-blue-500" /> {contact.website}
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Associated Company Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <Building className="w-4 h-4 text-purple-600" /> Associated Organization
+            </h3>
+
+            {contact.company ? (
+              <div className="p-4 bg-purple-50/60 rounded-2xl border border-purple-100 space-y-2 text-xs">
+                <Link
+                  href={`/companies/${contact.company.id}`}
+                  className="font-extrabold text-purple-950 text-sm hover:underline flex items-center justify-between"
+                >
+                  <span>{contact.company.name}</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+                {contact.company.city && <p className="text-purple-800/80">{contact.company.city}, {contact.company.country || 'India'}</p>}
+                {contact.company.phone && <p className="text-purple-800/80">Phone: {contact.company.phone}</p>}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 font-bold italic">No company linked to this contact.</p>
+            )}
+          </div>
+
+          {/* Assigned Owner Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-2 text-xs">
+            <span className="text-slate-400 text-[10px] font-bold uppercase block">CRM Owner</span>
+            <p className="font-extrabold text-slate-900 text-sm">
+              {contact.assignedTo ? `${contact.assignedTo.firstName} ${contact.assignedTo.lastName}` : 'Unassigned'}
+            </p>
+          </div>
+        </div>
+
+        {/* Right Column: Tabbed Relations (Deals, Visits, Timeline) */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-2 flex items-center gap-2">
+            {(
+              [
+                { key: 'DEALS', label: 'Associated Deals', count: contact.deals?.length || 0 },
+                { key: 'VISITS', label: 'Field Visits', count: contact.visits?.length || 0 },
+                { key: 'TIMELINE', label: 'Communication History', count: contact.communications?.length || 0 },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+                  activeTab === tab.key
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                    activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* TAB 1: DEALS */}
+          {activeTab === 'DEALS' && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                Pipeline Deals Tied to Contact
+              </h3>
+
+              {contact.deals && contact.deals.length > 0 ? (
+                <div className="space-y-3">
+                  {contact.deals.map((deal: any) => (
+                    <div
+                      key={deal.id}
+                      className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <Link
+                          href={`/deals/${deal.id}`}
+                          className="font-extrabold text-slate-900 hover:text-[#1AA14D] text-sm"
+                        >
+                          {deal.title}
+                        </Link>
+                        <p className="text-slate-500 font-bold">
+                          Stage: {deal.stage?.name || 'Pipeline'} • Prob: {deal.probability}%
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-slate-900 text-sm">
+                          ₹{Number(deal.amount || 0).toLocaleString('en-IN')}
+                        </p>
+                        <span
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            deal.isWon ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {deal.isWon ? 'WON' : 'OPEN'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 py-8 text-center font-bold">No active deals with this contact.</p>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: VISITS */}
+          {activeTab === 'VISITS' && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                Field Visits & Meetings
+              </h3>
+
+              {contact.visits && contact.visits.length > 0 ? (
+                <div className="space-y-3">
+                  {contact.visits.map((visit: any) => (
+                    <div
+                      key={visit.id}
+                      className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-xs"
+                    >
+                      <div className="space-y-1">
+                        <p className="font-black text-slate-900 text-sm">{visit.purpose || 'Client Visit'}</p>
+                        <p className="text-slate-500 flex items-center gap-1 font-medium">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400" /> {visit.location}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-slate-700">
+                          {visit.date ? new Date(visit.date).toLocaleDateString() : 'Scheduled'}
+                        </p>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                          {visit.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 py-8 text-center font-bold">No scheduled field visits.</p>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: TIMELINE */}
+          {activeTab === 'TIMELINE' && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                Communication History & Logs
+              </h3>
+
+              {contact.communications && contact.communications.length > 0 ? (
+                <div className="space-y-3">
+                  {contact.communications.map((comm: any) => (
+                    <div key={comm.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-slate-900">{comm.type}: {comm.summary}</span>
+                        <span className="text-[10px] text-slate-400 font-bold">{new Date(comm.timestamp).toLocaleString()}</span>
+                      </div>
+                      {comm.details && <p className="text-slate-600 font-medium">{comm.details}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 py-8 text-center font-bold">No communication history logged.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SCHEDULE VISIT DRAWER */}
+      <AdminFormDrawer
+        isOpen={isVisitDrawerOpen}
+        onClose={() => setIsVisitDrawerOpen(false)}
+        title="Schedule Client Visit"
+        subtitle={`Contact: ${name}`}
+        size="md"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            scheduleVisitMutation.mutate();
+          }}
+          className="space-y-4"
+        >
           <div>
-            <h2 className="text-base font-extrabold text-slate-900">{name}</h2>
-            <p className="text-slate-500 font-medium">{contact.designation || contact.type || 'Enterprise Contact'}</p>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Visit Purpose *</label>
+            <input
+              type="text"
+              required
+              value={visitForm.purpose}
+              onChange={(e) => setVisitForm({ ...visitForm, purpose: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            />
           </div>
-        </div>
 
-        <div className="space-y-3">
-          {contact.email && (
-            <div className="p-3 bg-slate-50 rounded-xl flex items-center gap-2">
-              <Mail className="w-4 h-4 text-emerald-600" />
-              <span className="font-bold text-slate-900">Email:</span>
-              <a href={`mailto:${contact.email}`} className="text-slate-700 hover:underline">
-                {contact.email}
-              </a>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Date *</label>
+              <input
+                type="date"
+                required
+                value={visitForm.date}
+                onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
             </div>
-          )}
-          {contact.phone && (
-            <div className="p-3 bg-slate-50 rounded-xl flex items-center gap-2">
-              <Phone className="w-4 h-4 text-emerald-600" />
-              <span className="font-bold text-slate-900">Phone:</span>
-              <span className="text-slate-700">{contact.phone}</span>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Time *</label>
+              <input
+                type="text"
+                required
+                value={visitForm.time}
+                onChange={(e) => setVisitForm({ ...visitForm, time: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
             </div>
-          )}
-          {contact.notes && (
-            <div className="p-4 bg-slate-50 rounded-xl space-y-1">
-              <span className="font-bold text-slate-900 block text-[11px] uppercase tracking-wider text-slate-400">Notes</span>
-              <p className="text-slate-700 leading-relaxed font-medium">{contact.notes}</p>
-            </div>
-          )}
-        </div>
-      </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Location *</label>
+            <input
+              type="text"
+              required
+              value={visitForm.location}
+              onChange={(e) => setVisitForm({ ...visitForm, location: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3">
+            <button
+              type="button"
+              onClick={() => setIsVisitDrawerOpen(false)}
+              className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={scheduleVisitMutation.isPending}
+              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20"
+            >
+              {scheduleVisitMutation.isPending ? 'Scheduling...' : 'Schedule Visit'}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { UserCheck, Mail, Phone, Building2, DollarSign } from 'lucide-react';
+import { UserCheck, Mail, Phone, Building2, DollarSign, Globe, Tag, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   AdminFormPage,
@@ -13,47 +13,142 @@ import {
   AdminSelect,
   AdminTextarea,
 } from '@/components/admin';
+import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function EditLeadPage() {
   const params = useParams();
-  const id = (params?.id as string) || '1';
+  const id = (params?.id as string) || '';
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    firstName: 'Ankit',
-    lastName: 'Kulkarni',
-    company: 'Apex Tech Solutions',
-    email: 'ankit@apextech.com',
-    phone: '+91 98765 11111',
+    title: '',
+    firstName: '',
+    lastName: '',
+    companyName: '',
+    category: '',
+    email: '',
+    phone: '',
+    website: '',
+    address: '',
+    city: '',
+    state: '',
+    country: 'India',
     source: 'WEBSITE',
-    status: 'QUALIFIED',
-    leadValue: '450000',
-    assignedTo: 'Rahul Sharma',
-    notes: 'Requested product demo for multi-branch HRM and GPS workforce tracking solution.',
+    status: 'NEW',
+    priority: 'MEDIUM',
+    leadValue: '50000',
+    assignedToId: '',
+    notes: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch Existing Lead
+  const { data: lead, isLoading: isLoadingLead } = useQuery({
+    queryKey: ['lead-detail-edit', id],
+    queryFn: async () => {
+      const res: any = await api.get(`/leads/${id}`);
+      return res?.data || res;
+    },
+    enabled: Boolean(id),
+  });
+
+  // Fetch Employees
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-active-employees'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
+
+  useEffect(() => {
+    if (lead) {
+      setFormData({
+        title: lead.title || '',
+        firstName: lead.firstName || '',
+        lastName: lead.lastName || '',
+        companyName: lead.companyName || lead.title || '',
+        category: lead.category || '',
+        email: lead.email || '',
+        phone: lead.phone || '',
+        website: lead.website || '',
+        address: lead.address || '',
+        city: lead.city || '',
+        state: lead.state || '',
+        country: lead.country || 'India',
+        source: lead.source || 'WEBSITE',
+        status: lead.status || 'NEW',
+        priority: lead.priority || 'MEDIUM',
+        leadValue: String(lead.value || 50000),
+        assignedToId: lead.assignedToId ? String(lead.assignedToId) : '',
+        notes: '',
+      });
+    }
+  }, [lead]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const payload = {
+        title: formData.title.trim() || formData.companyName.trim() || `${formData.firstName} ${formData.lastName}`.trim(),
+        firstName: formData.firstName.trim() || 'Prospect',
+        lastName: formData.lastName.trim() || 'Client',
+        companyName: formData.companyName.trim() || undefined,
+        category: formData.category.trim() || undefined,
+        email: formData.email.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
+        website: formData.website.trim() || undefined,
+        address: formData.address.trim() || undefined,
+        city: formData.city.trim() || undefined,
+        state: formData.state.trim() || undefined,
+        country: formData.country.trim() || 'India',
+        source: formData.source,
+        status: formData.status,
+        priority: formData.priority,
+        value: formData.leadValue ? Number(formData.leadValue) : 0,
+        assignedToId: formData.assignedToId || undefined,
+      };
+
+      await api.patch(`/leads/${id}`, payload);
       toast.success(`Lead #${id} updated successfully!`);
-      router.push('/leads');
-    }, 600);
+      router.push(`/leads/${id}`);
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <AdminFormPage
       title={`Edit CRM Lead (#${id})`}
       description={`Update sales qualification status, deal value, and contact coordinates for ${formData.firstName} ${formData.lastName}.`}
-      backHref="/leads"
-      backLabel="Back to Leads"
+      backHref={`/leads/${id}`}
+      backLabel="Back to Lead"
       badge="Edit Lead"
       maxWidthClass="max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <AdminFormSection title="Lead Contact & Company" description="Prospective client details" icon={UserCheck} columns={2}>
+          <AdminFormField label="Client Company / Business Name *" required fullWidth>
+            <AdminInput
+              type="text"
+              required
+              icon={Building2}
+              value={formData.companyName}
+              onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+            />
+          </AdminFormField>
+
           <AdminFormField label="First Name" required>
             <AdminInput
               type="text"
@@ -72,103 +167,144 @@ export default function EditLeadPage() {
             />
           </AdminFormField>
 
-          <AdminFormField label="Client Company Name" required fullWidth>
-            <AdminInput
-              type="text"
-              required
-              icon={Building2}
-              value={formData.company}
-              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Email Address" required>
+          <AdminFormField label="Email Address">
             <AdminInput
               type="email"
-              required
               icon={Mail}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Phone Number" required>
+          <AdminFormField label="Phone Number">
             <AdminInput
               type="tel"
-              required
               icon={Phone}
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
           </AdminFormField>
+
+          <AdminFormField label="Industry / Category">
+            <AdminInput
+              type="text"
+              icon={Tag}
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Website URL">
+            <AdminInput
+              type="text"
+              icon={Globe}
+              value={formData.website}
+              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+            />
+          </AdminFormField>
         </AdminFormSection>
 
-        <AdminFormSection title="Pipeline & Valuation" description="Estimated deal size and stage" icon={DollarSign} columns={2}>
+        <AdminFormSection title="Location" description="Office address and geographic details" icon={MapPin} columns={2}>
+          <AdminFormField label="Street Address" fullWidth>
+            <AdminInput
+              type="text"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="City">
+            <AdminInput
+              type="text"
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="State">
+            <AdminInput
+              type="text"
+              value={formData.state}
+              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Deal Value & Pipeline" description="Qualification and sales owner" icon={DollarSign} columns={2}>
           <AdminFormField label="Estimated Deal Value (₹)" required>
             <AdminInput
               type="number"
               required
+              icon={DollarSign}
               value={formData.leadValue}
               onChange={(e) => setFormData({ ...formData, leadValue: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Pipeline Status" required>
-            <AdminSelect
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              options={[
-                { value: 'NEW', label: 'New Uncontacted' },
-                { value: 'CONTACTED', label: 'Contacted' },
-                { value: 'QUALIFIED', label: 'Qualified Opportunity' },
-                { value: 'PROPOSAL_SENT', label: 'Proposal Sent' },
-                { value: 'NEGOTIATION', label: 'In Negotiation' },
-                { value: 'CLOSED_WON', label: 'Closed Won' },
-                { value: 'CLOSED_LOST', label: 'Closed Lost' },
-              ]}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Assigned Rep" required>
-            <AdminSelect
-              value={formData.assignedTo}
-              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-              options={[
-                { value: 'Rahul Sharma', label: 'Rahul Sharma (Senior BD)' },
-                { value: 'Sneha Gupta', label: 'Sneha Gupta (Account Lead)' },
-                { value: 'Amit Verma', label: 'Amit Verma (Enterprise Rep)' },
-              ]}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Lead Source" required>
+          <AdminFormField label="Lead Source">
             <AdminSelect
               value={formData.source}
               onChange={(e) => setFormData({ ...formData, source: e.target.value })}
               options={[
-                { value: 'WEBSITE', label: 'Inbound Website Form' },
-                { value: 'LINKEDIN', label: 'LinkedIn Outbound' },
-                { value: 'REFERRAL', label: 'Client Referral' },
-                { value: 'EVENT', label: 'Conference / Event' },
+                { label: 'Website Form', value: 'WEBSITE' },
+                { label: 'Google Places', value: 'GOOGLE_PLACES' },
+                { label: 'Client Referral', value: 'REFERRAL' },
+                { label: 'LinkedIn Outreach', value: 'LINKEDIN' },
+                { label: 'Cold Calling', value: 'COLD_CALL' },
+                { label: 'Campaign / Ads', value: 'CAMPAIGN' },
+                { label: 'Other', value: 'OTHER' },
               ]}
             />
           </AdminFormField>
 
-          <AdminFormField label="Notes & Updates" fullWidth>
-            <AdminTextarea
-              rows={3}
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          <AdminFormField label="Pipeline Status">
+            <AdminSelect
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              options={[
+                { label: 'NEW', value: 'NEW' },
+                { label: 'CONTACTED', value: 'CONTACTED' },
+                { label: 'FOLLOW_UP', value: 'FOLLOW_UP' },
+                { label: 'QUALIFIED', value: 'QUALIFIED' },
+                { label: 'PROPOSAL', value: 'PROPOSAL' },
+                { label: 'CONVERTED', value: 'CONVERTED' },
+                { label: 'LOST', value: 'LOST' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Priority Level">
+            <AdminSelect
+              value={formData.priority}
+              onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+              options={[
+                { label: 'URGENT', value: 'URGENT' },
+                { label: 'HIGH', value: 'HIGH' },
+                { label: 'MEDIUM', value: 'MEDIUM' },
+                { label: 'LOW', value: 'LOW' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Assigned Sales Representative" fullWidth>
+            <AdminSelect
+              value={formData.assignedToId}
+              onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
+              options={[
+                { label: '-- Unassigned --', value: '' },
+                ...employees.map((emp) => ({
+                  label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})`,
+                  value: String(emp.id),
+                })),
+              ]}
             />
           </AdminFormField>
         </AdminFormSection>
 
         <AdminFormActions
-          backHref="/leads"
-          cancelLabel="Cancel"
-          submitLabel="Save Changes"
-          loading={loading}
-          sticky
+          backHref={`/leads/${id}`}
+          submitLabel={loading ? 'Updating...' : 'Update Lead'}
+          isSubmitting={loading}
         />
       </form>
     </AdminFormPage>

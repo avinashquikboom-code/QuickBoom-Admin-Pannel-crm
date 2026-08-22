@@ -234,6 +234,7 @@ export const adminNavigation: {
         { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
         { name: 'Designations', href: '/designations', icon: Award, permission: 'designation.view' },
         { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view_all' },
+        { name: 'Shifts', href: '/shifts', icon: Clock, permission: 'attendance.view_all' },
         { name: 'Leave', href: '/leaves', icon: Calendar, permission: 'leave.view_all' },
         { name: 'Remote Work', href: '/remote-work', icon: Laptop, permission: 'remote.view_all' },
         { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, feature: 'geo_tracking', permission: 'geo_tracking.view' },
@@ -344,6 +345,7 @@ export const adminNavigation: {
       items: [
         { name: 'Roles & Permissions', href: '/roles-permissions', icon: ShieldCheck, permission: 'roles.manage' },
         { name: 'Company Settings', href: '/settings?tab=company', icon: Building2, permission: 'settings.view' },
+        { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
         { name: 'System Settings', href: '/settings?tab=system', icon: SlidersHorizontal, permission: 'settings.global' },
       ],
     },
@@ -406,6 +408,18 @@ export const adminNavigation: {
       roles: ['HR'],
       items: [
         { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view' },
+      ],
+    },
+
+    // 5b. Shifts
+    {
+      id: 'shifts',
+      category: 'Shifts',
+      sectionIcon: Clock,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Shifts & Guidance', href: '/shifts', icon: Clock, permission: 'attendance.view' },
       ],
     },
 

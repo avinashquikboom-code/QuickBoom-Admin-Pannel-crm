@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Contact, Mail, Phone, Building2, User, Globe, MapPin } from 'lucide-react';
+import { Users, Mail, Phone, Building, User, Globe, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
 import {
   AdminFormPage,
   AdminFormSection,
@@ -13,56 +14,80 @@ import {
   AdminSelect,
   AdminTextarea,
 } from '@/components/admin';
-
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function CreateContactPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     designation: '',
-    company: '',
+    companyId: '',
     email: '',
     phone: '',
-    type: 'CUSTOMER',
-    city: 'Mumbai',
+    mobile: '',
+    website: '',
+    assignedToId: '',
+    status: 'ACTIVE',
     notes: '',
   });
+
+  // Fetch Companies
+  const { data: companiesData } = useQuery({
+    queryKey: ['admin-companies-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/companies', { params: { limit: 100 } });
+        const items = res?.data?.data || res?.data?.items || res?.data || res;
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // Fetch Employees
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-employees-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const companies: any[] = Array.isArray(companiesData) ? companiesData : [];
+  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const parts = formData.name.trim().split(/\s+/);
-      const firstName = parts[0] || 'Contact';
-      const lastName = parts.slice(1).join(' ') || 'Stakeholder';
-
-      const typeMap: Record<string, string> = {
-        CLIENT: 'CUSTOMER',
-        CUSTOMER: 'CUSTOMER',
-        PROSPECT: 'PROSPECT',
-        PARTNER: 'PARTNER',
-        VENDOR: 'VENDOR',
-      };
-
       const payload = {
-        firstName,
-        lastName,
-        designation: formData.designation || undefined,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        type: typeMap[formData.type] || 'CUSTOMER',
-        notes: formData.notes ? `${formData.company ? `Company: ${formData.company}. ` : ''}${formData.notes}` : (formData.company ? `Company: ${formData.company}` : undefined),
+        firstName: formData.firstName.trim() || 'Contact',
+        lastName: formData.lastName.trim() || '',
+        designation: formData.designation.trim() || undefined,
+        companyId: formData.companyId || undefined,
+        email: formData.email.trim() || undefined,
+        phone: formData.phone.trim() || formData.mobile.trim() || undefined,
+        mobile: formData.mobile.trim() || formData.phone.trim() || undefined,
+        website: formData.website.trim() || undefined,
+        assignedToId: formData.assignedToId || undefined,
+        status: formData.status || 'ACTIVE',
+        notes: formData.notes.trim() || undefined,
       };
 
       await api.post('/contacts', payload);
-      toast.success('Contact entry created successfully!');
+      toast.success('Contact created successfully!');
       router.push('/contacts');
-    } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to create contact';
-      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Failed to create contact');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -70,99 +95,112 @@ export default function CreateContactPage() {
 
   return (
     <AdminFormPage
-      title="Add New Contact"
-      description="Create a new client stakeholder, vendor representative, or partner contact entry."
+      title="Add Contact Person"
+      description="Create a new client contact, link to corporate entity, and assign an account owner."
       backHref="/contacts"
       backLabel="Back to Contacts"
-      badge="Directory"
+      badge="Contact Management"
       maxWidthClass="max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        <AdminFormSection title="Personal & Professional Information" description="Contact identity and organizational role" icon={Contact} columns={2}>
-          <AdminFormField label="Full Name" required>
+        <AdminFormSection title="Personal Information" description="Name and executive designation" icon={Users} columns={2}>
+          <AdminFormField label="First Name" required>
             <AdminInput
               type="text"
               required
-              placeholder="e.g. Ramesh Kothari"
-              icon={User}
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="e.g. Anand"
+              value={formData.firstName}
+              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Job Title / Designation" required>
+          <AdminFormField label="Last Name">
             <AdminInput
               type="text"
-              required
-              placeholder="e.g. Chief Procurement Officer"
+              placeholder="e.g. Mahindra"
+              value={formData.lastName}
+              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Designation / Job Title" fullWidth>
+            <AdminInput
+              type="text"
+              placeholder="e.g. Managing Director, Procurement Head"
               value={formData.designation}
               onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
             />
           </AdminFormField>
-
-          <AdminFormField label="Organization / Company" required fullWidth>
-            <AdminInput
-              type="text"
-              required
-              placeholder="e.g. Reliance Retail Systems Ltd"
-              icon={Building2}
-              value={formData.company}
-              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Contact Classification" required>
-            <AdminSelect
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              options={[
-                { value: 'CLIENT', label: 'Enterprise Client' },
-                { value: 'PROSPECT', label: 'Sales Prospect' },
-                { value: 'PARTNER', label: 'Channel Partner' },
-                { value: 'VENDOR', label: 'Supplier / Vendor' },
-              ]}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="City / Region" required>
-            <AdminInput
-              type="text"
-              required
-              placeholder="Mumbai, Maharashtra"
-              icon={MapPin}
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-            />
-          </AdminFormField>
         </AdminFormSection>
 
-        <AdminFormSection title="Communication Channels" description="Official email, direct phone, and notes" icon={Mail} columns={2}>
-          <AdminFormField label="Corporate Email Address" required>
+        <AdminFormSection title="Communication Channels" description="Phone numbers, email, and web profiles" icon={Phone} columns={2}>
+          <AdminFormField label="Primary Mobile">
             <AdminInput
-              type="email"
-              required
-              placeholder="Enter corporate email address"
-              icon={Mail}
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              type="text"
+              placeholder="e.g. +91 98200 12345"
+              value={formData.mobile}
+              onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Direct Phone Number" required>
+          <AdminFormField label="Office / Landline Phone">
             <AdminInput
-              type="tel"
-              required
-              placeholder="Enter phone number"
-              icon={Phone}
+              type="text"
+              placeholder="e.g. +91 22 2345 6789"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Notes & Background Context" fullWidth>
+          <AdminFormField label="Email Address">
+            <AdminInput
+              type="email"
+              placeholder="e.g. anand@company.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Website URL">
+            <AdminInput
+              type="text"
+              placeholder="e.g. https://company.com"
+              value={formData.website}
+              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Company Affiliation & Assignment" description="Associate with account and CRM representative" icon={Building} columns={2}>
+          <AdminFormField label="Associated Company">
+            <AdminSelect
+              value={formData.companyId}
+              onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
+              options={[
+                { value: '', label: '-- Independent Contact --' },
+                ...companies.map((c) => ({ value: String(c.id), label: c.name })),
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Assigned CRM Owner">
+            <AdminSelect
+              value={formData.assignedToId}
+              onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
+              options={[
+                { value: '', label: '-- Unassigned --' },
+                ...employees.map((emp) => ({
+                  value: String(emp.id),
+                  label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})`,
+                })),
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Notes & Background" fullWidth>
             <AdminTextarea
               rows={3}
-              placeholder="Relationship history, preferred meeting times, key projects..."
+              placeholder="Client relationship details, preferred meeting times..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             />
@@ -171,10 +209,9 @@ export default function CreateContactPage() {
 
         <AdminFormActions
           backHref="/contacts"
-          cancelLabel="Cancel"
-          submitLabel="Create Contact"
+          submitLabel={loading ? 'Creating...' : 'Create Contact'}
+          onCancel={() => router.push('/contacts')}
           loading={loading}
-          sticky
         />
       </form>
     </AdminFormPage>

@@ -1,218 +1,832 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Filter, Mail, Phone, Building2, MapPin, Tag, Contact } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Mail,
+  Phone,
+  Building,
+  UserCheck,
+  Calendar,
+  Eye,
+  Trash2,
+  Edit,
+  Globe,
+  RefreshCw,
+  Clock,
+  CheckCircle2,
+  Users,
+  Briefcase,
+  Layers,
+  Sparkles,
+  Award,
+  ExternalLink,
+  MessageSquare,
+} from 'lucide-react';
+import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import api from '@/lib/api';
-
-const demoContacts = [
-  {
-    id: '1',
-    name: 'Rajesh Sharma',
-    email: 'rajesh@techcorp.in',
-    phone: '+91 98765 43210',
-    company: 'TechCorp India Ltd',
-    designation: 'VP of Technology',
-    city: 'Mumbai, Maharashtra',
-    type: 'CUSTOMER',
-  },
-  {
-    id: '2',
-    name: 'Ananya Verma',
-    email: 'ananya@acmesolutions.com',
-    phone: '+91 91234 56789',
-    company: 'Acme Global Solutions',
-    designation: 'Procurement Manager',
-    city: 'Bengaluru, Karnataka',
-    type: 'PROSPECT',
-  },
-  {
-    id: '3',
-    name: 'Vikram Patel',
-    email: 'vikram@innovatelabs.co',
-    phone: '+91 99887 76655',
-    company: 'Innovate Labs',
-    designation: 'CEO & Founder',
-    city: 'Gurugram, Haryana',
-    type: 'PARTNER',
-  },
-];
+import {
+  AdminPageHero,
+  AdminStatCard,
+  AdminFormDrawer,
+} from '@/components/admin';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function ContactsPage() {
-  const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState('ALL');
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [assignedFilter, setAssignedFilter] = useState('ALL');
 
-  const { data: contactsResponse, isLoading } = useQuery({
-    queryKey: ['contacts', search, selectedType],
+  // Modals / Drawers
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isVisitDrawerOpen, setIsVisitDrawerOpen] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<any>(null);
+
+  // Form State
+  const [form, setForm] = useState({
+    id: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    mobile: '',
+    alternateMobile: '',
+    designation: '',
+    website: '',
+    companyId: '',
+    source: 'DIRECT',
+    status: 'ACTIVE',
+    assignedToId: '',
+    notes: '',
+  });
+
+  // Schedule Visit form
+  const [visitForm, setVisitForm] = useState({
+    purpose: 'On-site Client Meeting',
+    visitType: 'CLIENT_MEETING',
+    date: new Date().toISOString().split('T')[0],
+    time: '11:00 AM',
+    location: '',
+    employeeId: '',
+    notes: '',
+  });
+
+  // 1. Fetch Contacts
+  const { data: contactsData, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['admin-contacts-list', search, companyFilter, statusFilter, assignedFilter],
     queryFn: async () => {
       try {
         const res: any = await api.get('/contacts', {
           params: {
             search: search || undefined,
-            type: selectedType !== 'ALL' ? selectedType : undefined,
+            companyId: companyFilter !== 'ALL' ? companyFilter : undefined,
+            status: statusFilter !== 'ALL' ? statusFilter : undefined,
+            assignedToId: assignedFilter !== 'ALL' ? assignedFilter : undefined,
           },
         });
+        const items = res?.data?.data || res?.data?.items || res?.data || res?.items || res;
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // 2. Fetch Metrics
+  const { data: metricsData } = useQuery({
+    queryKey: ['admin-contacts-metrics'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/contacts/metrics');
         return res?.data || res;
-      } catch (e) {
+      } catch {
         return null;
       }
     },
-    retry: false,
   });
 
+  // 3. Fetch Companies for dropdown
+  const { data: companiesData } = useQuery({
+    queryKey: ['admin-companies-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/companies', { params: { limit: 100 } });
+        const items = res?.data?.data || res?.data?.items || res?.data || res;
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // 4. Fetch Employees
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-employees-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const contacts: any[] = Array.isArray(contactsData) ? contactsData : [];
+  const companies: any[] = Array.isArray(companiesData) ? companiesData : [];
+  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
+
+  const metrics = {
+    total: metricsData?.total ?? contacts.length,
+    active: metricsData?.active ?? contacts.filter((c) => c.status === 'ACTIVE').length,
+    new: metricsData?.new ?? contacts.length,
+    withFollowUps: metricsData?.withFollowUps ?? contacts.filter((c) => c.visits?.length > 0).length,
+  };
+
+  // Save Contact Mutation
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        firstName: form.firstName.trim() || 'Contact',
+        lastName: form.lastName.trim() || '',
+        email: form.email.trim() || undefined,
+        phone: form.phone.trim() || form.mobile.trim() || undefined,
+        mobile: form.mobile.trim() || form.phone.trim() || undefined,
+        alternateMobile: form.alternateMobile.trim() || undefined,
+        designation: form.designation.trim() || undefined,
+        website: form.website.trim() || undefined,
+        companyId: form.companyId || undefined,
+        source: form.source || 'DIRECT',
+        status: form.status || 'ACTIVE',
+        assignedToId: form.assignedToId || undefined,
+        notes: form.notes.trim() || undefined,
+      };
+
+      if (form.id) {
+        return api.patch(`/contacts/${form.id}`, payload);
+      } else {
+        return api.post('/contacts', payload);
+      }
+    },
+    onSuccess: () => {
+      toast.success(form.id ? 'Contact updated successfully' : 'Contact created successfully');
+      setIsDrawerOpen(false);
+      resetForm();
+      queryClient.invalidateQueries({ queryKey: ['admin-contacts-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-contacts-metrics'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Delete Mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (id: number | string) => {
       return api.delete(`/contacts/${id}`);
     },
     onSuccess: () => {
-      toast.success('Contact deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      toast.success('Contact archived successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin-contacts-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-contacts-metrics'] });
     },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Failed to delete contact');
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
     },
   });
 
-  const rawContacts = Array.isArray(contactsResponse)
-    ? contactsResponse
-    : Array.isArray(contactsResponse?.data)
-    ? contactsResponse.data
-    : null;
-
-  const contactsList = rawContacts !== null ? rawContacts : demoContacts;
-
-  const filteredContacts = contactsList.filter((c: any) => {
-    const name = `${c.name || `${c.firstName || ''} ${c.lastName || ''}`}`.toLowerCase();
-    const company = (c.company || c.companyName || '').toLowerCase();
-    const email = (c.email || '').toLowerCase();
-    const q = search.toLowerCase();
-    const matchesSearch = name.includes(q) || company.includes(q) || email.includes(q);
-    const matchesType = selectedType === 'ALL' || c.type === selectedType;
-    return matchesSearch && matchesType;
+  // Schedule Visit Mutation
+  const scheduleVisitMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedContact) return;
+      return api.post('/visits', {
+        customerName: `${selectedContact.firstName} ${selectedContact.lastName}`,
+        purpose: visitForm.purpose,
+        visitType: visitForm.visitType,
+        date: new Date(visitForm.date).toISOString(),
+        time: visitForm.time,
+        location: visitForm.location || selectedContact.company?.address || 'Client Office',
+        companyId: selectedContact.companyId ? String(selectedContact.companyId) : undefined,
+        contactId: String(selectedContact.id),
+        employeeId: visitForm.employeeId || undefined,
+        notes: visitForm.notes || undefined,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Visit scheduled successfully for contact');
+      setIsVisitDrawerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-contacts-list'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
   });
+
+  const resetForm = () => {
+    setForm({
+      id: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      mobile: '',
+      alternateMobile: '',
+      designation: '',
+      website: '',
+      companyId: '',
+      source: 'DIRECT',
+      status: 'ACTIVE',
+      assignedToId: '',
+      notes: '',
+    });
+  };
+
+  const handleOpenCreate = () => {
+    resetForm();
+    setIsDrawerOpen(true);
+  };
+
+  const handleOpenEdit = (contact: any) => {
+    setSelectedContact(contact);
+    setForm({
+      id: String(contact.id),
+      firstName: contact.firstName || '',
+      lastName: contact.lastName || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      mobile: contact.mobile || contact.phone || '',
+      alternateMobile: contact.alternateMobile || '',
+      designation: contact.designation || '',
+      website: contact.website || '',
+      companyId: contact.companyId ? String(contact.companyId) : '',
+      source: contact.source || 'DIRECT',
+      status: contact.status || 'ACTIVE',
+      assignedToId: contact.assignedToId ? String(contact.assignedToId) : '',
+      notes: contact.notes || '',
+    });
+    setIsDrawerOpen(true);
+  };
+
+  const handleOpenScheduleVisit = (contact: any) => {
+    setSelectedContact(contact);
+    setVisitForm({
+      purpose: 'Client Consultation & Review',
+      visitType: 'CLIENT_MEETING',
+      date: new Date().toISOString().split('T')[0],
+      time: '11:00 AM',
+      location: contact.company?.address || contact.company?.city || 'Client HQ',
+      employeeId: contact.assignedToId ? String(contact.assignedToId) : '',
+      notes: '',
+    });
+    setIsVisitDrawerOpen(true);
+  };
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Card */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                Client & Partner Directory
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Contacts Directory
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Centralized directory of client contacts, key stakeholders, and partner accounts.
-            </p>
-          </div>
-
+      {/* 1. HERO CARD */}
+      <AdminPageHero
+        badge={{
+          text: 'CONTACT MANAGEMENT',
+          icon: Users,
+          variant: 'emerald',
+        }}
+        title="Contacts"
+        description="Manage customer contacts, communication details, relationships and CRM activities."
+        actions={
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/contacts/create"
-              className="inline-flex items-center justify-center gap-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 px-5 py-2.5 rounded-2xl font-black text-xs transition-all shadow-md shadow-[#23C45E]/20 cursor-pointer active:scale-95"
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
+              title="Refresh contacts"
+            >
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
+            </button>
+
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Add New Contact</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] shadow-xs flex flex-wrap gap-4 items-center justify-between">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-[#64748B]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search contacts by name, email, company..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#23C45E] text-[#111827]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          {['ALL', 'CUSTOMER', 'PROSPECT', 'PARTNER'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setSelectedType(type)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                selectedType === type
-                  ? 'bg-[#23C45E] text-white shadow-xs'
-                  : 'bg-slate-50 text-[#64748B] hover:bg-[#E5E7EB]'
-              }`}
-            >
-              {type}
+              <span>+ Add Contact</span>
             </button>
-          ))}
+          </div>
+        }
+      />
+
+      {/* 2. KPI SUMMARY CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <AdminStatCard
+          title="Total Contacts"
+          value={isLoading ? '...' : metrics.total}
+          description="In CRM address book"
+          icon={Users}
+          iconBg="primary"
+        />
+        <AdminStatCard
+          title="Active Contacts"
+          value={isLoading ? '...' : metrics.active}
+          description="Verified stakeholders"
+          icon={CheckCircle2}
+          iconBg="primary"
+        />
+        <AdminStatCard
+          title="New Contacts"
+          value={isLoading ? '...' : metrics.new}
+          description="Added last 30 days"
+          icon={Sparkles}
+          iconBg="blue"
+        />
+        <AdminStatCard
+          title="Contacts with Visits"
+          value={isLoading ? '...' : metrics.withFollowUps}
+          description="Scheduled CRM touchpoints"
+          icon={Clock}
+          iconBg="purple"
+        />
+      </div>
+
+      {/* 3. FILTER TOOLBAR */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, email, phone..."
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+            />
+          </div>
+
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+          >
+            <option value="ALL">All Companies</option>
+            {companies.map((comp) => (
+              <option key={comp.id} value={String(comp.id)}>
+                {comp.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+            <option value="LEAD">LEAD</option>
+          </select>
+
+          <select
+            value={assignedFilter}
+            onChange={(e) => setAssignedFilter(e.target.value)}
+            className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+          >
+            <option value="ALL">All Owners</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={String(emp.id)}>
+                {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Contacts Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredContacts.map((contact: any) => (
-          <div
-            key={contact.id}
-            className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xs hover:border-[#23C45E] transition-all space-y-4"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-[#E8F9EE] text-[#23C45E] font-bold text-base flex items-center justify-center">
-                  {contact.name[0]}
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-[#111827]">{contact.name}</h3>
-                  <p className="text-xs text-[#64748B]">{contact.designation}</p>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-50 text-[#23C45E] border border-[#E5E7EB]">
-                {contact.type || 'CONTACT'}
-              </span>
-            </div>
+      {/* 4. MAIN CONTACTS TABLE */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[950px]">
+            <thead>
+              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                <th className="py-4 px-5">Contact Name</th>
+                <th className="py-4 px-4">Company</th>
+                <th className="py-4 px-4">Phone & Email</th>
+                <th className="py-4 px-4">Designation</th>
+                <th className="py-4 px-4">Owner</th>
+                <th className="py-4 px-4">Status</th>
+                <th className="py-4 px-5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                    Loading CRM contacts...
+                  </td>
+                </tr>
+              ) : contacts.length > 0 ? (
+                contacts.map((contact) => {
+                  const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Contact Person';
+                  const compName = contact.company?.name || 'Independent';
 
-            <div className="space-y-2 pt-2 border-t border-[#E5E7EB] text-xs text-[#64748B]">
-              <div className="flex items-center gap-2 text-[#111827] font-medium">
-                <Building2 className="w-4 h-4 text-[#23C45E]" />
-                <span>{contact.company}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-[#64748B]" />
-                <a href={`mailto:${contact.email}`} className="hover:underline text-[#23C45E]">
-                  {contact.email}
-                </a>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-[#64748B]" />
-                <span>{contact.phone}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#64748B]" />
-                <span>{contact.city}</span>
-              </div>
-            </div>
+                  return (
+                    <tr key={contact.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 flex items-center justify-center font-black shrink-0 shadow-2xs">
+                            {contact.firstName?.[0] || 'C'}
+                          </div>
+                          <div className="min-w-0">
+                            <Link
+                              href={`/contacts/${contact.id}`}
+                              className="font-extrabold text-slate-900 hover:text-[#1AA14D] text-sm truncate block transition-colors"
+                            >
+                              {fullName}
+                            </Link>
+                            <p className="text-slate-400 font-medium text-[11px]">#{contact.id}</p>
+                          </div>
+                        </div>
+                      </td>
 
-            <div className="pt-3 border-t border-[#E5E7EB] flex items-center justify-between">
-              <button className="text-xs font-semibold text-[#23C45E] hover:underline cursor-pointer">
-                View Timeline
-              </button>
-              <button className="px-3 py-1.5 bg-slate-50 border border-[#E5E7EB] text-[#111827] hover:bg-[#E5E7EB] rounded-lg text-xs font-medium cursor-pointer">
-                Edit
-              </button>
+                      <td className="py-4 px-4">
+                        {contact.company ? (
+                          <Link
+                            href={`/companies/${contact.company.id}`}
+                            className="font-bold text-slate-800 hover:text-blue-600 flex items-center gap-1.5"
+                          >
+                            <Building className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{contact.company.name}</span>
+                          </Link>
+                        ) : (
+                          <span className="text-slate-400 font-bold text-xs italic">No Company</span>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <div className="space-y-1">
+                          {(contact.phone || contact.mobile) && (
+                            <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                              <Phone className="w-3 h-3 text-[#23C45E]" />
+                              <span>{contact.phone || contact.mobile}</span>
+                            </p>
+                          )}
+                          {contact.email && (
+                            <p className="text-slate-500 font-medium text-[11px] truncate max-w-[180px] flex items-center gap-1.5">
+                              <Mail className="w-3 h-3 text-slate-400" />
+                              <span>{contact.email}</span>
+                            </p>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-4 font-bold text-slate-700">
+                        {contact.designation || '-'}
+                      </td>
+
+                      <td className="py-4 px-4">
+                        {contact.assignedTo ? (
+                          <span className="font-bold text-slate-800 text-xs">
+                            {contact.assignedTo.firstName} {contact.assignedTo.lastName}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-4">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-[#1AA14D] border border-emerald-200">
+                          {contact.status || 'ACTIVE'}
+                        </span>
+                      </td>
+
+                      <td className="py-4 px-5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/contacts/${contact.id}`}
+                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-[#1AA14D] transition-colors"
+                            title="View Contact Profile"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
+
+                          <button
+                            onClick={() => handleOpenScheduleVisit(contact)}
+                            className="p-2 hover:bg-blue-50 rounded-xl text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
+                            title="Schedule Visit"
+                          >
+                            <Calendar className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenEdit(contact)}
+                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
+                            title="Edit Contact"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              if (confirm(`Archive contact "${fullName}"?`)) {
+                                deleteMutation.mutate(contact.id);
+                              }
+                            }}
+                            className="p-2 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                            title="Archive Contact"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center text-slate-400">
+                    <p className="font-bold text-sm text-slate-600">No contacts found</p>
+                    <p className="text-xs text-slate-400 mt-1">Add contacts directly or link from Companies/Leads</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 5. ADD / EDIT CONTACT DRAWER */}
+      <AdminFormDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title={form.id ? 'Edit Contact' : 'Add New Contact'}
+        subtitle="Manage personal, communication, company affiliation, and CRM owner details"
+        size="lg"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveMutation.mutate();
+          }}
+          className="space-y-5"
+        >
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <UserCheck className="w-3.5 h-3.5 text-[#23C45E]" /> Personal Details
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">First Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={form.firstName}
+                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                  placeholder="e.g. Anand"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Last Name</label>
+                <input
+                  type="text"
+                  value={form.lastName}
+                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                  placeholder="e.g. Mahindra"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Designation / Title</label>
+                <input
+                  type="text"
+                  value={form.designation}
+                  onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                  placeholder="e.g. Managing Director, Procurement Head"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                />
+              </div>
             </div>
           </div>
-        ))}
-      </div>
+
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-blue-600" /> Contact Numbers & Email
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Mobile Number</label>
+                <input
+                  type="text"
+                  value={form.mobile}
+                  onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+                  placeholder="e.g. +91 98200 12345"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Alternate Phone</label>
+                <input
+                  type="text"
+                  value={form.alternateMobile}
+                  onChange={(e) => setForm({ ...form, alternateMobile: e.target.value })}
+                  placeholder="e.g. +91 22 2345 6789"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="e.g. anand@company.com"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Website URL</label>
+                <input
+                  type="text"
+                  value={form.website}
+                  onChange={(e) => setForm({ ...form, website: e.target.value })}
+                  placeholder="e.g. https://company.com"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <Building className="w-3.5 h-3.5 text-purple-600" /> Company & Assignment
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Associated Company</label>
+                <select
+                  value={form.companyId}
+                  onChange={(e) => setForm({ ...form, companyId: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+                >
+                  <option value="">-- Independent Contact --</option>
+                  {companies.map((comp) => (
+                    <option key={comp.id} value={String(comp.id)}>
+                      {comp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Assigned CRM Owner</label>
+                <select
+                  value={form.assignedToId}
+                  onChange={(e) => setForm({ ...form, assignedToId: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+                >
+                  <option value="">-- Unassigned --</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={String(emp.id)}>
+                      {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Notes & History</label>
+                <textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Special instructions or background details..."
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3">
+            <button
+              type="button"
+              onClick={() => setIsDrawerOpen(false)}
+              className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saveMutation.isPending}
+              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20"
+            >
+              {saveMutation.isPending ? 'Saving...' : form.id ? 'Save Changes' : 'Create Contact'}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
+
+      {/* 6. SCHEDULE VISIT DRAWER */}
+      <AdminFormDrawer
+        isOpen={isVisitDrawerOpen}
+        onClose={() => setIsVisitDrawerOpen(false)}
+        title="Schedule Client Visit"
+        subtitle={selectedContact ? `Contact: ${selectedContact.firstName} ${selectedContact.lastName}` : ''}
+        size="md"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            scheduleVisitMutation.mutate();
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Visit Purpose *</label>
+            <input
+              type="text"
+              required
+              value={visitForm.purpose}
+              onChange={(e) => setVisitForm({ ...visitForm, purpose: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Date *</label>
+              <input
+                type="date"
+                required
+                value={visitForm.date}
+                onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Time *</label>
+              <input
+                type="text"
+                required
+                value={visitForm.time}
+                onChange={(e) => setVisitForm({ ...visitForm, time: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Location *</label>
+            <input
+              type="text"
+              required
+              value={visitForm.location}
+              onChange={(e) => setVisitForm({ ...visitForm, location: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Assigned Field Representative</label>
+            <select
+              value={visitForm.employeeId}
+              onChange={(e) => setVisitForm({ ...visitForm, employeeId: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+            >
+              <option value="">-- Select Field Rep --</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={String(emp.id)}>
+                  {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3">
+            <button
+              type="button"
+              onClick={() => setIsVisitDrawerOpen(false)}
+              className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={scheduleVisitMutation.isPending}
+              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20"
+            >
+              {scheduleVisitMutation.isPending ? 'Scheduling...' : 'Schedule Visit'}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
     </div>
   );
 }

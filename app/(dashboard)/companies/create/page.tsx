@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Globe, MapPin, Users, DollarSign } from 'lucide-react';
+import { Building, Globe, MapPin, Users, DollarSign, Phone, Mail } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
 import {
   AdminFormPage,
   AdminFormSection,
@@ -13,6 +14,8 @@ import {
   AdminSelect,
   AdminTextarea,
 } from '@/components/admin';
+import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function CreateCompanyPage() {
   const router = useRouter();
@@ -21,131 +24,204 @@ export default function CreateCompanyPage() {
   const [formData, setFormData] = useState({
     name: '',
     industry: 'Technology & SaaS',
-    location: 'Mumbai, Maharashtra',
+    category: 'Cloud Infrastructure',
     website: '',
-    annualRevenue: '50000000',
-    tier: 'ENTERPRISE',
+    phone: '',
+    email: '',
     address: '',
-    gstNumber: '',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    country: 'India',
+    postalCode: '',
+    status: 'ACTIVE',
+    assignedToId: '',
+    notes: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch Employees for assignment
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-employees-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const payload = {
+        name: formData.name.trim() || 'Company Account',
+        industry: formData.industry.trim() || undefined,
+        category: formData.category.trim() || undefined,
+        website: formData.website.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
+        email: formData.email.trim() || undefined,
+        address: formData.address.trim() || undefined,
+        city: formData.city.trim() || undefined,
+        state: formData.state.trim() || undefined,
+        country: formData.country.trim() || 'India',
+        postalCode: formData.postalCode.trim() || undefined,
+        status: formData.status || 'ACTIVE',
+        assignedToId: formData.assignedToId || undefined,
+        notes: formData.notes.trim() || undefined,
+      };
+
+      await api.post('/companies', payload);
       toast.success('Company account registered successfully!');
       router.push('/companies');
-    }, 600);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <AdminFormPage
       title="Add Client Company Account"
-      description="Register a corporate client account, financial profile, and enterprise tier classification."
+      description="Register a corporate client account, location profile, and assign CRM representative."
       backHref="/companies"
       backLabel="Back to Companies"
-      badge="Accounts"
+      badge="Account Management"
       maxWidthClass="max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        <AdminFormSection title="Company Profile & Identity" description="Corporate name, industry, and registration" icon={Building2} columns={2}>
+        <AdminFormSection title="Company Profile & Identity" description="Corporate name, industry, and contact info" icon={Building} columns={2}>
           <AdminFormField label="Company Legal Name" required fullWidth>
             <AdminInput
               type="text"
               required
-              placeholder="e.g. Acme Global Technologies Private Limited"
-              icon={Building2}
+              placeholder="e.g. Apex Tech Solutions Private Limited"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Industry Sector" required>
-            <AdminSelect
-              value={formData.industry}
-              onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-              options={[
-                { value: 'Technology & SaaS', label: 'Technology & Software' },
-                { value: 'Finance & Banking', label: 'Banking & FinTech' },
-                { value: 'Healthcare & Pharma', label: 'Healthcare & Pharmaceuticals' },
-                { value: 'Retail & E-Commerce', label: 'Retail & E-Commerce' },
-                { value: 'Manufacturing & Logistics', label: 'Manufacturing & Supply Chain' },
-              ]}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Account Tier" required>
-            <AdminSelect
-              value={formData.tier}
-              onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
-              options={[
-                { value: 'ENTERPRISE', label: 'Enterprise Key Account' },
-                { value: 'MID_MARKET', label: 'Mid-Market Account' },
-                { value: 'SMB', label: 'Small / Medium Business' },
-                { value: 'STRATEGIC_PARTNER', label: 'Strategic Partner' },
-              ]}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Headquarters Location" required>
+          <AdminFormField label="Industry">
             <AdminInput
               type="text"
-              required
-              placeholder="Mumbai, Maharashtra"
-              icon={MapPin}
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              placeholder="e.g. Technology & SaaS"
+              value={formData.industry}
+              onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Corporate Website URL">
+          <AdminFormField label="Category / Segment">
             <AdminInput
-              type="url"
-              placeholder="https://www.acmetech.com"
-              icon={Globe}
+              type="text"
+              placeholder="e.g. Enterprise Cloud ERP"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Official Website">
+            <AdminInput
+              type="text"
+              placeholder="e.g. https://apextech.com"
               value={formData.website}
               onChange={(e) => setFormData({ ...formData, website: e.target.value })}
             />
           </AdminFormField>
-        </AdminFormSection>
 
-        <AdminFormSection title="Financial & Tax Compliance" description="Annual turnover and GST details" icon={DollarSign} columns={2}>
-          <AdminFormField label="Estimated Annual Turnover (₹)">
-            <AdminInput
-              type="number"
-              placeholder="50000000"
-              value={formData.annualRevenue}
-              onChange={(e) => setFormData({ ...formData, annualRevenue: e.target.value })}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="GSTIN / Corporate Tax ID">
+          <AdminFormField label="Official Phone">
             <AdminInput
               type="text"
-              placeholder="27AABCU9603R1ZM"
-              className="uppercase font-bold"
-              value={formData.gstNumber}
-              onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() })}
+              placeholder="e.g. +91 22 6789 0123"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Registered Corporate Office Address" fullWidth>
-            <AdminTextarea
-              rows={3}
-              placeholder="Complete registered corporate billing address..."
+          <AdminFormField label="Official Email" fullWidth>
+            <AdminInput
+              type="email"
+              placeholder="e.g. contact@apextech.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Location & Address" description="Office headquarters address" icon={MapPin} columns={2}>
+          <AdminFormField label="Street Address" fullWidth>
+            <AdminInput
+              type="text"
+              placeholder="e.g. Tower 3, Business Bay, BKC"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="City">
+            <AdminInput
+              type="text"
+              placeholder="e.g. Mumbai"
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="State">
+            <AdminInput
+              type="text"
+              placeholder="e.g. Maharashtra"
+              value={formData.state}
+              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Ownership & Status" description="Assign account owner and set initial status" icon={Users} columns={2}>
+          <AdminFormField label="Assigned Account Owner">
+            <AdminSelect
+              value={formData.assignedToId}
+              onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
+              options={[
+                { value: '', label: '-- Unassigned --' },
+                ...employees.map((emp) => ({
+                  value: String(emp.id),
+                  label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})`,
+                })),
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Account Status">
+            <AdminSelect
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              options={[
+                { value: 'ACTIVE', label: 'ACTIVE' },
+                { value: 'PROSPECT', label: 'PROSPECT' },
+                { value: 'INACTIVE', label: 'INACTIVE' },
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Account Notes" fullWidth>
+            <AdminTextarea
+              rows={3}
+              placeholder="Enterprise requirements, key stakeholders..."
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             />
           </AdminFormField>
         </AdminFormSection>
 
         <AdminFormActions
           backHref="/companies"
-          cancelLabel="Cancel"
-          submitLabel="Save Company Account"
+          submitLabel={loading ? 'Registering...' : 'Register Company'}
+          onCancel={() => router.push('/companies')}
           loading={loading}
-          sticky
         />
       </form>
     </AdminFormPage>

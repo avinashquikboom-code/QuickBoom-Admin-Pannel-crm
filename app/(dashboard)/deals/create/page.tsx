@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Kanban, Building2, DollarSign, Calendar, User, Percent } from 'lucide-react';
+import { TrendingUp, Building, DollarSign, Calendar, User, Percent, Briefcase } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
 import {
   AdminFormPage,
   AdminFormSection,
@@ -13,6 +14,8 @@ import {
   AdminSelect,
   AdminTextarea,
 } from '@/components/admin';
+import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function CreateDealPage() {
   const router = useRouter();
@@ -20,144 +23,208 @@ export default function CreateDealPage() {
 
   const [formData, setFormData] = useState({
     title: '',
-    company: '',
-    value: '750000',
-    stage: 'PROPOSAL',
-    probability: '60',
-    expectedCloseDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-    assignedTo: 'Rahul Sharma',
-    dealType: 'NEW_BUSINESS',
+    amount: '250000',
+    currency: 'INR',
+    probability: '50',
+    companyId: '',
+    contactId: '',
+    stageId: '1',
+    expectedClosing: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    assignedToId: '',
+    source: 'CRM',
+    description: '',
     notes: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch Companies
+  const { data: companiesData } = useQuery({
+    queryKey: ['admin-companies-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/companies', { params: { limit: 100 } });
+        const items = res?.data?.data || res?.data?.items || res?.data || res;
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // Fetch Contacts
+  const { data: contactsData } = useQuery({
+    queryKey: ['admin-contacts-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/contacts', { params: { limit: 100 } });
+        const items = res?.data?.data || res?.data?.items || res?.data || res;
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // Fetch Employees
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-employees-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const companies: any[] = Array.isArray(companiesData) ? companiesData : [];
+  const contacts: any[] = Array.isArray(contactsData) ? contactsData : [];
+  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const payload = {
+        title: formData.title.trim() || 'New Deal Opportunity',
+        amount: Number(formData.amount),
+        currency: formData.currency || 'INR',
+        probability: Number(formData.probability),
+        companyId: formData.companyId || undefined,
+        contactId: formData.contactId || undefined,
+        stageId: formData.stageId || undefined,
+        expectedClosing: formData.expectedClosing ? new Date(formData.expectedClosing).toISOString() : undefined,
+        assignedToId: formData.assignedToId || undefined,
+        source: formData.source || 'CRM',
+        description: formData.description.trim() || undefined,
+        notes: formData.notes.trim() || undefined,
+      };
+
+      await api.post('/deals', payload);
+      toast.success('Deal registered successfully in pipeline!');
+      router.push('/deals');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
       setLoading(false);
-      toast.success('Deal opportunity registered successfully!');
-      router.push('/crm');
-    }, 600);
+    }
   };
 
   return (
     <AdminFormPage
       title="Add New Sales Deal"
       description="Register a deal opportunity in the visual CRM pipeline, define contract value, and assign account executive."
-      backHref="/crm"
-      backLabel="Back to Deals Pipeline"
-      badge="CRM Pipeline"
+      backHref="/deals"
+      backLabel="Back to Deals"
+      badge="Revenue Pipeline"
       maxWidthClass="max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        <AdminFormSection title="Deal Overview & Client" description="Opportunity title and account linkage" icon={Kanban} columns={2}>
+        <AdminFormSection title="Deal Overview & Value" description="Opportunity title and financial parameters" icon={TrendingUp} columns={2}>
           <AdminFormField label="Deal Opportunity Title" required fullWidth>
             <AdminInput
               type="text"
               required
-              placeholder="e.g. Enterprise Cloud License (1000 Seats)"
+              placeholder="e.g. Enterprise Cloud License (500 Seats)"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Client Company Account" required>
-            <AdminInput
-              type="text"
-              required
-              placeholder="e.g. Apex Tech Solutions"
-              icon={Building2}
-              value={formData.company}
-              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Deal Opportunity Type" required>
-            <AdminSelect
-              value={formData.dealType}
-              onChange={(e) => setFormData({ ...formData, dealType: e.target.value })}
-              options={[
-                { value: 'NEW_BUSINESS', label: 'New Business / Net New Client' },
-                { value: 'UPSELL', label: 'Upsell / Expansion' },
-                { value: 'RENEWAL', label: 'Annual Contract Renewal' },
-              ]}
-            />
-          </AdminFormField>
-        </AdminFormSection>
-
-        <AdminFormSection title="Valuation & Stage Forecast" description="Contract size, win probability, and timeline" icon={DollarSign} columns={2}>
-          <AdminFormField label="Contract Deal Value (₹)" required>
+          <AdminFormField label="Deal Contract Value (₹)" required>
             <AdminInput
               type="number"
               required
-              placeholder="750000"
-              value={formData.value}
-              onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+              placeholder="e.g. 250000"
+              value={formData.amount}
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Pipeline Stage" required>
-            <AdminSelect
-              value={formData.stage}
-              onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
-              options={[
-                { value: 'DISCOVERY', label: 'Discovery & Needs Analysis' },
-                { value: 'PROPOSAL', label: 'Proposal & Scope Presentation' },
-                { value: 'NEGOTIATION', label: 'Commercial Negotiation' },
-                { value: 'CLOSING', label: 'Contract Signing & Closing' },
-                { value: 'WON', label: 'Closed Won' },
-              ]}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Estimated Win Probability (%)" required>
+          <AdminFormField label="Win Probability (%)">
             <AdminInput
               type="number"
               min="0"
               max="100"
-              required
               value={formData.probability}
               onChange={(e) => setFormData({ ...formData, probability: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Target Expected Close Date" required>
-            <AdminInput
-              type="date"
-              required
-              value={formData.expectedCloseDate}
-              onChange={(e) => setFormData({ ...formData, expectedCloseDate: e.target.value })}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Assigned Account Owner" required fullWidth>
+          <AdminFormField label="Pipeline Stage">
             <AdminSelect
-              value={formData.assignedTo}
-              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+              value={formData.stageId}
+              onChange={(e) => setFormData({ ...formData, stageId: e.target.value })}
               options={[
-                { value: 'Rahul Sharma', label: 'Rahul Sharma (Enterprise Lead)' },
-                { value: 'Sneha Gupta', label: 'Sneha Gupta (Account Exec)' },
-                { value: 'Amit Verma', label: 'Amit Verma (Regional Manager)' },
+                { value: '1', label: '1. Qualified (25%)' },
+                { value: '2', label: '2. Proposal (50%)' },
+                { value: '3', label: '3. Negotiation (75%)' },
+                { value: '4', label: '4. Won (100%)' },
               ]}
             />
           </AdminFormField>
 
-          <AdminFormField label="Commercial Notes & Milestones" fullWidth>
+          <AdminFormField label="Expected Closing Date">
+            <AdminInput
+              type="date"
+              value={formData.expectedClosing}
+              onChange={(e) => setFormData({ ...formData, expectedClosing: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Account & Contact Linking" description="Associate with client company and rep" icon={Building} columns={2}>
+          <AdminFormField label="Associated Company">
+            <AdminSelect
+              value={formData.companyId}
+              onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
+              options={[
+                { value: '', label: '-- No Company --' },
+                ...companies.map((c) => ({ value: String(c.id), label: c.name })),
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Primary Contact Person">
+            <AdminSelect
+              value={formData.contactId}
+              onChange={(e) => setFormData({ ...formData, contactId: e.target.value })}
+              options={[
+                { value: '', label: '-- No Contact --' },
+                ...contacts.map((c) => ({ value: String(c.id), label: `${c.firstName} ${c.lastName}` })),
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Assigned Deal Owner" fullWidth>
+            <AdminSelect
+              value={formData.assignedToId}
+              onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
+              options={[
+                { value: '', label: '-- Unassigned --' },
+                ...employees.map((emp) => ({
+                  value: String(emp.id),
+                  label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})`,
+                })),
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Deal Scope & Deliverables" fullWidth>
             <AdminTextarea
               rows={3}
-              placeholder="Pricing tiers, discount approvals, delivery milestones..."
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Contract scope, special pricing terms..."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </AdminFormField>
         </AdminFormSection>
 
         <AdminFormActions
-          backHref="/crm"
-          cancelLabel="Cancel"
-          submitLabel="Create Sales Deal"
+          backHref="/deals"
+          submitLabel={loading ? 'Creating...' : 'Create Deal'}
+          onCancel={() => router.push('/deals')}
           loading={loading}
-          sticky
         />
       </form>
     </AdminFormPage>

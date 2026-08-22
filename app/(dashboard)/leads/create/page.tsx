@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserCheck, Mail, Phone, Building2, DollarSign, Globe, Tag } from 'lucide-react';
+import { UserCheck, Mail, Phone, Building2, DollarSign, Globe, Tag, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   AdminFormPage,
@@ -13,51 +13,80 @@ import {
   AdminSelect,
   AdminTextarea,
 } from '@/components/admin';
-
 import api from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function CreateLeadPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
+    title: '',
     firstName: '',
     lastName: '',
-    company: '',
+    companyName: '',
+    category: '',
     email: '',
     phone: '',
+    website: '',
+    address: '',
+    city: '',
+    state: '',
+    country: 'India',
     source: 'WEBSITE',
     status: 'NEW',
-    priority: 'HIGH',
-    leadValue: '500000',
-    assignedTo: 'Rahul Sharma',
+    priority: 'MEDIUM',
+    leadValue: '50000',
+    assignedToId: '',
     notes: '',
   });
+
+  // Fetch Employees for assignment
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-active-employees'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       const payload = {
-        title: formData.company ? `${formData.company} Opportunity` : `${formData.firstName} ${formData.lastName}`,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        companyName: formData.company,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
+        title: formData.title.trim() || formData.companyName.trim() || `${formData.firstName} ${formData.lastName}`.trim() || 'Lead Opportunity',
+        firstName: formData.firstName.trim() || 'Prospect',
+        lastName: formData.lastName.trim() || 'Client',
+        companyName: formData.companyName.trim() || undefined,
+        category: formData.category.trim() || undefined,
+        email: formData.email.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
+        website: formData.website.trim() || undefined,
+        address: formData.address.trim() || undefined,
+        city: formData.city.trim() || undefined,
+        state: formData.state.trim() || undefined,
+        country: formData.country.trim() || 'India',
         source: formData.source,
         status: formData.status,
         priority: formData.priority,
         value: formData.leadValue ? Number(formData.leadValue) : 0,
-        notes: formData.notes || undefined,
+        assignedToId: formData.assignedToId || undefined,
+        notes: formData.notes.trim() || undefined,
       };
 
       await api.post('/leads', payload);
       toast.success('CRM Lead captured successfully!');
       router.push('/leads');
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to create CRM lead';
-      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Failed to create lead');
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -74,6 +103,17 @@ export default function CreateLeadPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <AdminFormSection title="Lead Contact & Company" description="Prospective client details" icon={UserCheck} columns={2}>
+          <AdminFormField label="Client Company / Business Name *" required fullWidth>
+            <AdminInput
+              type="text"
+              required
+              icon={Building2}
+              placeholder="e.g. Apex Tech Solutions"
+              value={formData.companyName}
+              onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+            />
+          </AdminFormField>
+
           <AdminFormField label="First Name" required>
             <AdminInput
               type="text"
@@ -94,95 +134,148 @@ export default function CreateLeadPage() {
             />
           </AdminFormField>
 
-          <AdminFormField label="Client Company Name" required fullWidth>
-            <AdminInput
-              type="text"
-              required
-              placeholder="e.g. Reliance Retail Systems Ltd"
-              icon={Building2}
-              value={formData.company}
-              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Email Address" required>
+          <AdminFormField label="Email Address">
             <AdminInput
               type="email"
-              required
-              placeholder="ramesh@relianceretail.com"
               icon={Mail}
+              placeholder="e.g. contact@apextech.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Phone Number" required>
+          <AdminFormField label="Phone Number">
             <AdminInput
               type="tel"
-              required
-              placeholder="+91 98765 00000"
               icon={Phone}
+              placeholder="e.g. +91 98200 12345"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
           </AdminFormField>
+
+          <AdminFormField label="Industry / Category">
+            <AdminInput
+              type="text"
+              icon={Tag}
+              placeholder="e.g. IT & Cloud Services"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Website URL">
+            <AdminInput
+              type="text"
+              icon={Globe}
+              placeholder="e.g. https://apextech.com"
+              value={formData.website}
+              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+            />
+          </AdminFormField>
         </AdminFormSection>
 
-        <AdminFormSection title="Deal Pipeline & Qualification" description="Estimated value, priority, and source" icon={DollarSign} columns={2}>
+        <AdminFormSection title="Location" description="Office address and geographic details" icon={MapPin} columns={2}>
+          <AdminFormField label="Street Address" fullWidth>
+            <AdminInput
+              type="text"
+              placeholder="e.g. 101 Corporate Towers, BKC"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="City">
+            <AdminInput
+              type="text"
+              placeholder="e.g. Mumbai"
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="State">
+            <AdminInput
+              type="text"
+              placeholder="e.g. Maharashtra"
+              value={formData.state}
+              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Deal Value & Pipeline" description="Qualification and sales owner" icon={DollarSign} columns={2}>
           <AdminFormField label="Estimated Deal Value (₹)" required>
             <AdminInput
               type="number"
               required
-              placeholder="500000"
+              icon={DollarSign}
               value={formData.leadValue}
               onChange={(e) => setFormData({ ...formData, leadValue: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Lead Source" required>
+          <AdminFormField label="Lead Source">
             <AdminSelect
               value={formData.source}
               onChange={(e) => setFormData({ ...formData, source: e.target.value })}
               options={[
-                { value: 'WEBSITE', label: 'Inbound Website Form' },
-                { value: 'LINKEDIN', label: 'LinkedIn Outbound' },
-                { value: 'REFERRAL', label: 'Client Referral' },
-                { value: 'EVENT', label: 'Conference / Event' },
-                { value: 'COLD_CALL', label: 'Cold Calling' },
+                { label: 'Website Form', value: 'WEBSITE' },
+                { label: 'Google Places', value: 'GOOGLE_PLACES' },
+                { label: 'Client Referral', value: 'REFERRAL' },
+                { label: 'LinkedIn Outreach', value: 'LINKEDIN' },
+                { label: 'Cold Calling', value: 'COLD_CALL' },
+                { label: 'Campaign / Ads', value: 'CAMPAIGN' },
+                { label: 'Other', value: 'OTHER' },
               ]}
             />
           </AdminFormField>
 
-          <AdminFormField label="Pipeline Status" required>
+          <AdminFormField label="Pipeline Status">
             <AdminSelect
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               options={[
-                { value: 'NEW', label: 'New Uncontacted' },
-                { value: 'CONTACTED', label: 'Contacted' },
-                { value: 'QUALIFIED', label: 'Qualified Opportunity' },
-                { value: 'PROPOSAL_SENT', label: 'Proposal Sent' },
-                { value: 'NEGOTIATION', label: 'In Negotiation' },
+                { label: 'NEW', value: 'NEW' },
+                { label: 'CONTACTED', value: 'CONTACTED' },
+                { label: 'FOLLOW_UP', value: 'FOLLOW_UP' },
+                { label: 'QUALIFIED', value: 'QUALIFIED' },
+                { label: 'PROPOSAL', value: 'PROPOSAL' },
               ]}
             />
           </AdminFormField>
 
-          <AdminFormField label="Assigned Account Rep" required>
+          <AdminFormField label="Priority Level">
             <AdminSelect
-              value={formData.assignedTo}
-              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+              value={formData.priority}
+              onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
               options={[
-                { value: 'Rahul Sharma', label: 'Rahul Sharma (Senior BD)' },
-                { value: 'Sneha Gupta', label: 'Sneha Gupta (Account Lead)' },
-                { value: 'Amit Verma', label: 'Amit Verma (Enterprise Rep)' },
+                { label: 'URGENT', value: 'URGENT' },
+                { label: 'HIGH', value: 'HIGH' },
+                { label: 'MEDIUM', value: 'MEDIUM' },
+                { label: 'LOW', value: 'LOW' },
               ]}
             />
           </AdminFormField>
 
-          <AdminFormField label="Requirement Notes & Scope" fullWidth>
+          <AdminFormField label="Assigned Sales Representative" fullWidth>
+            <AdminSelect
+              value={formData.assignedToId}
+              onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
+              options={[
+                { label: '-- Unassigned --', value: '' },
+                ...employees.map((emp) => ({
+                  label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})`,
+                  value: String(emp.id),
+                })),
+              ]}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Initial Notes" fullWidth>
             <AdminTextarea
               rows={3}
-              placeholder="Initial requirements, timeline expectations, decision maker details..."
+              placeholder="Enter discovery notes, client requirements..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             />
@@ -191,10 +284,8 @@ export default function CreateLeadPage() {
 
         <AdminFormActions
           backHref="/leads"
-          cancelLabel="Cancel"
-          submitLabel="Create CRM Lead"
-          loading={loading}
-          sticky
+          submitLabel={loading ? 'Saving...' : 'Save CRM Lead'}
+          isSubmitting={loading}
         />
       </form>
     </AdminFormPage>
