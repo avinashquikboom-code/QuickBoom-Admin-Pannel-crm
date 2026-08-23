@@ -38,10 +38,11 @@ export default function InvoicesPage() {
   const [formNotes, setFormNotes] = useState('');
 
   const { data: invoicesResponse, isLoading, refetch } = useQuery({
-    queryKey: ['invoices', selectedStatus, page, pageSize],
+    queryKey: ['invoices', selectedStatus, search, page, pageSize],
     queryFn: async () => {
       const params: any = { page, limit: pageSize };
       if (selectedStatus !== 'ALL') params.status = selectedStatus;
+      if (search.trim()) params.search = search.trim();
       const res: any = await api.get('/invoices', { params });
       const items = res?.data?.items || res?.items || res?.data || (Array.isArray(res) ? res : []);
       const pagination = res?.pagination || res?.meta || res?.data?.pagination || {
