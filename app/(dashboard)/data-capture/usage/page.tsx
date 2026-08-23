@@ -17,24 +17,33 @@ import {
   Sliders,
   TrendingUp,
   Cpu,
+  Database,
+  UserPlus,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { AdminPageHero, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
 
 export default function DataCaptureUsagePage() {
   const { data: usage, isLoading, refetch } = useQuery({
     queryKey: ['data-capture-usage'],
     queryFn: async () => {
       try {
-        const res = await api.get('/data-capture/usage');
-        return res.data;
+        const res: any = await api.get('/data-capture/usage');
+        return res?.data || res || {
+          totalExtractions: 0,
+          totalLeadsCaptured: 0,
+          totalGoogleApiCalls: 0,
+          quotaLimit: 1000,
+          quotaRemaining: 1000,
+        };
       } catch {
         return {
-          totalExtractions: 8,
-          totalLeadsCaptured: 160,
-          totalGoogleApiCalls: 12,
+          totalExtractions: 0,
+          totalLeadsCaptured: 0,
+          totalGoogleApiCalls: 0,
           quotaLimit: 1000,
-          quotaRemaining: 840,
+          quotaRemaining: 1000,
         };
       }
     },
@@ -48,45 +57,45 @@ export default function DataCaptureUsagePage() {
   const usedPercentage = Math.min(Math.round(((quotaLimit - quotaRemaining) / quotaLimit) * 100), 100);
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
       {/* 1. HERO HEADER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#23C45E]/10 rounded-full blur-3xl pointer-events-none" />
+      <AdminPageHero
+        title="Google Places API Usage & Quota"
+        description="Monitor monthly extraction allowance, Google Places API (New) call volume, cost efficiency metrics, and billing thresholds."
+        badge={{
+          text: 'CONSUMPTION & QUOTA ANALYTICS',
+          icon: Activity,
+          variant: 'emerald',
+        }}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => refetch()}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95 flex items-center gap-1.5"
+              title="Refresh usage metrics"
+            >
+              <RefreshCw className="w-4 h-4 text-[#23C45E]" />
+              <span className="text-xs">Refresh</span>
+            </button>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5" />
-                Consumption & Quota Analytics
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Google Places API Usage & Limits</h1>
-            <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-2xl">
-              Monitor monthly API extraction quota, Google Places API (New) call volume, efficiency metrics, and billing thresholds.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/data-capture/history"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer border border-white/10"
+              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-bold transition-all cursor-pointer backdrop-blur-xs flex items-center gap-1.5"
             >
               <History className="w-4 h-4 text-[#23C45E]" />
               <span>Capture History</span>
             </Link>
 
-            <button
-              onClick={() => refetch()}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20"
+            <Link
+              href="/data-capture"
+              className="px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20 flex items-center gap-1.5"
             >
-              <RefreshCw className="w-4 h-4" />
-              <span>Sync Metrics</span>
-            </button>
+              <Target className="w-4 h-4" />
+              <span>Data Capture Hub</span>
+            </Link>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. QUOTA CONSUMPTION PROGRESS CARD */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-5">
@@ -130,51 +139,34 @@ export default function DataCaptureUsagePage() {
 
       {/* 3. METRIC STAT CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Extraction Runs</p>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">{totalExtractions}</p>
-            <p className="text-[10px] text-slate-400 font-bold mt-1">Batches completed</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Target className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Leads Generated</p>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">{totalLeadsCaptured}</p>
-            <p className="text-[10px] text-emerald-700 font-bold mt-1">Verified contacts</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Google API Calls</p>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">{totalGoogleApiCalls}</p>
-            <p className="text-[10px] text-indigo-700 font-bold mt-1">Text search queries</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <Cpu className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Efficiency Ratio</p>
-            <p className="text-2xl sm:text-3xl font-black text-purple-600 mt-1">
-              {totalGoogleApiCalls > 0 ? (totalLeadsCaptured / totalGoogleApiCalls).toFixed(1) : '20.0'}
-            </p>
-            <p className="text-[10px] text-purple-700 font-bold mt-1">Leads per API call</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-        </div>
+        <AdminStatCard
+          title="Extraction Batches"
+          value={totalExtractions}
+          description="Batches executed"
+          icon={Target}
+          iconBg="blue"
+        />
+        <AdminStatCard
+          title="Leads Captured"
+          value={totalLeadsCaptured}
+          description="Verified contacts"
+          icon={CheckCircle2}
+          iconBg="primary"
+        />
+        <AdminStatCard
+          title="Google API Calls"
+          value={`${totalGoogleApiCalls} Requests`}
+          description="Text search queries"
+          icon={Cpu}
+          iconBg="purple"
+        />
+        <AdminStatCard
+          title="Efficiency Ratio"
+          value={totalGoogleApiCalls > 0 ? (totalLeadsCaptured / totalGoogleApiCalls).toFixed(1) : '20.0'}
+          description="Leads per API call"
+          icon={TrendingUp}
+          iconBg="primary"
+        />
       </div>
 
       {/* 4. API & PROTOCOL SPECIFICATIONS */}
@@ -201,7 +193,7 @@ export default function DataCaptureUsagePage() {
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
               <span className="font-bold text-slate-500">Duplicate Protection</span>
               <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md font-bold text-[10px]">
-                Enforced by Phone & Name
+                Enforced by Phone, Name & Place ID
               </span>
             </div>
 

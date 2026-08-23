@@ -21,11 +21,13 @@ import {
   Star,
   Activity,
   Target,
+  Database,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
+import { AdminPageHero, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
 
 export default function DataCaptureHistoryPage() {
   const queryClient = useQueryClient();
@@ -38,79 +40,35 @@ export default function DataCaptureHistoryPage() {
     queryKey: ['data-capture-jobs'],
     queryFn: async () => {
       try {
-        const res = await api.get('/data-capture/jobs');
-        const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        const res: any = await api.get('/data-capture/jobs');
+        const list = Array.isArray(res) ? res : res?.data || [];
         return list;
       } catch {
-        return [
-          {
-            jobId: 'job-init-1',
-            keyword: 'Real Estate Brokers',
-            location: 'Ahmedabad',
-            requestedResults: 40,
-            capturedResults: 40,
-            googleApiRequests: 2,
-            createdAt: '2026-08-15T16:30:00Z',
-            places: [
-              {
-                googlePlaceId: 'ChIJ1',
-                businessName: 'Ahmedabad Premier Realty',
-                address: '101, SG Highway, Ahmedabad',
-                phone: '+91 98200 11223',
-                rating: 4.8,
-                reviewCount: 140,
-                category: 'Real Estate Agency',
-              },
-              {
-                googlePlaceId: 'ChIJ2',
-                businessName: 'Apex Commercial Properties',
-                address: '402, Prahlad Nagar, Ahmedabad',
-                phone: '+91 98200 44556',
-                rating: 4.6,
-                reviewCount: 95,
-                category: 'Real Estate Agency',
-              },
-            ],
-          },
-          {
-            jobId: 'job-init-2',
-            keyword: 'Dental Clinics',
-            location: 'Vadodara',
-            requestedResults: 20,
-            capturedResults: 19,
-            googleApiRequests: 1,
-            createdAt: '2026-08-14T11:15:00Z',
-            places: [
-              {
-                googlePlaceId: 'ChIJ3',
-                businessName: 'SmileCare Dental Hospital',
-                address: 'Alkapuri, Vadodara',
-                phone: '+91 98200 77889',
-                rating: 4.9,
-                reviewCount: 220,
-                category: 'Dentist',
-              },
-            ],
-          },
-        ];
+        return [];
       }
     },
   });
 
   // 2. Fetch Usage Metrics
-  const { data: usage } = useQuery({
+  const { data: usage, refetch: refetchUsage } = useQuery({
     queryKey: ['data-capture-usage'],
     queryFn: async () => {
       try {
-        const res = await api.get('/data-capture/usage');
-        return res.data;
+        const res: any = await api.get('/data-capture/usage');
+        return res?.data || res || {
+          totalExtractions: 0,
+          totalLeadsCaptured: 0,
+          totalGoogleApiCalls: 0,
+          quotaLimit: 1000,
+          quotaRemaining: 1000,
+        };
       } catch {
         return {
-          totalExtractions: 8,
-          totalLeadsCaptured: 160,
-          totalGoogleApiCalls: 12,
+          totalExtractions: 0,
+          totalLeadsCaptured: 0,
+          totalGoogleApiCalls: 0,
           quotaLimit: 1000,
-          quotaRemaining: 840,
+          quotaRemaining: 1000,
         };
       }
     },
@@ -122,12 +80,13 @@ export default function DataCaptureHistoryPage() {
       return api.post('/data-capture/import-to-leads', { jobId, placeIds });
     },
     onSuccess: (res: any) => {
-      const data = res.data || res;
-      toast.success(data.message || 'Leads imported into CRM successfully!', { icon: '🎯' });
+      const data = res?.data || res;
+      toast.success(data?.message || 'Leads imported into CRM successfully!', { icon: '🎯' });
       setSelectedJob(null);
       setSelectedPlaceIds([]);
       queryClient.invalidateQueries({ queryKey: ['data-capture-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
+      queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -146,7 +105,7 @@ export default function DataCaptureHistoryPage() {
 
   const handleOpenPlaceDetails = (job: any) => {
     setSelectedJob(job);
-    setSelectedPlaceIds((job.places || []).map((p: any) => p.googlePlaceId));
+    setSelectedPlaceIds((job.places || []).map((p: any) => p.googlePlaceId || String(p.id)));
   };
 
   const handleToggleSelectPlace = (placeId: string) => {
@@ -159,10 +118,11 @@ export default function DataCaptureHistoryPage() {
 
   const handleSelectAllPlaces = () => {
     if (!selectedJob) return;
-    if (selectedPlaceIds.length === (selectedJob.places || []).length) {
+    const allIds = (selectedJob.places || []).map((p: any) => p.googlePlaceId || String(p.id));
+    if (selectedPlaceIds.length === allIds.length) {
       setSelectedPlaceIds([]);
     } else {
-      setSelectedPlaceIds((selectedJob.places || []).map((p: any) => p.googlePlaceId));
+      setSelectedPlaceIds(allIds);
     }
   };
 
@@ -178,93 +138,79 @@ export default function DataCaptureHistoryPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
       {/* 1. HERO HEADER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#23C45E]/10 rounded-full blur-3xl pointer-events-none" />
+      <AdminPageHero
+        title="Extraction History & Audit Trail"
+        description="Inspect past Google Places extraction batches, review captured records, and import prospects directly into CRM Leads."
+        badge={{
+          text: 'EXTRACTION AUDIT LOGS',
+          icon: History,
+          variant: 'emerald',
+        }}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => {
+                refetch();
+                refetchUsage();
+              }}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95 flex items-center gap-1.5"
+              title="Refresh job history"
+            >
+              <RefreshCw className="w-4 h-4 text-[#23C45E]" />
+              <span className="text-xs">Refresh</span>
+            </button>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5" />
-                Audit Trail & History
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Data Capture History</h1>
-            <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-2xl">
-              Inspect past Google Places extraction runs, review captured business records, and bulk import qualified prospects into CRM Leads.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/data-capture/usage"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer border border-white/10"
+              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-bold transition-all cursor-pointer backdrop-blur-xs flex items-center gap-1.5"
             >
               <Activity className="w-4 h-4 text-[#23C45E]" />
-              <span>View Usage Quota</span>
+              <span>Usage Analytics</span>
             </Link>
 
             <Link
               href="/data-capture"
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20"
+              className="px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20 flex items-center gap-1.5"
             >
               <Target className="w-4 h-4" />
-              <span>New Extraction</span>
+              <span>Data Capture Hub</span>
             </Link>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. KPI STAT CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Extraction Runs</p>
-            <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">{jobs.length}</p>
-            <p className="text-[10px] text-slate-400 font-bold mt-1">Total batches</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <History className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Prospects Extracted</p>
-            <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">
-              {usage?.totalLeadsCaptured || jobs.reduce((sum: number, j: any) => sum + (j.capturedResults || 0), 0)}
-            </p>
-            <p className="text-[10px] text-emerald-700 font-bold mt-1">Verified businesses</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Google API Calls</p>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">{usage?.totalGoogleApiCalls || 0}</p>
-            <p className="text-[10px] text-indigo-700 font-bold mt-1">Text search requests</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <Sparkles className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Quota Remaining</p>
-            <p className="text-2xl sm:text-3xl font-black text-purple-600 mt-1">{usage?.quotaRemaining || 840}</p>
-            <p className="text-[10px] text-purple-700 font-bold mt-1">Monthly allowance</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <Layers className="w-6 h-6" />
-          </div>
-        </div>
+        <AdminStatCard
+          title="Extraction Batches"
+          value={jobs.length}
+          description="Total extraction runs"
+          icon={History}
+          iconBg="blue"
+        />
+        <AdminStatCard
+          title="Prospects Extracted"
+          value={usage?.totalLeadsCaptured || jobs.reduce((sum: number, j: any) => sum + (j.capturedResults || 0), 0)}
+          description="Verified businesses"
+          icon={CheckCircle2}
+          iconBg="primary"
+        />
+        <AdminStatCard
+          title="Google API Calls"
+          value={`${usage?.totalGoogleApiCalls || 0} Requests`}
+          description="Text search volume"
+          icon={Sparkles}
+          iconBg="purple"
+        />
+        <AdminStatCard
+          title="Quota Remaining"
+          value={`${usage?.quotaRemaining || 1000} / ${usage?.quotaLimit || 1000}`}
+          description="Monthly allowance"
+          icon={Layers}
+          iconBg="amber"
+        />
       </div>
 
       {/* 3. SEARCH & TOOLBAR */}
@@ -276,7 +222,7 @@ export default function DataCaptureHistoryPage() {
             placeholder="Search by keyword, city, or Job ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           />
         </div>
 
@@ -290,20 +236,26 @@ export default function DataCaptureHistoryPage() {
       </div>
 
       {/* 4. HISTORY JOBS TABLE */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-black text-slate-900 text-base">Extraction Batch Logs</h3>
-          <span className="text-xs font-bold text-slate-400">{filteredJobs.length} batches recorded</span>
-        </div>
-
-        {filteredJobs.length === 0 ? (
-          <div className="py-16 text-center text-slate-400 font-bold text-xs">
-            No extraction history matches your search.
+      <AdminCard
+        title="Extraction Batch Logs"
+        description={`${filteredJobs.length} extraction batches recorded`}
+      >
+        {isLoading ? (
+          <div className="py-16 flex flex-col items-center justify-center space-y-3">
+            <div className="w-8 h-8 border-3 border-[#23C45E] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-bold text-slate-500">Loading extraction history...</p>
+          </div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="py-16 text-center text-slate-400 font-bold text-xs space-y-2">
+            <p>No extraction history matches your search.</p>
+            <Link href="/data-capture" className="text-emerald-600 font-black hover:underline inline-block">
+              Start a new extraction →
+            </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-400 font-black uppercase border-b border-slate-200">
+              <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-slate-200">
                 <tr>
                   <th className="px-5 py-3.5">Batch ID</th>
                   <th className="px-5 py-3.5">Target Query</th>
@@ -319,7 +271,7 @@ export default function DataCaptureHistoryPage() {
                   <tr key={job.jobId} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-5 py-4 font-mono font-bold text-slate-500">{job.jobId}</td>
                     <td className="px-5 py-4">
-                      <div className="font-bold text-slate-900 text-sm">{job.keyword}</div>
+                      <div className="font-extrabold text-slate-900 text-sm">{job.keyword}</div>
                     </td>
                     <td className="px-5 py-4">
                       <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-[11px] font-bold inline-flex items-center gap-1">
@@ -341,7 +293,7 @@ export default function DataCaptureHistoryPage() {
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-2xs"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>Inspect Places</span>
+                        <span>Inspect ({ (job.places || []).length })</span>
                       </button>
                     </td>
                   </tr>
@@ -350,7 +302,7 @@ export default function DataCaptureHistoryPage() {
             </table>
           </div>
         )}
-      </div>
+      </AdminCard>
 
       {/* 5. JOB PLACES INSPECTION MODAL */}
       {selectedJob && (
@@ -390,11 +342,12 @@ export default function DataCaptureHistoryPage() {
             {/* Places List */}
             <div className="my-4 space-y-3 max-h-96 overflow-y-auto pr-1">
               {(selectedJob.places || []).map((place: any) => {
-                const isSelected = selectedPlaceIds.includes(place.googlePlaceId);
+                const placeId = place.googlePlaceId || String(place.id);
+                const isSelected = selectedPlaceIds.includes(placeId);
                 return (
                   <div
-                    key={place.googlePlaceId}
-                    onClick={() => handleToggleSelectPlace(place.googlePlaceId)}
+                    key={placeId}
+                    onClick={() => handleToggleSelectPlace(placeId)}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
                       isSelected
                         ? 'bg-emerald-50/60 border-emerald-300 shadow-2xs'
