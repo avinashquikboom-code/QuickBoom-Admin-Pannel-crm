@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from './store';
 import { getErrorMessage } from './utils';
@@ -12,36 +12,65 @@ const api = axios.create({
   },
 });
 
-// Request interceptor: attach bearer token and customer headers with localStorage fallback
+/**
+ * Helper to safely extract token, refreshToken, user, and customerId from Zustand memory
+ * with robust fallback to persisted localStorage to guarantee consistency during Next.js hydration or tab switching.
+ */
+function getPersistedAuthSession() {
+  if (typeof window === 'undefined') {
+    return { token: null, refreshToken: null, user: null, customerId: null };
+  }
+
+  const state = useAuthStore.getState();
+  let token = state.token;
+  let refreshToken = state.refreshToken;
+  let user = state.user;
+  let customerId = state.customerId;
+
+  if (!token || !refreshToken || !user) {
+    try {
+      const raw = localStorage.getItem('quikboom-next-auth-storage');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.state) {
+          token = token || parsed.state.token || null;
+          refreshToken = refreshToken || parsed.state.refreshToken || null;
+          user = user || parsed.state.user || null;
+          customerId = customerId || parsed.state.customerId || null;
+        }
+      }
+    } catch {
+      // ignore storage parsing error
+    }
+  }
+
+  return { token, refreshToken, user, customerId };
+}
+
+// Request interceptor: attach bearer token and customer headers
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      let { token, customerId } = useAuthStore.getState();
+      const { token, customerId } = getPersistedAuthSession();
 
-      // Fast fallback to persisted storage in case Zustand hydration is still settling
-      if (!token) {
-        try {
-          const raw = localStorage.getItem('quikboom-next-auth-storage');
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed?.state?.token) {
-              token = parsed.state.token;
-            }
-            if (parsed?.state?.customerId) {
-              customerId = parsed.state.customerId;
-            }
-          }
-        } catch {
-          // ignore parsing errors
+      if (token) {
+        if (typeof config.headers?.set === 'function') {
+          config.headers.set('Authorization', `Bearer ${token}`);
+        } else {
+          config.headers = config.headers || {};
+          config.headers['Authorization'] = `Bearer ${token}`;
         }
       }
 
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
       if (customerId) {
-        config.headers['x-customer-id'] = customerId;
-        config.headers['x-tenant-id'] = customerId;
+        if (typeof config.headers?.set === 'function') {
+          config.headers.set('x-customer-id', String(customerId));
+          config.headers.set('x-tenant-id', String(customerId));
+        } else {
+          config.headers = config.headers || {};
+          config.headers['x-customer-id'] = String(customerId);
+          config.headers['x-tenant-id'] = String(customerId);
+        }
       }
     }
     return config;
@@ -83,24 +112,30 @@ api.interceptors.response.use(
 
     // Attempt token refresh ONLY on 401 (Authentication/Expiration) — NEVER on 403 (Forbidden)
     if (error?.response?.status === 401 && !originalRequest._retry && typeof window !== 'undefined') {
-      const { refreshToken, setAuth, logout, user } = useAuthStore.getState();
+      const { refreshToken, user, token } = getPersistedAuthSession();
+      const authStore = useAuthStore.getState();
 
-      // If already on login page or no refresh token/user, clear session and exit
-      if (!refreshToken || !user) {
-        logout();
+      // If no refresh token exists anywhere in state or storage, session is invalid
+      if (!refreshToken) {
+        authStore.logout();
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
         return Promise.reject(error);
       }
 
-      // If refresh is currently in flight, queue this request until refresh completes
+      // If refresh is currently in flight, queue this request until single-flight refresh completes
       if (isRefreshing) {
         return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then((newAccessToken) => {
-            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            if (typeof originalRequest.headers?.set === 'function') {
+              originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
+            } else {
+              originalRequest.headers = originalRequest.headers || {};
+              originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+            }
             return api(originalRequest);
           })
           .catch((err) => {
@@ -112,9 +147,22 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const baseURL = api.defaults.baseURL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.qbapp.online/api/v1';
-        const refreshRes = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
-        
+        const baseURL =
+          api.defaults.baseURL ||
+          process.env.NEXT_PUBLIC_API_BASE_URL ||
+          'https://api.qbapp.online/api/v1';
+
+        // Isolated POST call to avoid interceptor loop
+        const refreshRes = await axios.post(
+          `${baseURL}/auth/refresh`,
+          { refreshToken },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
         // Normalize response payload across raw and TransformInterceptor wrappers
         const resData = refreshRes?.data;
         const payload = resData?.data || resData?.tokens || resData;
@@ -125,18 +173,28 @@ api.interceptors.response.use(
           throw new Error('No access token returned from refresh endpoint');
         }
 
-        // Update auth store with new tokens
-        setAuth(user, newAccessToken, newRefreshToken);
-        
+        // Update auth store with new tokens while preserving active session state
+        if (user) {
+          authStore.updateTokens(newAccessToken, newRefreshToken);
+        } else {
+          authStore.updateTokens(newAccessToken, newRefreshToken);
+        }
+
         // Notify and drain all queued requests
         processQueue(null, newAccessToken);
 
         // Retry original request with newly issued token
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        if (typeof originalRequest.headers?.set === 'function') {
+          originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
+        } else {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        }
+
         return api(originalRequest);
       } catch (refreshErr) {
         processQueue(refreshErr, null);
-        logout();
+        authStore.logout();
         if (window.location.pathname !== '/login') {
           toast.error('Session expired. Please log in again.');
           window.location.href = '/login';
@@ -149,14 +207,18 @@ api.interceptors.response.use(
 
     const message = getErrorMessage(error);
 
-    if (typeof message === 'string' && message !== '[object Event]' && message !== '[object Object]') {
+    if (
+      typeof message === 'string' &&
+      message !== '[object Event]' &&
+      message !== '[object Object]'
+    ) {
       if (error?.response?.status !== 401) {
         toast.error(message);
       }
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
 export default api;

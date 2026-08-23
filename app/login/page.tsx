@@ -38,9 +38,11 @@ export default function LoginPage() {
       const res: any = await api.post('/auth/login', { email, password });
       const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
       const user = payload?.user;
-      const tokens = payload?.tokens;
+      const tokens = payload?.tokens || payload;
+      const accessToken = tokens?.accessToken || tokens?.token || payload?.accessToken;
+      const refreshToken = tokens?.refreshToken || payload?.refreshToken;
 
-      if (!user || !tokens) {
+      if (!user || !accessToken) {
         throw new Error('Invalid response structure received from authentication service');
       }
 
@@ -63,7 +65,7 @@ export default function LoginPage() {
         roles: ['SUPER_ADMIN'],
       };
 
-      setAuth(mappedUser, tokens.accessToken, tokens.refreshToken);
+      setAuth(mappedUser, accessToken, refreshToken || '');
       toast.success('Welcome back to QUIKBOOM Super Admin Portal!');
       router.push('/dashboard');
     } catch (err: any) {

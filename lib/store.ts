@@ -24,6 +24,7 @@ interface AuthState {
   _hasHydrated: boolean;
   setHasHydrated: (hasHydrated: boolean) => void;
   setAuth: (user: User, token: string, refreshToken: string) => void;
+  updateTokens: (token: string, refreshToken?: string) => void;
   setCustomerId: (customerId: number | string) => void;
   switchRole: (role: string) => void;
   toggleSubscriptionFeature: (feature: keyof SubscriptionFeatures, enabled: boolean) => void;
@@ -59,6 +60,15 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           _hasHydrated: true,
         });
+      },
+
+      updateTokens: (token: string, refreshToken?: string) => {
+        set((state) => ({
+          token,
+          refreshToken: refreshToken || state.refreshToken,
+          isAuthenticated: true,
+          _hasHydrated: true,
+        }));
       },
 
       setCustomerId: (customerId: number | string) => set({ customerId }),
