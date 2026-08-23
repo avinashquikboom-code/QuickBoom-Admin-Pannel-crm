@@ -89,15 +89,15 @@ export default function CustomersPage() {
     queryKey: ['customers-metrics'],
     queryFn: async () => {
       try {
-        const res = await api.get('/customers/metrics');
-        return res.data;
+        const res: any = await api.get('/customers/metrics');
+        return res?.data?.data || res?.data || res;
       } catch {
         return {
-          totalCustomers: 12,
-          activeCustomers: 10,
-          newCustomers: 3,
-          inactiveCustomers: 2,
-          customersWithOpenDeals: 8,
+          totalCustomers: 0,
+          activeCustomers: 0,
+          newCustomers: 0,
+          inactiveCustomers: 0,
+          customersWithOpenDeals: 0,
         };
       }
     },
@@ -121,7 +121,7 @@ export default function CustomersPage() {
     ],
     queryFn: async () => {
       try {
-        const res = await api.get('/customers', {
+        const res: any = await api.get('/customers', {
           params: {
             search: searchTerm || undefined,
             status: statusFilter !== 'ALL' ? statusFilter : undefined,
@@ -136,83 +136,33 @@ export default function CustomersPage() {
             limit: pageSize,
           },
         });
-        return res.data;
+        const items = res?.data?.data || res?.data?.items || (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : res?.items || []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          items: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
         return {
-          items: [
-            {
-              id: 1,
-              customerId: 'CUST-0001',
-              name: 'Acme Global Enterprises',
-              companyName: 'Acme Global Holdings Ltd',
-              company: 'Acme Global Holdings Ltd',
-              email: 'admin@acmeglobal.com',
-              phone: '+91 98200 12345',
-              assignedEmployee: 'Rahul Sharma',
-              status: 'ACTIVE',
-              source: 'DIRECT',
-              lastActivity: '2026-08-22T14:30:00Z',
-              createdAt: '2026-06-10T10:00:00Z',
-              city: 'Mumbai',
-              deals: 4,
-            },
-            {
-              id: 2,
-              customerId: 'CUST-0002',
-              name: 'TechMatrix Solutions',
-              companyName: 'TechMatrix Innovations LLP',
-              company: 'TechMatrix Innovations LLP',
-              email: 'contact@techmatrix.io',
-              phone: '+91 98200 67890',
-              assignedEmployee: 'Pooja Verma',
-              status: 'ACTIVE',
-              source: 'WEBSITE',
-              lastActivity: '2026-08-21T18:00:00Z',
-              createdAt: '2026-07-01T12:30:00Z',
-              city: 'Bangalore',
-              deals: 2,
-            },
-            {
-              id: 3,
-              customerId: 'CUST-0003',
-              name: 'Nexus Retail Ventures',
-              companyName: 'Nexus Retail Corp',
-              company: 'Nexus Retail Corp',
-              email: 'ops@nexusretail.in',
-              phone: '+91 98200 99887',
-              assignedEmployee: 'Amit Shah',
-              status: 'ACTIVE',
-              source: 'REFERRAL',
-              lastActivity: '2026-08-20T09:15:00Z',
-              createdAt: '2026-08-01T09:15:00Z',
-              city: 'Ahmedabad',
-              deals: 1,
-            },
-            {
-              id: 4,
-              customerId: 'CUST-0004',
-              name: 'Horizon Logistics Inc',
-              companyName: 'Horizon Express Global',
-              company: 'Horizon Express Global',
-              email: 'info@horizonlogistics.com',
-              phone: '+91 98200 55443',
-              assignedEmployee: 'Rahul Sharma',
-              status: 'INACTIVE',
-              source: 'GOOGLE_PLACES',
-              lastActivity: '2026-08-15T11:00:00Z',
-              createdAt: '2026-05-12T08:00:00Z',
-              city: 'Surat',
-              deals: 0,
-            },
-          ],
-          meta: { total: 4, page: 1, limit: 15, totalPages: 1 },
+          items: [],
+          pagination: { page: 1, pageSize, total: 0, totalPages: 1 },
         };
       }
     },
   });
 
   const customers: any[] = customerData?.items || [];
-  const meta = customerData?.meta || { total: customers.length, page: 1, limit: 15, totalPages: 1 };
+  const meta = customerData?.pagination || { total: customers.length, page: 1, pageSize: 20, totalPages: 1 };
 
   // Create Customer Mutation
   const createMutation = useMutation({
