@@ -83,7 +83,6 @@ export default function CompaniesPage() {
     source: 'MANUAL',
     status: 'ACTIVE',
     notes: '',
-    assignedToId: '',
   });
 
   // Add Contact Form State
@@ -113,7 +112,6 @@ export default function CompaniesPage() {
             search: search || undefined,
             industry: industryFilter !== 'ALL' ? industryFilter : undefined,
             status: statusFilter !== 'ALL' ? statusFilter : undefined,
-            assignedToId: assignedFilter !== 'ALL' ? assignedFilter : undefined,
             page,
             limit: pageSize,
           },
@@ -257,7 +255,6 @@ export default function CompaniesPage() {
         source: form.source || 'MANUAL',
         status: form.status || 'ACTIVE',
         notes: form.notes.trim() || undefined,
-        assignedToId: form.assignedToId || undefined,
       };
 
       if (form.id) {
@@ -364,7 +361,6 @@ export default function CompaniesPage() {
       source: 'MANUAL',
       status: 'ACTIVE',
       notes: '',
-      assignedToId: '',
     });
   };
 
@@ -397,7 +393,6 @@ export default function CompaniesPage() {
       source: comp.source || 'MANUAL',
       status: comp.status || 'ACTIVE',
       notes: comp.notes || '',
-      assignedToId: comp.assignedToId ? String(comp.assignedToId) : '',
     });
     setIsDrawerOpen(true);
   };
@@ -831,24 +826,9 @@ export default function CompaniesPage() {
 
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-blue-600" /> Account Owner & Notes
+              <Users className="w-3.5 h-3.5 text-blue-600" /> Status & Notes
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Assigned CRM Owner</label>
-                <select
-                  value={form.assignedToId}
-                  onChange={(e) => setForm({ ...form, assignedToId: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
-                >
-                  <option value="">-- Unassigned --</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={String(emp.id)}>
-                      {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
 
               <div>
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">Status</label>
