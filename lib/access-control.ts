@@ -231,6 +231,7 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
+        { name: 'Teams', href: '/teams', icon: Users, permission: 'employee.view' },
         { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
         { name: 'Designations', href: '/designations', icon: Award, permission: 'designation.view' },
         { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view_all' },
@@ -239,6 +240,8 @@ export const adminNavigation: {
         { name: 'Remote Work', href: '/remote-work', icon: Laptop, permission: 'remote.view_all' },
         { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, feature: 'geo_tracking', permission: 'geo_tracking.view' },
         { name: 'Payroll', href: '/payroll', icon: Banknote, feature: 'payroll', permission: 'payroll.view' },
+        { name: 'Loans', href: '/loans', icon: DollarSign, feature: 'payroll', permission: 'payroll.view' },
+        { name: 'Claims & Expenses', href: '/claims', icon: CreditCard, feature: 'payroll', permission: 'payroll.view' },
       ],
     },
 
@@ -305,6 +308,7 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'All Customers', href: '/customers', icon: Building2, permission: 'customers.manage' },
+        { name: 'Invoices & Billing', href: '/invoices', icon: FileText, permission: 'customers.manage' },
         { name: 'Subscription Plans', href: '/customers/plans', icon: Layers, permission: 'plans.manage' },
         { name: 'Active Subscriptions', href: '/customers/subscriptions', icon: ShieldCheck, permission: 'subscriptions.manage' },
         { name: 'Resource Usage', href: '/customers/usage', icon: Activity, permission: 'subscription.view' },
@@ -470,6 +474,8 @@ export const adminNavigation: {
       roles: ['HR'],
       items: [
         { name: 'Payroll', href: '/payroll', icon: Banknote, permission: 'payroll.view' },
+        { name: 'Loans', href: '/loans', icon: DollarSign, permission: 'payroll.view' },
+        { name: 'Claims & Expenses', href: '/claims', icon: CreditCard, permission: 'payroll.view' },
       ],
     },
 

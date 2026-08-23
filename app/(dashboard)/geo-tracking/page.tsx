@@ -336,13 +336,12 @@ export default function GeoTrackingPage() {
     ? liveLocationsData
     : Array.isArray(liveLocationsData?.employees)
     ? liveLocationsData.employees
-    : null;
+    : [];
 
-  const employees: EmployeeLocationData[] =
-    rawEmployees !== null && rawEmployees.length > 0 ? rawEmployees : mockEmployeesLocations;
+  const employees: EmployeeLocationData[] = rawEmployees;
 
-  const rawBranches = Array.isArray(branchesData) ? branchesData : null;
-  const branches: GeofenceBranch[] = rawBranches !== null && rawBranches.length > 0 ? rawBranches : mockBranches;
+  const rawBranches = Array.isArray(branchesData) ? branchesData : [];
+  const branches: GeofenceBranch[] = rawBranches;
 
   // Permission Guard Check (Simulated employee.location.view rule)
   const hasPermission = true;
@@ -363,11 +362,11 @@ export default function GeoTrackingPage() {
     );
   }
 
-  const filteredEmployees = mockEmployeesLocations.filter((emp) => {
+  const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
-      emp.name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.employeeId.toLowerCase().includes(search.toLowerCase()) ||
-      emp.department.toLowerCase().includes(search.toLowerCase());
+      (emp.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (emp.employeeId || '').toLowerCase().includes(search.toLowerCase()) ||
+      (emp.department || '').toLowerCase().includes(search.toLowerCase());
     const matchesDept = departmentFilter === 'ALL' || emp.department === departmentFilter;
     const matchesStatus = statusFilter === 'ALL' || emp.status === statusFilter;
     return matchesSearch && matchesDept && matchesStatus;
@@ -631,7 +630,16 @@ export default function GeoTrackingPage() {
 
                 {/* Map Employee Pins / Markers */}
                 <div className="relative w-full h-full min-h-[480px]">
-                  {filteredEmployees.map((emp, index) => {
+                  {filteredEmployees.length === 0 ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-950/60 backdrop-blur-xs rounded-2xl border border-slate-800">
+                      <Radio className="w-12 h-12 text-slate-600 animate-pulse mb-3" />
+                      <h4 className="text-sm font-bold text-slate-300">No Live GPS Coordinates Available</h4>
+                      <p className="text-xs text-slate-500 max-w-sm mt-1">
+                        Employees broadcast live location data during active visits and shift tracking. Offline staff do not transmit real-time telemetry.
+                      </p>
+                    </div>
+                  ) : (
+                    filteredEmployees.map((emp, index) => {
                     const topPos = `${25 + (index * 14) % 60}%`;
                     const leftPos = `${20 + (index * 16) % 70}%`;
                     const isSelected = selectedEmployee?.id === emp.id;
@@ -681,7 +689,8 @@ export default function GeoTrackingPage() {
                         ) : null}
                       </div>
                     );
-                  })}
+                  })
+                )}
                 </div>
 
                 {/* Map Legend Overlay */}
