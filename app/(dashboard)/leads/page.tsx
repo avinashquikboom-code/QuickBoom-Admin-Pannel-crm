@@ -35,6 +35,14 @@ import {
   FileText,
   UserPlus,
   Check,
+  X,
+  Send,
+  MessageSquare,
+  History,
+  User,
+  Copy,
+  Tag,
+  AlertCircle,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -109,12 +117,16 @@ export default function LeadsPage() {
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [assignedFilter, setAssignedFilter] = useState('ALL');
 
-  // Modals & Drawers state
+  // Drawer / Modals states
+  const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
+  const [drawerActiveTab, setDrawerActiveTab] = useState<'OVERVIEW' | 'TIMELINE' | 'NOTES' | 'VISITS'>('OVERVIEW');
+  const [drawerNewNote, setDrawerNewNote] = useState('');
+
   const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
   const [isPlacesDrawerOpen, setIsPlacesDrawerOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<LeadItem | null>(null);
+  const [selectedLeadForAction, setSelectedLeadForAction] = useState<LeadItem | null>(null);
 
   // Form states
   const [leadForm, setLeadForm] = useState({
@@ -166,7 +178,7 @@ export default function LeadsPage() {
   const [convertNotes, setConvertNotes] = useState('');
 
   // 1. Fetch Real Leads List
-  const { data: leadsData, isLoading: isLoadingLeads, isFetching, refetch } = useQuery({
+  const { data: leadsData, isLoading: isLoadingLeads, refetch } = useQuery({
     queryKey: ['admin-leads-list', search, activeTab, sourceFilter, priorityFilter, assignedFilter],
     queryFn: async () => {
       try {
@@ -184,7 +196,23 @@ export default function LeadsPage() {
     },
   });
 
-  // 2. Fetch Real Metrics
+  // 2. Fetch Selected Lead Details for Right-Side Drawer
+  const {
+    data: leadDetail,
+    isLoading: isLoadingDetail,
+    isError: isDetailError,
+    refetch: refetchDetail,
+  } = useQuery({
+    queryKey: ['admin-lead-detail', selectedLeadId],
+    queryFn: async () => {
+      if (!selectedLeadId) return null;
+      const res: any = await api.get(`/leads/${selectedLeadId}`);
+      return res?.data || res;
+    },
+    enabled: Boolean(selectedLeadId),
+  });
+
+  // 3. Fetch Real Metrics
   const { data: metricsData } = useQuery({
     queryKey: ['admin-leads-metrics'],
     queryFn: async () => {
@@ -197,7 +225,7 @@ export default function LeadsPage() {
     },
   });
 
-  // 3. Fetch Active Employees for assignment
+  // 4. Fetch Active Employees for assignment
   const { data: employeesData } = useQuery({
     queryKey: ['admin-active-employees'],
     queryFn: async () => {
@@ -230,7 +258,7 @@ export default function LeadsPage() {
     });
   }, [rawLeads, activeTab, sourceFilter, priorityFilter, assignedFilter]);
 
-  // Compute or read metrics
+  // Metrics numbers
   const metrics = {
     total: metricsData?.total ?? rawLeads.length,
     new: metricsData?.new ?? rawLeads.filter((l) => l.status === 'NEW').length,
@@ -247,6 +275,7 @@ export default function LeadsPage() {
     },
     onSuccess: () => {
       toast.success('Lead removed successfully');
+      if (selectedLeadId) setSelectedLeadId(null);
       queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
     },
@@ -295,6 +324,9 @@ export default function LeadsPage() {
       toast.success(leadForm.id ? 'Lead details updated successfully!' : 'New Lead created successfully!');
       setIsAddDrawerOpen(false);
       resetLeadForm();
+      if (selectedLeadId) {
+        queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
     },
@@ -306,8 +338,9 @@ export default function LeadsPage() {
   // Follow-up Mutation
   const followUpMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedLead) return;
-      return api.post(`/leads/${selectedLead.id}/follow-ups`, {
+      const targetId = selectedLeadForAction?.id || selectedLeadId;
+      if (!targetId) return;
+      return api.post(`/leads/${targetId}/follow-ups`, {
         outcome: followUpOutcome,
         notes: followUpNotes || undefined,
         nextFollowUpDate: followUpDate ? new Date(followUpDate) : undefined,
@@ -317,6 +350,9 @@ export default function LeadsPage() {
     onSuccess: () => {
       toast.success('Follow-up logged successfully!');
       setIsFollowUpModalOpen(false);
+      if (selectedLeadId) {
+        queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
     },
@@ -328,11 +364,12 @@ export default function LeadsPage() {
   // Convert Lead Mutation
   const convertMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedLead) return;
-      return api.post(`/leads/${selectedLead.id}/convert`, {
-        companyName: convertCompanyName.trim() || selectedLead.companyName || selectedLead.title,
-        dealTitle: convertDealTitle.trim() || `${selectedLead.companyName || selectedLead.title} - Enterprise Deal`,
-        dealValue: convertDealValue ? parseFloat(convertDealValue) : (selectedLead.value || 0),
+      const target = selectedLeadForAction || leadDetail;
+      if (!target?.id) return;
+      return api.post(`/leads/${target.id}/convert`, {
+        companyName: convertCompanyName.trim() || target.companyName || target.title,
+        dealTitle: convertDealTitle.trim() || `${target.companyName || target.title} - Enterprise Deal`,
+        dealValue: convertDealValue ? parseFloat(convertDealValue) : (target.value || 0),
         notes: convertNotes.trim() || undefined,
       });
     },
@@ -340,8 +377,62 @@ export default function LeadsPage() {
       const msg = res?.data?.message || res?.message || 'Lead converted to Customer, Contact & Deal!';
       toast.success(typeof msg === 'string' ? msg : 'Lead converted successfully.');
       setIsConvertModalOpen(false);
+      if (selectedLeadId) {
+        queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Add Note Mutation
+  const addNoteMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (!selectedLeadId) return;
+      return api.post(`/leads/${selectedLeadId}/notes`, { content });
+    },
+    onSuccess: () => {
+      toast.success('Note added successfully');
+      setDrawerNewNote('');
+      queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Status Change Mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ status, notes }: { status: string; notes?: string }) => {
+      if (!selectedLeadId) return;
+      return api.patch(`/leads/${selectedLeadId}/status`, { status, notes });
+    },
+    onSuccess: () => {
+      toast.success('Lead status updated!');
+      queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Assign Employee Mutation
+  const assignEmployeeMutation = useMutation({
+    mutationFn: async (assignedToId: number | string | null) => {
+      if (!selectedLeadId) return;
+      return api.patch(`/leads/${selectedLeadId}`, {
+        assignedToId: assignedToId ? String(assignedToId) : undefined,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Assigned employee updated');
+      queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -384,8 +475,8 @@ export default function LeadsPage() {
     setIsAddDrawerOpen(true);
   };
 
-  const handleOpenEdit = (lead: LeadItem) => {
-    setSelectedLead(lead);
+  const handleOpenEdit = (lead: any) => {
+    setSelectedLeadForAction(lead);
     setLeadForm({
       id: String(lead.id),
       title: lead.title || '',
@@ -417,8 +508,8 @@ export default function LeadsPage() {
     setIsAddDrawerOpen(true);
   };
 
-  const handleOpenFollowUp = (lead: LeadItem) => {
-    setSelectedLead(lead);
+  const handleOpenFollowUp = (lead: any) => {
+    setSelectedLeadForAction(lead);
     setFollowUpOutcome('Interested');
     setFollowUpDate('');
     setFollowUpTime('11:00');
@@ -426,8 +517,8 @@ export default function LeadsPage() {
     setIsFollowUpModalOpen(true);
   };
 
-  const handleOpenConvert = (lead: LeadItem) => {
-    setSelectedLead(lead);
+  const handleOpenConvert = (lead: any) => {
+    setSelectedLeadForAction(lead);
     setConvertCompanyName(lead.companyName || lead.title || 'Client Company');
     setConvertDealTitle(`${lead.companyName || lead.title || 'Enterprise'} - Deal`);
     setConvertDealValue(String(lead.value || 100000));
@@ -435,7 +526,7 @@ export default function LeadsPage() {
     setIsConvertModalOpen(true);
   };
 
-  // Google Places Search Handler using existing backend integration
+  // Google Places Search Handler
   const handleSearchGooglePlaces = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!placeKeyword.trim() || !placeLocation.trim()) {
@@ -450,28 +541,32 @@ export default function LeadsPage() {
         maxResults: 20,
       });
 
-      const places: GooglePlaceResult[] = res?.data?.places || res?.places || [];
-      setPlacesResults(places);
+      const extractedItems: GooglePlaceResult[] = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+        ? res
+        : [];
+      setPlacesResults(extractedItems);
 
-      // Check duplicates for each extracted place
-      const duplicateMap: Record<string, any> = {};
-      for (const p of places) {
+      // Check duplicates for results
+      const dupMap: Record<string, any> = {};
+      for (const item of extractedItems.slice(0, 10)) {
         try {
           const dupRes: any = await api.post('/leads/check-duplicate', {
-            googlePlaceId: p.googlePlaceId,
-            companyName: p.businessName,
-            phone: p.phone !== 'N/A' ? p.phone : undefined,
+            googlePlaceId: item.googlePlaceId,
+            phone: item.phone,
+            companyName: item.businessName,
+            website: item.website,
           });
-          const dupData = dupRes?.data || dupRes;
-          if (dupData?.isDuplicate) {
-            duplicateMap[p.googlePlaceId] = dupData;
+          if (dupRes?.isDuplicate || dupRes?.data?.isDuplicate) {
+            dupMap[item.googlePlaceId] = dupRes?.data || dupRes;
           }
         } catch {
-          // ignore individual check errors
+          // ignore duplicate check errors on bulk
         }
       }
-      setDuplicateCheckedPlaces(duplicateMap);
-      toast.success(`Extracted ${places.length} verified Google Places`);
+      setDuplicateCheckedPlaces(dupMap);
+      toast.success(`Discovered ${extractedItems.length} verified businesses!`);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -479,173 +574,124 @@ export default function LeadsPage() {
     }
   };
 
-  // Handle "Add as Lead" from Google Places Result
-  const handleSelectPlaceAsLead = (place: GooglePlaceResult) => {
-    const isDup = duplicateCheckedPlaces[place.googlePlaceId];
-    if (isDup?.isDuplicate) {
-      toast.error(`Lead already exists! Matching: ${isDup.matchReason}`);
-      return;
+  // Import Google Place into Lead directly
+  const handleImportGooglePlace = async (place: GooglePlaceResult) => {
+    try {
+      const payload = {
+        title: place.businessName,
+        companyName: place.businessName,
+        category: place.category || 'Local Business',
+        source: 'GOOGLE_PLACES',
+        firstName: place.businessName.split(' ')[0] || 'Manager',
+        lastName: place.businessName.split(' ').slice(1).join(' ') || 'Team',
+        phone: place.phone || undefined,
+        website: place.website || undefined,
+        address: place.address || undefined,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        googlePlaceId: place.googlePlaceId,
+        rating: place.rating,
+        reviewCount: place.reviewCount,
+        status: 'NEW',
+        priority: (place.rating && place.rating >= 4.5 ? 'HIGH' : 'MEDIUM') as any,
+        value: 75000,
+      };
+
+      await api.post('/leads', payload);
+      toast.success(`Imported "${place.businessName}" as a CRM Lead!`);
+      queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     }
-
-    const nameParts = place.businessName.split(' ');
-    const firstName = nameParts[0] || 'Manager';
-    const lastName = nameParts.slice(1).join(' ') || 'Office';
-
-    // Parse address for city/state/country
-    let city = placeLocation.split(',')[0]?.trim() || '';
-    let state = 'Maharashtra';
-    let country = 'India';
-
-    setLeadForm({
-      id: '',
-      title: place.businessName,
-      businessName: place.businessName,
-      category: place.category || 'Local Business',
-      source: 'GOOGLE_PLACES',
-      firstName,
-      lastName,
-      phone: place.phone !== 'N/A' ? (place.phone || '') : '',
-      email: '',
-      website: place.website !== 'N/A' ? (place.website || '') : '',
-      address: place.address !== 'N/A' ? (place.address || '') : '',
-      city,
-      state,
-      country,
-      latitude: place.latitude ? String(place.latitude) : '',
-      longitude: place.longitude ? String(place.longitude) : '',
-      googlePlaceId: place.googlePlaceId,
-      rating: place.rating ? String(place.rating) : '',
-      reviewCount: place.reviewCount ? String(place.reviewCount) : '',
-      assignedToId: '',
-      status: 'NEW',
-      priority: place.rating && place.rating >= 4.5 ? 'HIGH' : 'MEDIUM',
-      value: '75000',
-      nextFollowUpDate: '',
-      nextFollowUpTime: '',
-      notes: `Captured via Google Places API Text Search. Address: ${place.address || 'N/A'}`,
-    });
-
-    setIsPlacesDrawerOpen(false);
-    setIsAddDrawerOpen(true);
-    toast.success('Google Places business information pre-filled!');
   };
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO CARD */}
+    <div className="space-y-6">
+      {/* 1. HERO BANNER */}
       <AdminPageHero
-        badge={{
-          text: 'LEAD MANAGEMENT',
-          icon: UserCheck,
-          variant: 'emerald',
-        }}
-        title="Leads"
-        description="Discover, assign, track and convert potential customers."
+        badge="CRM & Pipeline"
+        title="Leads Management"
+        description="Discover, assign, track and convert potential customers into sales deals."
         actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
-              title="Refresh leads list"
-            >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
-
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => {
                 setIsPlacesDrawerOpen(true);
-                if (placesResults.length === 0) {
-                  handleSearchGooglePlaces();
-                }
+                if (placesResults.length === 0) handleSearchGooglePlaces();
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600/30 hover:bg-blue-600/40 text-blue-200 border border-blue-500/40 font-black rounded-2xl text-xs transition-all cursor-pointer active:scale-95 shadow-sm"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs flex items-center gap-2 transition-all border border-white/20 cursor-pointer active:scale-95"
             >
-              <Globe className="w-4 h-4 text-blue-400" />
-              <span>Google Places</span>
+              <Globe className="w-4 h-4 text-emerald-300" />
+              <span>Google Places Discovery</span>
             </button>
 
             <button
               onClick={handleOpenCreate}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
+              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs flex items-center gap-2 transition-all shadow-md shadow-[#23C45E]/20 cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" />
-              <span>+ Add Lead</span>
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Add New Lead</span>
             </button>
           </div>
         }
       />
 
-      {/* 2. KPI SUMMARY CARDS (REAL BACKEND METRICS) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      {/* 2. SUMMARY METRICS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <AdminStatCard
           title="Total Leads"
           value={isLoadingLeads ? '...' : metrics.total}
-          description="In Active CRM Pipeline"
-          icon={UserCheck}
-          iconBg="primary"
-          onClick={() => setActiveTab('ALL')}
+          icon={Layers}
+          iconBg="slate"
         />
         <AdminStatCard
-          title="New Leads"
+          title="New Inquiries"
           value={isLoadingLeads ? '...' : metrics.new}
-          description="Uncontacted prospects"
           icon={Sparkles}
-          iconBg="blue"
-          onClick={() => setActiveTab('NEW')}
+          iconBg="primary"
         />
         <AdminStatCard
           title="Contacted"
           value={isLoadingLeads ? '...' : metrics.contacted}
-          description="Discovery in progress"
           icon={Phone}
-          iconBg="purple"
-          onClick={() => setActiveTab('CONTACTED')}
+          iconBg="blue"
         />
         <AdminStatCard
           title="Qualified"
           value={isLoadingLeads ? '...' : metrics.qualified}
-          description="High budget intent"
           icon={Award}
-          iconBg="amber"
-          onClick={() => setActiveTab('QUALIFIED')}
+          iconBg="purple"
         />
         <AdminStatCard
           title="Converted"
           value={isLoadingLeads ? '...' : metrics.converted}
-          description="Active customer accounts"
-          icon={CheckCircle2}
+          icon={TrendingUp}
           iconBg="primary"
-          onClick={() => setActiveTab('CONVERTED')}
         />
         <AdminStatCard
           title="Lost / Closed"
           value={isLoadingLeads ? '...' : metrics.lost}
-          description="Disqualified or lost"
           icon={XCircle}
-          iconBg="slate"
-          onClick={() => setActiveTab('LOST')}
+          iconBg="rose"
         />
       </div>
 
-      {/* 3. TABS & FILTER TOOLBAR */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5 space-y-4">
-        {/* Top Status Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 border-b border-slate-100">
-          {(
-            [
-              { key: 'ALL', label: 'All Leads', count: metrics.total },
-              { key: 'NEW', label: 'New', count: metrics.new },
-              { key: 'CONTACTED', label: 'Contacted', count: metrics.contacted },
-              { key: 'QUALIFIED', label: 'Qualified', count: metrics.qualified },
-              { key: 'CONVERTED', label: 'Converted', count: metrics.converted },
-              { key: 'LOST', label: 'Lost', count: metrics.lost },
-            ] as const
-          ).map((tab) => (
+      {/* 3. TABS & FILTER BAR */}
+      <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
+          {[
+            { key: 'ALL', label: 'All Leads', count: metrics.total },
+            { key: 'NEW', label: 'New', count: metrics.new },
+            { key: 'CONTACTED', label: 'Contacted', count: metrics.contacted },
+            { key: 'QUALIFIED', label: 'Qualified', count: metrics.qualified },
+            { key: 'CONVERTED', label: 'Converted', count: metrics.converted },
+            { key: 'LOST', label: 'Lost', count: metrics.lost },
+          ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+              onClick={() => setActiveTab(tab.key as LeadTab)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === tab.key
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:bg-slate-100'
@@ -745,22 +791,26 @@ export default function LeadsPage() {
                   const leadName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || 'Contact';
                   const compName = lead.companyName || lead.title || 'Direct Prospect';
                   const isConverted = lead.status === 'CONVERTED' || lead.status === 'WON';
+                  const isSelected = String(selectedLeadId) === String(lead.id);
 
                   return (
-                    <tr key={lead.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr
+                      key={lead.id}
+                      onClick={() => setSelectedLeadId(lead.id)}
+                      className={`hover:bg-slate-50/90 transition-colors cursor-pointer group ${
+                        isSelected ? 'bg-emerald-50/50 border-l-4 border-l-[#1AA14D]' : ''
+                      }`}
+                    >
                       {/* Lead & Business Name */}
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 flex items-center justify-center font-black shrink-0 shadow-2xs">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 flex items-center justify-center font-black shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                             {lead.googlePlaceId ? <Globe className="w-4 h-4 text-blue-600" /> : <Building className="w-4 h-4" />}
                           </div>
                           <div className="min-w-0">
-                            <Link
-                              href={`/leads/${lead.id}`}
-                              className="font-extrabold text-slate-900 hover:text-[#1AA14D] text-sm truncate block transition-colors"
-                            >
+                            <span className="font-extrabold text-slate-900 group-hover:text-[#1AA14D] text-sm truncate block transition-colors">
                               {compName}
-                            </Link>
+                            </span>
                             <p className="text-slate-500 font-medium text-[11px] truncate flex items-center gap-1.5 mt-0.5">
                               <span className="font-bold text-slate-700">{leadName}</span>
                               {lead.city && <span>• {lead.city}</span>}
@@ -867,14 +917,14 @@ export default function LeadsPage() {
 
                       {/* Action Buttons */}
                       <td className="py-4 px-5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/leads/${lead.id}`}
-                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-[#1AA14D] transition-colors"
-                            title="View Lead Profile"
+                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => setSelectedLeadId(lead.id)}
+                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-[#1AA14D] transition-colors cursor-pointer"
+                            title="Open Detail Drawer"
                           >
                             <Eye className="w-4 h-4" />
-                          </Link>
+                          </button>
 
                           <button
                             onClick={() => handleOpenFollowUp(lead)}
@@ -941,7 +991,487 @@ export default function LeadsPage() {
       </div>
 
       {/* =========================================================================
-          5. GOOGLE PLACES SEARCH DRAWER (INTEGRATED)
+          5. RIGHT-SIDE LEAD DETAIL DRAWER (SLIDE-OVER PANEL)
+          ========================================================================= */}
+      {selectedLeadId && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+            onClick={() => setSelectedLeadId(null)}
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-xl md:max-w-2xl bg-white shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
+              {/* Drawer Top Bar */}
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-[#1AA14D] font-black flex items-center justify-center shrink-0 shadow-2xs">
+                    {leadDetail?.googlePlaceId ? <Globe className="w-5 h-5 text-blue-600" /> : <Building className="w-5 h-5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-black text-slate-900 truncate">
+                      {leadDetail?.companyName || leadDetail?.title || 'Lead Details'}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium truncate">
+                      {leadDetail?.firstName} {leadDetail?.lastName} {leadDetail?.city ? `• ${leadDetail.city}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {leadDetail && (
+                    <button
+                      onClick={() => handleOpenEdit(leadDetail)}
+                      className="p-2 hover:bg-slate-200/70 rounded-xl text-slate-600 hover:text-blue-600 transition-colors"
+                      title="Edit Lead"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedLeadId(null)}
+                    className="p-2 hover:bg-slate-200/70 rounded-xl text-slate-400 hover:text-slate-700 transition-colors"
+                    title="Close Drawer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Drawer Body (Scrollable) */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {isLoadingDetail ? (
+                  <div className="space-y-4 animate-pulse">
+                    <div className="h-10 bg-slate-100 rounded-2xl w-3/4" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="h-20 bg-slate-100 rounded-2xl" />
+                      <div className="h-20 bg-slate-100 rounded-2xl" />
+                    </div>
+                    <div className="h-40 bg-slate-100 rounded-2xl" />
+                    <div className="h-32 bg-slate-100 rounded-2xl" />
+                  </div>
+                ) : isDetailError || !leadDetail ? (
+                  <div className="p-8 text-center bg-rose-50 rounded-3xl border border-rose-200 space-y-3">
+                    <AlertCircle className="w-8 h-8 text-rose-600 mx-auto" />
+                    <h4 className="font-black text-rose-900 text-sm">Failed to Load Lead Details</h4>
+                    <p className="text-xs text-rose-700">The requested lead record could not be retrieved.</p>
+                    <button
+                      onClick={() => refetchDetail()}
+                      className="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700 transition-all cursor-pointer"
+                    >
+                      Retry Loading
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Status & Highlights Row */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Deal Value</p>
+                        <p className="text-base font-black text-slate-900 mt-0.5">
+                          ₹{Number(leadDetail.value || 0).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Priority</p>
+                        <span
+                          className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-1 ${
+                            leadDetail.priority === 'HIGH' || leadDetail.priority === 'URGENT'
+                              ? 'bg-rose-100 text-rose-700'
+                              : leadDetail.priority === 'LOW'
+                              ? 'bg-slate-100 text-slate-700'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {leadDetail.priority || 'MEDIUM'}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Source</p>
+                        <p className="text-xs font-black text-slate-800 mt-1 truncate">
+                          {leadDetail.source || 'WEBSITE'}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Created</p>
+                        <p className="text-xs font-bold text-slate-700 mt-1">
+                          {new Date(leadDetail.createdAt).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Stage Status Switcher Banner */}
+                    <div className="p-4 bg-emerald-50/60 rounded-3xl border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                          Current Stage Status
+                        </p>
+                        <p className="text-sm font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
+                          <CheckCircle2 className="w-4 h-4 text-[#1AA14D]" />
+                          <span>{leadDetail.status}</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={leadDetail.status}
+                          onChange={(e) => updateStatusMutation.mutate({ status: e.target.value })}
+                          disabled={updateStatusMutation.isPending}
+                          className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E]"
+                        >
+                          <option value="NEW">NEW</option>
+                          <option value="CONTACTED">CONTACTED</option>
+                          <option value="QUALIFIED">QUALIFIED</option>
+                          <option value="CONVERTED">CONVERTED</option>
+                          <option value="LOST">LOST</option>
+                        </select>
+
+                        {leadDetail.status !== 'CONVERTED' && (
+                          <button
+                            onClick={() => handleOpenConvert(leadDetail)}
+                            className="px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all shadow-xs cursor-pointer active:scale-95"
+                          >
+                            Convert Deal
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Contact & Organization Card */}
+                    <div className="p-4 bg-slate-50/70 rounded-3xl border border-slate-200/80 space-y-3">
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <Building className="w-4 h-4 text-slate-500" />
+                        <span>Contact & Organization</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        {leadDetail.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-3.5 h-3.5 text-[#23C45E] shrink-0" />
+                            <a
+                              href={`tel:${leadDetail.phone}`}
+                              className="font-bold text-slate-800 hover:text-[#1AA14D] hover:underline"
+                            >
+                              {leadDetail.phone}
+                            </a>
+                          </div>
+                        )}
+
+                        {leadDetail.email && (
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            <a
+                              href={`mailto:${leadDetail.email}`}
+                              className="font-bold text-slate-800 hover:text-blue-600 hover:underline truncate"
+                            >
+                              {leadDetail.email}
+                            </a>
+                          </div>
+                        )}
+
+                        {leadDetail.website && (
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Globe className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                            <a
+                              href={leadDetail.website.startsWith('http') ? leadDetail.website : `https://${leadDetail.website}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-bold text-purple-700 hover:underline truncate flex items-center gap-1"
+                            >
+                              <span>{leadDetail.website.replace(/^https?:\/\//, '')}</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+
+                        {leadDetail.address && (
+                          <div className="flex items-start gap-2 col-span-full">
+                            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                            <span className="font-semibold text-slate-700">
+                              {leadDetail.address} {leadDetail.city ? `, ${leadDetail.city}` : ''}{' '}
+                              {leadDetail.state ? `, ${leadDetail.state}` : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Assigned Representative */}
+                    <div className="p-4 bg-slate-50/70 rounded-3xl border border-slate-200/80 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center shrink-0">
+                          {leadDetail.assignedTo?.firstName?.[0] || 'U'}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Assigned To</p>
+                          <p className="text-xs font-black text-slate-800">
+                            {leadDetail.assignedTo
+                              ? `${leadDetail.assignedTo.firstName} ${leadDetail.assignedTo.lastName}`
+                              : 'Unassigned Representative'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <select
+                        value={leadDetail.assignedToId || ''}
+                        onChange={(e) => assignEmployeeMutation.mutate(e.target.value || null)}
+                        disabled={assignEmployeeMutation.isPending}
+                        className="px-3 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 shadow-2xs"
+                      >
+                        <option value="">-- Assign Employee --</option>
+                        {employees.map((emp) => (
+                          <option key={emp.id} value={String(emp.id)}>
+                            {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Interactive Tabs inside Drawer */}
+                    <div className="space-y-4 pt-2">
+                      <div className="flex border-b border-slate-200">
+                        {[
+                          { key: 'OVERVIEW', label: 'Overview', icon: FileText },
+                          { key: 'TIMELINE', label: `Timeline (${leadDetail.timeline?.length || 0})`, icon: History },
+                          { key: 'NOTES', label: `Notes (${leadDetail.notes?.length || 0})`, icon: MessageSquare },
+                          { key: 'VISITS', label: `Visits (${leadDetail.visits?.length || 0})`, icon: Calendar },
+                        ].map((t) => {
+                          const IconComp = t.icon;
+                          const isActive = drawerActiveTab === t.key;
+                          return (
+                            <button
+                              key={t.key}
+                              onClick={() => setDrawerActiveTab(t.key as any)}
+                              className={`pb-3 px-3.5 text-xs font-black flex items-center gap-1.5 border-b-2 transition-all cursor-pointer ${
+                                isActive
+                                  ? 'border-[#23C45E] text-[#1AA14D]'
+                                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                              }`}
+                            >
+                              <IconComp className="w-3.5 h-3.5" />
+                              <span>{t.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* TAB 1: OVERVIEW */}
+                      {drawerActiveTab === 'OVERVIEW' && (
+                        <div className="space-y-4">
+                          {leadDetail.nextFollowUpDate && (
+                            <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-amber-900 font-bold">
+                                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>
+                                  Next Follow-up scheduled for{' '}
+                                  {new Date(leadDetail.nextFollowUpDate).toLocaleDateString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  })}{' '}
+                                  {leadDetail.nextFollowUpTime || ''}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => handleOpenFollowUp(leadDetail)}
+                                className="px-2.5 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 font-extrabold rounded-lg text-[10px] uppercase cursor-pointer"
+                              >
+                                Reschedule
+                              </button>
+                            </div>
+                          )}
+
+                          {leadDetail.rating && (
+                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
+                              <p className="font-black text-slate-900 flex items-center gap-1.5">
+                                <Globe className="w-4 h-4 text-blue-600" />
+                                <span>Google Places Intelligence</span>
+                              </p>
+                              <p className="text-slate-600 font-medium">
+                                Rating: <strong>{leadDetail.rating} / 5.0</strong> ({leadDetail.reviewCount || 0} customer reviews)
+                              </p>
+                              {leadDetail.googlePlaceId && (
+                                <p className="font-mono text-[10px] text-slate-400 truncate">
+                                  Place ID: {leadDetail.googlePlaceId}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* TAB 2: TIMELINE */}
+                      {drawerActiveTab === 'TIMELINE' && (
+                        <div className="space-y-3">
+                          {leadDetail.timeline && leadDetail.timeline.length > 0 ? (
+                            leadDetail.timeline.map((item: any) => (
+                              <div
+                                key={item.id}
+                                className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
+                                    {item.action.replace(/_/g, ' ')}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-bold">
+                                    {new Date(item.createdAt).toLocaleString('en-IN', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                </div>
+                                <p className="text-slate-600 font-medium">{item.description}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-center py-6 text-slate-400 text-xs font-bold">
+                              No activity timeline recorded yet
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* TAB 3: NOTES */}
+                      {drawerActiveTab === 'NOTES' && (
+                        <div className="space-y-4">
+                          {/* Add Note Form */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={drawerNewNote}
+                              onChange={(e) => setDrawerNewNote(e.target.value)}
+                              placeholder="Write a quick lead note..."
+                              className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                            />
+                            <button
+                              onClick={() => {
+                                if (!drawerNewNote.trim()) return;
+                                addNoteMutation.mutate(drawerNewNote.trim());
+                              }}
+                              disabled={addNoteMutation.isPending || !drawerNewNote.trim()}
+                              className="px-4 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Add</span>
+                            </button>
+                          </div>
+
+                          {/* Notes Stream */}
+                          <div className="space-y-2.5">
+                            {leadDetail.notes && leadDetail.notes.length > 0 ? (
+                              leadDetail.notes.map((note: any) => (
+                                <div
+                                  key={note.id}
+                                  className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1"
+                                >
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold">
+                                    <span>
+                                      {note.user ? `${note.user.firstName} ${note.user.lastName}` : 'Admin'}
+                                    </span>
+                                    <span>
+                                      {new Date(note.createdAt).toLocaleDateString('en-IN', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-800 font-semibold">{note.content}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-center py-6 text-slate-400 text-xs font-bold">
+                                No notes added to this lead yet
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TAB 4: VISITS */}
+                      {drawerActiveTab === 'VISITS' && (
+                        <div className="space-y-3">
+                          {leadDetail.visits && leadDetail.visits.length > 0 ? (
+                            leadDetail.visits.map((v: any) => (
+                              <div
+                                key={v.id}
+                                className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-black text-slate-900">{v.purpose || 'Client Visit'}</span>
+                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full text-[10px]">
+                                    {v.status}
+                                  </span>
+                                </div>
+                                <p className="text-slate-500 text-[11px]">
+                                  {new Date(v.date).toLocaleDateString('en-IN')} {v.time ? `• ${v.time}` : ''} • {v.location}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-center py-6 text-slate-400 text-xs font-bold">
+                              No field visits logged for this lead
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Drawer Bottom Actions */}
+              {leadDetail && (
+                <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    onClick={() => {
+                      if (confirm(`Permanently delete lead "${leadDetail.companyName || leadDetail.title}"?`)) {
+                        deleteMutation.mutate(leadDetail.id);
+                      }
+                    }}
+                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Lead</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenFollowUp(leadDetail)}
+                      className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-100 transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Clock className="w-4 h-4 text-slate-500" />
+                      <span>Follow-up</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenEdit(leadDetail)}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Edit Lead</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          6. GOOGLE PLACES SEARCH DRAWER (INTEGRATED)
           ========================================================================= */}
       <AdminFormDrawer
         isOpen={isPlacesDrawerOpen}
@@ -998,95 +1528,70 @@ export default function LeadsPage() {
           {/* Results Stream */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                Extracted Results ({placesResults.length})
-              </span>
-              <span className="text-[10px] font-bold text-slate-400">
-                Click "Add as Lead" to prefill the CRM form
-              </span>
+              <p className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Extracted Businesses ({placesResults.length})
+              </p>
+              {placesResults.length > 0 && (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                  Grounded live via Places API
+                </span>
+              )}
             </div>
 
             {isSearchingPlaces ? (
-              <div className="py-12 text-center text-slate-400 text-xs font-bold animate-pulse">
-                Querying Google Places API (New)...
+              <div className="p-12 text-center text-slate-400 font-bold text-xs animate-pulse">
+                Extracting local business profiles from Google Places...
               </div>
             ) : placesResults.length > 0 ? (
-              placesResults.map((place) => {
-                const dupInfo = duplicateCheckedPlaces[place.googlePlaceId];
-                const isDup = Boolean(dupInfo?.isDuplicate);
+              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                {placesResults.map((p) => {
+                  const isDup = duplicateCheckedPlaces[p.googlePlaceId]?.isDuplicate;
 
-                return (
-                  <div
-                    key={place.googlePlaceId}
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isDup
-                        ? 'bg-amber-50/60 border-amber-200'
-                        : 'bg-white border-slate-200 hover:border-[#23C45E]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-black text-slate-900 text-sm truncate">
-                            {place.businessName}
-                          </h4>
-                          {place.category && (
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
-                              {place.category}
-                            </span>
-                          )}
+                  return (
+                    <div
+                      key={p.googlePlaceId}
+                      className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-emerald-300 transition-colors"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-extrabold text-slate-900 text-sm truncate">{p.businessName}</h4>
                           {isDup && (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" /> Already In Leads ({dupInfo.matchReason})
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-black text-[9px] uppercase rounded">
+                              Already in CRM
                             </span>
                           )}
                         </div>
 
-                        <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="truncate">{place.address || 'Address on file'}</span>
-                        </p>
-
-                        <div className="flex items-center gap-4 text-xs font-bold pt-1 flex-wrap">
-                          {place.phone && place.phone !== 'N/A' && (
-                            <span className="text-slate-700 flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-[#23C45E]" /> {place.phone}
-                            </span>
-                          )}
-                          {place.rating && (
-                            <span className="text-amber-600 flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                          {p.rating && (
+                            <span className="font-extrabold text-amber-600 flex items-center gap-1">
                               <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                              {place.rating} ({place.reviewCount || 0})
+                              {p.rating} ({p.reviewCount || 0})
                             </span>
                           )}
+                          {p.category && <span>• {p.category}</span>}
+                          {p.phone && <span>• {p.phone}</span>}
                         </div>
+
+                        {p.address && <p className="text-[11px] text-slate-400 truncate">{p.address}</p>}
                       </div>
 
-                      <div className="shrink-0">
-                        {isDup ? (
-                          <Link
-                            href={`/leads/${dupInfo.existingLead?.id}`}
-                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl inline-block transition-all shadow-xs"
-                          >
-                            View Lead
-                          </Link>
-                        ) : (
-                          <button
-                            onClick={() => handleSelectPlaceAsLead(place)}
-                            className="px-3.5 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl transition-all shadow-xs cursor-pointer active:scale-95 flex items-center gap-1"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Add as Lead</span>
-                          </button>
-                        )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleImportGooglePlace(p)}
+                          className="px-3.5 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95"
+                        >
+                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>Import Lead</span>
+                        </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             ) : (
-              <div className="py-12 text-center text-slate-400 text-xs font-bold">
-                No Google Places search results found.
+              <div className="p-8 text-center text-slate-400 text-xs font-bold border border-dashed border-slate-200 rounded-2xl">
+                Enter keyword and location above to discover high-value business leads.
               </div>
             )}
           </div>
@@ -1094,13 +1599,13 @@ export default function LeadsPage() {
       </AdminFormDrawer>
 
       {/* =========================================================================
-          6. ADD / EDIT LEAD DRAWER (STRUCTURED)
+          7. CREATE / EDIT LEAD DRAWER
           ========================================================================= */}
       <AdminFormDrawer
         isOpen={isAddDrawerOpen}
         onClose={() => setIsAddDrawerOpen(false)}
-        title={leadForm.id ? 'Edit CRM Lead' : 'Create New Lead'}
-        subtitle="Capture complete prospective client, location, deal value, and pipeline details"
+        title={leadForm.id ? 'Edit Lead Profile' : 'Create New CRM Lead'}
+        subtitle={leadForm.id ? 'Modify lead contact parameters, value, and stage' : 'Add prospective customer to CRM pipeline'}
         size="lg"
       >
         <form
@@ -1108,326 +1613,224 @@ export default function LeadsPage() {
             e.preventDefault();
             saveLeadMutation.mutate();
           }}
-          className="space-y-6"
+          className="space-y-4"
         >
-          {/* SECTION 1: BASIC INFORMATION */}
-          <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Building className="w-3.5 h-3.5 text-[#23C45E]" /> Basic Information
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Business / Company Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={leadForm.businessName}
-                  onChange={(e) => setLeadForm({ ...leadForm, businessName: e.target.value })}
-                  placeholder="e.g. Acme Enterprises"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Lead Title / Opportunity *
+              </label>
+              <input
+                type="text"
+                required
+                value={leadForm.title}
+                onChange={(e) => setLeadForm({ ...leadForm, title: e.target.value })}
+                placeholder="e.g. Enterprise Cloud Deployment"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Opportunity Title
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.title}
-                  onChange={(e) => setLeadForm({ ...leadForm, title: e.target.value })}
-                  placeholder="e.g. Cloud ERP Deployment"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Company / Business Name
+              </label>
+              <input
+                type="text"
+                value={leadForm.businessName}
+                onChange={(e) => setLeadForm({ ...leadForm, businessName: e.target.value })}
+                placeholder="e.g. Apex Technologies"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Industry / Category
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.category}
-                  onChange={(e) => setLeadForm({ ...leadForm, category: e.target.value })}
-                  placeholder="e.g. IT, Healthcare, Retail"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Industry / Category
+              </label>
+              <input
+                type="text"
+                value={leadForm.category}
+                onChange={(e) => setLeadForm({ ...leadForm, category: e.target.value })}
+                placeholder="e.g. Information Technology"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Lead Source
-                </label>
-                <select
-                  value={leadForm.source}
-                  onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
-                >
-                  <option value="WEBSITE">Website</option>
-                  <option value="GOOGLE_PLACES">Google Places</option>
-                  <option value="REFERRAL">Referral</option>
-                  <option value="LINKEDIN">LinkedIn</option>
-                  <option value="COLD_CALL">Cold Call</option>
-                  <option value="CAMPAIGN">Campaign</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Contact First Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={leadForm.firstName}
+                onChange={(e) => setLeadForm({ ...leadForm, firstName: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Contact Last Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={leadForm.lastName}
+                onChange={(e) => setLeadForm({ ...leadForm, lastName: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Direct Phone
+              </label>
+              <input
+                type="text"
+                value={leadForm.phone}
+                onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
+                placeholder="+91 98200 12345"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={leadForm.email}
+                onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                placeholder="contact@company.com"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Estimated Deal Value (₹)
+              </label>
+              <input
+                type="number"
+                value={leadForm.value}
+                onChange={(e) => setLeadForm({ ...leadForm, value: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Lead Source
+              </label>
+              <select
+                value={leadForm.source}
+                onChange={(e) => setLeadForm({ ...leadForm, source: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              >
+                <option value="WEBSITE">Website</option>
+                <option value="GOOGLE_PLACES">Google Places</option>
+                <option value="REFERRAL">Referral</option>
+                <option value="LINKEDIN">LinkedIn</option>
+                <option value="COLD_CALL">Cold Call</option>
+                <option value="CAMPAIGN">Campaign</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Stage Status
+              </label>
+              <select
+                value={leadForm.status}
+                onChange={(e) => setLeadForm({ ...leadForm, status: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              >
+                <option value="NEW">NEW</option>
+                <option value="CONTACTED">CONTACTED</option>
+                <option value="QUALIFIED">QUALIFIED</option>
+                <option value="CONVERTED">CONVERTED</option>
+                <option value="LOST">LOST</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Priority
+              </label>
+              <select
+                value={leadForm.priority}
+                onChange={(e) => setLeadForm({ ...leadForm, priority: e.target.value as any })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              >
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+                <option value="URGENT">URGENT</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Assign Representative
+              </label>
+              <select
+                value={leadForm.assignedToId}
+                onChange={(e) => setLeadForm({ ...leadForm, assignedToId: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              >
+                <option value="">-- Select Employee --</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={String(emp.id)}>
+                    {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                City / Location
+              </label>
+              <input
+                type="text"
+                value={leadForm.city}
+                onChange={(e) => setLeadForm({ ...leadForm, city: e.target.value })}
+                placeholder="e.g. Mumbai"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
             </div>
           </div>
 
-          {/* SECTION 2: CONTACT INFORMATION */}
-          <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <UserCheck className="w-3.5 h-3.5 text-blue-600" /> Contact Information
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.firstName}
-                  onChange={(e) => setLeadForm({ ...leadForm, firstName: e.target.value })}
-                  placeholder="e.g. Rajesh"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.lastName}
-                  onChange={(e) => setLeadForm({ ...leadForm, lastName: e.target.value })}
-                  placeholder="e.g. Sharma"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Phone Number
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.phone}
-                  onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
-                  placeholder="e.g. +91 98200 12345"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={leadForm.email}
-                  onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
-                  placeholder="e.g. contact@acme.com"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Website URL
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.website}
-                  onChange={(e) => setLeadForm({ ...leadForm, website: e.target.value })}
-                  placeholder="e.g. https://acme.com"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 3: LOCATION & GOOGLE PLACES */}
-          <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-amber-600" /> Location & Google Places
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Full Street Address
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.address}
-                  onChange={(e) => setLeadForm({ ...leadForm, address: e.target.value })}
-                  placeholder="e.g. 101 Corporate Towers, Bandra Kurla Complex"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  City
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.city}
-                  onChange={(e) => setLeadForm({ ...leadForm, city: e.target.value })}
-                  placeholder="e.g. Mumbai"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  State
-                </label>
-                <input
-                  type="text"
-                  value={leadForm.state}
-                  onChange={(e) => setLeadForm({ ...leadForm, state: e.target.value })}
-                  placeholder="e.g. Maharashtra"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              {leadForm.googlePlaceId && (
-                <div className="sm:col-span-2 p-2.5 bg-blue-50/80 rounded-xl border border-blue-200 text-xs font-mono text-blue-900 flex items-center justify-between">
-                  <span>Google Place ID: {leadForm.googlePlaceId}</span>
-                  {leadForm.rating && <span>Rating: ★ {leadForm.rating}</span>}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* SECTION 4: CRM PIPELINE & ASSIGNMENT */}
-          <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <DollarSign className="w-3.5 h-3.5 text-[#23C45E]" /> CRM & Assignment
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Assigned Sales Rep
-                </label>
-                <select
-                  value={leadForm.assignedToId}
-                  onChange={(e) => setLeadForm({ ...leadForm, assignedToId: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
-                >
-                  <option value="">-- Unassigned --</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={String(emp.id)}>
-                      {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Pipeline Stage
-                </label>
-                <select
-                  value={leadForm.status}
-                  onChange={(e) => setLeadForm({ ...leadForm, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
-                >
-                  <option value="NEW">NEW</option>
-                  <option value="CONTACTED">CONTACTED</option>
-                  <option value="FOLLOW_UP">FOLLOW_UP</option>
-                  <option value="QUALIFIED">QUALIFIED</option>
-                  <option value="PROPOSAL">PROPOSAL</option>
-                  <option value="CONVERTED">CONVERTED</option>
-                  <option value="LOST">LOST</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Priority
-                </label>
-                <select
-                  value={leadForm.priority}
-                  onChange={(e) => setLeadForm({ ...leadForm, priority: e.target.value as any })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
-                >
-                  <option value="LOW">LOW</option>
-                  <option value="MEDIUM">MEDIUM</option>
-                  <option value="HIGH">HIGH</option>
-                  <option value="URGENT">URGENT</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Expected Deal Value (₹)
-                </label>
-                <input
-                  type="number"
-                  value={leadForm.value}
-                  onChange={(e) => setLeadForm({ ...leadForm, value: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Follow-up Date
-                </label>
-                <input
-                  type="date"
-                  value={leadForm.nextFollowUpDate}
-                  onChange={(e) => setLeadForm({ ...leadForm, nextFollowUpDate: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Follow-up Time
-                </label>
-                <input
-                  type="time"
-                  value={leadForm.nextFollowUpTime}
-                  onChange={(e) => setLeadForm({ ...leadForm, nextFollowUpTime: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+          <div className="flex items-center justify-end gap-3 pt-3">
             <button
               type="button"
               onClick={() => setIsAddDrawerOpen(false)}
-              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-all"
+              className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saveLeadMutation.isPending}
-              className="px-6 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs shadow-md shadow-[#23C45E]/20 cursor-pointer transition-all disabled:opacity-50"
+              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20"
             >
-              {saveLeadMutation.isPending ? 'Saving...' : leadForm.id ? 'Save Changes' : 'Create CRM Lead'}
+              {saveLeadMutation.isPending ? 'Saving...' : leadForm.id ? 'Save Changes' : 'Create Lead'}
             </button>
           </div>
         </form>
       </AdminFormDrawer>
 
       {/* =========================================================================
-          7. LOG FOLLOW-UP MODAL
+          8. LOG FOLLOW-UP MODAL
           ========================================================================= */}
       <AdminFormDrawer
         isOpen={isFollowUpModalOpen}
         onClose={() => setIsFollowUpModalOpen(false)}
-        title="Log Follow-up Call & Schedule Next"
-        subtitle={selectedLead ? `Lead: ${selectedLead.companyName || selectedLead.title}` : ''}
+        title="Schedule / Log Follow-up"
+        subtitle="Record communication outcomes and set future reminders"
         size="md"
       >
         <form
@@ -1439,19 +1842,19 @@ export default function LeadsPage() {
         >
           <div>
             <label className="text-[11px] font-bold text-slate-600 block mb-1">
-              Call Outcome *
+              Communication Outcome *
             </label>
             <select
               value={followUpOutcome}
               onChange={(e) => setFollowUpOutcome(e.target.value)}
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
             >
-              <option value="Interested">Interested in Demo</option>
-              <option value="Call Later">Busy - Requested Call Later</option>
-              <option value="Quotation Requested">Requested Proposal / Quotation</option>
-              <option value="Negotiation">Commercial Negotiation</option>
-              <option value="Not Interested">Not Interested</option>
-              <option value="Wrong Number">Invalid Number</option>
+              <option value="Interested">Interested in Demo / Proposal</option>
+              <option value="Follow-up Required">Follow-up Call Required</option>
+              <option value="Meeting Scheduled">In-person Meeting Scheduled</option>
+              <option value="Quotation Sent">Quotation / Pricing Shared</option>
+              <option value="Not Interested">Not Interested at this time</option>
+              <option value="No Answer">No Answer / Left Voicemail</option>
             </select>
           </div>
 
@@ -1483,13 +1886,13 @@ export default function LeadsPage() {
 
           <div>
             <label className="text-[11px] font-bold text-slate-600 block mb-1">
-              Interaction Notes
+              Call / Discussion Notes
             </label>
             <textarea
               rows={3}
               value={followUpNotes}
               onChange={(e) => setFollowUpNotes(e.target.value)}
-              placeholder="Spoke with decision maker regarding features and pricing..."
+              placeholder="Summary of conversation and customer requirements..."
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900"
             />
           </div>
@@ -1514,7 +1917,7 @@ export default function LeadsPage() {
       </AdminFormDrawer>
 
       {/* =========================================================================
-          8. CONVERT LEAD TO CUSTOMER MODAL
+          9. CONVERT LEAD TO CUSTOMER MODAL
           ========================================================================= */}
       <AdminFormDrawer
         isOpen={isConvertModalOpen}
