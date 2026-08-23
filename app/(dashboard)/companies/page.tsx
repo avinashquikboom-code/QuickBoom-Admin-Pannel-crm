@@ -225,7 +225,6 @@ export default function CompaniesPage() {
       source: 'GOOGLE_PLACES',
       status: 'ACTIVE',
       notes: `Imported from Google Places. Rating: ${place.rating || 'N/A'} (${place.reviewCount || 0} reviews).`,
-      assignedToId: '',
     });
     setIsGooglePlacesOpen(false);
     setIsDrawerOpen(true);

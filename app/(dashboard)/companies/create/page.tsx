@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building, Globe, MapPin, Users, DollarSign, Phone, Mail } from 'lucide-react';
+import { Building, MapPin, Phone, Mail } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useQuery } from '@tanstack/react-query';
 import {
   AdminFormPage,
   AdminFormSection,
@@ -34,24 +33,9 @@ export default function CreateCompanyPage() {
     country: 'India',
     postalCode: '',
     status: 'ACTIVE',
-    assignedToId: '',
     notes: '',
   });
 
-  // Fetch Employees for assignment
-  const { data: employeesData } = useQuery({
-    queryKey: ['admin-employees-dropdown'],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/employees');
-        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      } catch {
-        return [];
-      }
-    },
-  });
-
-  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +54,6 @@ export default function CreateCompanyPage() {
         country: formData.country.trim() || 'India',
         postalCode: formData.postalCode.trim() || undefined,
         status: formData.status || 'ACTIVE',
-        assignedToId: formData.assignedToId || undefined,
         notes: formData.notes.trim() || undefined,
       };
 
@@ -180,21 +163,7 @@ export default function CreateCompanyPage() {
           </AdminFormField>
         </AdminFormSection>
 
-        <AdminFormSection title="Ownership & Status" description="Assign account owner and set initial status" icon={Users} columns={2}>
-          <AdminFormField label="Assigned Account Owner">
-            <AdminSelect
-              value={formData.assignedToId}
-              onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
-              options={[
-                { value: '', label: '-- Unassigned --' },
-                ...employees.map((emp) => ({
-                  value: String(emp.id),
-                  label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})`,
-                })),
-              ]}
-            />
-          </AdminFormField>
-
+        <AdminFormSection title="Status & Notes" description="Set account status and internal notes" icon={MapPin} columns={2}>
           <AdminFormField label="Account Status">
             <AdminSelect
               value={formData.status}
