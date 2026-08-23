@@ -47,9 +47,43 @@ export function getPersistedAuthSession() {
   return { token, refreshToken, user, customerId };
 }
 
-// Request interceptor: attach bearer token and customer headers
+const SENSITIVE_KEYS = [
+  'password',
+  'passwordhash',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'otp',
+  'secret',
+  'authorization',
+  'apikey',
+  'paymentsecret',
+];
+
+function redactData(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(redactData);
+
+  const copy: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const lowerKey = key.toLowerCase();
+    if (SENSITIVE_KEYS.some((s) => lowerKey.includes(s))) {
+      copy[key] = '***REDACTED***';
+    } else if (typeof value === 'object') {
+      copy[key] = redactData(value);
+    } else {
+      copy[key] = value;
+    }
+  }
+  return copy;
+}
+
+// Request interceptor: attach bearer token and customer headers + logging
 api.interceptors.request.use(
   (config) => {
+    (config as any).__startTime = Date.now();
+
     if (typeof window !== 'undefined') {
       const { token, customerId } = getPersistedAuthSession();
 
@@ -72,10 +106,21 @@ api.interceptors.request.use(
           config.headers['x-tenant-id'] = String(customerId);
         }
       }
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug(
+          `[ADMIN_API_REQUEST] ${config.method?.toUpperCase()} ${config.url}`,
+          config.params ? { params: config.params } : '',
+          config.data ? { payload: redactData(config.data) } : ''
+        );
+      }
     }
     return config;
   },
   (error) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[ADMIN_API_REQUEST_ERROR]', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -101,10 +146,38 @@ const processQueue = (error: any, token: string | null = null) => {
 // Response interceptor: handle data unwrapping, 401 token refresh & error notifications
 api.interceptors.response.use(
   (response) => {
+    const startTime = (response.config as any)?.__startTime;
+    const duration = startTime ? Date.now() - startTime : 0;
+
+    if (process.env.NODE_ENV !== 'production') {
+      let recordsCount: number | undefined;
+      const resData = response.data;
+      if (Array.isArray(resData)) {
+        recordsCount = resData.length;
+      } else if (resData && typeof resData === 'object' && Array.isArray(resData.data)) {
+        recordsCount = resData.data.length;
+      }
+
+      console.debug(
+        `[ADMIN_API_RESPONSE] ${response.config.method?.toUpperCase()} ${response.config.url} → ${response.status} (${duration}ms)`,
+        recordsCount !== undefined ? `Records: ${recordsCount}` : '',
+        resData
+      );
+    }
+
     return response.data;
   },
   async (error) => {
     const originalRequest = error.config;
+    const startTime = (originalRequest as any)?.__startTime;
+    const duration = startTime ? Date.now() - startTime : 0;
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        `[ADMIN_ERROR] ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url} → ${error.response?.status || 'NETWORK_ERROR'} (${duration}ms)`,
+        error.response?.data || error.message
+      );
+    }
 
     if (!originalRequest) {
       return Promise.reject(error);
