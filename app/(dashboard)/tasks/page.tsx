@@ -1099,7 +1099,7 @@ export default function TasksPage() {
                         <p className="font-bold text-slate-900 truncate">{proof.fileName || 'proof_photo.jpg'}</p>
                         {proof.comment && <p className="text-slate-600 italic font-medium">&quot;{proof.comment}&quot;</p>}
                         <p className="text-slate-400 text-[10px]">
-                          Uploaded: {new Date(proof.uploadedAt).toLocaleString()}
+                          Uploaded: {proof.uploadedAt && !isNaN(new Date(proof.uploadedAt).getTime()) ? new Date(proof.uploadedAt).toLocaleString() : 'Recent'}
                         </p>
                       </div>
                     </div>

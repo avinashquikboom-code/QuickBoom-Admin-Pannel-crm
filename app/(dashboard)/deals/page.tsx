@@ -515,7 +515,7 @@ export default function DealsPage() {
                     </span>
                   </div>
                   <span className="font-extrabold text-xs text-slate-700">
-                    ₹{stageTotalAmount.toLocaleString('en-IN')}
+                    ₹{Number(stageTotalAmount || 0).toLocaleString('en-IN')}
                   </span>
                 </div>
 

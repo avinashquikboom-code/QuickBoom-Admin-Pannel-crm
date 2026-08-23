@@ -615,13 +615,13 @@ export default function PayrollPage() {
                         {st.employee?.firstName} {st.employee?.lastName} ({st.employee?.employeeCode})
                       </td>
                       <td className="p-3 text-slate-600">{st.employee?.department?.name || 'General'}</td>
-                      <td className="p-3 text-slate-800">₹{st.basicSalary?.toLocaleString('en-IN')}</td>
-                      <td className="p-3 text-slate-800">₹{st.hra?.toLocaleString('en-IN')}</td>
-                      <td className="p-3 text-slate-800">₹{(st.allowances + (st.specialAllowance || 0))?.toLocaleString('en-IN')}</td>
-                      <td className="p-3 font-bold text-slate-900">₹{st.grossSalary?.toLocaleString('en-IN')}</td>
-                      <td className="p-3 text-rose-600">₹{st.pf?.toLocaleString('en-IN')}</td>
-                      <td className="p-3 text-rose-600">₹{st.tds?.toLocaleString('en-IN')}</td>
-                      <td className="p-3 font-black text-emerald-700">₹{st.netSalary?.toLocaleString('en-IN')}</td>
+                      <td className="p-3 text-slate-800">₹{Number(st.basicSalary || 0).toLocaleString('en-IN')}</td>
+                      <td className="p-3 text-slate-800">₹{Number(st.hra || 0).toLocaleString('en-IN')}</td>
+                      <td className="p-3 text-slate-800">₹{Number((Number(st.allowances || 0) + Number(st.specialAllowance || 0)) || 0).toLocaleString('en-IN')}</td>
+                      <td className="p-3 font-bold text-slate-900">₹{Number(st.grossSalary || 0).toLocaleString('en-IN')}</td>
+                      <td className="p-3 text-rose-600">₹{Number(st.pf || 0).toLocaleString('en-IN')}</td>
+                      <td className="p-3 text-rose-600">₹{Number(st.tds || 0).toLocaleString('en-IN')}</td>
+                      <td className="p-3 font-black text-emerald-700">₹{Number(st.netSalary || 0).toLocaleString('en-IN')}</td>
                       <td className="p-3">
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-extrabold rounded-md text-[10px]">
                           {st.status}
@@ -784,8 +784,8 @@ export default function PayrollPage() {
                       <td className="p-3 font-bold text-slate-900">{slip.slipNumber}</td>
                       <td className="p-3">{slip.employee?.firstName} {slip.employee?.lastName}</td>
                       <td className="p-3 text-slate-500">{slip.payPeriod}</td>
-                      <td className="p-3 font-semibold">₹{slip.grossSalary?.toLocaleString('en-IN')}</td>
-                      <td className="p-3 font-bold text-emerald-700">₹{slip.netSalary?.toLocaleString('en-IN')}</td>
+                      <td className="p-3 font-semibold">₹{Number(slip.grossSalary || 0).toLocaleString('en-IN')}</td>
+                      <td className="p-3 font-bold text-emerald-700">₹{Number(slip.netSalary || 0).toLocaleString('en-IN')}</td>
                       <td className="p-3">
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-extrabold rounded-md text-[10px]">
                           {slip.status}

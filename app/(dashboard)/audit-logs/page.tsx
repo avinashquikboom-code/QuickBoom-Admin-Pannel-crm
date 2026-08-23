@@ -66,7 +66,7 @@ export default function AuditLogsPage() {
           user: l.actor || 'Administrator',
           ipAddress: l.ipAddress || '127.0.0.1',
           entity: `${l.module || 'SYSTEM'} Event`,
-          timestamp: l.createdAt ? new Date(l.createdAt).toLocaleString() : '2026-08-21 09:00',
+          timestamp: l.createdAt && !isNaN(new Date(l.createdAt).getTime()) ? new Date(l.createdAt).toLocaleString() : 'Recent',
           status: 'SUCCESS',
         }))
       : [];

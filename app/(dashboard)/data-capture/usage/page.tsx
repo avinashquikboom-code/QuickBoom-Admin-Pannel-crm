@@ -106,17 +106,17 @@ export default function DataCaptureUsagePage() {
               Monthly Extraction Allowance
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Reset cycle: 1st of every calendar month • Tier limit: {quotaLimit.toLocaleString()} prospects
+              Reset cycle: 1st of every calendar month • Tier limit: {Number(quotaLimit || 0).toLocaleString()} prospects
             </p>
           </div>
 
           <div className="text-right">
             <span className="text-2xl sm:text-3xl font-black text-slate-900">
-              {totalLeadsCaptured.toLocaleString()}{' '}
-              <span className="text-sm font-bold text-slate-400">/ {quotaLimit.toLocaleString()}</span>
+              {Number(totalLeadsCaptured || 0).toLocaleString()}{' '}
+              <span className="text-sm font-bold text-slate-400">/ {Number(quotaLimit || 0).toLocaleString()}</span>
             </span>
             <span className="text-xs font-black text-emerald-600 block mt-0.5">
-              {quotaRemaining.toLocaleString()} Prospects Remaining
+              {Number(quotaRemaining || 0).toLocaleString()} Prospects Remaining
             </span>
           </div>
         </div>
@@ -132,7 +132,7 @@ export default function DataCaptureUsagePage() {
           <div className="flex justify-between text-[11px] font-bold text-slate-400">
             <span>0 used</span>
             <span>{usedPercentage}% consumed</span>
-            <span>{quotaLimit.toLocaleString()} max</span>
+            <span>{Number(quotaLimit || 0).toLocaleString()} max</span>
           </div>
         </div>
       </div>

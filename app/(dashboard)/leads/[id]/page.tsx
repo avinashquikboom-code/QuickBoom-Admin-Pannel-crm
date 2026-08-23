@@ -440,7 +440,7 @@ export default function LeadDetailPage() {
                         <div className="flex items-center justify-between">
                           <span className="font-black text-slate-900 text-xs">{item.action}</span>
                           <span className="text-[10px] text-slate-400 font-bold">
-                            {new Date(item.createdAt).toLocaleString()}
+                            {item.createdAt && !isNaN(new Date(item.createdAt).getTime()) ? new Date(item.createdAt).toLocaleString() : 'Recent'}
                           </span>
                         </div>
                         <p className="text-slate-600 font-medium">{item.description}</p>
@@ -498,7 +498,7 @@ export default function LeadDetailPage() {
                           {note.user ? `${note.user.firstName} ${note.user.lastName}` : 'CRM User'}
                         </span>
                         <span className="text-[10px] text-slate-400 font-bold">
-                          {new Date(note.createdAt).toLocaleString()}
+                          {note.createdAt && !isNaN(new Date(note.createdAt).getTime()) ? new Date(note.createdAt).toLocaleString() : 'Recent'}
                         </span>
                       </div>
                       <p className="text-slate-700 whitespace-pre-line leading-relaxed font-medium">{note.content}</p>
@@ -527,7 +527,7 @@ export default function LeadDetailPage() {
                           {hist.fromStatus || 'START'} → {hist.toStatus}
                         </span>
                         <span className="text-[10px] text-slate-400 font-bold">
-                          {new Date(hist.createdAt).toLocaleString()}
+                          {hist.createdAt && !isNaN(new Date(hist.createdAt).getTime()) ? new Date(hist.createdAt).toLocaleString() : 'Recent'}
                         </span>
                       </div>
                       {hist.notes && <p className="text-slate-600 font-medium">{hist.notes}</p>}

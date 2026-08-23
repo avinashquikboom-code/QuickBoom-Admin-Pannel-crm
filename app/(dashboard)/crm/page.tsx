@@ -95,17 +95,19 @@ export default function PipelinePage() {
     ? dealsResponse
     : Array.isArray(dealsResponse?.data)
     ? dealsResponse.data
+    : Array.isArray(dealsResponse?.items)
+    ? dealsResponse.items
     : null;
 
   const deals: Deal[] =
     rawDeals !== null && rawDeals.length > 0
       ? rawDeals.map((d: any) => ({
-          id: d.id,
+          id: String(d.id),
           title: d.title || d.name || 'Deal Opportunity',
           company: d.company?.name || d.companyName || d.company || 'Direct Client',
           value: Number(d.value || d.amount || 0),
           stage: (d.stage?.name?.toUpperCase() || d.stage || 'QUALIFICATION') as Deal['stage'],
-          closingDays: d.closingDays || 7,
+          closingDays: Number(d.closingDays) || 7,
           priority: d.priority || 'HIGH',
         }))
       : initialDeals;
@@ -156,7 +158,7 @@ export default function PipelinePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stages.map((stage) => {
           const stageDeals = deals.filter((d) => d.stage === stage.id);
-          const totalVal = stageDeals.reduce((sum, d) => sum + d.value, 0);
+          const totalVal = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
 
           return (
             <div
@@ -167,7 +169,7 @@ export default function PipelinePage() {
                 <div>
                   <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider">{stage.title}</h3>
                   <p className="text-xs font-black text-indigo-600 mt-0.5">
-                    ₹{totalVal.toLocaleString('en-IN')}
+                    ₹{Number(totalVal || 0).toLocaleString('en-IN')}
                   </p>
                 </div>
                 <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-900 text-xs font-bold flex items-center justify-center">
@@ -204,7 +206,7 @@ export default function PipelinePage() {
 
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                       <span className="font-extrabold text-emerald-600">
-                        ₹{deal.value.toLocaleString('en-IN')}
+                        ₹{Number(deal.value || 0).toLocaleString('en-IN')}
                       </span>
                       <span className="text-[10px] text-slate-400 font-medium">
                         {deal.closingDays === 0 ? 'Closed' : `${deal.closingDays} days left`}

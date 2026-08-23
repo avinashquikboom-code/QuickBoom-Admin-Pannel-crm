@@ -285,7 +285,7 @@ export default function DataCaptureHistoryPage() {
                     </td>
                     <td className="px-5 py-4 font-bold text-slate-600">{job.googleApiRequests || 1} requests</td>
                     <td className="px-5 py-4 text-slate-400">
-                      {job.createdAt ? new Date(job.createdAt).toLocaleString() : 'Recent'}
+                      {job.createdAt && !isNaN(new Date(job.createdAt).getTime()) ? new Date(job.createdAt).toLocaleString() : 'Recent'}
                     </td>
                     <td className="px-5 py-4 text-right">
                       <button

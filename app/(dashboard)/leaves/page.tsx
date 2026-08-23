@@ -1695,13 +1695,13 @@ export default function LeaveManagementPage() {
                     </span>
                     <div className="space-y-1 font-medium text-slate-700">
                       <p>
-                        Max per Receipt: <strong>₹{policiesData.claim?.maxClaimAmountPerReceipt?.toLocaleString()}</strong>
+                        Max per Receipt: <strong>₹{Number(policiesData?.claim?.maxClaimAmountPerReceipt || 0).toLocaleString('en-IN')}</strong>
                       </p>
                       <p>
-                        Monthly Limit: <strong>₹{policiesData.claim?.monthlyClaimLimit?.toLocaleString()}</strong>
+                        Monthly Limit: <strong>₹{Number(policiesData?.claim?.monthlyClaimLimit || 0).toLocaleString('en-IN')}</strong>
                       </p>
                       <p>
-                        Annual Cap: <strong>₹{policiesData.claim?.annualClaimLimit?.toLocaleString()}</strong>
+                        Annual Cap: <strong>₹{Number(policiesData?.claim?.annualClaimLimit || 0).toLocaleString('en-IN')}</strong>
                       </p>
                     </div>
                   </div>

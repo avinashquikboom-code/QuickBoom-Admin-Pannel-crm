@@ -83,7 +83,7 @@ export function AdminPagination({
           <span className="font-bold text-slate-500">
             Showing <strong className="text-slate-900 font-black">{startItem}</strong> -{' '}
             <strong className="text-slate-900 font-black">{endItem}</strong> of{' '}
-            <strong className="text-slate-900 font-black">{total.toLocaleString()}</strong> records
+            <strong className="text-slate-900 font-black">{(total || 0).toLocaleString()}</strong> records
           </span>
         )}
 

@@ -1541,12 +1541,14 @@ export default function LeadsPage() {
                                       {item.action.replace(/_/g, ' ')}
                                     </span>
                                     <span className="text-[10px] text-slate-400 font-bold">
-                                      {new Date(item.createdAt).toLocaleString('en-IN', {
-                                        day: 'numeric',
-                                        month: 'short',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })}
+                                      {item.createdAt && !isNaN(new Date(item.createdAt).getTime())
+                                        ? new Date(item.createdAt).toLocaleString('en-IN', {
+                                            day: 'numeric',
+                                            month: 'short',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })
+                                        : 'Recent'}
                                     </span>
                                   </div>
                                   <p className="text-slate-600 font-medium">{item.description}</p>

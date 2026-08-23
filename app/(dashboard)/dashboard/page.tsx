@@ -603,10 +603,10 @@ export default function AdminDashboardPage() {
                 <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] font-black py-1 px-2 rounded-lg shadow-lg pointer-events-none whitespace-nowrap mb-1">
                     {activeMetric === 'revenue'
-                      ? `₹${val.toLocaleString('en-IN')}`
+                      ? `₹${Number(val || 0).toLocaleString('en-IN')}`
                       : activeMetric === 'attendance'
-                      ? `${val}% Present`
-                      : `${val} Tasks`}
+                      ? `${Number(val || 0)}% Present`
+                      : `${Number(val || 0)} Tasks`}
                   </div>
 
                   <div className="w-full max-w-[48px] bg-slate-100 rounded-2xl overflow-hidden flex flex-col justify-end p-1 hover:bg-slate-200/70 transition-colors h-full">

@@ -386,7 +386,7 @@ export default function TaskDetailPage() {
                         </p>
                       )}
                       <p className="text-slate-400 text-[10px] pt-1">
-                        Uploaded on {new Date(proof.uploadedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        Uploaded on {proof.uploadedAt && !isNaN(new Date(proof.uploadedAt).getTime()) ? new Date(proof.uploadedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent'}
                       </p>
                     </div>
                   </div>
@@ -426,7 +426,7 @@ export default function TaskDetailPage() {
                 </p>
                 <p className="text-slate-700 font-medium">
                   Verified by <strong>{task.approvedByName || 'HR Administrator'}</strong> on{' '}
-                  {task.approvedAt ? new Date(task.approvedAt).toLocaleString() : 'N/A'}.
+                  {task.approvedAt && !isNaN(new Date(task.approvedAt).getTime()) ? new Date(task.approvedAt).toLocaleString() : 'N/A'}.
                 </p>
               </div>
             ) : task.status === 'REJECTED' ? (
@@ -438,7 +438,7 @@ export default function TaskDetailPage() {
                   Rejection Reason: <span className="text-rose-700 font-semibold">&quot;{task.rejectionReason}&quot;</span>
                 </p>
                 <p className="text-slate-500 text-[11px]">
-                  Rejected by {task.rejectedByName || 'HR'} on {task.rejectedAt ? new Date(task.rejectedAt).toLocaleString() : ''}. Task reopened for employee corrections.
+                  Rejected by {task.rejectedByName || 'HR'} on {task.rejectedAt && !isNaN(new Date(task.rejectedAt).getTime()) ? new Date(task.rejectedAt).toLocaleString() : ''}. Task reopened for employee corrections.
                 </p>
               </div>
             ) : null}
@@ -601,7 +601,7 @@ export default function TaskDetailPage() {
                     </p>
                     <p className="text-slate-600 font-medium text-[11px]">{h.comment || `Performed by ${h.performedByName || 'User'}`}</p>
                     <p className="text-slate-400 text-[10px]">
-                      {new Date(h.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {h.createdAt && !isNaN(new Date(h.createdAt).getTime()) ? new Date(h.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Recent'}
                     </p>
                   </div>
                 ))}

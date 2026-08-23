@@ -30,3 +30,37 @@ export const getErrorMessage = (error: unknown): string => {
 
   return 'Something went wrong';
 };
+
+export function formatNumber(value: any, defaultValue: string = '0'): string {
+  if (value === null || value === undefined || value === '') return defaultValue;
+  const num = Number(value);
+  if (Number.isNaN(num)) return defaultValue;
+  return num.toLocaleString('en-IN');
+}
+
+export function formatCurrency(value: any, defaultValue: string = '₹0'): string {
+  if (value === null || value === undefined || value === '') return defaultValue;
+  const num = Number(value);
+  if (Number.isNaN(num)) return defaultValue;
+  return `₹${num.toLocaleString('en-IN')}`;
+}
+
+export function formatDate(value: any, defaultValue: string = '—'): string {
+  if (!value) return defaultValue;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return defaultValue;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function formatDateTime(value: any, defaultValue: string = '—'): string {
+  if (!value) return defaultValue;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return defaultValue;
+  return d.toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}

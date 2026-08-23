@@ -404,7 +404,9 @@ export default function ContactDetailPage() {
                     <div key={comm.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="font-black text-slate-900">{comm.type}: {comm.summary}</span>
-                        <span className="text-[10px] text-slate-400 font-bold">{new Date(comm.timestamp).toLocaleString()}</span>
+                        <span className="text-[10px] text-slate-400 font-bold">
+                          {comm.timestamp && !isNaN(new Date(comm.timestamp).getTime()) ? new Date(comm.timestamp).toLocaleString() : 'Recent'}
+                        </span>
                       </div>
                       {comm.details && <p className="text-slate-600 font-medium">{comm.details}</p>}
                     </div>
