@@ -256,7 +256,7 @@ export const adminNavigation: {
         { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
         { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
         { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
-        { name: 'Deals', href: '/crm', icon: Kanban, permission: 'deals.view' },
+        { name: 'Deals', href: '/deals', icon: Kanban, permission: 'deals.view' },
         { name: 'Visits', href: '/visits', icon: Activity, permission: 'visits.view_all' },
         { name: 'Tasks', href: '/tasks', icon: CheckSquare, permission: 'tasks.view' },
         { name: 'Activities', href: '/activities', icon: Activity, permission: 'activities.view' },

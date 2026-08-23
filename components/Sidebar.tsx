@@ -24,6 +24,35 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
+export function isItemActive(itemHref: string, currentPathname: string | null): boolean {
+  if (!currentPathname || !itemHref) return false;
+
+  // Normalize: remove query strings and trailing slashes
+  const targetPath = itemHref.split('?')[0].replace(/\/+$/, '') || '/';
+  const currentPath = currentPathname.split('?')[0].replace(/\/+$/, '') || '/';
+
+  // 1. Exact match
+  if (currentPath === targetPath) {
+    return true;
+  }
+
+  // 2. Deals / CRM alias compatibility
+  if (
+    (targetPath === '/deals' || targetPath === '/crm') &&
+    (currentPath === '/deals' || currentPath === '/crm')
+  ) {
+    return true;
+  }
+
+  // 3. Root and single top-level endpoints should not prefix-match other paths
+  if (targetPath === '/' || targetPath === '/dashboard' || targetPath === '/super-admin') {
+    return currentPath === targetPath;
+  }
+
+  // 4. Strict nested route prefix match (e.g. /leads/123 or /tasks/create matches /leads or /tasks)
+  return currentPath.startsWith(`${targetPath}/`);
+}
+
 export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const logout = useAuthStore((state) => state.logout);
@@ -53,12 +82,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
 
     // Find the section that contains the current active route
     const matchingSection = accessibleSections.find((section) =>
-      section.items.some((item) => {
-        if (item.href === '/dashboard' || item.href === '/super-admin') {
-          return pathname === item.href;
-        }
-        return pathname === item.href || pathname.startsWith(item.href);
-      })
+      section.items.some((item) => isItemActive(item.href, pathname))
     );
 
     if (matchingSection) {
