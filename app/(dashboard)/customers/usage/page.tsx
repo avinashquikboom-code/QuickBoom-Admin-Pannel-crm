@@ -8,7 +8,6 @@ import {
   Users,
   Layers,
   Sparkles,
-  ArrowLeft,
   RefreshCw,
   Zap,
   TrendingUp,
@@ -48,13 +47,6 @@ export default function CustomerUsageAnalyticsPage() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <Link
-                href="/customers"
-                className="p-2 bg-white/10 hover:bg-white/15 rounded-xl text-white transition-colors cursor-pointer"
-                title="Back to Customers"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
               <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5" />
                 Resource & Seat Analytics
