@@ -16,7 +16,7 @@ const api = axios.create({
  * Helper to safely extract token, refreshToken, user, and customerId from Zustand memory
  * with robust fallback to persisted localStorage to guarantee consistency during Next.js hydration or tab switching.
  */
-function getPersistedAuthSession() {
+export function getPersistedAuthSession() {
   if (typeof window === 'undefined') {
     return { token: null, refreshToken: null, user: null, customerId: null };
   }
@@ -110,9 +110,21 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Skip token refresh if the failed endpoint was the refresh endpoint itself or login
+    const isAuthUrl =
+      typeof originalRequest.url === 'string' &&
+      (originalRequest.url.includes('/auth/refresh') ||
+        originalRequest.url.includes('/auth/login') ||
+        originalRequest.url.includes('/auth/register'));
+
     // Attempt token refresh ONLY on 401 (Authentication/Expiration) — NEVER on 403 (Forbidden)
-    if (error?.response?.status === 401 && !originalRequest._retry && typeof window !== 'undefined') {
-      const { refreshToken, user, token } = getPersistedAuthSession();
+    if (
+      error?.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthUrl &&
+      typeof window !== 'undefined'
+    ) {
+      const { refreshToken } = getPersistedAuthSession();
       const authStore = useAuthStore.getState();
 
       // If no refresh token exists anywhere in state or storage, session is invalid
@@ -174,11 +186,7 @@ api.interceptors.response.use(
         }
 
         // Update auth store with new tokens while preserving active session state
-        if (user) {
-          authStore.updateTokens(newAccessToken, newRefreshToken);
-        } else {
-          authStore.updateTokens(newAccessToken, newRefreshToken);
-        }
+        authStore.updateTokens(newAccessToken, newRefreshToken);
 
         // Notify and drain all queued requests
         processQueue(null, newAccessToken);
