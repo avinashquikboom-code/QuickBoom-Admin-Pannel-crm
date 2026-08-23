@@ -7,6 +7,7 @@ export * from './cards/AdminCard';
 
 // Tables
 export * from './tables/AdminDataTable';
+export * from './tables/AdminPagination';
 
 // Badges
 export * from './badges/AdminStatusBadge';
