@@ -57,7 +57,61 @@ import {
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
-type LeadTab = 'ALL' | 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST';
+type LeadTab =
+  | 'ALL'
+  | 'NEW'
+  | 'FOLLOW_UP'
+  | 'VISIT'
+  | 'QUALIFIED'
+  | 'PROPOSAL'
+  | 'NEGOTIATION'
+  | 'PAYMENT'
+  | 'CONVERTED'
+  | 'LOST';
+
+const LEAD_STATUS_CONFIG: Record<
+  string,
+  { label: string; bg: string; text: string; border: string; stageIndex: number }
+> = {
+  NEW: { label: 'New', bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', stageIndex: 0 },
+  FOLLOW_UP: { label: 'Follow-up', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', stageIndex: 1 },
+  CONTACTED: { label: 'Contacted', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', stageIndex: 1 },
+  VISIT: { label: 'Visit', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', stageIndex: 2 },
+  QUALIFIED: { label: 'Qualified', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', stageIndex: 3 },
+  PROPOSAL: { label: 'Proposal', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', stageIndex: 4 },
+  PROPOSAL_SENT: { label: 'Proposal Sent', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', stageIndex: 4 },
+  FINAL_CALL: { label: 'Final Call', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', stageIndex: 5 },
+  NEGOTIATION: { label: 'Negotiation', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', stageIndex: 5 },
+  PAYMENT: { label: 'Payment', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', stageIndex: 6 },
+  WORK_STARTED: { label: 'Work Started', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', stageIndex: 7 },
+  WON: { label: 'Won', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', stageIndex: 7 },
+  CONVERTED: { label: 'Converted', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', stageIndex: 7 },
+  LOST: { label: 'Lost', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', stageIndex: -1 },
+  CANCELLED: { label: 'Cancelled', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', stageIndex: -1 },
+};
+
+const LEAD_LIFECYCLE_STAGES = [
+  { key: 'NEW', label: 'New' },
+  { key: 'FOLLOW_UP', label: 'Follow-up' },
+  { key: 'VISIT', label: 'Visit' },
+  { key: 'PROPOSAL', label: 'Proposal' },
+  { key: 'NEGOTIATION', label: 'Negotiation' },
+  { key: 'PAYMENT', label: 'Payment' },
+  { key: 'CONVERTED', label: 'Won / Converted' },
+];
+
+function getLeadStatusConfig(status?: string | null) {
+  const s = (status || 'NEW').toUpperCase();
+  return (
+    LEAD_STATUS_CONFIG[s] || {
+      label: status || 'Unknown',
+      bg: 'bg-slate-100',
+      text: 'text-slate-700',
+      border: 'border-slate-200',
+      stageIndex: 0,
+    }
+  );
+}
 
 interface LeadItem {
   id: number | string;
@@ -244,11 +298,16 @@ export default function LeadsPage() {
   // Filtered Leads
   const filteredLeads = useMemo(() => {
     return rawLeads.filter((l) => {
-      if (activeTab === 'NEW' && l.status !== 'NEW') return false;
-      if (activeTab === 'CONTACTED' && l.status !== 'CONTACTED' && l.status !== 'FOLLOW_UP') return false;
-      if (activeTab === 'QUALIFIED' && l.status !== 'QUALIFIED') return false;
-      if (activeTab === 'CONVERTED' && l.status !== 'CONVERTED' && l.status !== 'WON') return false;
-      if (activeTab === 'LOST' && l.status !== 'LOST' && l.status !== 'CANCELLED') return false;
+      const s = (l.status || '').toUpperCase();
+      if (activeTab === 'NEW' && s !== 'NEW') return false;
+      if (activeTab === 'FOLLOW_UP' && s !== 'FOLLOW_UP' && s !== 'CONTACTED') return false;
+      if (activeTab === 'VISIT' && s !== 'VISIT') return false;
+      if (activeTab === 'QUALIFIED' && s !== 'QUALIFIED') return false;
+      if (activeTab === 'PROPOSAL' && s !== 'PROPOSAL' && s !== 'PROPOSAL_SENT') return false;
+      if (activeTab === 'NEGOTIATION' && s !== 'NEGOTIATION' && s !== 'FINAL_CALL') return false;
+      if (activeTab === 'PAYMENT' && s !== 'PAYMENT') return false;
+      if (activeTab === 'CONVERTED' && s !== 'CONVERTED' && s !== 'WON' && s !== 'WORK_STARTED') return false;
+      if (activeTab === 'LOST' && s !== 'LOST' && s !== 'CANCELLED') return false;
 
       if (sourceFilter !== 'ALL' && l.source !== sourceFilter) return false;
       if (priorityFilter !== 'ALL' && l.priority !== priorityFilter) return false;
@@ -258,14 +317,16 @@ export default function LeadsPage() {
     });
   }, [rawLeads, activeTab, sourceFilter, priorityFilter, assignedFilter]);
 
-  // Metrics numbers
+  // Metrics numbers matching Mobile App statuses
   const metrics = {
     total: metricsData?.total ?? rawLeads.length,
-    new: metricsData?.new ?? rawLeads.filter((l) => l.status === 'NEW').length,
-    contacted: metricsData?.contacted ?? rawLeads.filter((l) => l.status === 'CONTACTED' || l.status === 'FOLLOW_UP').length,
-    qualified: metricsData?.qualified ?? rawLeads.filter((l) => l.status === 'QUALIFIED').length,
-    converted: metricsData?.converted ?? rawLeads.filter((l) => l.status === 'CONVERTED' || l.status === 'WON').length,
-    lost: metricsData?.lost ?? rawLeads.filter((l) => l.status === 'LOST' || l.status === 'CANCELLED').length,
+    new: metricsData?.new ?? rawLeads.filter((l) => (l.status || '').toUpperCase() === 'NEW').length,
+    followUp: rawLeads.filter((l) => ['FOLLOW_UP', 'CONTACTED'].includes((l.status || '').toUpperCase())).length,
+    visit: rawLeads.filter((l) => (l.status || '').toUpperCase() === 'VISIT').length,
+    qualified: metricsData?.qualified ?? rawLeads.filter((l) => (l.status || '').toUpperCase() === 'QUALIFIED').length,
+    proposal: rawLeads.filter((l) => ['PROPOSAL', 'PROPOSAL_SENT'].includes((l.status || '').toUpperCase())).length,
+    converted: metricsData?.converted ?? rawLeads.filter((l) => ['CONVERTED', 'WON', 'WORK_STARTED'].includes((l.status || '').toUpperCase())).length,
+    lost: metricsData?.lost ?? rawLeads.filter((l) => ['LOST', 'CANCELLED'].includes((l.status || '').toUpperCase())).length,
   };
 
   // Delete Mutation
@@ -652,8 +713,8 @@ export default function LeadsPage() {
           iconBg="primary"
         />
         <AdminStatCard
-          title="Contacted"
-          value={isLoadingLeads ? '...' : metrics.contacted}
+          title="Follow-up"
+          value={isLoadingLeads ? '...' : metrics.followUp}
           icon={Phone}
           iconBg="blue"
         />
@@ -683,8 +744,10 @@ export default function LeadsPage() {
           {[
             { key: 'ALL', label: 'All Leads', count: metrics.total },
             { key: 'NEW', label: 'New', count: metrics.new },
-            { key: 'CONTACTED', label: 'Contacted', count: metrics.contacted },
+            { key: 'FOLLOW_UP', label: 'Follow-up', count: metrics.followUp },
+            { key: 'VISIT', label: 'Visit', count: metrics.visit },
             { key: 'QUALIFIED', label: 'Qualified', count: metrics.qualified },
+            { key: 'PROPOSAL', label: 'Proposal', count: metrics.proposal },
             { key: 'CONVERTED', label: 'Converted', count: metrics.converted },
             { key: 'LOST', label: 'Lost', count: metrics.lost },
           ].map((tab) => (
@@ -864,21 +927,16 @@ export default function LeadsPage() {
 
                       {/* Stage Status */}
                       <td className="py-4 px-4">
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                            isConverted
-                              ? 'bg-emerald-100 text-[#1AA14D] border border-emerald-300'
-                              : lead.status === 'QUALIFIED'
-                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                              : lead.status === 'CONTACTED' || lead.status === 'FOLLOW_UP'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : lead.status === 'LOST'
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : 'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}
-                        >
-                          {lead.status}
-                        </span>
+                        {(() => {
+                          const conf = getLeadStatusConfig(lead.status);
+                          return (
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${conf.bg} ${conf.text} ${conf.border}`}
+                            >
+                              {conf.label}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Estimated Value & Priority */}
@@ -1108,33 +1166,83 @@ export default function LeadsPage() {
                       </div>
                     </div>
 
+                    {/* Lifecycle Stage Progress Bar (Matching Mobile App) */}
+                    <div className="p-4 bg-slate-50/90 rounded-3xl border border-slate-200/80 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs font-black text-slate-800">
+                        <span>Lifecycle Pipeline Stage</span>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          {leadDetail.status === 'LOST' || leadDetail.status === 'CANCELLED'
+                            ? 'Lead Closed / Lost'
+                            : `Stage ${Math.min(7, getLeadStatusConfig(leadDetail.status).stageIndex + 1)} of 7`}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {LEAD_LIFECYCLE_STAGES.map((st, idx) => {
+                          const currentStageIdx = getLeadStatusConfig(leadDetail.status).stageIndex;
+                          const isCompleted = currentStageIdx >= idx && currentStageIdx >= 0;
+                          const isCurrent = currentStageIdx === idx;
+                          return (
+                            <div key={st.key} className="space-y-1">
+                              <div
+                                className={`h-1.5 rounded-full transition-all ${
+                                  isCurrent
+                                    ? 'bg-[#23C45E] ring-2 ring-[#23C45E]/30'
+                                    : isCompleted
+                                    ? 'bg-emerald-300'
+                                    : 'bg-slate-200'
+                                }`}
+                              />
+                              <p className={`text-[9px] font-bold text-center truncate ${isCurrent ? 'text-[#1AA14D]' : 'text-slate-400'}`}>
+                                {st.label}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     {/* Stage Status Switcher Banner */}
                     <div className="p-4 bg-emerald-50/60 rounded-3xl border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
                           Current Stage Status
                         </p>
-                        <p className="text-sm font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
-                          <CheckCircle2 className="w-4 h-4 text-[#1AA14D]" />
-                          <span>{leadDetail.status}</span>
-                        </p>
+                        {(() => {
+                          const conf = getLeadStatusConfig(leadDetail.status);
+                          return (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span
+                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${conf.bg} ${conf.text} ${conf.border}`}
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>{conf.label}</span>
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex items-center gap-2">
                         <select
                           value={leadDetail.status}
                           onChange={(e) => updateStatusMutation.mutate({ status: e.target.value })}
-                          disabled={updateStatusMutation.isPending}
-                          className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E]"
+                          disabled={updateStatusMutation.isPending || leadDetail.status === 'CONVERTED'}
+                          className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50"
                         >
-                          <option value="NEW">NEW</option>
-                          <option value="CONTACTED">CONTACTED</option>
-                          <option value="QUALIFIED">QUALIFIED</option>
-                          <option value="CONVERTED">CONVERTED</option>
-                          <option value="LOST">LOST</option>
+                          <option value="NEW">New (NEW)</option>
+                          <option value="FOLLOW_UP">Follow-up (FOLLOW_UP)</option>
+                          <option value="CONTACTED">Contacted (CONTACTED)</option>
+                          <option value="VISIT">Visit Scheduled (VISIT)</option>
+                          <option value="QUALIFIED">Qualified (QUALIFIED)</option>
+                          <option value="PROPOSAL_SENT">Proposal Sent (PROPOSAL_SENT)</option>
+                          <option value="NEGOTIATION">Negotiation (NEGOTIATION)</option>
+                          <option value="PAYMENT">Payment Pending (PAYMENT)</option>
+                          <option value="CONVERTED">Won / Converted (CONVERTED)</option>
+                          <option value="LOST">Lost (LOST)</option>
+                          <option value="CANCELLED">Cancelled (CANCELLED)</option>
                         </select>
 
-                        {leadDetail.status !== 'CONVERTED' && (
+                        {leadDetail.status !== 'CONVERTED' && leadDetail.status !== 'WON' && (
                           <button
                             onClick={() => handleOpenConvert(leadDetail)}
                             className="px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all shadow-xs cursor-pointer active:scale-95"
@@ -1308,36 +1416,98 @@ export default function LeadsPage() {
                         </div>
                       )}
 
-                      {/* TAB 2: TIMELINE */}
+                      {/* TAB 2: TIMELINE & STATUS HISTORY */}
                       {drawerActiveTab === 'TIMELINE' && (
-                        <div className="space-y-3">
-                          {leadDetail.timeline && leadDetail.timeline.length > 0 ? (
-                            leadDetail.timeline.map((item: any) => (
-                              <div
-                                key={item.id}
-                                className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
-                                    {item.action.replace(/_/g, ' ')}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400 font-bold">
-                                    {new Date(item.createdAt).toLocaleString('en-IN', {
-                                      day: 'numeric',
-                                      month: 'short',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </span>
-                                </div>
-                                <p className="text-slate-600 font-medium">{item.description}</p>
+                        <div className="space-y-4">
+                          {/* Status Transition History Section */}
+                          {leadDetail.statusHistory && leadDetail.statusHistory.length > 0 && (
+                            <div className="space-y-2">
+                              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <History className="w-3 h-3 text-[#1AA14D]" />
+                                <span>Status Lifecycle Transitions ({leadDetail.statusHistory.length})</span>
+                              </h5>
+                              <div className="space-y-2">
+                                {leadDetail.statusHistory.map((hist: any) => {
+                                  const fromConf = hist.fromStatus ? getLeadStatusConfig(hist.fromStatus) : null;
+                                  const toConf = getLeadStatusConfig(hist.toStatus);
+                                  return (
+                                    <div
+                                      key={hist.id}
+                                      className="p-3 bg-slate-50/90 rounded-2xl border border-slate-200/80 text-xs space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          {fromConf ? (
+                                            <>
+                                              <span
+                                                className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${fromConf.bg} ${fromConf.text} ${fromConf.border}`}
+                                              >
+                                                {fromConf.label}
+                                              </span>
+                                              <ArrowRight className="w-3 h-3 text-slate-400" />
+                                            </>
+                                          ) : (
+                                            <span className="text-[10px] text-slate-400 font-bold">Initial:</span>
+                                          )}
+                                          <span
+                                            className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${toConf.bg} ${toConf.text} ${toConf.border}`}
+                                          >
+                                            {toConf.label}
+                                          </span>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 font-bold shrink-0">
+                                          {new Date(hist.createdAt).toLocaleDateString('en-IN', {
+                                            day: 'numeric',
+                                            month: 'short',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })}
+                                        </span>
+                                      </div>
+                                      {hist.notes && (
+                                        <p className="text-[11px] text-slate-600 font-medium">{hist.notes}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            ))
-                          ) : (
-                            <p className="text-center py-6 text-slate-400 text-xs font-bold">
-                              No activity timeline recorded yet
-                            </p>
+                            </div>
                           )}
+
+                          {/* Activity Timeline Events */}
+                          <div className="space-y-2">
+                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Clock className="w-3 h-3 text-blue-500" />
+                              <span>Activity Log ({leadDetail.timeline?.length || 0})</span>
+                            </h5>
+                            {leadDetail.timeline && leadDetail.timeline.length > 0 ? (
+                              leadDetail.timeline.map((item: any) => (
+                                <div
+                                  key={item.id}
+                                  className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
+                                      {item.action.replace(/_/g, ' ')}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-bold">
+                                      {new Date(item.createdAt).toLocaleString('en-IN', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-600 font-medium">{item.description}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-center py-4 text-slate-400 text-xs font-bold">
+                                No activity timeline recorded yet
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
 
