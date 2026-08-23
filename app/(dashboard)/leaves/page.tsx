@@ -37,7 +37,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 type MainSectionTab = 'requests' | 'balances' | 'holidays' | 'policies';
@@ -104,6 +104,8 @@ export default function LeaveManagementPage() {
   // Leave Requests state
   const [requestTab, setRequestTab] = useState<RequestTab>('PENDING');
   const [requestSearch, setRequestSearch] = useState('');
+  const [requestPage, setRequestPage] = useState(1);
+  const [requestPageSize, setRequestPageSize] = useState(20);
 
   // Leave Balances state
   const [balanceSearch, setBalanceSearch] = useState('');
@@ -187,18 +189,36 @@ export default function LeaveManagementPage() {
     refetch: refetchRequests,
     isFetching: isFetchingRequests,
   } = useQuery({
-    queryKey: ['admin-leave-requests', requestTab, requestSearch],
+    queryKey: ['admin-leave-requests', requestTab, requestSearch, requestPage, requestPageSize],
     queryFn: async () => {
       try {
         const res: any = await api.get('/leaves/requests', {
           params: {
             status: requestTab !== 'ALL' ? requestTab : undefined,
             search: requestSearch.trim() || undefined,
+            page: requestPage,
+            limit: requestPageSize,
           },
         });
-        return res?.data || res || { data: [], counts: {} };
+        const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page: requestPage,
+          pageSize: requestPageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          data: Array.isArray(items) ? items : [],
+          counts: res?.counts || res?.data?.counts || {},
+          pagination: {
+            page: Number(pagination.page) || requestPage,
+            pageSize: Number(pagination.pageSize || pagination.limit) || requestPageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
-        return { data: [], counts: {} };
+        return { data: [], counts: {}, pagination: { page: 1, pageSize: requestPageSize, total: 0, totalPages: 1 } };
       }
     },
   });
@@ -915,8 +935,11 @@ export default function LeaveManagementPage() {
                   <input
                     type="text"
                     value={requestSearch}
-                    onChange={(e) => setRequestSearch(e.target.value)}
-                    placeholder="Search requests..."
+                    onChange={(e) => {
+                      setRequestSearch(e.target.value);
+                      setRequestPage(1);
+                    }}
+                    placeholder="Search by employee name, code, or reason..."
                     className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                   />
                 </div>
@@ -932,7 +955,10 @@ export default function LeaveManagementPage() {
                 ].map((tab) => (
                   <button
                     key={tab.key}
-                    onClick={() => setRequestTab(tab.key)}
+                    onClick={() => {
+                      setRequestTab(tab.key);
+                      setRequestPage(1);
+                    }}
                     className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                       requestTab === tab.key
                         ? 'bg-slate-900 text-white shadow-sm'
@@ -1079,6 +1105,20 @@ export default function LeaveManagementPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Server-Side Pagination for Leave Requests */}
+            <AdminPagination
+              page={requestPage}
+              pageSize={requestPageSize}
+              total={leaveRequestsData?.pagination?.total || 0}
+              totalPages={leaveRequestsData?.pagination?.totalPages || 1}
+              onPageChange={setRequestPage}
+              onPageSizeChange={(size) => {
+                setRequestPageSize(size);
+                setRequestPage(1);
+              }}
+              disabled={isLoadingRequests}
+            />
           </div>
         </div>
       )}

@@ -40,7 +40,7 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 type PayrollSubmodule = 'dashboard' | 'processing' | 'structures' | 'history' | 'slips' | 'settings';
@@ -112,45 +112,83 @@ export default function PayrollPage() {
   const structDeductions = Number(structPf || 0) + Number(structEsi || 0) + Number(structProfTax || 0) + Number(structTds || 0);
   const structNet = Math.max(0, structGross - structDeductions);
 
+  // Pagination states
+  const [structuresPage, setStructuresPage] = useState(1);
+  const [structuresPageSize, setStructuresPageSize] = useState(20);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
+  const [slipsPage, setSlipsPage] = useState(1);
+  const [slipsPageSize, setSlipsPageSize] = useState(20);
+
   // Queries
-  const { data: payrollHistory = [], refetch: refetchHistory } = useQuery({
-    queryKey: ['admin-payroll-history'],
+  const { data: payrollHistoryRes, refetch: refetchHistory } = useQuery({
+    queryKey: ['admin-payroll-history', historyPage, historyPageSize],
     queryFn: async () => {
       try {
-        const res = await api.get('/admin/payroll/history');
-        const d = res.data?.data || res.data;
-        return Array.isArray(d) ? d : [];
+        const res: any = await api.get('/admin/payroll/history', {
+          params: { page: historyPage, limit: historyPageSize },
+        });
+        const items = res?.data?.data || res?.data?.items || res?.data || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || {
+          page: historyPage,
+          pageSize: historyPageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return { items: Array.isArray(items) ? items : [], pagination };
       } catch {
-        return [];
+        return { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } };
       }
     },
   });
+  const payrollHistory = payrollHistoryRes?.items || [];
+  const historyPagination = payrollHistoryRes?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
-  const { data: salaryStructures = [], refetch: refetchStructures } = useQuery({
-    queryKey: ['admin-salary-structures'],
+  const { data: salaryStructuresRes, refetch: refetchStructures } = useQuery({
+    queryKey: ['admin-salary-structures', structuresPage, structuresPageSize],
     queryFn: async () => {
       try {
-        const res = await api.get('/admin/payroll/structures');
-        const d = res.data?.data || res.data;
-        return Array.isArray(d) ? d : [];
+        const res: any = await api.get('/admin/payroll/structures', {
+          params: { page: structuresPage, limit: structuresPageSize },
+        });
+        const items = res?.data?.data || res?.data?.items || res?.data || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || {
+          page: structuresPage,
+          pageSize: structuresPageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return { items: Array.isArray(items) ? items : [], pagination };
       } catch {
-        return [];
+        return { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } };
       }
     },
   });
+  const salaryStructures = salaryStructuresRes?.items || [];
+  const structuresPagination = salaryStructuresRes?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
-  const { data: salarySlips = [], refetch: refetchSlips } = useQuery({
-    queryKey: ['admin-salary-slips'],
+  const { data: salarySlipsRes, refetch: refetchSlips } = useQuery({
+    queryKey: ['admin-salary-slips', slipsPage, slipsPageSize],
     queryFn: async () => {
       try {
-        const res = await api.get('/admin/payroll/slips');
-        const d = res.data?.data || res.data;
-        return Array.isArray(d) ? d : [];
+        const res: any = await api.get('/admin/payroll/slips', {
+          params: { page: slipsPage, limit: slipsPageSize },
+        });
+        const items = res?.data?.data || res?.data?.items || res?.data || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || {
+          page: slipsPage,
+          pageSize: slipsPageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return { items: Array.isArray(items) ? items : [], pagination };
       } catch {
-        return [];
+        return { items: [], pagination: { page: 1, pageSize: 20, total: 0, totalPages: 1 } };
       }
     },
   });
+  const salarySlips = salarySlipsRes?.items || [];
+  const slipsPagination = salarySlipsRes?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const { data: employeesList = [] } = useQuery({
     queryKey: ['employees-for-payroll'],
@@ -629,6 +667,18 @@ export default function PayrollPage() {
               </tbody>
             </table>
           </div>
+
+          <AdminPagination
+            page={structuresPage}
+            pageSize={structuresPageSize}
+            total={structuresPagination.total}
+            totalPages={structuresPagination.totalPages}
+            onPageChange={setStructuresPage}
+            onPageSizeChange={(size) => {
+              setStructuresPageSize(size);
+              setStructuresPage(1);
+            }}
+          />
         </div>
       )}
 
@@ -676,6 +726,18 @@ export default function PayrollPage() {
               </tbody>
             </table>
           </div>
+
+          <AdminPagination
+            page={historyPage}
+            pageSize={historyPageSize}
+            total={historyPagination.total}
+            totalPages={historyPagination.totalPages}
+            onPageChange={setHistoryPage}
+            onPageSizeChange={(size) => {
+              setHistoryPageSize(size);
+              setHistoryPage(1);
+            }}
+          />
         </div>
       )}
 
@@ -743,6 +805,18 @@ export default function PayrollPage() {
               </tbody>
             </table>
           </div>
+
+          <AdminPagination
+            page={slipsPage}
+            pageSize={slipsPageSize}
+            total={slipsPagination.total}
+            totalPages={slipsPagination.totalPages}
+            onPageChange={setSlipsPage}
+            onPageSizeChange={(size) => {
+              setSlipsPageSize(size);
+              setSlipsPage(1);
+            }}
+          />
         </div>
       )}
 

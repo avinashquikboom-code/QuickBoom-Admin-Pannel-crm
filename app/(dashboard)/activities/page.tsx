@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Activity, PhoneCall, Mail, Calendar, MessageSquare, Plus, RefreshCw, Layers, CheckCircle2, Clock } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
-import { AdminPageHero, AdminStatCard } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminPagination } from '@/components/admin';
 
 interface ActivityItem {
   id: string;
@@ -18,20 +18,40 @@ interface ActivityItem {
 
 export default function ActivitiesPage() {
   const [filterType, setFilterType] = useState<string>('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const { data: auditData, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['admin-activities-audit'],
+  const { data: auditResponse, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['admin-activities-audit', page, pageSize],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/audit-logs');
-        return res?.data?.items || res?.items || res?.data || res;
+        const res: any = await api.get('/audit-logs', {
+          params: { page, limit: pageSize },
+        });
+        const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          items: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
-        return [];
+        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
 
-  const rawActivities = Array.isArray(auditData) ? auditData : [];
+  const rawActivities = auditResponse?.items || [];
+  const pagination = auditResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const activities: ActivityItem[] = rawActivities.map((a: any) => {
     const detailMsg =
@@ -173,6 +193,20 @@ export default function ActivitiesPage() {
             No logged activities found in database.
           </div>
         )}
+
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

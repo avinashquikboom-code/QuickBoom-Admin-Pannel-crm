@@ -40,6 +40,7 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AdminPagination } from '@/components/admin';
 
 export interface EmployeeMaster {
   id: string;
@@ -1289,38 +1290,19 @@ export default function EmployeesPage() {
           )}
         </div>
 
-        {/* Table Footer with Pagination Controls */}
-        <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-bold">
-          <div className="flex items-center gap-2">
-            <span>
-              Showing {filteredEmployees.length} of {pagination.total} employees
-            </span>
-            <span className="text-slate-300">•</span>
-            <span>Active: {activeCount}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 font-bold">
-              Page {pagination.page} of {Math.max(1, pagination.totalPages)}
-            </span>
-
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={pagination.page <= 1 || isLoading}
-              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Previous
-            </button>
-
-            <button
-              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-              disabled={pagination.page >= pagination.totalPages || isLoading}
-              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        {/* Server-Side Pagination Footer */}
+        <AdminPagination
+          page={page}
+          pageSize={limit}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setLimit(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </div>
 
       {/* =========================================================================

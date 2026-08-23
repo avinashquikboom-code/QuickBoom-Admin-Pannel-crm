@@ -34,6 +34,7 @@ import {
   AdminPageHero,
   AdminStatCard,
   AdminFormDrawer,
+  AdminPagination,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -44,6 +45,8 @@ export default function DealsPage() {
   const [stageFilter, setStageFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [assignedFilter, setAssignedFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Modals & Drawers
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -78,8 +81,8 @@ export default function DealsPage() {
   });
 
   // 1. Fetch Deals
-  const { data: dealsData, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['admin-deals-list', search, stageFilter, statusFilter, assignedFilter],
+  const { data: dealsResponse, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['admin-deals-list', search, stageFilter, statusFilter, assignedFilter, page, pageSize],
     queryFn: async () => {
       try {
         const res: any = await api.get('/deals', {
@@ -88,15 +91,34 @@ export default function DealsPage() {
             stageId: stageFilter !== 'ALL' ? stageFilter : undefined,
             status: statusFilter !== 'ALL' ? statusFilter : undefined,
             assignedToId: assignedFilter !== 'ALL' ? assignedFilter : undefined,
+            page,
+            limit: pageSize,
           },
         });
-        const items = res?.data || res;
-        return Array.isArray(items) ? items : [];
+        const items = res?.data?.data || res?.data?.items || res?.data || res?.items || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          items: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
-        return [];
+        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
+
+  const deals: any[] = dealsResponse?.items || [];
+  const pagination = dealsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   // 2. Fetch Metrics
   const { data: metricsData } = useQuery({
@@ -152,7 +174,6 @@ export default function DealsPage() {
     },
   });
 
-  const deals: any[] = Array.isArray(dealsData) ? dealsData : [];
   const companies: any[] = Array.isArray(companiesData) ? companiesData : [];
   const contacts: any[] = Array.isArray(contactsData) ? contactsData : [];
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
@@ -411,15 +432,21 @@ export default function DealsPage() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by deal title, company..."
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search deals by title, company, value..."
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
             />
           </div>
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Outcomes (Open / Won / Lost)</option>
@@ -430,7 +457,10 @@ export default function DealsPage() {
 
           <select
             value={assignedFilter}
-            onChange={(e) => setAssignedFilter(e.target.value)}
+            onChange={(e) => {
+              setAssignedFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Deal Owners</option>
@@ -443,7 +473,10 @@ export default function DealsPage() {
 
           <select
             value={stageFilter}
-            onChange={(e) => setStageFilter(e.target.value)}
+            onChange={(e) => {
+              setStageFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Stages</option>
@@ -687,6 +720,20 @@ export default function DealsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Server-Side Pagination for Table View */}
+          <AdminPagination
+            page={page}
+            pageSize={pageSize}
+            total={pagination.total}
+            totalPages={pagination.totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+            disabled={isLoading}
+          />
         </div>
       )}
 

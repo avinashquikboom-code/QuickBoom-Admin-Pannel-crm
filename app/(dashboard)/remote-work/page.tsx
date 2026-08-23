@@ -29,7 +29,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 type RequestTab = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
@@ -99,6 +99,8 @@ export default function RemoteWorkPage() {
   const [selectedOffice, setSelectedOffice] = useState('ALL');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Drawers and Modals
   const [selectedRequest, setSelectedRequest] = useState<RemoteRequestItem | null>(null);
@@ -136,6 +138,8 @@ export default function RemoteWorkPage() {
       selectedOffice,
       selectedDept,
       selectedDateRange,
+      page,
+      pageSize,
     ],
     queryFn: async () => {
       try {
@@ -146,12 +150,30 @@ export default function RemoteWorkPage() {
             officeId: selectedOffice !== 'ALL' ? selectedOffice : undefined,
             departmentId: selectedDept !== 'ALL' ? selectedDept : undefined,
             dateRange: selectedDateRange !== 'ALL' ? selectedDateRange : undefined,
+            page,
+            limit: pageSize,
           },
         });
-        return res?.data || res || { summary: {}, requests: [] };
+        const items = res?.data?.requests || res?.data?.items || res?.data?.data || res?.requests || res?.items || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          summary: res?.data?.summary || res?.summary || {},
+          requests: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch (err) {
         toast.error(getErrorMessage(err));
-        return { summary: {}, requests: [] };
+        return { summary: {}, requests: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
@@ -226,9 +248,7 @@ export default function RemoteWorkPage() {
   };
 
   const requests: RemoteRequestItem[] = Array.isArray(remoteData?.requests)
-    ? remoteData.requests
-    : Array.isArray(remoteData?.data)
-    ? remoteData.data
+    ? (remoteData.requests as any)
     : [];
 
   const todayWorkers: TodayRemoteWorkerItem[] = Array.isArray(todayRemoteData)
@@ -676,6 +696,20 @@ export default function RemoteWorkPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination for Remote Work Requests */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={remoteData?.pagination?.total || requests.length}
+          totalPages={remoteData?.pagination?.totalPages || 1}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoadingRequests}
+        />
       </div>
 
       {/* =========================================================================

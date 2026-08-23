@@ -19,7 +19,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 interface TeamMemberRecord {
@@ -59,6 +59,8 @@ interface TeamRecord {
 export default function TeamsPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [selectedTeam, setSelectedTeam] = useState<TeamRecord | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -73,13 +75,33 @@ export default function TeamsPage() {
   const [memberRole, setMemberRole] = useState('MEMBER');
 
   // Queries
-  const { data: teamsList = [], isLoading: isTeamsLoading, refetch: refetchTeams } = useQuery({
-    queryKey: ['teams-list'],
+  const { data: teamsResponse, isLoading: isTeamsLoading, refetch: refetchTeams } = useQuery({
+    queryKey: ['teams-list', searchQuery, page, pageSize],
     queryFn: async () => {
-      const res = await api.get('/teams');
-      return res.data?.data || res.data || [];
+      const params: any = { page, limit: pageSize };
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      const res: any = await api.get('/teams', { params });
+      const items = res.data?.data || res.data?.items || (Array.isArray(res.data) ? res.data : []);
+      const pagination = res.pagination || res.meta || res.data?.pagination || {
+        page,
+        pageSize,
+        total: Array.isArray(items) ? items.length : 0,
+        totalPages: 1,
+      };
+      return {
+        items: Array.isArray(items) ? items : [],
+        pagination: {
+          page: Number(pagination.page) || page,
+          pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+          total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+          totalPages: Number(pagination.totalPages) || 1,
+        },
+      };
     },
   });
+
+  const teamsList: TeamRecord[] = teamsResponse?.items || [];
+  const teamsPagination = teamsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const { data: employeesList = [] } = useQuery({
     queryKey: ['employees-simple-list'],
@@ -249,7 +271,8 @@ export default function TeamsPage() {
           No teams found. Click "Create Team" to set up your first functional squad.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTeams.map((team: TeamRecord) => (
             <div
               key={team.id}
@@ -346,6 +369,21 @@ export default function TeamsPage() {
             </div>
           ))}
         </div>
+
+          {/* Server-Side Pagination */}
+          <AdminPagination
+            page={page}
+            pageSize={pageSize}
+            total={teamsPagination.total}
+            totalPages={teamsPagination.totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+            disabled={isTeamsLoading}
+          />
+        </>
       )}
 
       {/* Create Team Drawer */}

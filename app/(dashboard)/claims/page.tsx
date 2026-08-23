@@ -22,7 +22,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 type ClaimTab = 'ALL' | 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED';
@@ -60,6 +60,8 @@ export default function ClaimsPage() {
   const [activeTab, setActiveTab] = useState<ClaimTab>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [selectedClaim, setSelectedClaim] = useState<ClaimRecord | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -87,17 +89,35 @@ export default function ClaimsPage() {
     },
   });
 
-  const { data: claimsList = [], isLoading: isClaimsLoading, refetch: refetchClaims } = useQuery({
-    queryKey: ['claims-list', activeTab, selectedCategory, searchQuery],
+  const { data: claimsResponse, isLoading: isClaimsLoading, refetch: refetchClaims } = useQuery({
+    queryKey: ['claims-list', activeTab, selectedCategory, searchQuery, page, pageSize],
     queryFn: async () => {
-      const params: any = {};
+      const params: any = { page, limit: pageSize };
       if (activeTab !== 'ALL') params.status = activeTab;
       if (selectedCategory !== 'ALL') params.category = selectedCategory;
       if (searchQuery) params.search = searchQuery;
-      const res = await api.get('/claims', { params });
-      return res.data?.data || res.data || [];
+      const res: any = await api.get('/claims', { params });
+      const items = res.data?.data || res.data?.items || (Array.isArray(res.data) ? res.data : []);
+      const pagination = res.pagination || res.meta || res.data?.pagination || {
+        page,
+        pageSize,
+        total: Array.isArray(items) ? items.length : 0,
+        totalPages: 1,
+      };
+      return {
+        items: Array.isArray(items) ? items : [],
+        pagination: {
+          page: Number(pagination.page) || page,
+          pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+          total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+          totalPages: Number(pagination.totalPages) || 1,
+        },
+      };
     },
   });
+
+  const claimsList: ClaimRecord[] = claimsResponse?.items || [];
+  const claimsPagination = claimsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const { data: employeesList = [] } = useQuery({
     queryKey: ['employees-simple-list'],
@@ -536,6 +556,20 @@ export default function ClaimsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={claimsPagination.total}
+          totalPages={claimsPagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isClaimsLoading}
+        />
       </div>
 
       {/* New Claim Drawer */}

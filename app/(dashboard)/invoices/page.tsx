@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminFormDrawer } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -26,6 +26,8 @@ export default function InvoicesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Form states
@@ -35,15 +37,33 @@ export default function InvoicesPage() {
   const [formDueDate, setFormDueDate] = useState('');
   const [formNotes, setFormNotes] = useState('');
 
-  const { data: invoicesData, isLoading, refetch } = useQuery({
-    queryKey: ['invoices', selectedStatus],
+  const { data: invoicesResponse, isLoading, refetch } = useQuery({
+    queryKey: ['invoices', selectedStatus, page, pageSize],
     queryFn: async () => {
-      const params: any = {};
+      const params: any = { page, limit: pageSize };
       if (selectedStatus !== 'ALL') params.status = selectedStatus;
       const res: any = await api.get('/invoices', { params });
-      return res?.data?.items || res?.items || res?.data || [];
+      const items = res?.data?.items || res?.items || res?.data || (Array.isArray(res) ? res : []);
+      const pagination = res?.pagination || res?.meta || res?.data?.pagination || {
+        page,
+        pageSize,
+        total: Array.isArray(items) ? items.length : 0,
+        totalPages: 1,
+      };
+      return {
+        items: Array.isArray(items) ? items : [],
+        pagination: {
+          page: Number(pagination.page) || page,
+          pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+          total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+          totalPages: Number(pagination.totalPages) || 1,
+        },
+      };
     },
   });
+
+  const invoicesData = invoicesResponse?.items || [];
+  const invoicesPagination = invoicesResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const { data: contactsList = [] } = useQuery({
     queryKey: ['contacts-for-invoice'],
@@ -295,6 +315,20 @@ export default function InvoicesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={invoicesPagination.total}
+          totalPages={invoicesPagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </div>
 
       {/* Create Invoice Drawer */}

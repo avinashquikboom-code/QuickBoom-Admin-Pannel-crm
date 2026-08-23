@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { History, Shield, Terminal, User } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
+import { AdminPageHero, AdminPagination } from '@/components/admin';
 
 interface AuditLog {
   id: string;
@@ -21,20 +22,41 @@ const defaultMockLogs: AuditLog[] = [
   { id: '3', action: 'PAYMENT_VERIFIED', user: 'System Webhook', ipAddress: '127.0.0.1', entity: 'Subscription Order (#ORD-9821)', timestamp: '2026-08-21 08:45:10', status: 'SUCCESS' },
 ];
 
-import { AdminPageHero } from '@/components/admin';
-
 export default function AuditLogsPage() {
-  const { data: auditData, isLoading } = useQuery({
-    queryKey: ['admin-audit-logs'],
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const { data: auditResponse, isLoading } = useQuery({
+    queryKey: ['admin-audit-logs', page, pageSize],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/audit-logs');
-        return res?.data?.items || res?.items || res?.data || res;
+        const res: any = await api.get('/audit-logs', {
+          params: { page, limit: pageSize },
+        });
+        const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          items: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
-        return null;
+        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
+
+  const auditData = auditResponse?.items || [];
+  const pagination = auditResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const logs: AuditLog[] =
     Array.isArray(auditData) && auditData.length > 0
@@ -93,6 +115,20 @@ export default function AuditLogsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

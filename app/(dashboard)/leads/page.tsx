@@ -54,6 +54,7 @@ import {
   AdminFormDrawer,
   AdminConfirmDialog,
   AdminSearchInput,
+  AdminPagination,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -170,6 +171,8 @@ export default function LeadsPage() {
   const [sourceFilter, setSourceFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [assignedFilter, setAssignedFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Drawer / Modals states
   const [selectedLeadId, setSelectedLeadId] = useState<number | string | null>(null);
@@ -232,23 +235,42 @@ export default function LeadsPage() {
   const [convertNotes, setConvertNotes] = useState('');
 
   // 1. Fetch Real Leads List
-  const { data: leadsData, isLoading: isLoadingLeads, refetch } = useQuery({
-    queryKey: ['admin-leads-list', search, activeTab, sourceFilter, priorityFilter, assignedFilter],
+  const { data: leadsResponse, isLoading: isLoadingLeads, refetch } = useQuery({
+    queryKey: ['admin-leads-list', search, activeTab, sourceFilter, priorityFilter, assignedFilter, page, pageSize],
     queryFn: async () => {
       try {
         const res: any = await api.get('/leads', {
           params: {
             search: search || undefined,
-            status: activeTab !== 'ALL' ? (activeTab === 'CONVERTED' ? 'CONVERTED' : activeTab) : undefined,
+            status: activeTab !== 'ALL' ? activeTab : undefined,
+            page,
+            limit: pageSize,
           },
         });
-        const items = res?.data?.data || res?.data?.items || res?.data || res?.items || res;
-        return Array.isArray(items) ? items : [];
+        const items = res?.data?.data || res?.data?.items || res?.data || res?.items || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          items: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
-        return [];
+        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
+
+  const rawLeads: LeadItem[] = leadsResponse?.items || [];
+  const pagination = leadsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   // 2. Fetch Selected Lead Details for Right-Side Drawer
   const {
@@ -293,7 +315,6 @@ export default function LeadsPage() {
   });
 
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
-  const rawLeads: LeadItem[] = Array.isArray(leadsData) ? leadsData : [];
 
   // Filtered Leads
   const filteredLeads = useMemo(() => {
@@ -753,7 +774,10 @@ export default function LeadsPage() {
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as LeadTab)}
+              onClick={() => {
+                setActiveTab(tab.key as LeadTab);
+                setPage(1);
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === tab.key
                   ? 'bg-slate-900 text-white shadow-xs'
@@ -779,7 +803,10 @@ export default function LeadsPage() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search by name, company, email..."
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
             />
@@ -787,7 +814,10 @@ export default function LeadsPage() {
 
           <select
             value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
+            onChange={(e) => {
+              setSourceFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Sources</option>
@@ -802,11 +832,14 @@ export default function LeadsPage() {
 
           <select
             value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
+            onChange={(e) => {
+              setPriorityFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Priorities</option>
-            <option value="URGENT">Urgent Priority</option>
+            <option value="URGENT">Urgent</option>
             <option value="HIGH">High Priority</option>
             <option value="MEDIUM">Medium Priority</option>
             <option value="LOW">Low Priority</option>
@@ -814,7 +847,10 @@ export default function LeadsPage() {
 
           <select
             value={assignedFilter}
-            onChange={(e) => setAssignedFilter(e.target.value)}
+            onChange={(e) => {
+              setAssignedFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Assigned Employees</option>
@@ -1046,6 +1082,20 @@ export default function LeadsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination Footer */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoadingLeads}
+        />
       </div>
 
       {/* =========================================================================

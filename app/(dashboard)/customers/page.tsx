@@ -39,6 +39,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
+import { AdminPagination } from '@/components/admin';
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
@@ -54,6 +55,7 @@ export default function CustomersPage() {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
   // Drawer / Modal states
@@ -115,6 +117,7 @@ export default function CustomersPage() {
       sortBy,
       sortOrder,
       page,
+      pageSize,
     ],
     queryFn: async () => {
       try {
@@ -130,7 +133,7 @@ export default function CustomersPage() {
             sortBy,
             sortOrder,
             page,
-            limit: 15,
+            limit: pageSize,
           },
         });
         return res.data;
@@ -707,31 +710,19 @@ export default function CustomersPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {meta.totalPages > 1 && (
-          <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">
-              Page {meta.page} of {meta.totalPages}
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                disabled={page >= meta.totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={meta.total}
+          totalPages={meta.totalPages || Math.ceil(meta.total / pageSize) || 1}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </div>
 
       {/* 5. ADD / EDIT CUSTOMER DRAWER MODAL */}

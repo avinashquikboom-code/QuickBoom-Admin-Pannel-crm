@@ -32,6 +32,7 @@ import {
   AdminPageHero,
   AdminStatCard,
   AdminFormDrawer,
+  AdminPagination,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -41,6 +42,8 @@ export default function ContactsPage() {
   const [companyFilter, setCompanyFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [assignedFilter, setAssignedFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Modals / Drawers
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -77,8 +80,8 @@ export default function ContactsPage() {
   });
 
   // 1. Fetch Contacts
-  const { data: contactsData, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['admin-contacts-list', search, companyFilter, statusFilter, assignedFilter],
+  const { data: contactsResponse, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['admin-contacts-list', search, companyFilter, statusFilter, assignedFilter, page, pageSize],
     queryFn: async () => {
       try {
         const res: any = await api.get('/contacts', {
@@ -87,15 +90,34 @@ export default function ContactsPage() {
             companyId: companyFilter !== 'ALL' ? companyFilter : undefined,
             status: statusFilter !== 'ALL' ? statusFilter : undefined,
             assignedToId: assignedFilter !== 'ALL' ? assignedFilter : undefined,
+            page,
+            limit: pageSize,
           },
         });
-        const items = res?.data?.data || res?.data?.items || res?.data || res?.items || res;
-        return Array.isArray(items) ? items : [];
+        const items = res?.data?.data || res?.data?.items || res?.data || res?.items || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          items: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
-        return [];
+        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
+
+  const contacts: any[] = contactsResponse?.items || [];
+  const pagination = contactsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   // 2. Fetch Metrics
   const { data: metricsData } = useQuery({
@@ -137,7 +159,6 @@ export default function ContactsPage() {
     },
   });
 
-  const contacts: any[] = Array.isArray(contactsData) ? contactsData : [];
   const companies: any[] = Array.isArray(companiesData) ? companiesData : [];
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
@@ -359,7 +380,10 @@ export default function ContactsPage() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search by name, email, phone..."
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
             />
@@ -367,7 +391,10 @@ export default function ContactsPage() {
 
           <select
             value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
+            onChange={(e) => {
+              setCompanyFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Companies</option>
@@ -380,7 +407,10 @@ export default function ContactsPage() {
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Statuses</option>
@@ -391,7 +421,10 @@ export default function ContactsPage() {
 
           <select
             value={assignedFilter}
-            onChange={(e) => setAssignedFilter(e.target.value)}
+            onChange={(e) => {
+              setAssignedFilter(e.target.value);
+              setPage(1);
+            }}
             className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
           >
             <option value="ALL">All Owners</option>
@@ -554,6 +587,20 @@ export default function ContactsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </div>
 
       {/* 5. ADD / EDIT CONTACT DRAWER */}

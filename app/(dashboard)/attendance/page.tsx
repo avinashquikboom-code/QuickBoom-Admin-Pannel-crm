@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
+import { AdminPagination } from '@/components/admin';
 
 interface AttendanceRecord {
   id: string;
@@ -44,6 +45,8 @@ export default function AttendancePage() {
   const [officeFilter, setOfficeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Fetch real offices
   const { data: officesData } = useQuery({
@@ -75,20 +78,38 @@ export default function AttendancePage() {
   });
 
   // Fetch real attendance logs
-  const { data: attendanceData, isLoading, refetch: refetchLogs } = useQuery({
-    queryKey: ['admin-hrm-attendance-logs', selectedDate, officeFilter],
+  const { data: attendanceResponse, isLoading, refetch: refetchLogs } = useQuery({
+    queryKey: ['admin-hrm-attendance-logs', selectedDate, officeFilter, page, pageSize],
     queryFn: async () => {
       try {
-        const params: Record<string, string> = {};
+        const params: Record<string, any> = { page, limit: pageSize };
         if (selectedDate) params.date = selectedDate;
         if (officeFilter !== 'ALL') params.branch = officeFilter;
         const res: any = await api.get('/employees/hrm/attendance', { params });
-        return res?.data || res;
+        const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          items: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
-        return [];
+        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
+
+  const attendanceData = attendanceResponse?.items || [];
+  const pagination = attendanceResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const officesList: string[] = Array.isArray(officesData)
     ? officesData.map((o: any) => o.name || o.branch || String(o))
@@ -433,6 +454,20 @@ export default function AttendancePage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

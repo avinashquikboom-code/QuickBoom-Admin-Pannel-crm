@@ -51,6 +51,7 @@ import {
   AdminFormDrawer,
   AdminConfirmDialog,
   AdminSearchInput,
+  AdminPagination,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -922,53 +923,19 @@ export default function DataCapturePage() {
           </div>
         )}
 
-        {/* Pagination Footer */}
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">
-              Page {page} of {totalPages} ({totalCount} items)
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                disabled={page <= 1}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span>Prev</span>
-              </button>
-
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
-                  const pNum = i + 1;
-                  return (
-                    <button
-                      key={pNum}
-                      onClick={() => setPage(pNum)}
-                      className={`w-7 h-7 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        page === pNum
-                          ? 'bg-[#23C45E] text-slate-950 font-black'
-                          : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {pNum}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                disabled={page >= totalPages}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all disabled:opacity-40 cursor-pointer flex items-center gap-1"
-              >
-                <span>Next</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={limit}
+          total={totalCount}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setLimit(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </AdminCard>
 
       {/* 6. RIGHT-SIDE DETAIL DRAWER (DO NOT NAVIGATE TO NEW PAGE) */}

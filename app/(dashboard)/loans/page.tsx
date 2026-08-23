@@ -25,7 +25,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 type LoanTab = 'ALL' | 'PENDING' | 'ACTIVE' | 'APPROVED' | 'PAID' | 'REJECTED';
@@ -64,6 +64,8 @@ export default function LoansPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<LoanTab>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [selectedLoan, setSelectedLoan] = useState<LoanRecord | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
@@ -92,16 +94,34 @@ export default function LoansPage() {
     },
   });
 
-  const { data: loansList = [], isLoading: isLoansLoading, refetch: refetchLoans } = useQuery({
-    queryKey: ['loans-list', activeTab, searchQuery],
+  const { data: loansResponse, isLoading: isLoansLoading, refetch: refetchLoans } = useQuery({
+    queryKey: ['loans-list', activeTab, searchQuery, page, pageSize],
     queryFn: async () => {
-      const params: any = {};
+      const params: any = { page, limit: pageSize };
       if (activeTab !== 'ALL') params.status = activeTab;
       if (searchQuery) params.search = searchQuery;
-      const res = await api.get('/loans', { params });
-      return res.data?.data || res.data || [];
+      const res: any = await api.get('/loans', { params });
+      const items = res.data?.data || res.data?.items || (Array.isArray(res.data) ? res.data : []);
+      const pagination = res.pagination || res.meta || res.data?.pagination || {
+        page,
+        pageSize,
+        total: Array.isArray(items) ? items.length : 0,
+        totalPages: 1,
+      };
+      return {
+        items: Array.isArray(items) ? items : [],
+        pagination: {
+          page: Number(pagination.page) || page,
+          pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+          total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+          totalPages: Number(pagination.totalPages) || 1,
+        },
+      };
     },
   });
+
+  const loansList: LoanRecord[] = loansResponse?.items || [];
+  const loansPagination = loansResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const { data: employeesList = [] } = useQuery({
     queryKey: ['employees-simple-list'],
@@ -486,6 +506,20 @@ export default function LoansPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={loansPagination.total}
+          totalPages={loansPagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoansLoading}
+        />
       </div>
 
       {/* New Loan Drawer */}

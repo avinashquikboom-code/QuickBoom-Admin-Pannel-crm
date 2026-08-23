@@ -5,7 +5,7 @@ import { Bell, CheckCircle2, Clock, Check, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AdminPageHero, AdminStatCard } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminPagination } from '@/components/admin';
 
 interface NotificationItem {
   id: string;
@@ -19,18 +19,40 @@ interface NotificationItem {
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'ALL' | 'UNREAD' | 'READ'>('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const { data: notificationsData, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['admin-notifications'],
+  const { data: notificationsResponse, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['admin-notifications', activeTab, page, pageSize],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/notifications');
-        return res?.data?.items || res?.items || res?.data || res;
+        const res: any = await api.get('/notifications', {
+          params: { page, limit: pageSize },
+        });
+        const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
+        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+          page,
+          pageSize,
+          total: Array.isArray(items) ? items.length : 0,
+          totalPages: 1,
+        };
+        return {
+          items: Array.isArray(items) ? items : [],
+          pagination: {
+            page: Number(pagination.page) || page,
+            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            totalPages: Number(pagination.totalPages) || 1,
+          },
+        };
       } catch {
-        return null;
+        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
+
+  const notificationsData = notificationsResponse?.items || [];
+  const pagination = notificationsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
@@ -219,6 +241,20 @@ export default function NotificationsPage() {
             </div>
           )}
         </div>
+
+        {/* Server-Side Pagination */}
+        <AdminPagination
+          page={page}
+          pageSize={pageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );
