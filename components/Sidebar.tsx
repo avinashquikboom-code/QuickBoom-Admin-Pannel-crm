@@ -160,12 +160,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
           const isOpen = openSection === section.id;
 
           // Check if any child item in this section is currently active
-          const isSectionActive = section.items.some((item) => {
-            if (item.href === '/dashboard' || item.href === '/super-admin') {
-              return pathname === item.href;
-            }
-            return pathname === item.href || (pathname && pathname.startsWith(item.href));
-          });
+          const isSectionActive = section.items.some((item) => isItemActive(item.href, pathname));
 
           // Single-item sections (e.g. OVERVIEW with just Dashboard)
           const isSingleItemSection = section.items.length === 1;
@@ -174,9 +169,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
             return (
               <div key={section.id} className="space-y-1.5 pt-1">
                 {section.items.map((item) => {
-                  const isActive =
-                    pathname === item.href ||
-                    (item.href !== '/dashboard' && item.href !== '/super-admin' && pathname?.startsWith(item.href));
+                  const isActive = isItemActive(item.href, pathname);
                   const Icon = item.icon;
 
                   return (
@@ -206,7 +199,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
           // Render single-item non-accordion link (e.g., Dashboard)
           if (isSingleItemSection) {
             const singleItem = section.items[0];
-            const isActive = pathname === singleItem.href;
+            const isActive = isItemActive(singleItem.href, pathname);
             const ItemIcon = singleItem.icon;
 
             return (
@@ -292,9 +285,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
                   className="px-2 pb-2.5 pt-1 space-y-1 border-t border-slate-100/80 animate-in fade-in-50 duration-150"
                 >
                   {section.items.map((item) => {
-                    const isActive =
-                      pathname === item.href ||
-                      (item.href !== '/dashboard' && item.href !== '/super-admin' && pathname?.startsWith(item.href));
+                    const isActive = isItemActive(item.href, pathname);
                     const Icon = item.icon;
 
                     return (
