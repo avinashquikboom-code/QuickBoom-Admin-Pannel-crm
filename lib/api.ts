@@ -9,6 +9,7 @@ const api = axios.create({
     'https://api.qbapp.online/api/v1',
   headers: {
     'Content-Type': 'application/json',
+    'x-client-type': 'admin',
   },
 });
 
