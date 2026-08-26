@@ -7,6 +7,7 @@ import {
   Layers,
   Plus,
   Edit2,
+  Trash2,
   Check,
   ArrowLeft,
   Sliders,
@@ -179,6 +180,55 @@ export default function CustomerPlansPage() {
     },
   });
 
+  // Package Delete / Deactivate Mutation
+  const deletePackageMutation = useMutation({
+    mutationFn: async (planId: number | string) => {
+      try {
+        return await api.delete(`/admin/plans/${planId}`);
+      } catch {
+        return await api.delete(`/plans/${planId}`);
+      }
+    },
+    onSuccess: () => {
+      toast.success('Plan deactivated successfully');
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Custom Option Delete Mutation
+  const deleteOptionMutation = useMutation({
+    mutationFn: async (optionId: number | string) => {
+      try {
+        return await api.delete(`/admin/custom-plan/options/${optionId}`);
+      } catch {
+        return await api.delete(`/custom-plan/options/${optionId}`);
+      }
+    },
+    onSuccess: () => {
+      toast.success('Custom service removed successfully');
+      queryClient.invalidateQueries({ queryKey: ['custom-plan-options'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  const handleDeletePlan = (pkg: any) => {
+    if (confirm(`Are you sure you want to deactivate "${pkg.name}"? Existing customer subscriptions will remain linked and unaffected.`)) {
+      deletePackageMutation.mutate(pkg.id);
+    }
+  };
+
+  const handleDeleteOption = (opt: any) => {
+    if (confirm(`Are you sure you want to delete custom service "${opt.name}"?`)) {
+      deleteOptionMutation.mutate(opt.id);
+    }
+  };
+
   const openCreatePackage = () => {
     setEditingPackage(null);
     setPackageForm({
@@ -345,6 +395,14 @@ export default function CustomerPlansPage() {
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={() => handleDeletePlan(p)}
+                        disabled={deletePackageMutation.isPending}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Deactivate Plan"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
@@ -458,12 +516,23 @@ export default function CustomerPlansPage() {
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => openEditOption(opt)}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg transition-colors cursor-pointer text-xs"
-                      >
-                        Edit Price
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => openEditOption(opt)}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg transition-colors cursor-pointer text-xs flex items-center gap-1"
+                        >
+                          <Settings2 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOption(opt)}
+                          disabled={deleteOptionMutation.isPending}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete Service"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -598,20 +667,35 @@ export default function CustomerPlansPage() {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setShowPackageModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => savePackageMutation.mutate(packageForm)}
-                disabled={savePackageMutation.isPending || !packageForm.name || !packageForm.code}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl cursor-pointer shadow-sm"
-              >
-                {savePackageMutation.isPending ? 'Saving...' : 'Save Plan'}
-              </button>
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+              {editingPackage ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDeletePlan(editingPackage);
+                    setShowPackageModal(false);
+                  }}
+                  className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Deactivate Plan</span>
+                </button>
+              ) : <div />}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowPackageModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => savePackageMutation.mutate(packageForm)}
+                  disabled={savePackageMutation.isPending || !packageForm.name || !packageForm.code}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl cursor-pointer shadow-sm"
+                >
+                  {savePackageMutation.isPending ? 'Saving...' : 'Save Plan'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
