@@ -140,7 +140,7 @@ export default function SuperAdminPage() {
       ? customersResponse.map((c: any) => ({
           id: String(c.id),
           name: c.name,
-          plan: c.plan?.name || c.plan || 'Starter Plan',
+          plan: c.plan?.name || c.plan || 'Active Plan',
           status: c.status || (c.isActive ? 'active' : 'inactive'),
           users: c.users || c._count?.users || 1,
           storage: c.storage || `${Math.round(Number(c.storageUsed || 0) / (1024 * 1024))} MB`,
