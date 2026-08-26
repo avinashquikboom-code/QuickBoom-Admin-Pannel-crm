@@ -20,6 +20,7 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -58,6 +59,15 @@ export default function SettingsPage() {
   const [isSavingGoogleMaps, setIsSavingGoogleMaps] = useState(false);
   const [isTestingGoogleMaps, setIsTestingGoogleMaps] = useState(false);
 
+  // WhatsApp Integration State
+  const [whatsappApiKey, setWhatsappApiKey] = useState('');
+  const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState('');
+  const [whatsappConnected, setWhatsappConnected] = useState(true);
+  const [whatsappSource, setWhatsappSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
+  const [showWhatsappKey, setShowWhatsappKey] = useState(false);
+  const [isSavingWhatsapp, setIsSavingWhatsapp] = useState(false);
+  const [isTestingWhatsapp, setIsTestingWhatsapp] = useState(false);
+
   // Workforce & Attendance Rules State
   const [workHoursPerDay, setWorkHoursPerDay] = useState(8);
   const [gracePeriodMinutes, setGracePeriodMinutes] = useState(15);
@@ -75,30 +85,45 @@ export default function SettingsPage() {
   const [whatsappAlerts, setWhatsappAlerts] = useState(true);
   const [leaveApprovalAlerts, setLeaveApprovalAlerts] = useState(true);
 
-  // Fetch live integration settings on mount
+  // Fetch live integration settings on mount and tab switch
   useEffect(() => {
     async function loadIntegrationSettings() {
       try {
         setIsLoadingIntegrations(true);
-        const res = await api.get('/admin/settings/integrations');
-        const items = res.data?.data || [];
+        const res: any = await api.get('/admin/settings/integrations');
+
+        // Robust response unwrapping supporting direct arrays or data wrapper objects
+        let items: any[] = [];
+        if (Array.isArray(res)) {
+          items = res;
+        } else if (Array.isArray(res?.data)) {
+          items = res.data;
+        } else if (Array.isArray(res?.data?.data)) {
+          items = res.data.data;
+        }
 
         for (const item of items) {
-          if (item.provider === 'RAZORPAY') {
+          const provider = (item?.provider || '').toUpperCase();
+          if (provider === 'RAZORPAY') {
             setRazorpayConnected(item.isEnabled ?? true);
             setRazorpayEnvironment(item.environment === 'TEST' ? 'TEST' : 'LIVE');
             setRazorpaySource(item.source || 'DATABASE');
-            setRazorpayKeyId(item.credentials?.keyId || '');
-            setRazorpayKeySecret(item.credentials?.keySecret || '');
-            setRazorpayWebhookSecret(item.credentials?.webhookSecret || '');
-          } else if (item.provider === 'GOOGLE_MAPS') {
+            setRazorpayKeyId(item.credentials?.keyId || item.credentials?.key_id || '');
+            setRazorpayKeySecret(item.credentials?.keySecret || item.credentials?.key_secret || '');
+            setRazorpayWebhookSecret(item.credentials?.webhookSecret || item.credentials?.webhook_secret || '');
+          } else if (provider === 'GOOGLE_MAPS') {
             setGoogleMapsSource(item.source || 'DATABASE');
-            setGoogleMapsApiKey(item.credentials?.apiKey || '');
+            setGoogleMapsApiKey(item.credentials?.apiKey || item.credentials?.api_key || '');
             if (item.config) {
               setEnableEcoRouting(item.config.enableEcoRouting ?? true);
               setEnableGeocoding(item.config.enableGeocoding ?? true);
               setDefaultCity(item.config.defaultCity || 'Mumbai, Maharashtra');
             }
+          } else if (provider === 'WHATSAPP') {
+            setWhatsappConnected(item.isEnabled ?? true);
+            setWhatsappSource(item.source || 'DATABASE');
+            setWhatsappPhoneNumberId(item.credentials?.phoneNumberId || item.credentials?.phone_number_id || '');
+            setWhatsappApiKey(item.credentials?.apiKey || item.credentials?.accessToken || item.credentials?.access_token || '');
           }
         }
       } catch (err: any) {
@@ -119,7 +144,7 @@ export default function SettingsPage() {
     }
     setIsSavingRazorpay(true);
     try {
-      const res = await api.put('/admin/settings/integrations/RAZORPAY', {
+      const res: any = await api.put('/admin/settings/integrations/RAZORPAY', {
         isEnabled: razorpayConnected,
         environment: razorpayEnvironment,
         credentials: {
@@ -130,12 +155,13 @@ export default function SettingsPage() {
       });
 
       setRazorpaySource('DATABASE');
-      if (res.data?.credentials?.keySecret) {
-        setRazorpayKeySecret(res.data.credentials.keySecret);
+      const creds = res?.credentials || res?.data?.credentials;
+      if (creds?.keySecret) {
+        setRazorpayKeySecret(creds.keySecret);
       }
       toast.success('Razorpay credentials saved to database & cache invalidated!');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to save Razorpay credentials');
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save Razorpay credentials');
     } finally {
       setIsSavingRazorpay(false);
     }
@@ -148,17 +174,18 @@ export default function SettingsPage() {
     }
     setIsTestingRazorpay(true);
     try {
-      const res = await api.post('/admin/settings/integrations/RAZORPAY/test', {
+      const res: any = await api.post('/admin/settings/integrations/RAZORPAY/test', {
         credentials: {
           keyId: razorpayKeyId.trim(),
           keySecret: razorpayKeySecret.trim(),
         },
       });
-      if (res.data?.success) {
-        toast.success(`Razorpay connection verified! (${res.data.details?.environment} mode)`);
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success(`Razorpay connection verified! (${data.details?.environment || 'Active'} mode)`);
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Razorpay connection test failed');
+      toast.error(err?.response?.data?.message || err?.message || 'Razorpay connection test failed');
     } finally {
       setIsTestingRazorpay(false);
     }
@@ -172,7 +199,7 @@ export default function SettingsPage() {
     }
     setIsSavingGoogleMaps(true);
     try {
-      const res = await api.put('/admin/settings/integrations/GOOGLE_MAPS', {
+      const res: any = await api.put('/admin/settings/integrations/GOOGLE_MAPS', {
         isEnabled: true,
         environment: 'LIVE',
         credentials: {
@@ -186,12 +213,13 @@ export default function SettingsPage() {
       });
 
       setGoogleMapsSource('DATABASE');
-      if (res.data?.credentials?.apiKey) {
-        setGoogleMapsApiKey(res.data.credentials.apiKey);
+      const creds = res?.credentials || res?.data?.credentials;
+      if (creds?.apiKey) {
+        setGoogleMapsApiKey(creds.apiKey);
       }
       toast.success('Google Maps Platform settings saved & active immediately!');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to save Google Maps settings');
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save Google Maps settings');
     } finally {
       setIsSavingGoogleMaps(false);
     }
@@ -204,18 +232,73 @@ export default function SettingsPage() {
     }
     setIsTestingGoogleMaps(true);
     try {
-      const res = await api.post('/admin/settings/integrations/GOOGLE_MAPS/test', {
+      const res: any = await api.post('/admin/settings/integrations/GOOGLE_MAPS/test', {
         credentials: {
           apiKey: googleMapsApiKey.trim(),
         },
       });
-      if (res.data?.success) {
+      const data = res?.data || res;
+      if (data?.success) {
         toast.success('Google Maps Places API key verified successfully!');
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Google Maps test failed');
+      toast.error(err?.response?.data?.message || err?.message || 'Google Maps test failed');
     } finally {
       setIsTestingGoogleMaps(false);
+    }
+  };
+
+  const handleSaveWhatsapp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!whatsappApiKey.trim()) {
+      toast.error('Please enter a valid WhatsApp Business API Access Token');
+      return;
+    }
+    setIsSavingWhatsapp(true);
+    try {
+      const res: any = await api.put('/admin/settings/integrations/WHATSAPP', {
+        isEnabled: whatsappConnected,
+        environment: 'LIVE',
+        credentials: {
+          apiKey: whatsappApiKey.trim(),
+          phoneNumberId: whatsappPhoneNumberId.trim(),
+        },
+      });
+
+      setWhatsappSource('DATABASE');
+      const creds = res?.credentials || res?.data?.credentials;
+      if (creds?.apiKey) {
+        setWhatsappApiKey(creds.apiKey);
+      }
+      toast.success('WhatsApp Business API settings saved to database!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save WhatsApp settings');
+    } finally {
+      setIsSavingWhatsapp(false);
+    }
+  };
+
+  const handleTestWhatsapp = async () => {
+    if (!whatsappApiKey.trim() || !whatsappPhoneNumberId.trim()) {
+      toast.error('Enter Phone Number ID and Access Token to test connection');
+      return;
+    }
+    setIsTestingWhatsapp(true);
+    try {
+      const res: any = await api.post('/admin/settings/integrations/WHATSAPP/test', {
+        credentials: {
+          apiKey: whatsappApiKey.trim(),
+          phoneNumberId: whatsappPhoneNumberId.trim(),
+        },
+      });
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success('WhatsApp Business API credentials verified successfully!');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'WhatsApp test failed');
+    } finally {
+      setIsTestingWhatsapp(false);
     }
   };
 
@@ -589,6 +672,126 @@ export default function SettingsPage() {
                   ) : (
                     <>
                       <Save className="w-4 h-4" /> Save Google Maps Settings
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* WHATSAPP BUSINESS API CARD */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/20 flex items-center justify-center font-bold">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-black text-slate-900">WhatsApp Business API Integration</h2>
+                    {whatsappConnected ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
+                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> ACTIVE
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" /> DISABLED
+                      </span>
+                    )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
+                      Source: {whatsappSource}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Powers automated customer notifications, visit confirmations, and workforce alerts via Meta Cloud API.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={whatsappConnected}
+                    onChange={(e) => setWhatsappConnected(e.target.checked)}
+                    className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
+                  />
+                  Active
+                </label>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveWhatsapp} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5 text-[#23C45E]" /> Phone Number ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={whatsappPhoneNumberId}
+                    onChange={(e) => setWhatsappPhoneNumberId(e.target.value)}
+                    placeholder="e.g. 104829104810291"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5 text-[#23C45E]" /> Permanent Access Token *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showWhatsappKey ? 'text' : 'password'}
+                      required
+                      value={whatsappApiKey}
+                      onChange={(e) => setWhatsappApiKey(e.target.value)}
+                      placeholder="EAAG..."
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowWhatsappKey(!showWhatsappKey)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      title={showWhatsappKey ? 'Hide key' : 'Show key'}
+                    >
+                      {showWhatsappKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestWhatsapp}
+                  disabled={isTestingWhatsapp || !whatsappApiKey.trim() || !whatsappPhoneNumberId.trim()}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                >
+                  {isTestingWhatsapp ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#23C45E]" /> Testing WhatsApp API...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 text-slate-600" /> Test WhatsApp API
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSavingWhatsapp}
+                  className="inline-flex items-center gap-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingWhatsapp ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" /> Save WhatsApp Settings
                     </>
                   )}
                 </button>
