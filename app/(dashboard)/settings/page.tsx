@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   CreditCard,
@@ -18,8 +18,11 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'GENERAL' | 'INTEGRATIONS' | 'WORKFORCE' | 'SECURITY' | 'NOTIFICATIONS'>('INTEGRATIONS');
@@ -31,23 +34,29 @@ export default function SettingsPage() {
   const [currency, setCurrency] = useState('INR (₹)');
   const [timezone, setTimezone] = useState('Asia/Kolkata (IST)');
 
-  // Razorpay Integration State (Production Live credentials only)
-  const [razorpayKeyId, setRazorpayKeyId] = useState('rzp_live_9876543210abcd');
-  const [razorpayKeySecret, setRazorpayKeySecret] = useState('rzp_sec_live_9876543210');
-  const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState('whsec_quikboom_2026');
+  // Integration Loading & Environment States
+  const [isLoadingIntegrations, setIsLoadingIntegrations] = useState(true);
+  const [razorpayEnvironment, setRazorpayEnvironment] = useState<'LIVE' | 'TEST'>('LIVE');
+  const [razorpaySource, setRazorpaySource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
+
+  // Razorpay Integration State
+  const [razorpayKeyId, setRazorpayKeyId] = useState('');
+  const [razorpayKeySecret, setRazorpayKeySecret] = useState('');
+  const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState('');
   const [razorpayConnected, setRazorpayConnected] = useState(true);
   const [showRazorpaySecret, setShowRazorpaySecret] = useState(false);
   const [isSavingRazorpay, setIsSavingRazorpay] = useState(false);
+  const [isTestingRazorpay, setIsTestingRazorpay] = useState(false);
 
-  // Google Maps Integration State (Production Live credentials only)
-  const [googleMapsApiKey, setGoogleMapsApiKey] = useState(
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBzIu9g59dQo-ICpmusnRorJ8tJ3OYFlRA'
-  );
+  // Google Maps Integration State
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
+  const [googleMapsSource, setGoogleMapsSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
   const [showMapsKey, setShowMapsKey] = useState(false);
   const [enableEcoRouting, setEnableEcoRouting] = useState(true);
   const [enableGeocoding, setEnableGeocoding] = useState(true);
   const [defaultCity, setDefaultCity] = useState('Mumbai, Maharashtra');
   const [isSavingGoogleMaps, setIsSavingGoogleMaps] = useState(false);
+  const [isTestingGoogleMaps, setIsTestingGoogleMaps] = useState(false);
 
   // Workforce & Attendance Rules State
   const [workHoursPerDay, setWorkHoursPerDay] = useState(8);
@@ -66,21 +75,92 @@ export default function SettingsPage() {
   const [whatsappAlerts, setWhatsappAlerts] = useState(true);
   const [leaveApprovalAlerts, setLeaveApprovalAlerts] = useState(true);
 
+  // Fetch live integration settings on mount
+  useEffect(() => {
+    async function loadIntegrationSettings() {
+      try {
+        setIsLoadingIntegrations(true);
+        const res = await api.get('/admin/settings/integrations');
+        const items = res.data?.data || [];
+
+        for (const item of items) {
+          if (item.provider === 'RAZORPAY') {
+            setRazorpayConnected(item.isEnabled ?? true);
+            setRazorpayEnvironment(item.environment === 'TEST' ? 'TEST' : 'LIVE');
+            setRazorpaySource(item.source || 'DATABASE');
+            setRazorpayKeyId(item.credentials?.keyId || '');
+            setRazorpayKeySecret(item.credentials?.keySecret || '');
+            setRazorpayWebhookSecret(item.credentials?.webhookSecret || '');
+          } else if (item.provider === 'GOOGLE_MAPS') {
+            setGoogleMapsSource(item.source || 'DATABASE');
+            setGoogleMapsApiKey(item.credentials?.apiKey || '');
+            if (item.config) {
+              setEnableEcoRouting(item.config.enableEcoRouting ?? true);
+              setEnableGeocoding(item.config.enableGeocoding ?? true);
+              setDefaultCity(item.config.defaultCity || 'Mumbai, Maharashtra');
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('[SETTINGS_LOAD_ERROR]', err);
+      } finally {
+        setIsLoadingIntegrations(false);
+      }
+    }
+
+    loadIntegrationSettings();
+  }, []);
+
   const handleSaveRazorpay = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!razorpayKeyId.trim() || !razorpayKeySecret.trim()) {
-      toast.error('Please enter valid Razorpay production credentials');
+    if (!razorpayKeyId.trim()) {
+      toast.error('Please enter a valid Razorpay Key ID');
       return;
     }
     setIsSavingRazorpay(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setRazorpayConnected(true);
-      toast.success('Razorpay production credentials & webhook saved successfully!');
-    } catch {
-      toast.error('Failed to save Razorpay credentials');
+      const res = await api.put('/admin/settings/integrations/RAZORPAY', {
+        isEnabled: razorpayConnected,
+        environment: razorpayEnvironment,
+        credentials: {
+          keyId: razorpayKeyId.trim(),
+          keySecret: razorpayKeySecret.trim(),
+          webhookSecret: razorpayWebhookSecret.trim(),
+        },
+      });
+
+      setRazorpaySource('DATABASE');
+      if (res.data?.credentials?.keySecret) {
+        setRazorpayKeySecret(res.data.credentials.keySecret);
+      }
+      toast.success('Razorpay credentials saved to database & cache invalidated!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to save Razorpay credentials');
     } finally {
       setIsSavingRazorpay(false);
+    }
+  };
+
+  const handleTestRazorpay = async () => {
+    if (!razorpayKeyId.trim()) {
+      toast.error('Enter Key ID and Secret first to test connection');
+      return;
+    }
+    setIsTestingRazorpay(true);
+    try {
+      const res = await api.post('/admin/settings/integrations/RAZORPAY/test', {
+        credentials: {
+          keyId: razorpayKeyId.trim(),
+          keySecret: razorpayKeySecret.trim(),
+        },
+      });
+      if (res.data?.success) {
+        toast.success(`Razorpay connection verified! (${res.data.details?.environment} mode)`);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Razorpay connection test failed');
+    } finally {
+      setIsTestingRazorpay(false);
     }
   };
 
@@ -92,12 +172,50 @@ export default function SettingsPage() {
     }
     setIsSavingGoogleMaps(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success('Google Maps Platform API key verified & saved!');
-    } catch {
-      toast.error('Failed to save Google Maps API Key');
+      const res = await api.put('/admin/settings/integrations/GOOGLE_MAPS', {
+        isEnabled: true,
+        environment: 'LIVE',
+        credentials: {
+          apiKey: googleMapsApiKey.trim(),
+        },
+        config: {
+          enableEcoRouting,
+          enableGeocoding,
+          defaultCity,
+        },
+      });
+
+      setGoogleMapsSource('DATABASE');
+      if (res.data?.credentials?.apiKey) {
+        setGoogleMapsApiKey(res.data.credentials.apiKey);
+      }
+      toast.success('Google Maps Platform settings saved & active immediately!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to save Google Maps settings');
     } finally {
       setIsSavingGoogleMaps(false);
+    }
+  };
+
+  const handleTestGoogleMaps = async () => {
+    if (!googleMapsApiKey.trim()) {
+      toast.error('Enter Google Maps API Key to test connection');
+      return;
+    }
+    setIsTestingGoogleMaps(true);
+    try {
+      const res = await api.post('/admin/settings/integrations/GOOGLE_MAPS/test', {
+        credentials: {
+          apiKey: googleMapsApiKey.trim(),
+        },
+      });
+      if (res.data?.success) {
+        toast.success('Google Maps Places API key verified successfully!');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Google Maps test failed');
+    } finally {
+      setIsTestingGoogleMaps(false);
     }
   };
 
@@ -218,7 +336,7 @@ export default function SettingsPage() {
       {/* 1. INTEGRATIONS TAB */}
       {activeTab === 'INTEGRATIONS' && (
         <div className="space-y-6">
-          {/* RAZORPAY PAYMENT GATEWAY CARD (PRODUCTION ONLY) */}
+          {/* RAZORPAY PAYMENT GATEWAY CARD */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
@@ -226,18 +344,45 @@ export default function SettingsPage() {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-base font-black text-slate-900">Razorpay Payment Gateway</h2>
-                    {razorpayConnected && (
+                    {razorpayConnected ? (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
-                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> LIVE CONNECTED
+                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> ENABLED
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" /> DISABLED
                       </span>
                     )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
+                      Source: {razorpaySource}
+                    </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Process deal settlements, recurring subscription invoices, and instant payment links.
+                    Configured directly in PostgreSQL database. Changes take effect immediately at runtime without server restarts.
                   </p>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={razorpayEnvironment}
+                  onChange={(e) => setRazorpayEnvironment(e.target.value as 'LIVE' | 'TEST')}
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                >
+                  <option value="LIVE">Live Mode</option>
+                  <option value="TEST">Test Mode</option>
+                </select>
+                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={razorpayConnected}
+                    onChange={(e) => setRazorpayConnected(e.target.checked)}
+                    className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
+                  />
+                  Active
+                </label>
               </div>
             </div>
 
@@ -251,7 +396,7 @@ export default function SettingsPage() {
                   required
                   value={razorpayKeyId}
                   onChange={(e) => setRazorpayKeyId(e.target.value)}
-                  placeholder="rzp_live_..."
+                  placeholder="rzp_live_... or rzp_test_..."
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
                 />
               </div>
@@ -266,7 +411,7 @@ export default function SettingsPage() {
                     required
                     value={razorpayKeySecret}
                     onChange={(e) => setRazorpayKeySecret(e.target.value)}
-                    placeholder="Enter live secret key..."
+                    placeholder="Enter secret key (AES-256 encrypted at rest)..."
                     className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                   <button
@@ -293,7 +438,24 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="md:col-span-2 flex justify-end pt-2">
+              <div className="md:col-span-2 flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestRazorpay}
+                  disabled={isTestingRazorpay || !razorpayKeyId.trim()}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                >
+                  {isTestingRazorpay ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#23C45E]" /> Testing Connection...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 text-slate-600" /> Test Razorpay Connection
+                    </>
+                  )}
+                </button>
+
                 <button
                   type="submit"
                   disabled={isSavingRazorpay}
@@ -305,7 +467,7 @@ export default function SettingsPage() {
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4" /> Save Razorpay Connection
+                      <Save className="w-4 h-4" /> Save Credentials
                     </>
                   )}
                 </button>
@@ -313,7 +475,7 @@ export default function SettingsPage() {
             </form>
           </div>
 
-          {/* GOOGLE MAPS PLATFORM CARD (PRODUCTION ONLY) */}
+          {/* GOOGLE MAPS PLATFORM CARD */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3.5">
@@ -321,14 +483,17 @@ export default function SettingsPage() {
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-base font-black text-slate-900">Google Maps Platform Integration</h2>
                     <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
                       <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> ACTIVE
                     </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
+                      Source: {googleMapsSource}
+                    </span>
                   </div>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Powers field visit GPS tracking, address geocoding, and eco-friendly route optimization.
+                    Powers field visit GPS tracking, address geocoding, and business discovery. Managed dynamically in Database.
                   </p>
                 </div>
               </div>
@@ -394,7 +559,24 @@ export default function SettingsPage() {
                 </label>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestGoogleMaps}
+                  disabled={isTestingGoogleMaps || !googleMapsApiKey.trim()}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                >
+                  {isTestingGoogleMaps ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#23C45E]" /> Testing Connection...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 text-slate-600" /> Test Places API
+                    </>
+                  )}
+                </button>
+
                 <button
                   type="submit"
                   disabled={isSavingGoogleMaps}
@@ -402,11 +584,11 @@ export default function SettingsPage() {
                 >
                   {isSavingGoogleMaps ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Verifying...
+                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4" /> Save & Verify Google Maps API Key
+                      <Save className="w-4 h-4" /> Save Google Maps Settings
                     </>
                   )}
                 </button>
