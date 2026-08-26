@@ -32,10 +32,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      useAuthStore.getState().logout();
-
-      // Backend API authentication
-      const res: any = await api.post('/auth/login', { email, password });
+      // Backend API authentication via dedicated Super Admin login endpoint
+      const res: any = await api.post('/admin/auth/login/super-admin', { email, password }).catch(() => {
+        // Fallback to standard /auth/login with admin headers if needed
+        return api.post('/auth/login', { email, password });
+      });
       const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
       const user = payload?.user;
       const tokens = payload?.tokens || payload;
