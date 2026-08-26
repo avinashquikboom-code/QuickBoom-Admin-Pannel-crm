@@ -53,17 +53,24 @@ export default function CustomerPlansPage() {
     isActive: true,
   });
 
+  const extractList = (res: any) => {
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.data?.data)) return res.data.data;
+    return [];
+  };
+
   // 1. Fetch Standard Plans from Single Database Source of Truth
   const { data: plans = [], isLoading: isPlansLoading } = useQuery({
     queryKey: ['subscription-plans'],
     queryFn: async () => {
       try {
         const res = await api.get('/admin/plans');
-        return Array.isArray(res.data) ? res.data : [];
+        return extractList(res);
       } catch {
         try {
           const res = await api.get('/plans');
-          return Array.isArray(res.data) ? res.data : [];
+          return extractList(res);
         } catch {
           return [];
         }
@@ -77,11 +84,11 @@ export default function CustomerPlansPage() {
     queryFn: async () => {
       try {
         const res = await api.get('/admin/custom-plan/options');
-        return Array.isArray(res.data) ? res.data : [];
+        return extractList(res);
       } catch {
         try {
           const res = await api.get('/custom-plan/services');
-          return Array.isArray(res.data) ? res.data : [];
+          return extractList(res);
         } catch {
           return [];
         }
@@ -92,17 +99,38 @@ export default function CustomerPlansPage() {
   // Package Save Mutation
   const savePackageMutation = useMutation({
     mutationFn: async (payload: any) => {
+      const cleanPayload = {
+        name: payload.name?.trim(),
+        code: payload.code?.trim().toUpperCase(),
+        description: payload.description?.trim() || '',
+        monthlyPrice: Number(payload.monthlyPrice),
+        yearlyPrice: Number(payload.yearlyPrice),
+        userLimit: Number(payload.userLimit),
+        leadLimit: Number(payload.leadLimit),
+        features: Array.isArray(payload.features) ? payload.features : [],
+        isActive: payload.isActive !== false,
+      };
+
       if (editingPackage) {
-        return api.patch(`/admin/plans/${editingPackage.id}`, payload);
+        try {
+          return await api.patch(`/admin/plans/${editingPackage.id}`, cleanPayload);
+        } catch {
+          return await api.patch(`/plans/${editingPackage.id}`, cleanPayload);
+        }
       } else {
-        return api.post('/admin/plans', payload);
+        try {
+          return await api.post('/admin/plans', cleanPayload);
+        } catch {
+          return await api.post('/plans', cleanPayload);
+        }
       }
     },
     onSuccess: () => {
-      toast.success(editingPackage ? 'Package updated successfully' : 'Package created successfully');
+      toast.success(editingPackage ? 'Plan updated successfully' : 'Plan created successfully');
       setShowPackageModal(false);
       setEditingPackage(null);
       queryClient.invalidateQueries({ queryKey: ['subscription-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -112,10 +140,32 @@ export default function CustomerPlansPage() {
   // Custom Option Save Mutation
   const saveOptionMutation = useMutation({
     mutationFn: async (payload: any) => {
+      const cleanPayload = {
+        name: payload.name?.trim(),
+        code: payload.code?.trim().toUpperCase(),
+        description: payload.description?.trim() || '',
+        category: payload.category || 'CONTENT',
+        monthlyPrice: Number(payload.monthlyPrice),
+        pricingType: payload.pricingType || 'PER_UNIT',
+        unitName: payload.unitName || 'unit',
+        minQuantity: Number(payload.minQuantity) || 0,
+        maxQuantity: Number(payload.maxQuantity) || 50,
+        defaultQuantity: Number(payload.defaultQuantity) || 1,
+        isActive: payload.isActive !== false,
+      };
+
       if (editingOption) {
-        return api.patch(`/admin/custom-plan/options/${editingOption.id}`, payload);
+        try {
+          return await api.patch(`/admin/custom-plan/options/${editingOption.id}`, cleanPayload);
+        } catch {
+          return await api.patch(`/custom-plan/options/${editingOption.id}`, cleanPayload);
+        }
       } else {
-        return api.post('/admin/custom-plan/options', payload);
+        try {
+          return await api.post('/admin/custom-plan/options', cleanPayload);
+        } catch {
+          return await api.post('/custom-plan/options', cleanPayload);
+        }
       }
     },
     onSuccess: () => {
