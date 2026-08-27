@@ -32,6 +32,13 @@ import {
   Globe,
   UserCheck,
   Plus,
+  PlayCircle,
+  PowerOff,
+  Trash2,
+  AlertTriangle,
+  ChevronRight,
+  Info,
+  Check,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -44,117 +51,202 @@ export default function CustomerDetailPage() {
   const customerId = params.id as string;
 
   const [activeTab, setActiveTab] = useState<
-    'OVERVIEW' | 'ACTIVITIES' | 'TASKS' | 'VISITS' | 'DEALS' | 'NOTES' | 'HISTORY'
+    'OVERVIEW' | 'SUBSCRIPTIONS' | 'ACTIVITIES' | 'TASKS' | 'VISITS' | 'DEALS' | 'NOTES' | 'HISTORY'
   >('OVERVIEW');
 
-  // 1. Fetch Customer Details
-  const { data: customer, isLoading, refetch } = useQuery({
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'ACTIVATE' | 'DEACTIVATE' | 'DELETE';
+    subscriptionId: number;
+    planName: string;
+  } | null>(null);
+
+  // 1. Fetch Customer Profile Details
+  const { data: customer, isLoading: isCustomerLoading, refetch: refetchCustomer } = useQuery({
     queryKey: ['customer-detail', customerId],
     queryFn: async () => {
       try {
-        const res = await api.get(`/customers/${customerId}`);
-        return res.data;
+        const res: any = await api.get(`/customers/${customerId}`);
+        return res?.data || res;
       } catch {
-        return {
-          id: customerId,
-          customerId: `CUST-${String(customerId).padStart(4, '0')}`,
-          name: 'Acme Global Enterprises',
-          companyName: 'Acme Global Holdings Ltd',
-          company: 'Acme Global Holdings Ltd',
-          domain: 'acme.qbapp.online',
-          email: 'admin@acmeglobal.com',
-          phone: '+91 98200 12345',
-          alternatePhone: '+91 98200 67890',
-          address: '101, Business Park, BKC',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          country: 'India',
-          pincode: '400051',
-          customerType: 'ENTERPRISE',
-          industry: 'Information Technology',
-          source: 'DIRECT',
-          assignedEmployee: 'Rahul Sharma',
-          department: 'Sales & BD',
-          notes: 'High-priority enterprise account with dedicated account manager and customized SLA.',
-          isActive: true,
-          status: 'ACTIVE',
-          storageUsed: 44564480,
-          plan: 'Enterprise SaaS',
-          userCount: 48,
-          leadCount: 1250,
-          dealCount: 4,
-          contactCount: 12,
-          taskCount: 6,
-          createdAt: '2026-06-10T10:00:00Z',
-          updatedAt: '2026-08-22T14:30:00Z',
-        };
+        return null;
       }
     },
   });
 
-  // 2. Fetch Customer Activities
+  // 2. Fetch Customer Subscriptions (Current & History)
+  const { data: subData, isLoading: isSubLoading, refetch: refetchSubscriptions } = useQuery({
+    queryKey: ['customer-subscriptions', customerId],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get(`/admin/customers/${customerId}/subscriptions`);
+        return res?.data || res;
+      } catch {
+        return { currentSubscription: null, subscriptionHistory: [], previousSubscriptions: [] };
+      }
+    },
+  });
+
+  // 3. Fetch Customer Activities
   const { data: activities = [] } = useQuery({
     queryKey: ['customer-activities', customerId],
     queryFn: async () => {
       try {
-        const res = await api.get(`/customers/${customerId}/activities`);
-        return Array.isArray(res.data) ? res.data : [];
+        const res: any = await api.get(`/customers/${customerId}/activities`);
+        const items = res?.data || res;
+        return Array.isArray(items) ? items : [];
       } catch {
-        return [
-          { id: 1, action: 'CUSTOMER_PROFILE_UPDATED', description: 'Updated company contact parameters and phone number.', createdAt: '2026-08-22T14:30:00Z', user: { firstName: 'System', lastName: 'Admin' } },
-          { id: 2, action: 'PLAN_ASSIGNED', description: 'Assigned Enterprise SaaS plan with 50 user capacity.', createdAt: '2026-06-10T10:00:00Z', user: { firstName: 'Super', lastName: 'Admin' } },
-        ];
+        return [];
       }
     },
   });
 
-  // 3. Fetch Customer Tasks
+  // 4. Fetch Customer Tasks
   const { data: tasks = [] } = useQuery({
     queryKey: ['customer-tasks', customerId],
     queryFn: async () => {
       try {
-        const res = await api.get(`/customers/${customerId}/tasks`);
-        return Array.isArray(res.data) ? res.data : [];
+        const res: any = await api.get(`/customers/${customerId}/tasks`);
+        const items = res?.data || res;
+        return Array.isArray(items) ? items : [];
       } catch {
-        return [
-          { id: 1, title: 'Quarterly Executive Review Meeting', priority: 'HIGH', status: 'IN_PROGRESS', dueDate: '2026-08-30', assignedTo: { firstName: 'Rahul', lastName: 'Sharma' } },
-          { id: 2, title: 'SLA & Contract Renewal Check', priority: 'MEDIUM', status: 'COMPLETED', dueDate: '2026-08-15', assignedTo: { firstName: 'Pooja', lastName: 'Verma' } },
-        ];
+        return [];
       }
     },
   });
 
-  // 4. Fetch Customer Visits
+  // 5. Fetch Customer Visits
   const { data: visits = [] } = useQuery({
     queryKey: ['customer-visits', customerId],
     queryFn: async () => {
       try {
-        const res = await api.get(`/customers/${customerId}/visits`);
-        return Array.isArray(res.data) ? res.data : [];
+        const res: any = await api.get(`/customers/${customerId}/visits`);
+        const items = res?.data || res;
+        return Array.isArray(items) ? items : [];
       } catch {
-        return [
-          { id: 1, purpose: 'Client Relationship Check-in', visitType: 'CLIENT_MEETING', location: 'BKC Corporate Office', date: '2026-08-20', status: 'COMPLETED', employee: { firstName: 'Rahul', lastName: 'Sharma', employeeCode: 'EMP-001' } },
-          { id: 2, purpose: 'Enterprise Product Demo', visitType: 'SALES_PITCH', location: 'BKC Corporate Office', date: '2026-08-10', status: 'COMPLETED', employee: { firstName: 'Amit', lastName: 'Shah', employeeCode: 'EMP-003' } },
-        ];
+        return [];
       }
     },
   });
 
-  // 5. Fetch Customer Deals
+  // 6. Fetch Customer Deals
   const { data: deals = [] } = useQuery({
     queryKey: ['customer-deals', customerId],
     queryFn: async () => {
       try {
-        const res = await api.get(`/customers/${customerId}/deals`);
-        return Array.isArray(res.data) ? res.data : [];
+        const res: any = await api.get(`/customers/${customerId}/deals`);
+        const items = res?.data || res;
+        return Array.isArray(items) ? items : [];
       } catch {
-        return [
-          { id: 1, title: 'Annual Enterprise CRM Renewal', amount: 180000, probability: 85, isWon: false, isLost: false, assignedTo: { firstName: 'Rahul', lastName: 'Sharma' } },
-          { id: 2, title: 'Custom Analytics Addon', amount: 45000, probability: 100, isWon: true, isLost: false, assignedTo: { firstName: 'Amit', lastName: 'Shah' } },
-        ];
+        return [];
       }
     },
   });
+
+  // Invalidate all related caches after state modifications
+  const handleInvalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['customer-subscriptions', customerId] });
+    queryClient.invalidateQueries({ queryKey: ['customer-detail', customerId] });
+    queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-subscriptions-list'] });
+    queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+  };
+
+  // Activate Mutation
+  const activateMutation = useMutation({
+    mutationFn: async (subscriptionId: number) => {
+      return api.patch(`/admin/subscriptions/${subscriptionId}/activate`);
+    },
+    onSuccess: () => {
+      toast.success('Subscription activated successfully! Customer entitlements refreshed.');
+      handleInvalidateAll();
+      setConfirmModal(null);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to activate subscription');
+    },
+  });
+
+  // Deactivate Mutation
+  const deactivateMutation = useMutation({
+    mutationFn: async (subscriptionId: number) => {
+      return api.patch(`/admin/subscriptions/${subscriptionId}/deactivate`);
+    },
+    onSuccess: () => {
+      toast.success('Subscription deactivated. Historical records preserved.');
+      handleInvalidateAll();
+      setConfirmModal(null);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to deactivate subscription');
+    },
+  });
+
+  // Delete Mutation (Soft delete)
+  const deleteMutation = useMutation({
+    mutationFn: async (subscriptionId: number) => {
+      return api.delete(`/admin/subscriptions/${subscriptionId}`);
+    },
+    onSuccess: () => {
+      toast.success('Subscription deleted. Audit logs updated.');
+      handleInvalidateAll();
+      setConfirmModal(null);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to delete subscription');
+    },
+  });
+
+  const currentSub = subData?.currentSubscription;
+  const historySubs: any[] = subData?.subscriptionHistory || [];
+
+  const handleRefresh = () => {
+    refetchCustomer();
+    refetchSubscriptions();
+    toast.success('Data refreshed from server');
+  };
+
+  const getStatusBadge = (status: string) => {
+    const norm = (status || '').toUpperCase();
+    if (norm === 'ACTIVE') {
+      return (
+        <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black flex items-center gap-1.5 shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          ACTIVE
+        </span>
+      );
+    }
+    if (norm === 'DEACTIVATED' || norm === 'CANCELED' || norm === 'CANCELLED') {
+      return (
+        <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-amber-500" />
+          DEACTIVATED
+        </span>
+      );
+    }
+    if (norm === 'EXPIRED') {
+      return (
+        <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-black flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-rose-500" />
+          EXPIRED
+        </span>
+      );
+    }
+    if (norm === 'TRIAL') {
+      return (
+        <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-black flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-blue-500" />
+          TRIAL
+        </span>
+      );
+    }
+    return (
+      <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-xs font-black">
+        {status || 'INACTIVE'}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
@@ -179,7 +271,7 @@ export default function CustomerDetailPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{customer?.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{customer?.name || 'Customer'}</h1>
               {customer?.isActive || customer?.status === 'ACTIVE' ? (
                 <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-black">
                   Active
@@ -192,13 +284,14 @@ export default function CustomerDetailPage() {
             </div>
 
             <p className="text-slate-300 text-xs sm:text-sm font-medium">
-              Company: <strong className="text-white">{customer?.companyName || customer?.company}</strong> • Assigned: {customer?.assignedEmployee || 'Rahul Sharma'}
+              Company: <strong className="text-white">{customer?.companyName || customer?.company}</strong> • Active Plan:{' '}
+              <strong className="text-[#23C45E]">{currentSub?.planName || customer?.plan || 'No Active Plan'}</strong>
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => refetch()}
+              onClick={handleRefresh}
               className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer border border-white/10"
             >
               <RefreshCw className="w-4 h-4 text-[#23C45E]" />
@@ -212,12 +305,16 @@ export default function CustomerDetailPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Deals in Pipeline</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{deals.length}</p>
-            <p className="text-[10px] text-slate-400 font-bold mt-0.5">CRM opportunities</p>
+            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Current Plan</p>
+            <p className="text-xl font-black text-slate-900 mt-1 truncate max-w-[150px]">
+              {currentSub?.planName || 'None'}
+            </p>
+            <p className="text-[10px] text-emerald-600 font-bold mt-0.5">
+              {currentSub?.subscriptionStatus === 'ACTIVE' ? 'Active Subscription' : 'No Active Sub'}
+            </p>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Briefcase className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#23C45E] flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5" />
           </div>
         </div>
 
@@ -236,7 +333,7 @@ export default function CustomerDetailPage() {
           <div>
             <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Field Visits</p>
             <p className="text-2xl font-black text-indigo-600 mt-1">{visits.length}</p>
-            <p className="text-[10px] text-indigo-700 font-bold mt-0.5">Logged client meetings</p>
+            <p className="text-[10px] text-indigo-700 font-bold mt-0.5">Logged meetings</p>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
             <MapPin className="w-5 h-5" />
@@ -245,12 +342,12 @@ export default function CustomerDetailPage() {
 
         <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Audit Logs</p>
-            <p className="text-2xl font-black text-purple-600 mt-1">{activities.length}</p>
-            <p className="text-[10px] text-purple-700 font-bold mt-0.5">Recorded events</p>
+            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Deals in Pipeline</p>
+            <p className="text-2xl font-black text-blue-600 mt-1">{deals.length}</p>
+            <p className="text-[10px] text-blue-700 font-bold mt-0.5">CRM opportunities</p>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <Activity className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <Briefcase className="w-5 h-5" />
           </div>
         </div>
       </div>
@@ -259,12 +356,13 @@ export default function CustomerDetailPage() {
       <div className="flex border-b border-slate-200 bg-white rounded-2xl p-1.5 shadow-xs gap-1.5 overflow-x-auto">
         {[
           { id: 'OVERVIEW', label: 'Overview', icon: Building2 },
+          { id: 'SUBSCRIPTIONS', label: `Subscriptions (${historySubs.length})`, icon: CreditCard },
           { id: 'ACTIVITIES', label: `Activities (${activities.length})`, icon: Activity },
           { id: 'TASKS', label: `Tasks (${tasks.length})`, icon: CheckSquare },
           { id: 'VISITS', label: `Visits (${visits.length})`, icon: MapPin },
           { id: 'DEALS', label: `Deals (${deals.length})`, icon: Briefcase },
           { id: 'NOTES', label: 'Notes', icon: FileText },
-          { id: 'HISTORY', label: 'History', icon: History },
+          { id: 'HISTORY', label: 'Audit History', icon: History },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -285,7 +383,266 @@ export default function CustomerDetailPage() {
         })}
       </div>
 
-      {/* 4. TAB CONTENTS */}
+      {/* 4. CURRENT SUBSCRIPTION CARD & LIFECYCLE MANAGEMENT */}
+      {(activeTab === 'OVERVIEW' || activeTab === 'SUBSCRIPTIONS') && (
+        <div className="space-y-6">
+          {/* CURRENT SUBSCRIPTION SECTION */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-lg font-black text-slate-900">Current Subscription</h3>
+                  {currentSub && getStatusBadge(currentSub.subscriptionStatus)}
+                </div>
+                <p className="text-slate-500 text-xs font-medium">
+                  Active plan deliverables, validity cycle, pricing breakdown and admin controls
+                </p>
+              </div>
+
+              {currentSub && (
+                <div className="flex items-center gap-2">
+                  {currentSub.subscriptionStatus !== 'ACTIVE' ? (
+                    <button
+                      onClick={() =>
+                        setConfirmModal({
+                          isOpen: true,
+                          type: 'ACTIVATE',
+                          subscriptionId: currentSub.id,
+                          planName: currentSub.planName,
+                        })
+                      }
+                      className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
+                    >
+                      <PlayCircle className="w-3.5 h-3.5" />
+                      <span>Activate Subscription</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() =>
+                        setConfirmModal({
+                          isOpen: true,
+                          type: 'DEACTIVATE',
+                          subscriptionId: currentSub.id,
+                          planName: currentSub.planName,
+                        })
+                      }
+                      className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
+                    >
+                      <PowerOff className="w-3.5 h-3.5" />
+                      <span>Deactivate</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() =>
+                      setConfirmModal({
+                        isOpen: true,
+                        type: 'DELETE',
+                        subscriptionId: currentSub.id,
+                        planName: currentSub.planName,
+                      })
+                    }
+                    className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer"
+                    title="Soft delete subscription"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {currentSub ? (
+              <div className="space-y-6">
+                {/* Top Details Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Plan & ID</span>
+                    <p className="text-sm font-black text-slate-900 truncate">{currentSub.planName}</p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      ID: <span className="font-mono font-bold text-slate-700">{currentSub.subscriptionId}</span> •{' '}
+                      <span className="font-bold text-emerald-600">{currentSub.planType}</span>
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Billing Period</span>
+                    <p className="text-sm font-black text-slate-900">{currentSub.billingCycle}</p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      {currentSub.startDate ? new Date(currentSub.startDate).toLocaleDateString() : 'N/A'} →{' '}
+                      <strong className="text-slate-800">
+                        {currentSub.expiryDate ? new Date(currentSub.expiryDate).toLocaleDateString() : 'N/A'}
+                      </strong>
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Financial Breakdown</span>
+                    <p className="text-sm font-black text-slate-900">
+                      ₹{Number(currentSub.totalAmount || 0).toLocaleString('en-IN')}{' '}
+                      <span className="text-[11px] font-bold text-slate-400">(incl. 18% GST)</span>
+                    </p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      Base: ₹{Number(currentSub.baseAmount || 0).toLocaleString('en-IN')} + GST: ₹
+                      {Number(currentSub.gst || 0).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Payment & Gateway</span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                          currentSub.paymentStatus === 'PAID' || currentSub.paymentStatus === 'SUCCESS'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {currentSub.paymentStatus || 'PAID'}
+                      </span>
+                      <span className="text-xs font-bold text-slate-700">{currentSub.paymentMethod || 'RAZORPAY'}</span>
+                    </div>
+                    <p className="text-[10px] font-mono text-slate-500 truncate">
+                      {currentSub.orderId ? `Order: ${currentSub.orderId}` : `ID: ${currentSub.paymentId || 'TXN-DIRECT'}`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Plan Quotas & Deliverables Snapshot */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                      Plan Deliverables & Quotas (Purchased Snapshot)
+                    </h4>
+                    <span className="text-xs font-bold text-slate-500">Included Users: {currentSub.includedUsers}</span>
+                  </div>
+
+                  {currentSub.quotas && currentSub.quotas.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {currentSub.quotas.map((q: any, idx: number) => (
+                        <div key={idx} className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/60 space-y-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-slate-800">{q.name}</span>
+                            <span className="font-black text-[#23C45E]">{q.total} Total</span>
+                          </div>
+                          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div
+                              className="bg-[#23C45E] h-full rounded-full transition-all"
+                              style={{ width: `${Math.min(100, Math.max(15, (q.remaining / (q.total || 1)) * 100))}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+                            <span>Used: {q.used || 0}</span>
+                            <span>Remaining: {q.remaining || q.total}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50 rounded-2xl text-xs text-slate-500 font-medium">
+                      Standard entitlement features: Leads ({currentSub.leadLimit}), Users ({currentSub.userLimit}), Storage (
+                      {(currentSub.storageLimit / (1024 * 1024 * 1024)).toFixed(1)} GB).
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                <ShieldCheck className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="text-sm font-bold text-slate-700">No Active Subscription Found</p>
+                <p className="text-xs text-slate-400">
+                  This customer does not currently have an active plan. Previous or assigned plans will appear in Subscription History below.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* SUBSCRIPTION HISTORY SECTION */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="space-y-0.5">
+                <h3 className="text-base font-black text-slate-900">Subscription History</h3>
+                <p className="text-slate-500 text-xs font-medium">Chronological record of all customer subscriptions (newest first)</p>
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 bg-slate-100 rounded-lg text-slate-600">
+                {historySubs.length} Records
+              </span>
+            </div>
+
+            {historySubs.length === 0 ? (
+              <p className="text-xs text-slate-400 py-8 text-center font-bold">No previous subscriptions recorded.</p>
+            ) : (
+              <div className="space-y-3">
+                {historySubs.map((sub: any) => (
+                  <div
+                    key={sub.id}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      sub.isCurrent && sub.subscriptionStatus === 'ACTIVE'
+                        ? 'bg-emerald-50/40 border-emerald-200'
+                        : 'bg-slate-50 border-slate-100 hover:border-slate-200'
+                    } flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-black text-slate-900 text-sm">{sub.planName}</h4>
+                        {sub.isCurrent && sub.subscriptionStatus === 'ACTIVE' && (
+                          <span className="px-2 py-0.5 bg-[#23C45E] text-slate-950 text-[10px] font-black rounded">
+                            CURRENT
+                          </span>
+                        )}
+                        {getStatusBadge(sub.subscriptionStatus)}
+                      </div>
+                      <p className="text-slate-500 text-[11px] font-medium">
+                        ID: <strong className="text-slate-700">{sub.subscriptionId}</strong> •{' '}
+                        {sub.startDate ? new Date(sub.startDate).toLocaleDateString() : 'N/A'} →{' '}
+                        <strong className="text-slate-700">
+                          {sub.expiryDate ? new Date(sub.expiryDate).toLocaleDateString() : 'N/A'}
+                        </strong>{' '}
+                        • {sub.billingCycle}
+                      </p>
+                      {sub.quotas && sub.quotas.length > 0 && (
+                        <p className="text-[11px] text-slate-400">
+                          Quotas: {sub.quotas.map((q: any) => `${q.name} (${q.total})`).join(', ')}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="text-right">
+                        <p className="font-black text-slate-900 text-sm">
+                          ₹{Number(sub.totalAmount || 0).toLocaleString('en-IN')}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          {sub.paymentStatus || 'PAID'} • {sub.paymentMethod || 'RAZORPAY'}
+                        </p>
+                      </div>
+
+                      {/* Admin Quick Action in History */}
+                      {sub.subscriptionStatus !== 'ACTIVE' && (
+                        <button
+                          onClick={() =>
+                            setConfirmModal({
+                              isOpen: true,
+                              type: 'ACTIVATE',
+                              subscriptionId: sub.id,
+                              planName: sub.planName,
+                            })
+                          }
+                          className="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-xl text-[11px] transition-colors cursor-pointer"
+                        >
+                          Activate
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 5. OTHER TABS (OVERVIEW, ACTIVITIES, TASKS, VISITS, DEALS, NOTES, HISTORY) */}
       {activeTab === 'OVERVIEW' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
@@ -319,7 +676,9 @@ export default function CustomerDetailPage() {
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-slate-400 font-bold">State & Country</span>
-                <span className="text-slate-900 font-bold">{customer?.state || 'Maharashtra'}, {customer?.country || 'India'}</span>
+                <span className="text-slate-900 font-bold">
+                  {customer?.state || 'Maharashtra'}, {customer?.country || 'India'}
+                </span>
               </div>
             </div>
           </div>
@@ -339,7 +698,7 @@ export default function CustomerDetailPage() {
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-400 font-bold">Lead Source</span>
-                <span className="text-slate-900 font-bold">{customer?.source || 'DIRECT'}</span>
+                <span className="text-slate-900 font-bold">{customer?.source || 'APP_REGISTRATION'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-400 font-bold">Assigned Relationship Manager</span>
@@ -352,7 +711,7 @@ export default function CustomerDetailPage() {
               <div className="flex justify-between py-2">
                 <span className="text-slate-400 font-bold">Account Created Date</span>
                 <span className="text-slate-900 font-bold">
-                  {customer?.createdAt ? new Date(customer.createdAt).toLocaleDateString() : 'June 10, 2026'}
+                  {customer?.createdAt ? new Date(customer.createdAt).toLocaleDateString() : 'N/A'}
                 </span>
               </div>
             </div>
@@ -398,7 +757,8 @@ export default function CustomerDetailPage() {
                   <div className="space-y-1">
                     <h4 className="font-bold text-slate-900 text-sm">{t.title}</h4>
                     <p className="text-slate-400 text-[11px]">
-                      Due: {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'N/A'} • Assigned to: {t.assignedTo?.firstName || 'Unassigned'}
+                      Due: {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'N/A'} • Assigned to:{' '}
+                      {t.assignedTo?.firstName || 'Unassigned'}
                     </p>
                   </div>
 
@@ -454,9 +814,7 @@ export default function CustomerDetailPage() {
                     </p>
                   </div>
 
-                  <span className="font-black text-slate-900 text-sm">
-                    ₹{Number(d.amount).toLocaleString('en-IN')}
-                  </span>
+                  <span className="font-black text-slate-900 text-sm">₹{Number(d.amount).toLocaleString('en-IN')}</span>
                 </div>
               ))}
             </div>
@@ -480,7 +838,7 @@ export default function CustomerDetailPage() {
             <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
               <span>Account Created:</span>
               <span className="font-bold text-slate-900">
-                {customer?.createdAt ? new Date(customer.createdAt).toLocaleString() : 'June 10, 2026'}
+                {customer?.createdAt ? new Date(customer.createdAt).toLocaleString() : 'N/A'}
               </span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
@@ -488,6 +846,91 @@ export default function CustomerDetailPage() {
               <span className="font-bold text-slate-900">
                 {customer?.updatedAt ? new Date(customer.updatedAt).toLocaleString() : 'Recent'}
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. CONFIRMATION MODAL DIALOG */}
+      {confirmModal && confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in-0 duration-150">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                  confirmModal.type === 'ACTIVATE'
+                    ? 'bg-emerald-50 text-emerald-600'
+                    : confirmModal.type === 'DEACTIVATE'
+                    ? 'bg-amber-50 text-amber-600'
+                    : 'bg-rose-50 text-rose-600'
+                }`}
+              >
+                {confirmModal.type === 'ACTIVATE' ? (
+                  <PlayCircle className="w-6 h-6" />
+                ) : confirmModal.type === 'DEACTIVATE' ? (
+                  <PowerOff className="w-6 h-6" />
+                ) : (
+                  <AlertTriangle className="w-6 h-6" />
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  {confirmModal.type === 'ACTIVATE' && 'Activate Subscription?'}
+                  {confirmModal.type === 'DEACTIVATE' && 'Deactivate Subscription?'}
+                  {confirmModal.type === 'DELETE' && 'Delete Subscription?'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  {confirmModal.type === 'ACTIVATE' &&
+                    `This will set ${confirmModal.planName} to ACTIVE and configure validity. Any other active plan will be transitioned.`}
+                  {confirmModal.type === 'DEACTIVATE' &&
+                    `This will deactivate the customer's current subscription (${confirmModal.planName}). Historical data remains safe.`}
+                  {confirmModal.type === 'DELETE' &&
+                    `This action will soft-delete the subscription record. Payment histories will remain preserved for audit.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirmModal.type === 'ACTIVATE') {
+                    activateMutation.mutate(confirmModal.subscriptionId);
+                  } else if (confirmModal.type === 'DEACTIVATE') {
+                    deactivateMutation.mutate(confirmModal.subscriptionId);
+                  } else if (confirmModal.type === 'DELETE') {
+                    deleteMutation.mutate(confirmModal.subscriptionId);
+                  }
+                }}
+                disabled={
+                  activateMutation.isPending || deactivateMutation.isPending || deleteMutation.isPending
+                }
+                className={`px-5 py-2.5 rounded-xl text-xs font-black text-white transition-all shadow-xs cursor-pointer flex items-center gap-2 ${
+                  confirmModal.type === 'ACTIVATE'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : confirmModal.type === 'DEACTIVATE'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                {(activateMutation.isPending || deactivateMutation.isPending || deleteMutation.isPending) && (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                )}
+                <span>
+                  {confirmModal.type === 'ACTIVATE' && 'Confirm Activation'}
+                  {confirmModal.type === 'DEACTIVATE' && 'Confirm Deactivation'}
+                  {confirmModal.type === 'DELETE' && 'Confirm Delete'}
+                </span>
+              </button>
             </div>
           </div>
         </div>
