@@ -116,9 +116,15 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
   const [searchString, setSearchString] = useState('');
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setSearchString(window.location.search);
-    }
+    const updateSearch = () => {
+      if (typeof window !== 'undefined') {
+        setSearchString(window.location.search);
+      }
+    };
+
+    updateSearch();
+    window.addEventListener('popstate', updateSearch);
+    return () => window.removeEventListener('popstate', updateSearch);
   }, [pathname]);
 
   const toggleSidebar = () => {
