@@ -392,7 +392,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {/* 4. CURRENT SUBSCRIPTION CARD & LIFECYCLE MANAGEMENT */}
-      {(activeTab === 'OVERVIEW' || activeTab === 'SUBSCRIPTIONS') && (
+      {activeTab === 'SUBSCRIPTIONS' && (
         <div className="space-y-6">
           {/* CURRENT SUBSCRIPTION SECTION */}
           <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
