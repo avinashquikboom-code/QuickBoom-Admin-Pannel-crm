@@ -37,15 +37,21 @@ export default function SettingsPage() {
 
   // Integration Loading & Environment States
   const [isLoadingIntegrations, setIsLoadingIntegrations] = useState(true);
-  const [razorpayEnvironment, setRazorpayEnvironment] = useState<'LIVE' | 'TEST'>('LIVE');
-  const [razorpaySource, setRazorpaySource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
+  const [razorpayEnvironment, setRazorpayEnvironment] = useState<'LIVE' | 'TEST'>('TEST');
+  const [razorpaySource, setRazorpaySource] = useState<'DATABASE' | 'ENV_FALLBACK'>('DATABASE');
 
-  // Razorpay Integration State
-  const [razorpayKeyId, setRazorpayKeyId] = useState('');
-  const [razorpayKeySecret, setRazorpayKeySecret] = useState('');
-  const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState('');
+  // Razorpay Dual-Mode Integration State
   const [razorpayConnected, setRazorpayConnected] = useState(true);
-  const [showRazorpaySecret, setShowRazorpaySecret] = useState(false);
+  const [enableOfflinePayment, setEnableOfflinePayment] = useState(false);
+  const [razorpayTestKeyId, setRazorpayTestKeyId] = useState('');
+  const [razorpayTestKeySecret, setRazorpayTestKeySecret] = useState('');
+  const [showRazorpayTestSecret, setShowRazorpayTestSecret] = useState(false);
+
+  const [razorpayLiveKeyId, setRazorpayLiveKeyId] = useState('');
+  const [razorpayLiveKeySecret, setRazorpayLiveKeySecret] = useState('');
+  const [showRazorpayLiveSecret, setShowRazorpayLiveSecret] = useState(false);
+
+  const [razorpayWebhookSecret, setRazorpayWebhookSecret] = useState('');
   const [isSavingRazorpay, setIsSavingRazorpay] = useState(false);
   const [isTestingRazorpay, setIsTestingRazorpay] = useState(false);
 
@@ -92,7 +98,6 @@ export default function SettingsPage() {
         setIsLoadingIntegrations(true);
         const res: any = await api.get('/admin/settings/integrations');
 
-        // Robust response unwrapping supporting direct arrays or data wrapper objects
         let items: any[] = [];
         if (Array.isArray(res)) {
           items = res;
@@ -106,11 +111,18 @@ export default function SettingsPage() {
           const provider = (item?.provider || '').toUpperCase();
           if (provider === 'RAZORPAY') {
             setRazorpayConnected(item.isEnabled ?? true);
-            setRazorpayEnvironment(item.environment === 'TEST' ? 'TEST' : 'LIVE');
+            setRazorpayEnvironment(item.environment === 'LIVE' ? 'LIVE' : 'TEST');
             setRazorpaySource(item.source || 'DATABASE');
-            setRazorpayKeyId(item.credentials?.keyId || item.credentials?.key_id || '');
-            setRazorpayKeySecret(item.credentials?.keySecret || item.credentials?.key_secret || '');
-            setRazorpayWebhookSecret(item.credentials?.webhookSecret || item.credentials?.webhook_secret || '');
+            setEnableOfflinePayment(Boolean(item.config?.enableOfflinePayment));
+
+            const creds = item.credentials || {};
+            setRazorpayTestKeyId(creds.testKeyId || (creds.keyId?.startsWith('rzp_test_') ? creds.keyId : '') || '');
+            setRazorpayTestKeySecret(creds.testKeySecret || (creds.keyId?.startsWith('rzp_test_') ? creds.keySecret : '') || '');
+
+            setRazorpayLiveKeyId(creds.liveKeyId || (creds.keyId?.startsWith('rzp_live_') ? creds.keyId : '') || '');
+            setRazorpayLiveKeySecret(creds.liveKeySecret || (creds.keyId?.startsWith('rzp_live_') ? creds.keySecret : '') || '');
+
+            setRazorpayWebhookSecret(creds.webhookSecret || creds.webhook_secret || '');
           } else if (provider === 'GOOGLE_MAPS') {
             setGoogleMapsSource(item.source || 'DATABASE');
             setGoogleMapsApiKey(item.credentials?.apiKey || item.credentials?.api_key || '');
@@ -138,51 +150,72 @@ export default function SettingsPage() {
 
   const handleSaveRazorpay = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!razorpayKeyId.trim()) {
-      toast.error('Please enter a valid Razorpay Key ID');
+
+    if (razorpayEnvironment === 'TEST' && !razorpayTestKeyId.trim()) {
+      toast.error('Please enter a valid Razorpay Test Key ID');
       return;
     }
+    if (razorpayEnvironment === 'LIVE' && !razorpayLiveKeyId.trim()) {
+      toast.error('Please enter a valid Razorpay Live Key ID');
+      return;
+    }
+
     setIsSavingRazorpay(true);
     try {
       const res: any = await api.put('/admin/settings/integrations/RAZORPAY', {
         isEnabled: razorpayConnected,
         environment: razorpayEnvironment,
         credentials: {
-          keyId: razorpayKeyId.trim(),
-          keySecret: razorpayKeySecret.trim(),
+          testKeyId: razorpayTestKeyId.trim(),
+          testKeySecret: razorpayTestKeySecret.trim(),
+          liveKeyId: razorpayLiveKeyId.trim(),
+          liveKeySecret: razorpayLiveKeySecret.trim(),
+          keyId: razorpayEnvironment === 'TEST' ? razorpayTestKeyId.trim() : razorpayLiveKeyId.trim(),
+          keySecret: razorpayEnvironment === 'TEST' ? razorpayTestKeySecret.trim() : razorpayLiveKeySecret.trim(),
           webhookSecret: razorpayWebhookSecret.trim(),
+        },
+        config: {
+          enableOfflinePayment,
         },
       });
 
       setRazorpaySource('DATABASE');
       const creds = res?.credentials || res?.data?.credentials;
-      if (creds?.keySecret) {
-        setRazorpayKeySecret(creds.keySecret);
-      }
-      toast.success('Razorpay credentials saved to database & cache invalidated!');
+      if (creds?.testKeySecret) setRazorpayTestKeySecret(creds.testKeySecret);
+      if (creds?.liveKeySecret) setRazorpayLiveKeySecret(creds.liveKeySecret);
+
+      toast.success('Payment settings saved to Database & active immediately!');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to save Razorpay credentials');
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save Payment settings');
     } finally {
       setIsSavingRazorpay(false);
     }
   };
 
   const handleTestRazorpay = async () => {
-    if (!razorpayKeyId.trim()) {
-      toast.error('Enter Key ID and Secret first to test connection');
+    const activeKeyId = razorpayEnvironment === 'TEST' ? razorpayTestKeyId.trim() : razorpayLiveKeyId.trim();
+    const activeKeySecret = razorpayEnvironment === 'TEST' ? razorpayTestKeySecret.trim() : razorpayLiveKeySecret.trim();
+
+    if (!activeKeyId) {
+      toast.error(`Enter ${razorpayEnvironment} Key ID and Secret first to test connection`);
       return;
     }
     setIsTestingRazorpay(true);
     try {
       const res: any = await api.post('/admin/settings/integrations/RAZORPAY/test', {
+        environment: razorpayEnvironment,
         credentials: {
-          keyId: razorpayKeyId.trim(),
-          keySecret: razorpayKeySecret.trim(),
+          testKeyId: razorpayTestKeyId.trim(),
+          testKeySecret: razorpayTestKeySecret.trim(),
+          liveKeyId: razorpayLiveKeyId.trim(),
+          liveKeySecret: razorpayLiveKeySecret.trim(),
+          keyId: activeKeyId,
+          keySecret: activeKeySecret,
         },
       });
       const data = res?.data || res;
       if (data?.success) {
-        toast.success(`Razorpay connection verified! (${data.details?.environment || 'Active'} mode)`);
+        toast.success(`Razorpay connection verified! (${data.details?.environment || razorpayEnvironment} mode)`);
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Razorpay connection test failed');
@@ -419,98 +452,211 @@ export default function SettingsPage() {
       {/* 1. INTEGRATIONS TAB */}
       {activeTab === 'INTEGRATIONS' && (
         <div className="space-y-6">
-          {/* RAZORPAY PAYMENT GATEWAY CARD */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/20 flex items-center justify-center font-bold">
-                  <CreditCard className="w-5 h-5" />
+          {/* PAYMENT SETTINGS & RAZORPAY CARD */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/20 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                  <CreditCard className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base font-black text-slate-900">Razorpay Payment Gateway</h2>
+                    <h2 className="text-lg font-black text-slate-900">Payment Settings & Gateway Configuration</h2>
                     {razorpayConnected ? (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
-                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> ENABLED
+                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> RAZORPAY ACTIVE
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
-                        <AlertTriangle className="w-3 h-3 text-amber-600" /> DISABLED
+                        <AlertTriangle className="w-3 h-3 text-amber-600" /> RAZORPAY DISABLED
                       </span>
                     )}
+                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider border ${
+                      razorpayEnvironment === 'LIVE'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}>
+                      MODE: {razorpayEnvironment}
+                    </span>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
                       Source: {razorpaySource}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Configured directly in PostgreSQL database. Changes take effect immediately at runtime without server restarts.
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Database is the single source of truth. Configured keys and mode are dynamically served to mobile app and backend with zero server restarts.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <select
-                  value={razorpayEnvironment}
-                  onChange={(e) => setRazorpayEnvironment(e.target.value as 'LIVE' | 'TEST')}
-                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                >
-                  <option value="LIVE">Live Mode</option>
-                  <option value="TEST">Test Mode</option>
-                </select>
-                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+              {/* Master Mode & Toggle Switches */}
+              <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setRazorpayEnvironment('TEST')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                      razorpayEnvironment === 'TEST'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    TEST
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRazorpayEnvironment('LIVE')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                      razorpayEnvironment === 'LIVE'
+                        ? 'bg-[#23C45E] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    LIVE
+                  </button>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 px-2">
                   <input
                     type="checkbox"
                     checked={razorpayConnected}
                     onChange={(e) => setRazorpayConnected(e.target.checked)}
                     className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
                   />
-                  Active
+                  Enable Razorpay
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 px-2 border-l border-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={enableOfflinePayment}
+                    onChange={(e) => setEnableOfflinePayment(e.target.checked)}
+                    className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
+                  />
+                  Enable Offline Payment
                 </label>
               </div>
             </div>
 
-            <form onSubmit={handleSaveRazorpay} className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-xs">
-              <div>
-                <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-[#23C45E]" /> Razorpay Key ID *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={razorpayKeyId}
-                  onChange={(e) => setRazorpayKeyId(e.target.value)}
-                  placeholder="rzp_live_... or rzp_test_..."
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
-                />
-              </div>
+            <form onSubmit={handleSaveRazorpay} className="space-y-6 pt-4 border-t border-slate-100 text-xs">
+              {/* Dual Environment Credentials Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* 1. TEST MODE CREDENTIALS */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  razorpayEnvironment === 'TEST'
+                    ? 'bg-amber-50/40 border-amber-200/80 shadow-xs'
+                    : 'bg-slate-50/60 border-slate-200/70 opacity-80'
+                }`}>
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200/60">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Test Mode Credentials</h3>
+                    </div>
+                    {razorpayEnvironment === 'TEST' && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-extrabold">
+                        ACTIVE IN CHECKOUT
+                      </span>
+                    )}
+                  </div>
 
-              <div>
-                <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                  <Lock className="w-3.5 h-3.5 text-[#23C45E]" /> Razorpay Key Secret *
-                </label>
-                <div className="relative">
-                  <input
-                    type={showRazorpaySecret ? 'text' : 'password'}
-                    required
-                    value={razorpayKeySecret}
-                    onChange={(e) => setRazorpayKeySecret(e.target.value)}
-                    placeholder="Enter secret key (AES-256 encrypted at rest)..."
-                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowRazorpaySecret(!showRazorpaySecret)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                    title={showRazorpaySecret ? 'Hide secret' : 'Show secret'}
-                  >
-                    {showRazorpaySecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                        <Key className="w-3.5 h-3.5 text-amber-600" /> Razorpay Test Key ID {razorpayEnvironment === 'TEST' && '*'}
+                      </label>
+                      <input
+                        type="text"
+                        value={razorpayTestKeyId}
+                        onChange={(e) => setRazorpayTestKeyId(e.target.value)}
+                        placeholder="rzp_test_..."
+                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-transparent focus:outline-none font-semibold text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                        <Lock className="w-3.5 h-3.5 text-amber-600" /> Razorpay Test Key Secret {razorpayEnvironment === 'TEST' && '*'}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showRazorpayTestSecret ? 'text' : 'password'}
+                          value={razorpayTestKeySecret}
+                          onChange={(e) => setRazorpayTestKeySecret(e.target.value)}
+                          placeholder="Enter test key secret..."
+                          className="w-full pl-3.5 pr-10 py-2 bg-white border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-transparent focus:outline-none font-semibold text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowRazorpayTestSecret(!showRazorpayTestSecret)}
+                          className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        >
+                          {showRazorpayTestSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. LIVE MODE CREDENTIALS */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  razorpayEnvironment === 'LIVE'
+                    ? 'bg-emerald-50/40 border-emerald-200/80 shadow-xs'
+                    : 'bg-slate-50/60 border-slate-200/70 opacity-80'
+                }`}>
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200/60">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#23C45E]" />
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Live Mode Credentials</h3>
+                    </div>
+                    {razorpayEnvironment === 'LIVE' && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold">
+                        ACTIVE IN CHECKOUT
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                        <Key className="w-3.5 h-3.5 text-[#23C45E]" /> Razorpay Live Key ID {razorpayEnvironment === 'LIVE' && '*'}
+                      </label>
+                      <input
+                        type="text"
+                        value={razorpayLiveKeyId}
+                        onChange={(e) => setRazorpayLiveKeyId(e.target.value)}
+                        placeholder="rzp_live_..."
+                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-extrabold text-slate-700 mb-1 flex items-center gap-1">
+                        <Lock className="w-3.5 h-3.5 text-[#23C45E]" /> Razorpay Live Key Secret {razorpayEnvironment === 'LIVE' && '*'}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showRazorpayLiveSecret ? 'text' : 'password'}
+                          value={razorpayLiveKeySecret}
+                          onChange={(e) => setRazorpayLiveKeySecret(e.target.value)}
+                          placeholder="Enter live key secret..."
+                          className="w-full pl-3.5 pr-10 py-2 bg-white border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowRazorpayLiveSecret(!showRazorpayLiveSecret)}
+                          className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        >
+                          {showRazorpayLiveSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="md:col-span-2">
+              {/* Webhook Secret */}
+              <div>
                 <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                  <Globe className="w-3.5 h-3.5 text-[#23C45E]" /> Webhook Secret
+                  <Globe className="w-3.5 h-3.5 text-[#23C45E]" /> Webhook Secret (Shared across environments)
                 </label>
                 <input
                   type="text"
@@ -521,20 +667,21 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="md:col-span-2 flex items-center justify-between pt-2">
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <button
                   type="button"
                   onClick={handleTestRazorpay}
-                  disabled={isTestingRazorpay || !razorpayKeyId.trim()}
-                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                  disabled={isTestingRazorpay || (razorpayEnvironment === 'TEST' ? !razorpayTestKeyId.trim() : !razorpayLiveKeyId.trim())}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
                 >
                   {isTestingRazorpay ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-[#23C45E]" /> Testing Connection...
+                      <Loader2 className="w-4 h-4 animate-spin text-[#23C45E]" /> Testing {razorpayEnvironment} Connection...
                     </>
                   ) : (
                     <>
-                      <RefreshCw className="w-4 h-4 text-slate-600" /> Test Razorpay Connection
+                      <RefreshCw className="w-4 h-4 text-slate-600" /> Test {razorpayEnvironment} Connection
                     </>
                   )}
                 </button>
@@ -542,15 +689,15 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={isSavingRazorpay}
-                  className="inline-flex items-center gap-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isSavingRazorpay ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                      <Loader2 className="w-4 h-4 animate-spin" /> Saving to Database...
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4" /> Save Credentials
+                      <Save className="w-4 h-4" /> Save Payment Settings
                     </>
                   )}
                 </button>
