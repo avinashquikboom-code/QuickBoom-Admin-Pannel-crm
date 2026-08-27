@@ -217,6 +217,14 @@ export default function CustomerDetailPage() {
         </span>
       );
     }
+    if (norm === 'PENDING') {
+      return (
+        <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-300 text-xs font-black flex items-center gap-1.5 shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+          PENDING APPROVAL
+        </span>
+      );
+    }
     if (norm === 'DEACTIVATED' || norm === 'CANCELED' || norm === 'CANCELLED') {
       return (
         <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black flex items-center gap-1.5">
@@ -414,7 +422,7 @@ export default function CustomerDetailPage() {
                       className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
                     >
                       <PlayCircle className="w-3.5 h-3.5" />
-                      <span>Activate Subscription</span>
+                      <span>{currentSub.subscriptionStatus === 'PENDING' ? 'Approve & Activate' : 'Activate Subscription'}</span>
                     </button>
                   ) : (
                     <button
