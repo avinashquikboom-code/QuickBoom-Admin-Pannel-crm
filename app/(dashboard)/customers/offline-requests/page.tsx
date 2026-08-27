@@ -21,6 +21,7 @@ import {
   CreditCard,
   Banknote,
   Receipt,
+  Download,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -489,6 +490,15 @@ export default function OfflinePaymentRequestsPage() {
               >
                 Close
               </button>
+              {(selectedRequest.paymentStatus === 'PAID' || selectedRequest.paymentStatus === 'SUCCESS') && (
+                <button
+                  onClick={() => handleDownloadReceipt(selectedRequest)}
+                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 flex items-center gap-1.5 shadow-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Receipt
+                </button>
+              )}
               {selectedRequest.paymentStatus === 'PENDING' && (
                 <>
                   <button
