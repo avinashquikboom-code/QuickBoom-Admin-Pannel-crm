@@ -133,6 +133,8 @@ const SUPER_ADMIN_PERMISSIONS: string[] = [
   'data_reset.module',
   'data_reset.employee',
   'data_reset.execute',
+  'trending.view',
+  'trending.manage',
 ];
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
@@ -314,6 +316,17 @@ export const adminNavigation: {
         { name: 'Offline Payment Requests', href: '/customers/offline-requests', icon: Clock, permission: 'subscriptions.manage' },
         { name: 'Resource Usage', href: '/customers/usage', icon: Activity, permission: 'subscription.view' },
         { name: 'Super Admin Hub', href: '/super-admin', icon: ShieldCheck, permission: 'customers.manage' },
+      ],
+    },
+
+    // 8. Marketing & Content
+    {
+      id: 'marketing',
+      category: 'Marketing & Content',
+      sectionIcon: TrendingUp,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Trending Content', href: '/trending', icon: TrendingUp, permission: 'customers.manage' },
       ],
     },
 
