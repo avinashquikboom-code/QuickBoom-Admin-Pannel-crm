@@ -311,6 +311,7 @@ export const adminNavigation: {
         { name: 'Invoices & Billing', href: '/invoices', icon: FileText, permission: 'customers.manage' },
         { name: 'Subscription Plans', href: '/customers/plans', icon: Layers, permission: 'plans.manage' },
         { name: 'Active Subscriptions', href: '/customers/subscriptions', icon: ShieldCheck, permission: 'subscriptions.manage' },
+        { name: 'Offline Payment Requests', href: '/customers/offline-requests', icon: Clock, permission: 'subscriptions.manage' },
         { name: 'Resource Usage', href: '/customers/usage', icon: Activity, permission: 'subscription.view' },
         { name: 'Super Admin Hub', href: '/super-admin', icon: ShieldCheck, permission: 'customers.manage' },
       ],
