@@ -31,8 +31,7 @@ export interface CreateBannerPayload {
   title: string;
   subtitle?: string;
   description?: string;
-  imageUrl: string;
-  mobileImageUrl?: string;
+  imageUrl?: string;
   ctaText?: string;
   ctaUrl?: string;
   priority?: number;
@@ -48,7 +47,6 @@ export interface UpdateBannerPayload {
   subtitle?: string;
   description?: string;
   imageUrl?: string;
-  mobileImageUrl?: string;
   ctaText?: string;
   ctaUrl?: string;
   priority?: number;

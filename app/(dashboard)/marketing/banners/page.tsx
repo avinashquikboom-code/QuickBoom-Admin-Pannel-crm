@@ -688,7 +688,7 @@ export default function HomeBannersPage() {
             />
 
             {formImagePreview ? (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <div className="relative rounded-xl overflow-hidden border border-border bg-slate-950/40 h-44 group">
                   <img
                     src={formImagePreview}
@@ -699,10 +699,39 @@ export default function HomeBannersPage() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-1.5 rounded-lg bg-white/90 text-slate-900 text-xs font-bold hover:bg-white transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-white/95 text-slate-900 text-xs font-bold hover:bg-white transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
                     >
                       <UploadCloud className="w-3.5 h-3.5" />
-                      Replace Image
+                      Change Image
+                    </button>
+                    {(formImageFile || (!editingBanner && formImagePreview)) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormImageFile(null);
+                          setFormImagePreview(editingBanner ? editingBanner.imageUrl : null);
+                        }}
+                        className="p-1.5 rounded-lg bg-red-600/90 text-white text-xs font-bold hover:bg-red-600 transition-all shadow-md cursor-pointer"
+                        title="Remove selected image"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs px-1">
+                  <span className="flex items-center gap-1.5 text-muted-foreground font-medium truncate max-w-[200px]">
+                    <FileImage className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="truncate">{formImageFile ? formImageFile.name : 'Current Banner Image'}</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 text-foreground text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      Change Image
                     </button>
                     {formImageFile && (
                       <button
@@ -711,26 +740,12 @@ export default function HomeBannersPage() {
                           setFormImageFile(null);
                           setFormImagePreview(editingBanner ? editingBanner.imageUrl : null);
                         }}
-                        className="p-1.5 rounded-lg bg-red-600/90 text-white text-xs font-bold hover:bg-red-600 transition-all shadow-md cursor-pointer"
+                        className="px-2.5 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-medium transition-colors cursor-pointer"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        Remove
                       </button>
                     )}
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                  <span className="flex items-center gap-1.5 font-medium truncate">
-                    <FileImage className="w-3.5 h-3.5 text-primary" />
-                    {formImageFile ? formImageFile.name : 'Current Banner Image'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-primary hover:underline font-semibold cursor-pointer shrink-0 ml-2"
-                  >
-                    Replace Image
-                  </button>
                 </div>
               </div>
             ) : (
