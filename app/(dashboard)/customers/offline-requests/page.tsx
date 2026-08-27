@@ -100,10 +100,9 @@ export default function OfflinePaymentRequestsPage() {
       const res: any = await api.post(`/admin/subscriptions/offline-requests/${id}/reject`, { reason });
       return res.data;
     },
-    onSuccess: (data: any) => {
-      toast.success(data?.message || 'Offline payment request rejected.');
+    onSuccess: () => {
+      toast.success('Offline payment request rejected.');
       queryClient.invalidateQueries({ queryKey: ['admin-offline-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-subscriptions-list'] });
       setIsRejectModalOpen(false);
       setIsViewModalOpen(false);
       setSelectedRequest(null);
@@ -113,6 +112,28 @@ export default function OfflinePaymentRequestsPage() {
       toast.error(getErrorMessage(err));
     },
   });
+
+  const handleDownloadReceipt = async (req: any) => {
+    try {
+      const receiptNo = req.invoiceUrl || `REC-${new Date(req.requestDate || Date.now()).getFullYear()}-${String(req.id).padStart(6, '0')}`;
+      toast.loading(`Preparing Receipt PDF for ${receiptNo}...`, { id: 'rec-dl' });
+      const res = await api.get(`/receipts/${receiptNo}/download`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt_${receiptNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Payment Receipt PDF downloaded', { id: 'rec-dl' });
+    } catch (err) {
+      toast.error(getErrorMessage(err) || 'Failed to download receipt PDF', { id: 'rec-dl' });
+    }
+  };
 
   const totalCount = pagination.total || requests.length;
   const pendingCount = requests.filter((r) => r.paymentStatus === 'PENDING').length;

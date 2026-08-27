@@ -129,6 +129,27 @@ export default function InvoicesPage() {
     });
   };
 
+  const handleDownloadInvoice = async (inv: any) => {
+    try {
+      toast.loading(`Preparing PDF for #${inv.invoiceNumber || inv.id}...`, { id: 'inv-dl' });
+      const res = await api.get(`/invoices/${inv.id}/download`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice_${inv.invoiceNumber || inv.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Invoice PDF downloaded', { id: 'inv-dl' });
+    } catch (err) {
+      toast.error(getErrorMessage(err) || 'Failed to download invoice PDF', { id: 'inv-dl' });
+    }
+  };
+
   const invoicesList = Array.isArray(invoicesData) ? invoicesData : [];
 
   const filteredInvoices = invoicesList.filter((inv: any) => {
@@ -291,7 +312,7 @@ export default function InvoicesPage() {
                     <td className="p-3.5 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => toast.success(`Downloading invoice #${inv.invoiceNumber || inv.id}`)}
+                          onClick={() => handleDownloadInvoice(inv)}
                           className="p-1 text-slate-400 hover:text-emerald-600 transition"
                           title="Download PDF"
                         >
