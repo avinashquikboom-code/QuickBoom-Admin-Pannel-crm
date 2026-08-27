@@ -147,6 +147,27 @@ export default function CustomerDetailPage() {
     },
   });
 
+  // Start New Plan Mutation (When Prior Plan Renewal Failed)
+  const startNewPlanMutation = useMutation({
+    mutationFn: async () => {
+      const res: any = await api.post(`/admin/customers/${customerId}/start-new-plan`, {
+        paymentMethod: 'CASH',
+        totalInstallments: 3,
+      });
+      return res.data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'New plan created and initial installment settled!');
+      refetchInstallments();
+      refetchSubscriptions();
+      refetchInvoices();
+      refetchCustomer();
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err) || 'Failed to start new plan');
+    },
+  });
+
   // 3. Fetch Customer Activities
   const { data: activities = [] } = useQuery({
     queryKey: ['customer-activities', customerId],
@@ -885,17 +906,291 @@ export default function CustomerDetailPage() {
       {/* 4b. BILLING & INVOICES TAB */}
       {activeTab === 'INVOICES' && (
         <div className="space-y-6">
+          {/* 1. ADVANCE PAYMENT & INSTALLMENT SCHEDULE CARD */}
+          {installmentSummary && (
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-lg font-black text-slate-900">Advance Payment & Installment Renewal Schedule</h3>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                      installmentSummary.isFullyPaid
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : (installmentSummary.isRenewalFailed
+                        ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                        : (installmentSummary.isInBuffer
+                        ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                        : (installmentSummary.isAccessAllowed
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-rose-100 text-rose-800')))
+                    }`}>
+                      {installmentSummary.isFullyPaid
+                        ? 'FULLY PAID'
+                        : (installmentSummary.isRenewalFailed
+                        ? 'RENEWAL FAILED'
+                        : (installmentSummary.isInBuffer
+                        ? 'IN BUFFER PERIOD'
+                        : (installmentSummary.isAccessAllowed ? 'ACTIVE' : 'OVERDUE')))}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 text-xs font-medium">
+                    {installmentSummary.statusMessage || 'Multi-installment plan tracking with 3-day grace buffer.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {installmentSummary.isRenewalFailed && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`Start a new plan for this client at full plan price (₹${installmentSummary.amountRequiredToRestart.toLocaleString('en-IN')})?`)) {
+                          startNewPlanMutation.mutate();
+                        }
+                      }}
+                      disabled={startNewPlanMutation.isPending}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Start New Plan (₹{installmentSummary.amountRequiredToRestart.toLocaleString('en-IN')})</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      refetchInstallments();
+                      refetchInvoices();
+                    }}
+                    disabled={isInstallmentsLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isInstallmentsLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh Schedule</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* RENEWAL FAILED NOTICE BANNER */}
+              {installmentSummary.isRenewalFailed && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2 text-rose-900 font-black text-sm">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Renewal Failed — Previous Installment Plan Expired</span>
+                  </div>
+                  <p className="text-rose-800 text-xs font-medium leading-relaxed">
+                    {installmentSummary.failureMessage ||
+                      'Your installment plan renewal period has expired. You failed to renew your plan within the allowed buffer period. To continue using our services, you must start a new plan.'}
+                  </p>
+                  <p className="text-rose-700 text-[11px] font-semibold bg-white/70 p-2.5 rounded-xl border border-rose-200/60">
+                    <span className="font-bold">Terms & Conditions: </span>
+                    {installmentSummary.termsMessage ||
+                      'Under our Terms & Conditions, after the renewal period expires, the previous installment plan cannot be continued and a new plan must be purchased at the applicable full plan price.'}
+                  </p>
+                </div>
+              )}
+
+              {/* BUFFER PERIOD WARNING BANNER */}
+              {installmentSummary.isInBuffer && !installmentSummary.isRenewalFailed && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2 text-amber-900 font-black text-sm">
+                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Plan Renewal Due — Buffer Period Active ({installmentSummary.bufferRemainingDays} {installmentSummary.bufferRemainingDays === 1 ? 'Day' : 'Days'} Left)</span>
+                  </div>
+                  <p className="text-amber-800 text-xs font-medium leading-relaxed">
+                    {installmentSummary.bufferMessage ||
+                      'Your plan renewal is pending. You have 3 days to renew your plan. If you do not renew within the buffer period, your installment plan will expire and you will need to start a new plan at the applicable full plan price.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Installment Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                  <span className="text-xs font-bold text-slate-400">
+                    {installmentSummary.isRenewalFailed ? 'Original Plan Value' : 'Total Plan Value'}
+                  </span>
+                  <div className="text-xl font-black text-slate-900">
+                    ₹{(installmentSummary.originalPlanValue || installmentSummary.totalPlanAmount || 0).toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-semibold">{installmentSummary.planName}</div>
+                </div>
+
+                <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-1">
+                  <span className="text-xs font-bold text-slate-600">
+                    {installmentSummary.isRenewalFailed ? 'Previous Payment (Historical)' : 'Total Paid Amount'}
+                  </span>
+                  <div className="text-xl font-black text-slate-800">
+                    ₹{(installmentSummary.historicalPaidAmount || installmentSummary.totalPaidAmount || 0).toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-semibold">
+                    {installmentSummary.isRenewalFailed
+                      ? 'Historical audit record only'
+                      : `${installmentSummary.installments?.filter((i: any) => i.status === 'PAID').length} of ${installmentSummary.installments?.length || 3} Paid`}
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border space-y-1 ${
+                  installmentSummary.isRenewalFailed
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-rose-50/60 border-rose-100'
+                }`}>
+                  <span className={`text-xs font-bold ${installmentSummary.isRenewalFailed ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    {installmentSummary.isRenewalFailed ? 'Required to Start Again' : 'Total Outstanding'}
+                  </span>
+                  <div className={`text-xl font-black ${installmentSummary.isRenewalFailed ? 'text-emerald-950' : 'text-rose-950'}`}>
+                    ₹{(installmentSummary.isRenewalFailed ? installmentSummary.amountRequiredToRestart : installmentSummary.outstandingAmount || 0).toLocaleString('en-IN')}
+                  </div>
+                  <div className={`text-[11px] font-semibold ${installmentSummary.isRenewalFailed ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {installmentSummary.isRenewalFailed ? 'Full Plan Price (New Plan)' : (installmentSummary.outstandingAmount === 0 ? 'Fully Settled' : 'Balance to settle')}
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border space-y-1 ${
+                  installmentSummary.isRenewalFailed
+                    ? 'bg-rose-50 border-rose-200'
+                    : (installmentSummary.isInBuffer
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-slate-50 border-slate-100')
+                }`}>
+                  <span className={`text-xs font-bold ${
+                    installmentSummary.isRenewalFailed
+                      ? 'text-rose-700'
+                      : (installmentSummary.isInBuffer ? 'text-amber-700' : 'text-slate-400')
+                  }`}>
+                    {installmentSummary.isRenewalFailed
+                      ? 'Plan Status'
+                      : `Buffer Period (${installmentSummary.bufferDays || 3} Days)`}
+                  </span>
+                  <div className="text-xl font-black text-slate-900">
+                    {installmentSummary.isRenewalFailed
+                      ? 'Renewal Failed'
+                      : (installmentSummary.isInBuffer
+                      ? `${installmentSummary.bufferRemainingDays} ${installmentSummary.bufferRemainingDays === 1 ? 'Day' : 'Days'} Left`
+                      : `${installmentSummary.bufferDays || 3} Days`)}
+                  </div>
+                  <div className={`text-[11px] font-semibold ${
+                    installmentSummary.isRenewalFailed
+                      ? 'text-rose-700'
+                      : (installmentSummary.isInBuffer ? 'text-amber-700' : 'text-slate-500')
+                  }`}>
+                    {installmentSummary.isRenewalFailed
+                      ? 'Old installment plan closed'
+                      : (installmentSummary.isInBuffer ? 'Plan active during buffer' : 'Standard renewal grace period')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Installments Table */}
+              <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                      <th className="py-3 px-4">Installment #</th>
+                      <th className="py-3 px-4">Title / Terms</th>
+                      <th className="py-3 px-4 text-right">Base Amount</th>
+                      <th className="py-3 px-4 text-right">GST (18%)</th>
+                      <th className="py-3 px-4 text-right">Total (₹)</th>
+                      <th className="py-3 px-4">Due Date</th>
+                      <th className="py-3 px-4">Expiry Date</th>
+                      <th className="py-3 px-4">Buffer End Date</th>
+                      <th className="py-3 px-4 text-center">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs font-medium">
+                    {installmentSummary.installments?.map((inst: any) => {
+                      const isPaid = inst.status === 'PAID';
+                      const isBuffer = inst.displayStatus === 'IN_BUFFER' || inst.isInBuffer;
+                      const isDue = inst.status === 'DUE' || isBuffer;
+                      const isOverdue = inst.displayStatus === 'OVERDUE';
+
+                      return (
+                        <tr key={inst.id} className={`hover:bg-slate-50/80 transition-colors ${
+                          isBuffer ? 'bg-amber-50/30' : (isDue ? 'bg-blue-50/20' : '')
+                        }`}>
+                          <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                            #{inst.installmentNumber}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-slate-900">{inst.title}</div>
+                            {inst.notes && (
+                              <div className="text-[10px] text-slate-400 truncate max-w-[200px]" title={inst.notes}>
+                                {inst.notes}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-right text-slate-600 font-semibold">
+                            ₹{Number(inst.amount || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-4 text-right text-slate-500 font-semibold">
+                            ₹{Number(inst.taxAmount || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-4 text-right font-black text-slate-900">
+                            ₹{Number(inst.totalAmount || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
+                            {inst.dueDate ? new Date(inst.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
+                            {inst.expiryDate ? new Date(inst.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                          </td>
+                          <td className="py-3 px-4 whitespace-nowrap font-bold text-amber-900">
+                            {inst.bufferEndDate ? new Date(inst.bufferEndDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black inline-flex items-center gap-1 ${
+                              isPaid
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : (isBuffer
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                : (isOverdue
+                                ? 'bg-rose-100 text-rose-800'
+                                : (inst.status === 'DUE'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-slate-100 text-slate-600')))
+                            }`}>
+                              {isPaid && <CheckCircle2 className="w-3 h-3" />}
+                              {isBuffer ? 'IN BUFFER (DUE)' : (isPaid ? 'PAID' : (isOverdue ? 'OVERDUE' : (inst.status === 'DUE' ? 'DUE' : 'UPCOMING')))}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            {isPaid ? (
+                              <span className="text-[11px] text-slate-400 font-semibold">
+                                Settled {inst.paidAt ? new Date(inst.paidAt).toLocaleDateString('en-IN') : ''}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Confirm manual payment of ₹${Number(inst.totalAmount).toLocaleString('en-IN')} for Installment #${inst.installmentNumber}?`)) {
+                                    recordInstallmentPaymentMutation.mutate(inst.id);
+                                  }
+                                }}
+                                disabled={recordInstallmentPaymentMutation.isPending}
+                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>Confirm Payment</span>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 2. OFFICIAL TAX INVOICES TABLE CARD */}
           <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5">
-                  <h3 className="text-lg font-black text-slate-900">Client Billing & Invoices</h3>
+                  <h3 className="text-lg font-black text-slate-900">Client Invoices & Receipts</h3>
                   <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-black">
                     {invoices.length} {invoices.length === 1 ? 'Record' : 'Records'}
                   </span>
                 </div>
                 <p className="text-slate-500 text-xs font-medium">
-                  Tax invoices, payment breakdowns, GST calculations, and official payment receipts for this client.
+                  Official GST tax invoices, payment breakdowns, and downloadable invoice PDFs.
                 </p>
               </div>
 
