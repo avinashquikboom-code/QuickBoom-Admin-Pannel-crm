@@ -108,6 +108,45 @@ export default function CustomerDetailPage() {
     enabled: Boolean(customerId),
   });
 
+  // 2c. Fetch Customer Installments & Buffer Summary
+  const {
+    data: installmentSummary,
+    isLoading: isInstallmentsLoading,
+    refetch: refetchInstallments,
+  } = useQuery({
+    queryKey: ['customer-installments', customerId],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get(`/admin/customers/${customerId}/installments`);
+        return res?.data?.data || res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+    enabled: Boolean(customerId),
+  });
+
+  // Record Manual Installment Payment Mutation
+  const recordInstallmentPaymentMutation = useMutation({
+    mutationFn: async (instId: number | string) => {
+      const res: any = await api.post(`/admin/customers/${customerId}/installments/${instId}/pay`, {
+        paymentMethod: 'CASH',
+        notes: 'Admin manual installment payment confirmation',
+      });
+      return res.data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'Installment payment recorded & plan extended!');
+      refetchInstallments();
+      refetchSubscriptions();
+      refetchInvoices();
+      refetchCustomer();
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err) || 'Failed to record installment payment');
+    },
+  });
+
   // 3. Fetch Customer Activities
   const { data: activities = [] } = useQuery({
     queryKey: ['customer-activities', customerId],
