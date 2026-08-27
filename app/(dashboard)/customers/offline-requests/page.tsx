@@ -312,7 +312,7 @@ export default function OfflinePaymentRequestsPage() {
                     <td className="py-3 px-4">
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">
                         <Banknote className="w-3.5 h-3.5 text-emerald-600" />
-                        Offline ({r.paymentMethodDetail || 'BANK_TRANSFER'})
+                        {r.paymentMethodDetail === 'CASH' || r.paymentMethod === 'CASH' ? 'Cash' : (r.paymentMethodDetail || 'Offline')}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-xs text-slate-600">
@@ -342,10 +342,10 @@ export default function OfflinePaymentRequestsPage() {
                               onClick={() => approveMutation.mutate(r.id)}
                               disabled={approveMutation.isPending}
                               className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1"
-                              title="Approve Payment"
+                              title="Confirm Cash Payment"
                             >
                               <Check className="w-3.5 h-3.5" />
-                              Approve
+                              Confirm
                             </button>
                             <button
                               onClick={() => {
@@ -484,7 +484,7 @@ export default function OfflinePaymentRequestsPage() {
                     disabled={approveMutation.isPending}
                     className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-sm"
                   >
-                    Approve Payment
+                    Confirm Cash Payment
                   </button>
                 </>
               )}
