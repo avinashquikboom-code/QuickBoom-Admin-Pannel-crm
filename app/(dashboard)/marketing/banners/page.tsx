@@ -281,7 +281,7 @@ export default function HomeBannersPage() {
           icon={CheckCircle2}
           title="Active Banners"
           value={activeCount}
-          iconBg="emerald"
+          iconBg="primary"
         />
         <AdminStatCard
           icon={Sparkles}
@@ -582,9 +582,9 @@ export default function HomeBannersPage() {
         {totalCount > pageSize && (
           <div className="p-4 border-t border-border">
             <AdminPagination
-              currentPage={page}
-              totalItems={totalCount}
+              page={page}
               pageSize={pageSize}
+              total={totalCount}
               onPageChange={setPage}
               onPageSizeChange={(sz) => {
                 setPageSize(sz);
@@ -869,10 +869,10 @@ export default function HomeBannersPage() {
           }
         }}
         title="Delete Home Banner"
-        message={`Are you sure you want to delete banner "${deleteTarget?.title}"? It will no longer appear on the customer home screen.`}
-        confirmText="Delete Banner"
-        confirmVariant="danger"
-        isLoading={deleteMutation.isPending}
+        description={`Are you sure you want to delete banner "${deleteTarget?.title}"? It will no longer appear on the customer home screen.`}
+        confirmLabel="Delete Banner"
+        variant="danger"
+        loading={deleteMutation.isPending}
       />
     </div>
   );
