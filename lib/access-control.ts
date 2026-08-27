@@ -32,6 +32,8 @@ import {
   Trash2,
   RefreshCw,
   SlidersHorizontal,
+  Megaphone,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { User as UserType } from './store';
 
@@ -135,6 +137,10 @@ const SUPER_ADMIN_PERMISSIONS: string[] = [
   'data_reset.execute',
   'trending.view',
   'trending.manage',
+  'banners.view',
+  'banners.manage',
+  'marketing.view',
+  'marketing.manage',
 ];
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
@@ -319,14 +325,15 @@ export const adminNavigation: {
       ],
     },
 
-    // 8. Marketing & Content
+    // 8. Marketing
     {
       id: 'marketing',
-      category: 'Marketing & Content',
-      sectionIcon: TrendingUp,
+      category: 'Marketing',
+      sectionIcon: Megaphone,
       roles: ['Super Admin'],
       items: [
         { name: 'Trending Content', href: '/trending', icon: TrendingUp, permission: 'customers.manage' },
+        { name: 'Home Banners', href: '/marketing/banners', icon: ImageIcon, permission: 'customers.manage' },
       ],
     },
 
