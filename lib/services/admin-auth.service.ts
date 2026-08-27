@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { useAuthStore } from '../store';
 
 export class AdminAuthService {
   private api: AxiosInstance;
@@ -47,6 +48,16 @@ export class AdminAuthService {
           localStorage.setItem('user', JSON.stringify(user));
         }
 
+        // Sync with primary Zustand Auth Store
+        if (user && accessToken) {
+          const mappedUser = {
+            ...user,
+            role: 'SUPER_ADMIN',
+            roles: ['SUPER_ADMIN'],
+          };
+          useAuthStore.getState().setAuth(mappedUser, accessToken, refreshToken || '');
+        }
+
         console.log('[ADMIN] SUPER_ADMIN login successful');
         return payload;
       }
@@ -79,5 +90,8 @@ export class AdminAuthService {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    try {
+      useAuthStore.getState().logout();
+    } catch {}
   }
 }

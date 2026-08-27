@@ -45,6 +45,25 @@ export function getPersistedAuthSession() {
     }
   }
 
+  // Fallback to direct localStorage keys if Zustand store hasn't been populated
+  if (!token) {
+    token = localStorage.getItem('accessToken') || localStorage.getItem('token') || null;
+  }
+  if (!refreshToken) {
+    refreshToken = localStorage.getItem('refreshToken') || null;
+  }
+  if (!user) {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) user = JSON.parse(userStr);
+    } catch {
+      // ignore user parse error
+    }
+  }
+  if (!customerId && user) {
+    customerId = user.customerId || null;
+  }
+
   return { token, refreshToken, user, customerId };
 }
 
@@ -109,6 +128,12 @@ api.interceptors.request.use(
       }
 
       if (process.env.NODE_ENV !== 'production') {
+        console.log('[AUTH_DEBUG]', {
+          endpoint: config.url,
+          hasToken: Boolean(token),
+          tokenPrefix: token ? token.substring(0, 15) : null,
+        });
+
         console.debug(
           `[ADMIN_API_REQUEST] ${config.method?.toUpperCase()} ${config.url}`,
           config.params ? { params: config.params } : '',
