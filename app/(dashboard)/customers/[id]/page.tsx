@@ -364,6 +364,7 @@ export default function CustomerDetailPage() {
     refetchCustomer();
     refetchSubscriptions();
     refetchInvoices();
+    refetchInstallments();
     toast.success('Data refreshed from server');
   };
 
