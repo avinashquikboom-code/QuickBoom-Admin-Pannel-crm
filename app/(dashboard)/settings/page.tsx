@@ -21,6 +21,8 @@ import {
   RefreshCw,
   AlertTriangle,
   MessageSquare,
+  Cloud,
+  Smartphone,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -73,6 +75,29 @@ export default function SettingsPage() {
   const [showWhatsappKey, setShowWhatsappKey] = useState(false);
   const [isSavingWhatsapp, setIsSavingWhatsapp] = useState(false);
   const [isTestingWhatsapp, setIsTestingWhatsapp] = useState(false);
+
+  // AWS S3 Integration State
+  const [awsAccessKeyId, setAwsAccessKeyId] = useState('');
+  const [awsSecretAccessKey, setAwsSecretAccessKey] = useState('');
+  const [awsRegion, setAwsRegion] = useState('ap-south-1');
+  const [awsBucket, setAwsBucket] = useState('');
+  const [awsCustomDomain, setAwsCustomDomain] = useState('');
+  const [awsConnected, setAwsConnected] = useState(false);
+  const [awsSource, setAwsSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
+  const [showAwsSecret, setShowAwsSecret] = useState(false);
+  const [isSavingAws, setIsSavingAws] = useState(false);
+  const [isTestingAws, setIsTestingAws] = useState(false);
+
+  // MSG91 OTP Integration State
+  const [msg91AuthKey, setMsg91AuthKey] = useState('');
+  const [msg91TemplateId, setMsg91TemplateId] = useState('');
+  const [msg91SenderId, setMsg91SenderId] = useState('QUIKBM');
+  const [msg91OtpExpiry, setMsg91OtpExpiry] = useState(300);
+  const [msg91Connected, setMsg91Connected] = useState(false);
+  const [msg91Source, setMsg91Source] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
+  const [showMsg91Key, setShowMsg91Key] = useState(false);
+  const [isSavingMsg91, setIsSavingMsg91] = useState(false);
+  const [isTestingMsg91, setIsTestingMsg91] = useState(false);
 
   // Workforce & Attendance Rules State
   const [workHoursPerDay, setWorkHoursPerDay] = useState(8);
@@ -136,6 +161,24 @@ export default function SettingsPage() {
             setWhatsappSource(item.source || 'DATABASE');
             setWhatsappPhoneNumberId(item.credentials?.phoneNumberId || item.credentials?.phone_number_id || '');
             setWhatsappApiKey(item.credentials?.apiKey || item.credentials?.accessToken || item.credentials?.access_token || '');
+          } else if (provider === 'AWS') {
+            setAwsConnected(item.isEnabled ?? false);
+            setAwsSource(item.source || 'ENV_FALLBACK');
+            const creds = item.credentials || {};
+            setAwsAccessKeyId(creds.accessKeyId || creds.access_key_id || '');
+            setAwsSecretAccessKey(creds.secretAccessKey || creds.secret_access_key || '');
+            setAwsRegion(creds.region || 'ap-south-1');
+            setAwsBucket(creds.bucket || creds.bucketName || '');
+            setAwsCustomDomain(creds.customDomain || creds.custom_domain || '');
+          } else if (provider === 'MSG91') {
+            setMsg91Connected(item.isEnabled ?? false);
+            setMsg91Source(item.source || 'ENV_FALLBACK');
+            const creds = item.credentials || {};
+            const cfg = item.config || {};
+            setMsg91AuthKey(creds.authKey || creds.auth_key || '');
+            setMsg91TemplateId(creds.templateId || creds.template_id || '');
+            setMsg91SenderId(creds.senderId || creds.sender_id || 'QUIKBM');
+            setMsg91OtpExpiry(cfg.otpExpiry || 300);
           }
         }
       } catch (err: any) {
@@ -353,6 +396,116 @@ export default function SettingsPage() {
   const handleSaveNotifications = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success('Notification preferences updated!');
+  };
+
+  const handleSaveAws = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!awsAccessKeyId.trim() || !awsSecretAccessKey.trim() || !awsBucket.trim()) {
+      toast.error('AWS Access Key ID, Secret Access Key, and S3 Bucket Name are required');
+      return;
+    }
+    setIsSavingAws(true);
+    try {
+      await api.put('/admin/settings/integrations/AWS', {
+        isEnabled: awsConnected,
+        environment: 'LIVE',
+        credentials: {
+          accessKeyId: awsAccessKeyId.trim(),
+          secretAccessKey: awsSecretAccessKey.trim(),
+          region: awsRegion.trim(),
+          bucket: awsBucket.trim(),
+          customDomain: awsCustomDomain.trim(),
+        },
+        config: {},
+      });
+      setAwsSource('DATABASE');
+      toast.success('Amazon S3 settings saved to Database & active immediately!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save AWS S3 settings');
+    } finally {
+      setIsSavingAws(false);
+    }
+  };
+
+  const handleTestAws = async () => {
+    if (!awsAccessKeyId.trim() || !awsSecretAccessKey.trim() || !awsBucket.trim()) {
+      toast.error('Enter Access Key ID, Secret Access Key, and Bucket Name to test connection');
+      return;
+    }
+    setIsTestingAws(true);
+    try {
+      const res: any = await api.post('/admin/settings/integrations/AWS/test', {
+        credentials: {
+          accessKeyId: awsAccessKeyId.trim(),
+          secretAccessKey: awsSecretAccessKey.trim(),
+          region: awsRegion.trim(),
+          bucket: awsBucket.trim(),
+        },
+      });
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success(`Amazon S3 bucket "${data.details?.bucket || awsBucket}" verified successfully!`);
+        setAwsConnected(true);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'AWS S3 connection test failed');
+    } finally {
+      setIsTestingAws(false);
+    }
+  };
+
+  const handleSaveMsg91 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!msg91AuthKey.trim() || !msg91TemplateId.trim()) {
+      toast.error('MSG91 Auth Key and Template ID are required');
+      return;
+    }
+    setIsSavingMsg91(true);
+    try {
+      await api.put('/admin/settings/integrations/MSG91', {
+        isEnabled: msg91Connected,
+        environment: 'LIVE',
+        credentials: {
+          authKey: msg91AuthKey.trim(),
+          templateId: msg91TemplateId.trim(),
+          senderId: msg91SenderId.trim(),
+        },
+        config: {
+          otpExpiry: Number(msg91OtpExpiry),
+        },
+      });
+      setMsg91Source('DATABASE');
+      toast.success('MSG91 OTP settings saved to Database & active immediately!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save MSG91 settings');
+    } finally {
+      setIsSavingMsg91(false);
+    }
+  };
+
+  const handleTestMsg91 = async () => {
+    if (!msg91AuthKey.trim() || !msg91TemplateId.trim()) {
+      toast.error('Enter Auth Key and Template ID to test connection');
+      return;
+    }
+    setIsTestingMsg91(true);
+    try {
+      const res: any = await api.post('/admin/settings/integrations/MSG91/test', {
+        credentials: {
+          authKey: msg91AuthKey.trim(),
+          templateId: msg91TemplateId.trim(),
+        },
+      });
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success('MSG91 credentials verified successfully!');
+        setMsg91Connected(true);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'MSG91 connection test failed');
+    } finally {
+      setIsTestingMsg91(false);
+    }
   };
 
   return (
@@ -940,6 +1093,283 @@ export default function SettingsPage() {
                     <>
                       <Save className="w-4 h-4" /> Save WhatsApp Settings
                     </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+          {/* AMAZON S3 CARD */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 border border-orange-200/60 flex items-center justify-center font-bold">
+                  <Cloud className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-black text-slate-900">Amazon S3 — Image Storage</h2>
+                    {awsConnected ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
+                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> CONNECTED
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" /> NOT CONFIGURED
+                      </span>
+                    )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
+                      Source: {awsSource}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    All marketing banner images are stored securely in S3. Credentials are never exposed to the frontend.
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={awsConnected}
+                  onChange={(e) => setAwsConnected(e.target.checked)}
+                  className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
+                />
+                Active
+              </label>
+            </div>
+
+            <form onSubmit={handleSaveAws} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5 text-orange-500" /> AWS Access Key ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={awsAccessKeyId}
+                    onChange={(e) => setAwsAccessKeyId(e.target.value)}
+                    placeholder="AKIAIOSFODNN7EXAMPLE"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5 text-orange-500" /> AWS Secret Access Key *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showAwsSecret ? 'text' : 'password'}
+                      required
+                      value={awsSecretAccessKey}
+                      onChange={(e) => setAwsSecretAccessKey(e.target.value)}
+                      placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAwsSecret(!showAwsSecret)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                    >
+                      {showAwsSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">AWS Region *</label>
+                  <input
+                    type="text"
+                    required
+                    value={awsRegion}
+                    onChange={(e) => setAwsRegion(e.target.value)}
+                    placeholder="ap-south-1"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">S3 Bucket Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={awsBucket}
+                    onChange={(e) => setAwsBucket(e.target.value)}
+                    placeholder="my-quikboom-bucket"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block font-extrabold text-slate-700 mb-1.5">Custom CDN Domain (Optional)</label>
+                  <input
+                    type="text"
+                    value={awsCustomDomain}
+                    onChange={(e) => setAwsCustomDomain(e.target.value)}
+                    placeholder="cdn.yourdomain.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">If set, image URLs use this domain instead of the default S3 URL format.</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestAws}
+                  disabled={isTestingAws || !awsAccessKeyId.trim() || !awsSecretAccessKey.trim() || !awsBucket.trim()}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                >
+                  {isTestingAws ? (
+                    <><Loader2 className="w-4 h-4 animate-spin text-orange-500" /> Testing S3 Connection...</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4 text-slate-600" /> Test S3 Bucket Access</>
+                  )}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingAws}
+                  className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingAws ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                  ) : (
+                    <><Save className="w-4 h-4" /> Save S3 Settings</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* MSG91 OTP CARD */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center font-bold">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-black text-slate-900">MSG91 — OTP & SMS Gateway</h2>
+                    {msg91Connected ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
+                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> CONNECTED
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" /> NOT CONFIGURED
+                      </span>
+                    )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
+                      Source: {msg91Source}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Sends OTP for Customer mobile login. Credentials are dynamically served — no restart needed after saving.
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={msg91Connected}
+                  onChange={(e) => setMsg91Connected(e.target.checked)}
+                  className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
+                />
+                Active
+              </label>
+            </div>
+
+            <form onSubmit={handleSaveMsg91} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5 text-blue-500" /> MSG91 Auth Key *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showMsg91Key ? 'text' : 'password'}
+                      required
+                      value={msg91AuthKey}
+                      onChange={(e) => setMsg91AuthKey(e.target.value)}
+                      placeholder="362659XXXXXXXXXX"
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowMsg91Key(!showMsg91Key)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                    >
+                      {showMsg91Key ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5 text-blue-500" /> OTP Template ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={msg91TemplateId}
+                    onChange={(e) => setMsg91TemplateId(e.target.value)}
+                    placeholder="60b9f9XXXXXXXXXX"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">Sender ID</label>
+                  <input
+                    type="text"
+                    value={msg91SenderId}
+                    onChange={(e) => setMsg91SenderId(e.target.value)}
+                    placeholder="QUIKBM"
+                    maxLength={6}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none font-semibold text-xs uppercase"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">6 characters max (e.g. QUIKBM)</p>
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">OTP Expiry (seconds)</label>
+                  <input
+                    type="number"
+                    min={60}
+                    max={1800}
+                    value={msg91OtpExpiry}
+                    onChange={(e) => setMsg91OtpExpiry(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">Default 300s (5 min). Range: 60–1800s</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestMsg91}
+                  disabled={isTestingMsg91 || !msg91AuthKey.trim() || !msg91TemplateId.trim()}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                >
+                  {isTestingMsg91 ? (
+                    <><Loader2 className="w-4 h-4 animate-spin text-blue-500" /> Verifying Credentials...</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4 text-slate-600" /> Test MSG91 Connection</>
+                  )}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingMsg91}
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingMsg91 ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                  ) : (
+                    <><Save className="w-4 h-4" /> Save MSG91 Settings</>
                   )}
                 </button>
               </div>
