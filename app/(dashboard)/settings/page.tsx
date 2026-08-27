@@ -1098,7 +1098,6 @@ export default function SettingsPage() {
               </div>
             </form>
           </div>
-        </div>
 
           {/* AMAZON S3 CARD */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
@@ -1613,3 +1612,7 @@ export default function SettingsPage() {
     </div>
   );
 }
+function setTimezone(value: string): void {
+  throw new Error('Function not implemented.');
+}
+
