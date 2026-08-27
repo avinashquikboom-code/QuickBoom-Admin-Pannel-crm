@@ -105,18 +105,29 @@ export class BannerService {
   }
 
   /**
-   * Create a new marketing banner
+   * Create a new marketing banner (supports FormData for image file upload)
    */
-  static async createBanner(payload: CreateBannerPayload): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
-    const response = await api.post('/admin/marketing/banners', payload);
+  static async createBanner(
+    payload: CreateBannerPayload | FormData,
+  ): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
+    const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
+    const response = await api.post('/admin/marketing/banners', payload, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+    });
     return response.data;
   }
 
   /**
-   * Update an existing marketing banner
+   * Update an existing marketing banner (supports FormData for image file upload)
    */
-  static async updateBanner(id: number | string, payload: UpdateBannerPayload): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
-    const response = await api.patch(`/admin/marketing/banners/${id}`, payload);
+  static async updateBanner(
+    id: number | string,
+    payload: UpdateBannerPayload | FormData,
+  ): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
+    const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
+    const response = await api.patch(`/admin/marketing/banners/${id}`, payload, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+    });
     return response.data;
   }
 

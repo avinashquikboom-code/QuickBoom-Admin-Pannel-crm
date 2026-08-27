@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -19,6 +19,9 @@ import {
   SlidersHorizontal,
   Layers,
   ArrowUpRight,
+  UploadCloud,
+  X,
+  FileImage,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -31,14 +34,13 @@ import {
 import {
   BannerService,
   MarketingBannerItem,
-  CreateBannerPayload,
-  UpdateBannerPayload,
 } from '@/lib/services/banner.service';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function HomeBannersPage() {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [publishFilter, setPublishFilter] = useState<'ALL' | 'PUBLISHED' | 'UNPUBLISHED'>('ALL');
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
@@ -56,62 +58,58 @@ export default function HomeBannersPage() {
   const [formTitle, setFormTitle] = useState('');
   const [formSubtitle, setFormSubtitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formImageUrl, setFormImageUrl] = useState('');
-  const [formMobileImageUrl, setFormMobileImageUrl] = useState('');
-  const [formCtaText, setFormCtaText] = useState('');
+  const [formImageFile, setFormImageFile] = useState<File | null>(null);
+  const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
+  const [formCtaText, setFormCtaText] = useState('View Offer');
   const [formCtaUrl, setFormCtaUrl] = useState('');
   const [formPriority, setFormPriority] = useState<number>(0);
   const [formStartAt, setFormStartAt] = useState('');
   const [formEndAt, setFormEndAt] = useState('');
   const [formIsActive, setFormIsActive] = useState(true);
   const [formIsPublished, setFormIsPublished] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Fetch banners
-  const { data, isLoading, isFetching, refetch } = useQuery({
+  // Query Banners list
+  const {
+    data: bannersResponse,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ['marketing-banners', page, pageSize, search, publishFilter, activeFilter],
-    queryFn: async () => {
-      const isPub =
-        publishFilter === 'PUBLISHED' ? true : publishFilter === 'UNPUBLISHED' ? false : undefined;
-      const isAct =
-        activeFilter === 'ACTIVE' ? true : activeFilter === 'INACTIVE' ? false : undefined;
-
-      const res = await BannerService.getBanners({
+    queryFn: () =>
+      BannerService.getBanners({
         page,
         limit: pageSize,
         search: search.trim() || undefined,
-        isPublished: isPub,
-        isActive: isAct,
-      });
-
-      let items: MarketingBannerItem[] = [];
-      let total = 0;
-
-      if (Array.isArray(res)) {
-        items = res;
-        total = res.length;
-      } else if (res?.data && Array.isArray((res.data as any).items)) {
-        items = (res.data as any).items;
-        total = (res.data as any).meta?.total ?? items.length;
-      } else if (Array.isArray(res?.data)) {
-        items = res.data;
-        total = res.data.length;
-      } else if (Array.isArray(res?.items)) {
-        items = res.items;
-        total = res.meta?.total ?? items.length;
-      }
-
-      return { items, total };
-    },
+        isPublished:
+          publishFilter === 'PUBLISHED'
+            ? true
+            : publishFilter === 'UNPUBLISHED'
+            ? false
+            : undefined,
+        isActive:
+          activeFilter === 'ACTIVE'
+            ? true
+            : activeFilter === 'INACTIVE'
+            ? false
+            : undefined,
+      }),
   });
 
-  const bannerItems = data?.items ?? [];
-  const totalCount = data?.total ?? 0;
+  const bannerItems: MarketingBannerItem[] = Array.isArray(bannersResponse?.data)
+    ? bannersResponse.data
+    : (bannersResponse as any)?.data?.items || (bannersResponse as any)?.items || [];
+
+  const totalCount = (bannersResponse as any)?.data && 'meta' in (bannersResponse as any).data
+    ? (bannersResponse as any).data.meta.total
+    : (bannersResponse as any)?.meta?.total || bannerItems.length;
 
   // Mutations
   const createMutation = useMutation({
-    mutationFn: (payload: CreateBannerPayload) => BannerService.createBanner(payload),
+    mutationFn: (formData: FormData) => BannerService.createBanner(formData),
     onSuccess: () => {
-      toast.success('Home banner created successfully');
+      toast.success('Home banner uploaded & created successfully');
       queryClient.invalidateQueries({ queryKey: ['marketing-banners'] });
       closeDrawer();
     },
@@ -119,8 +117,8 @@ export default function HomeBannersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: UpdateBannerPayload }) =>
-      BannerService.updateBanner(id, payload),
+    mutationFn: ({ id, formData }: { id: number; formData: FormData }) =>
+      BannerService.updateBanner(id, formData),
     onSuccess: () => {
       toast.success('Banner updated successfully');
       queryClient.invalidateQueries({ queryKey: ['marketing-banners'] });
@@ -160,15 +158,38 @@ export default function HomeBannersPage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const handleFileSelect = (file: File) => {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      toast.error('Please upload a valid image (JPG, PNG, WEBP)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+    setFormImageFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setFormImagePreview(objectUrl);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
   // Drawer handlers
   const openCreateDrawer = () => {
     setEditingBanner(null);
     setFormTitle('');
     setFormSubtitle('');
     setFormDescription('');
-    setFormImageUrl('');
-    setFormMobileImageUrl('');
-    setFormCtaText('View Offer');
+    setFormImageFile(null);
+    setFormImagePreview(null);
+    setFormCtaText('Claim Offer');
     setFormCtaUrl('');
     setFormPriority(0);
     setFormStartAt('');
@@ -183,8 +204,8 @@ export default function HomeBannersPage() {
     setFormTitle(banner.title);
     setFormSubtitle(banner.subtitle || '');
     setFormDescription(banner.description || '');
-    setFormImageUrl(banner.imageUrl);
-    setFormMobileImageUrl(banner.mobileImageUrl || '');
+    setFormImageFile(null);
+    setFormImagePreview(banner.imageUrl || null);
     setFormCtaText(banner.ctaText || '');
     setFormCtaUrl(banner.ctaUrl || '');
     setFormPriority(banner.priority || 0);
@@ -202,6 +223,8 @@ export default function HomeBannersPage() {
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setEditingBanner(null);
+    setFormImageFile(null);
+    setFormImagePreview(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -210,8 +233,8 @@ export default function HomeBannersPage() {
       toast.error('Title is required');
       return;
     }
-    if (!formImageUrl.trim()) {
-      toast.error('Banner Image URL is required');
+    if (!editingBanner && !formImageFile) {
+      toast.error('Please select an image file to upload for the banner');
       return;
     }
 
@@ -219,30 +242,28 @@ export default function HomeBannersPage() {
       const s = new Date(formStartAt);
       const end = new Date(formEndAt);
       if (end < s) {
-        toast.error('End date cannot be earlier than start date');
+        toast.error('End Date cannot be earlier than Start Date');
         return;
       }
     }
 
-    const payload: CreateBannerPayload = {
-      title: formTitle.trim(),
-      subtitle: formSubtitle.trim() || undefined,
-      description: formDescription.trim() || undefined,
-      imageUrl: formImageUrl.trim(),
-      mobileImageUrl: formMobileImageUrl.trim() || undefined,
-      ctaText: formCtaText.trim() || undefined,
-      ctaUrl: formCtaUrl.trim() || undefined,
-      priority: Number(formPriority) || 0,
-      startAt: formStartAt ? new Date(formStartAt).toISOString() : null,
-      endAt: formEndAt ? new Date(formEndAt).toISOString() : null,
-      isActive: formIsActive,
-      isPublished: formIsPublished,
-    };
+    const formData = new FormData();
+    formData.append('title', formTitle.trim());
+    if (formSubtitle.trim()) formData.append('subtitle', formSubtitle.trim());
+    if (formDescription.trim()) formData.append('description', formDescription.trim());
+    if (formImageFile) formData.append('image', formImageFile);
+    if (formCtaText.trim()) formData.append('ctaText', formCtaText.trim());
+    if (formCtaUrl.trim()) formData.append('ctaUrl', formCtaUrl.trim());
+    formData.append('priority', String(formPriority));
+    if (formStartAt) formData.append('startAt', new Date(formStartAt).toISOString());
+    if (formEndAt) formData.append('endAt', new Date(formEndAt).toISOString());
+    formData.append('isActive', String(formIsActive));
+    formData.append('isPublished', String(formIsPublished));
 
     if (editingBanner) {
-      updateMutation.mutate({ id: editingBanner.id, payload });
+      updateMutation.mutate({ id: editingBanner.id, formData });
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate(formData);
     }
   };
 
@@ -648,45 +669,105 @@ export default function HomeBannersPage() {
             />
           </div>
 
-          {/* Image URL */}
+          {/* Banner Image Upload */}
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1">
-              Banner Image URL <span className="text-red-500">*</span>
+              Banner Image {!editingBanner && <span className="text-red-500">*</span>}
             </label>
+
             <input
-              type="url"
-              required
-              placeholder="https://res.cloudinary.com/... or https://cdn.example.com/banner.jpg"
-              value={formImageUrl}
-              onChange={(e) => setFormImageUrl(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+              type="file"
+              ref={fileInputRef}
+              accept="image/jpeg,image/png,image/webp,image/jpg"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileSelect(e.target.files[0]);
+                }
+              }}
             />
-            {formImageUrl && (
-              <div className="mt-2 rounded-lg overflow-hidden border border-border bg-muted/40 h-32 relative">
-                <img
-                  src={formImageUrl}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as any).src = '';
-                  }}
-                />
+
+            {formImagePreview ? (
+              <div className="space-y-2">
+                <div className="relative rounded-xl overflow-hidden border border-border bg-slate-950/40 h-44 group">
+                  <img
+                    src={formImagePreview}
+                    alt="Banner preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg bg-white/90 text-slate-900 text-xs font-bold hover:bg-white transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      Replace Image
+                    </button>
+                    {formImageFile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormImageFile(null);
+                          setFormImagePreview(editingBanner ? editingBanner.imageUrl : null);
+                        }}
+                        className="p-1.5 rounded-lg bg-red-600/90 text-white text-xs font-bold hover:bg-red-600 transition-all shadow-md cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                  <span className="flex items-center gap-1.5 font-medium truncate">
+                    <FileImage className="w-3.5 h-3.5 text-primary" />
+                    {formImageFile ? formImageFile.name : 'Current Banner Image'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-primary hover:underline font-semibold cursor-pointer shrink-0 ml-2"
+                  >
+                    Replace Image
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                  isDragging
+                    ? 'border-primary bg-primary/5 scale-[0.99]'
+                    : 'border-border hover:border-primary/50 hover:bg-muted/30 bg-muted/10'
+                }`}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <UploadCloud className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">
+                    Click to upload or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Supports JPG, JPEG, PNG, WEBP (Max 10MB)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all pointer-events-none"
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  Upload Image
+                </button>
               </div>
             )}
-          </div>
-
-          {/* Mobile Image URL */}
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
-              Mobile Image URL (Optional)
-            </label>
-            <input
-              type="url"
-              placeholder="Optional mobile optimized image URL..."
-              value={formMobileImageUrl}
-              onChange={(e) => setFormMobileImageUrl(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
           </div>
 
           {/* CTA Text & URL */}
