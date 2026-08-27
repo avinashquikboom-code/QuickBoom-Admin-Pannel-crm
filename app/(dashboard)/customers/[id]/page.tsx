@@ -31,6 +31,7 @@ import {
   Tag,
   Globe,
   UserCheck,
+  RotateCw,
   Plus,
   PlayCircle,
   PowerOff,
@@ -152,6 +153,104 @@ export default function CustomerDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-subscriptions-list'] });
     queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
   };
+
+  // Plans Query (for manual activation & plan change)
+  const { data: plansList = [] } = useQuery({
+    queryKey: ['admin-plans-list'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/admin/plans');
+        const items = res?.data || res;
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // Modal States
+  const [manualPlanModal, setManualPlanModal] = useState<{
+    isOpen: boolean;
+    planId: number | string;
+    billingCycle: 'MONTHLY' | 'YEARLY';
+    startDate: string;
+  }>({
+    isOpen: false,
+    planId: '',
+    billingCycle: 'MONTHLY',
+    startDate: new Date().toISOString().split('T')[0],
+  });
+
+  const [changePlanModal, setChangePlanModal] = useState<{
+    isOpen: boolean;
+    subscriptionId: number;
+    currentPlanName: string;
+    newPlanId: number | string;
+    billingCycle: 'MONTHLY' | 'YEARLY';
+  }>({
+    isOpen: false,
+    subscriptionId: 0,
+    currentPlanName: '',
+    newPlanId: '',
+    billingCycle: 'MONTHLY',
+  });
+
+  const [renewModal, setRenewModal] = useState<{
+    isOpen: boolean;
+    subscriptionId: number;
+    planName: string;
+    billingCycle: 'MONTHLY' | 'YEARLY';
+  }>({
+    isOpen: false,
+    subscriptionId: 0,
+    planName: '',
+    billingCycle: 'MONTHLY',
+  });
+
+  // Manual Activate Plan Mutation
+  const createSubMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return api.post(`/admin/customers/${customerId}/subscriptions`, payload);
+    },
+    onSuccess: () => {
+      toast.success('Customer plan activated successfully! Calendar & entitlements generated.');
+      handleInvalidateAll();
+      setManualPlanModal({ isOpen: false, planId: '', billingCycle: 'MONTHLY', startDate: new Date().toISOString().split('T')[0] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to activate plan');
+    },
+  });
+
+  // Change Plan Mutation
+  const changePlanMutation = useMutation({
+    mutationFn: async ({ subscriptionId, payload }: { subscriptionId: number; payload: any }) => {
+      return api.post(`/admin/subscriptions/${subscriptionId}/change-plan`, payload);
+    },
+    onSuccess: () => {
+      toast.success('Subscription plan changed successfully! Calendar quotas updated.');
+      handleInvalidateAll();
+      setChangePlanModal({ isOpen: false, subscriptionId: 0, currentPlanName: '', newPlanId: '', billingCycle: 'MONTHLY' });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to change plan');
+    },
+  });
+
+  // Renew Mutation
+  const renewMutation = useMutation({
+    mutationFn: async ({ subscriptionId, payload }: { subscriptionId: number; payload: any }) => {
+      return api.post(`/admin/subscriptions/${subscriptionId}/renew`, payload);
+    },
+    onSuccess: () => {
+      toast.success('Subscription renewed successfully! Validity extended.');
+      handleInvalidateAll();
+      setRenewModal({ isOpen: false, subscriptionId: 0, planName: '', billingCycle: 'MONTHLY' });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to renew subscription');
+    },
+  });
 
   // Activate Mutation
   const activateMutation = useMutation({
@@ -407,57 +506,105 @@ export default function CustomerDetailPage() {
                 </p>
               </div>
 
-              {currentSub && (
-                <div className="flex items-center gap-2">
-                  {currentSub.subscriptionStatus !== 'ACTIVE' ? (
-                    <button
-                      onClick={() =>
-                        setConfirmModal({
-                          isOpen: true,
-                          type: 'ACTIVATE',
-                          subscriptionId: currentSub.id,
-                          planName: currentSub.planName,
-                        })
-                      }
-                      className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
-                    >
-                      <PlayCircle className="w-3.5 h-3.5" />
-                      <span>{currentSub.subscriptionStatus === 'PENDING' ? 'Approve & Activate' : 'Activate Subscription'}</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() =>
-                        setConfirmModal({
-                          isOpen: true,
-                          type: 'DEACTIVATE',
-                          subscriptionId: currentSub.id,
-                          planName: currentSub.planName,
-                        })
-                      }
-                      className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
-                    >
-                      <PowerOff className="w-3.5 h-3.5" />
-                      <span>Deactivate</span>
-                    </button>
-                  )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() =>
+                    setManualPlanModal({
+                      isOpen: true,
+                      planId: plansList[0]?.id || 1,
+                      billingCycle: 'MONTHLY',
+                      startDate: new Date().toISOString().split('T')[0],
+                    })
+                  }
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{currentSub ? 'Assign New Plan' : 'Activate Plan'}</span>
+                </button>
 
-                  <button
-                    onClick={() =>
-                      setConfirmModal({
-                        isOpen: true,
-                        type: 'DELETE',
-                        subscriptionId: currentSub.id,
-                        planName: currentSub.planName,
-                      })
-                    }
-                    className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer"
-                    title="Soft delete subscription"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete</span>
-                  </button>
-                </div>
-              )}
+                {currentSub && (
+                  <>
+                    <button
+                      onClick={() =>
+                        setChangePlanModal({
+                          isOpen: true,
+                          subscriptionId: currentSub.id,
+                          currentPlanName: currentSub.planName,
+                          newPlanId: plansList.find((p: any) => p.id !== currentSub.planId)?.id || plansList[0]?.id || 1,
+                          billingCycle: currentSub.billingCycle || 'MONTHLY',
+                        })
+                      }
+                      className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black transition-all cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Change Plan</span>
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        setRenewModal({
+                          isOpen: true,
+                          subscriptionId: currentSub.id,
+                          planName: currentSub.planName,
+                          billingCycle: currentSub.billingCycle || 'MONTHLY',
+                        })
+                      }
+                      className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-black transition-all cursor-pointer"
+                    >
+                      <RotateCw className="w-3.5 h-3.5" />
+                      <span>Renew</span>
+                    </button>
+
+                    {currentSub.subscriptionStatus !== 'ACTIVE' ? (
+                      <button
+                        onClick={() =>
+                          setConfirmModal({
+                            isOpen: true,
+                            type: 'ACTIVATE',
+                            subscriptionId: currentSub.id,
+                            planName: currentSub.planName,
+                          })
+                        }
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
+                      >
+                        <PlayCircle className="w-3.5 h-3.5" />
+                        <span>{currentSub.subscriptionStatus === 'PENDING' ? 'Approve & Activate' : 'Activate'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          setConfirmModal({
+                            isOpen: true,
+                            type: 'DEACTIVATE',
+                            subscriptionId: currentSub.id,
+                            planName: currentSub.planName,
+                          })
+                        }
+                        className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
+                      >
+                        <PowerOff className="w-3.5 h-3.5" />
+                        <span>Deactivate</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() =>
+                        setConfirmModal({
+                          isOpen: true,
+                          type: 'DELETE',
+                          subscriptionId: currentSub.id,
+                          planName: currentSub.planName,
+                        })
+                      }
+                      className="flex items-center gap-1.5 px-2.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer"
+                      title="Soft delete subscription"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {currentSub ? (
@@ -938,6 +1085,372 @@ export default function CustomerDetailPage() {
                   {confirmModal.type === 'DEACTIVATE' && 'Confirm Deactivation'}
                   {confirmModal.type === 'DELETE' && 'Confirm Delete'}
                 </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. MANUAL ACTIVATE PLAN MODAL */}
+      {manualPlanModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in-0 duration-150">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Activate Plan</h3>
+                  <p className="text-xs text-slate-500 font-medium">Assign a new active subscription</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setManualPlanModal((p) => ({ ...p, isOpen: false }))}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Select Plan */}
+              <div>
+                <label className="block font-black text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+                  Select Plan *
+                </label>
+                <select
+                  value={manualPlanModal.planId}
+                  onChange={(e) => setManualPlanModal((p) => ({ ...p, planId: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {plansList.map((plan: any) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} ({plan.code}) — ₹{Number(plan.monthlyPrice).toLocaleString('en-IN')}/mo
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Billing Cycle */}
+              <div>
+                <label className="block font-black text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+                  Billing Cycle *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setManualPlanModal((p) => ({ ...p, billingCycle: 'MONTHLY' }))}
+                    className={`py-2 px-3 rounded-xl font-black text-center transition-all cursor-pointer border ${
+                      manualPlanModal.billingCycle === 'MONTHLY'
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    Monthly (1 Mo)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setManualPlanModal((p) => ({ ...p, billingCycle: 'YEARLY' }))}
+                    className={`py-2 px-3 rounded-xl font-black text-center transition-all cursor-pointer border ${
+                      manualPlanModal.billingCycle === 'YEARLY'
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    Yearly (12 Mos)
+                  </button>
+                </div>
+              </div>
+
+              {/* Start Date */}
+              <div>
+                <label className="block font-black text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+                  Start Date *
+                </label>
+                <input
+                  type="date"
+                  value={manualPlanModal.startDate}
+                  onChange={(e) => setManualPlanModal((p) => ({ ...p, startDate: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Price Calculation Summary */}
+              {(() => {
+                const selectedPlan = plansList.find((p: any) => String(p.id) === String(manualPlanModal.planId)) || plansList[0];
+                const base = selectedPlan
+                  ? manualPlanModal.billingCycle === 'YEARLY'
+                    ? Number(selectedPlan.yearlyPrice)
+                    : Number(selectedPlan.monthlyPrice)
+                  : 0;
+                const gst = Math.round(base * 0.18);
+                const total = base + gst;
+
+                return (
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5">
+                    <div className="flex justify-between text-slate-600 font-medium">
+                      <span>Base Plan Price:</span>
+                      <span className="font-bold text-slate-900">₹{base.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 font-medium">
+                      <span>GST (18%):</span>
+                      <span className="font-bold text-slate-900">₹{gst.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between pt-1.5 border-t border-slate-200 text-sm font-black text-slate-900">
+                      <span>Total Amount:</span>
+                      <span className="text-[#23C45E]">₹{total.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setManualPlanModal((p) => ({ ...p, isOpen: false }))}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const pid = manualPlanModal.planId || plansList[0]?.id;
+                  if (!pid) {
+                    toast.error('Please select a plan');
+                    return;
+                  }
+                  createSubMutation.mutate({
+                    planId: pid,
+                    billingCycle: manualPlanModal.billingCycle,
+                    startDate: manualPlanModal.startDate,
+                  });
+                }}
+                disabled={createSubMutation.isPending}
+                className="px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer flex items-center gap-2"
+              >
+                {createSubMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>Activate Plan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. CHANGE PLAN MODAL */}
+      {changePlanModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in-0 duration-150">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Change Plan</h3>
+                  <p className="text-xs text-slate-500 font-medium">Switch {changePlanModal.currentPlanName} to a new tier</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setChangePlanModal((p) => ({ ...p, isOpen: false }))}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block font-black text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+                  Select New Plan *
+                </label>
+                <select
+                  value={changePlanModal.newPlanId}
+                  onChange={(e) => setChangePlanModal((p) => ({ ...p, newPlanId: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {plansList.map((plan: any) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} ({plan.code}) — ₹{Number(plan.monthlyPrice).toLocaleString('en-IN')}/mo
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-black text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+                  Billing Cycle *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setChangePlanModal((p) => ({ ...p, billingCycle: 'MONTHLY' }))}
+                    className={`py-2 px-3 rounded-xl font-black text-center transition-all cursor-pointer border ${
+                      changePlanModal.billingCycle === 'MONTHLY'
+                        ? 'bg-blue-50 border-blue-300 text-blue-800 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChangePlanModal((p) => ({ ...p, billingCycle: 'YEARLY' }))}
+                    className={`py-2 px-3 rounded-xl font-black text-center transition-all cursor-pointer border ${
+                      changePlanModal.billingCycle === 'YEARLY'
+                        ? 'bg-blue-50 border-blue-300 text-blue-800 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    Yearly
+                  </button>
+                </div>
+              </div>
+
+              {/* Price Calculation Summary */}
+              {(() => {
+                const selectedPlan = plansList.find((p: any) => String(p.id) === String(changePlanModal.newPlanId)) || plansList[0];
+                const base = selectedPlan
+                  ? changePlanModal.billingCycle === 'YEARLY'
+                    ? Number(selectedPlan.yearlyPrice)
+                    : Number(selectedPlan.monthlyPrice)
+                  : 0;
+                const gst = Math.round(base * 0.18);
+                const total = base + gst;
+
+                return (
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5">
+                    <div className="flex justify-between text-slate-600 font-medium">
+                      <span>New Base Price:</span>
+                      <span className="font-bold text-slate-900">₹{base.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 font-medium">
+                      <span>GST (18%):</span>
+                      <span className="font-bold text-slate-900">₹{gst.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between pt-1.5 border-t border-slate-200 text-sm font-black text-slate-900">
+                      <span>Total Amount:</span>
+                      <span className="text-blue-600">₹{total.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setChangePlanModal((p) => ({ ...p, isOpen: false }))}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const pid = changePlanModal.newPlanId || plansList[0]?.id;
+                  if (!pid) {
+                    toast.error('Please select a plan');
+                    return;
+                  }
+                  changePlanMutation.mutate({
+                    subscriptionId: changePlanModal.subscriptionId,
+                    payload: {
+                      newPlanId: pid,
+                      billingCycle: changePlanModal.billingCycle,
+                    },
+                  });
+                }}
+                disabled={changePlanMutation.isPending}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer flex items-center gap-2"
+              >
+                {changePlanMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>Confirm Plan Change</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. RENEW SUBSCRIPTION MODAL */}
+      {renewModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in-0 duration-150">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-black">
+                  <RotateCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Renew Subscription</h3>
+                  <p className="text-xs text-slate-500 font-medium">Extend validity for {renewModal.planName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setRenewModal((p) => ({ ...p, isOpen: false }))}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block font-black text-slate-700 uppercase tracking-wider text-[10px] mb-1.5">
+                  Renewal Billing Cycle *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRenewModal((p) => ({ ...p, billingCycle: 'MONTHLY' }))}
+                    className={`py-2 px-3 rounded-xl font-black text-center transition-all cursor-pointer border ${
+                      renewModal.billingCycle === 'MONTHLY'
+                        ? 'bg-purple-50 border-purple-300 text-purple-800 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    Monthly (+1 Month)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRenewModal((p) => ({ ...p, billingCycle: 'YEARLY' }))}
+                    className={`py-2 px-3 rounded-xl font-black text-center transition-all cursor-pointer border ${
+                      renewModal.billingCycle === 'YEARLY'
+                        ? 'bg-purple-50 border-purple-300 text-purple-800 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    Yearly (+12 Months)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setRenewModal((p) => ({ ...p, isOpen: false }))}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  renewMutation.mutate({
+                    subscriptionId: renewModal.subscriptionId,
+                    payload: {
+                      billingCycle: renewModal.billingCycle,
+                    },
+                  });
+                }}
+                disabled={renewMutation.isPending}
+                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer flex items-center gap-2"
+              >
+                {renewMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>Confirm Renewal</span>
               </button>
             </div>
           </div>
