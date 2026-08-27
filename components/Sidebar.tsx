@@ -24,33 +24,84 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
-export function isItemActive(itemHref: string, currentPathname: string | null): boolean {
-  if (!currentPathname || !itemHref) return false;
+/**
+ * Determine the SINGLE active navigation item href across all accessible sections.
+ * Resolves exact matches first, query-param specific matches, and nested route prefixes with specificity ranking.
+ */
+export function getActiveNavHref(
+  sections: NavSectionConfig[],
+  currentPathname: string | null,
+  searchString: string = ''
+): string | null {
+  if (!currentPathname) return null;
 
-  // Normalize: remove query strings and trailing slashes
-  const targetPath = itemHref.split('?')[0].replace(/\/+$/, '') || '/';
+  // Normalize: remove trailing slashes
   const currentPath = currentPathname.split('?')[0].replace(/\/+$/, '') || '/';
+  const currentSearch = searchString ? searchString.replace(/^\?/, '') : '';
 
-  // 1. Exact match
-  if (currentPath === targetPath) {
-    return true;
+  let bestHref: string | null = null;
+  let highestScore = -1;
+
+  for (const section of sections) {
+    for (const item of section.items) {
+      if (!item.href) continue;
+
+      const [rawItemPath, rawItemQuery] = item.href.split('?');
+      const itemPath = rawItemPath.replace(/\/+$/, '') || '/';
+      const itemQuery = rawItemQuery || '';
+
+      let score = -1;
+
+      // 1. Match item with explicit query param (e.g. ?tab=modules)
+      if (itemQuery) {
+        if (currentPath === itemPath && currentSearch.includes(itemQuery)) {
+          score = 1000;
+        } else if (currentPath === itemPath) {
+          score = 50; // fallback if query param not present
+        }
+      } else {
+        // 2. Exact pathname match without query param
+        if (currentPath === itemPath) {
+          score = 500;
+        }
+        // 3. Deals / CRM alias compatibility
+        else if (
+          (itemPath === '/deals' || itemPath === '/crm') &&
+          (currentPath === '/deals' || currentPath === '/crm')
+        ) {
+          score = 400;
+        }
+        // 4. Strict nested route prefix match (e.g. /customers/123 -> /customers)
+        // Root and single top-level endpoints should not prefix-match other paths
+        else if (
+          itemPath !== '/' &&
+          itemPath !== '/dashboard' &&
+          itemPath !== '/super-admin' &&
+          currentPath.startsWith(`${itemPath}/`)
+        ) {
+          score = 100 + itemPath.length; // More specific prefix gets higher score
+        }
+      }
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestHref = item.href;
+      }
+    }
   }
 
-  // 2. Deals / CRM alias compatibility
-  if (
-    (targetPath === '/deals' || targetPath === '/crm') &&
-    (currentPath === '/deals' || currentPath === '/crm')
-  ) {
-    return true;
-  }
+  return highestScore >= 0 ? bestHref : null;
+}
 
-  // 3. Root and single top-level endpoints should not prefix-match other paths
-  if (targetPath === '/' || targetPath === '/dashboard' || targetPath === '/super-admin') {
-    return currentPath === targetPath;
-  }
-
-  // 4. Strict nested route prefix match (e.g. /leads/123 or /tasks/create matches /leads or /tasks)
-  return currentPath.startsWith(`${targetPath}/`);
+export function isItemActive(
+  itemHref: string,
+  currentPathname: string | null,
+  sections?: NavSectionConfig[]
+): boolean {
+  if (!currentPathname || !itemHref) return false;
+  const navSections = sections || CENTRAL_NAVIGATION;
+  const activeHref = getActiveNavHref(navSections, currentPathname);
+  return activeHref === itemHref;
 }
 
 export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, onNavigate }: SidebarProps) {
@@ -61,6 +112,14 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
 
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
+
+  const [searchString, setSearchString] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearchString(window.location.search);
+    }
+  }, [pathname]);
 
   const toggleSidebar = () => {
     if (onToggleCollapse) {
@@ -76,20 +135,25 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
   // Get filtered navigation sections based on user role, permissions, and subscription features
   const accessibleSections = filterNavigation(CENTRAL_NAVIGATION, user);
 
+  // Single active item href derived dynamically from current route
+  const activeHref = React.useMemo(() => {
+    return getActiveNavHref(accessibleSections, pathname, searchString);
+  }, [accessibleSections, pathname, searchString]);
+
   // Route-aware initial state & auto-expansion on navigation
   useEffect(() => {
-    if (!pathname) return;
+    if (!pathname || !activeHref) return;
 
-    // Find the section that contains the current active route
+    // Find the section that contains the single active route
     const matchingSection = accessibleSections.find((section) =>
-      section.items.some((item) => isItemActive(item.href, pathname))
+      section.items.some((item) => item.href === activeHref)
     );
 
     if (matchingSection) {
       // Open ONLY the matching section, closing all others
       setOpenSection(matchingSection.id);
     }
-  }, [pathname]);
+  }, [pathname, activeHref]);
 
   // Handle accordion toggle: click closed -> open it; click open -> close it; click another -> switch to it
   const handleToggleSection = (sectionId: string) => {
@@ -159,8 +223,8 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
           const SectionIcon = section.sectionIcon;
           const isOpen = openSection === section.id;
 
-          // Check if any child item in this section is currently active
-          const isSectionActive = section.items.some((item) => isItemActive(item.href, pathname));
+          // Check if any child item in this section is currently the single active item
+          const isSectionActive = section.items.some((item) => item.href === activeHref);
 
           // Single-item sections (e.g. OVERVIEW with just Dashboard)
           const isSingleItemSection = section.items.length === 1;
@@ -169,7 +233,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
             return (
               <div key={section.id} className="space-y-1.5 pt-1">
                 {section.items.map((item) => {
-                  const isActive = isItemActive(item.href, pathname);
+                  const isActive = item.href === activeHref;
                   const Icon = item.icon;
 
                   return (
@@ -199,7 +263,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
           // Render single-item non-accordion link (e.g., Dashboard)
           if (isSingleItemSection) {
             const singleItem = section.items[0];
-            const isActive = isItemActive(singleItem.href, pathname);
+            const isActive = singleItem.href === activeHref;
             const ItemIcon = singleItem.icon;
 
             return (
@@ -285,7 +349,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
                   className="px-2 pb-2.5 pt-1 space-y-1 border-t border-slate-100/80 animate-in fade-in-50 duration-150"
                 >
                   {section.items.map((item) => {
-                    const isActive = isItemActive(item.href, pathname);
+                    const isActive = item.href === activeHref;
                     const Icon = item.icon;
 
                     return (
