@@ -546,115 +546,161 @@ export default function CustomersPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-slate-400 font-black uppercase border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3.5">Customer ID</th>
-                  <th className="px-4 py-3.5">Customer Name & Company</th>
+                  <th className="px-4 py-3.5">Customer</th>
+                  <th className="px-4 py-3.5">Active Plan & Billing</th>
+                  <th className="px-4 py-3.5">Validity Dates</th>
                   <th className="px-4 py-3.5">Contact Details</th>
-                  <th className="px-4 py-3.5">Assigned Employee</th>
+                  <th className="px-4 py-3.5">Assigned RM</th>
                   <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5">Source</th>
-                  <th className="px-4 py-3.5">Created Date</th>
                   <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {customers.map((cust) => (
-                  <tr key={cust.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-4 font-mono font-bold text-slate-500">
-                      {cust.customerId || `CUST-${String(cust.id).padStart(4, '0')}`}
-                    </td>
+                {customers.map((cust) => {
+                  const planName = cust.plan || 'No Active Plan';
+                  const hasActiveSub = cust.subscriptionStatus === 'ACTIVE';
+                  const isExpiredSub = cust.subscriptionStatus === 'EXPIRED';
 
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-800 font-black text-xs flex items-center justify-center border border-slate-200">
-                          {cust.name?.charAt(0) || 'C'}
+                  return (
+                    <tr key={cust.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-800 font-black text-xs flex items-center justify-center border border-slate-200 shrink-0">
+                            {cust.name?.charAt(0) || 'C'}
+                          </div>
+                          <div>
+                            <Link
+                              href={`/customers/${cust.id}`}
+                              className="font-black text-slate-900 text-sm hover:text-emerald-600 transition-colors block"
+                            >
+                              {cust.name}
+                            </Link>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-slate-400 font-medium text-[11px]">
+                                {cust.companyName || cust.company || 'Direct Client'}
+                              </span>
+                              <span className="text-slate-300">•</span>
+                              <span className="font-mono text-[10px] font-bold text-slate-400">
+                                {cust.customerId || `CUST-${String(cust.id).padStart(4, '0')}`}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {planName !== 'No Active Plan' ? (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-black text-[11px] border border-emerald-200">
+                                {planName}
+                              </span>
+                            </div>
+                            <p className="text-[11px] font-bold text-slate-500 capitalize">
+                              {cust.billingCycle || 'Monthly'} Billing {cust.subscriptionAmount ? `• ₹${cust.subscriptionAmount.toLocaleString('en-IN')}` : ''}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 font-bold text-[11px]">
+                            No Active Plan
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {cust.subscriptionStartDate && cust.subscriptionEndDate ? (
+                          <div className="space-y-0.5 text-[11px]">
+                            <p className="font-bold text-slate-800">
+                              {new Date(cust.subscriptionStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {' → '}
+                              {new Date(cust.subscriptionEndDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </p>
+                            <p className="text-slate-400 font-medium text-[10px]">
+                              {isExpiredSub ? (
+                                <span className="text-rose-600 font-bold">Expired</span>
+                              ) : (
+                                <span>Active Cycle</span>
+                              )}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[11px] font-medium">—</span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1 text-slate-800 font-bold">
+                            <Mail className="w-3 h-3 text-slate-400" />
+                            <span>{cust.email || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-slate-500 text-[11px]">
+                            <Phone className="w-3 h-3 text-slate-400" />
+                            <span>{cust.phone || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-[11px] inline-flex items-center gap-1">
+                          <UserCheck className="w-3 h-3" />
+                          {cust.assignedEmployee || 'Unassigned'}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {hasActiveSub ? (
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            ACTIVE
+                          </span>
+                        ) : isExpiredSub ? (
+                          <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 font-black text-[10px] inline-flex items-center gap-1">
+                            <XCircle className="w-3 h-3" />
+                            EXPIRED
+                          </span>
+                        ) : cust.isActive ? (
+                          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-black text-[10px] inline-flex items-center gap-1">
+                            ACTIVE
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 font-black text-[10px] inline-flex items-center gap-1">
+                            <XCircle className="w-3 h-3" />
+                            INACTIVE
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenEdit(cust)}
+                            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                            title="Edit Customer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => setDeletingCustomer(cust)}
+                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                            title="Archive Customer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
                           <Link
                             href={`/customers/${cust.id}`}
-                            className="font-black text-slate-900 text-sm hover:text-emerald-600 transition-colors block"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
                           >
-                            {cust.name}
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Details</span>
                           </Link>
-                          <span className="text-slate-400 font-medium text-[11px]">
-                            {cust.companyName || cust.company || 'Direct Client'}
-                          </span>
                         </div>
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1 text-slate-800 font-bold">
-                          <Mail className="w-3 h-3 text-slate-400" />
-                          <span>{cust.email || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-slate-500 text-[11px]">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          <span>{cust.phone || 'N/A'}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-[11px] inline-flex items-center gap-1">
-                        <UserCheck className="w-3 h-3" />
-                        {cust.assignedEmployee || 'Unassigned'}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-4">
-                      {cust.status === 'ACTIVE' || cust.isActive ? (
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 font-black text-[10px] inline-flex items-center gap-1">
-                          <XCircle className="w-3 h-3" />
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
-                        {cust.source || 'DIRECT'}
-                      </span>
-                    </td>
-
-                    <td className="px-4 py-4 text-slate-400">
-                      {cust.createdAt ? new Date(cust.createdAt).toLocaleDateString() : 'Recent'}
-                    </td>
-
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleOpenEdit(cust)}
-                          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                          title="Edit Customer"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          onClick={() => setDeletingCustomer(cust)}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                          title="Archive Customer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-
-                        <Link
-                          href={`/customers/${cust.id}`}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View</span>
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
