@@ -359,7 +359,6 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'Roles & Permissions', href: '/roles-permissions', icon: ShieldCheck, permission: 'roles.manage' },
-        { name: 'Company Settings', href: '/settings?tab=company', icon: Building2, permission: 'settings.view' },
         { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
         { name: 'System Settings', href: '/settings?tab=system', icon: SlidersHorizontal, permission: 'settings.global' },
       ],
