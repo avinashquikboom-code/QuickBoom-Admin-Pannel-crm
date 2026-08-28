@@ -152,7 +152,7 @@ export default function CustomerDetailPage() {
     mutationFn: async () => {
       const res: any = await api.post(`/admin/customers/${customerId}/start-new-plan`, {
         paymentMethod: 'CASH',
-        totalInstallments: 3,
+        totalInstallments: 2,
       });
       return res.data;
     },
