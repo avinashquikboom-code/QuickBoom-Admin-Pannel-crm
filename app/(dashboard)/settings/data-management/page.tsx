@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Database,
   AlertTriangle,
@@ -96,23 +96,23 @@ export default function DataManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
 
-  // Summary state
+  // Summary state – starts at zeros; filled by API on mount
   const [summary, setSummary] = useState<SummaryData>({
     transactional: {
-      crm: { total: 2474, leads: 1240, contacts: 430, companies: 200, deals: 84, tasks: 520 },
-      attendance: { total: 2890, attendances: 2450, breaks: 440 },
-      leave: { leaveRequests: 84 },
-      remote: { remoteRequests: 32 },
-      visits: { visits: 218 },
-      payroll: { total: 496, payrolls: 124, salarySlips: 372 },
-      notifications: { notifications: 1920 },
-      location: { locationLogs: 3500 },
+      crm: { total: 0, leads: 0, contacts: 0, companies: 0, deals: 0, tasks: 0 },
+      attendance: { total: 0, attendances: 0, breaks: 0 },
+      leave: { leaveRequests: 0 },
+      remote: { remoteRequests: 0 },
+      visits: { visits: 0 },
+      payroll: { total: 0, payrolls: 0, salarySlips: 0 },
+      notifications: { notifications: 0 },
+      location: { locationLogs: 0 },
     },
     masterDataProtected: {
-      employees: 124,
-      departments: 8,
-      designations: 16,
-      users: 130,
+      employees: 0,
+      departments: 0,
+      designations: 0,
+      users: 0,
     },
     lastReset: null,
   });
@@ -122,30 +122,73 @@ export default function DataManagementPage() {
 
   // Employee search state
   const [employeeSearch, setEmployeeSearch] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeSummary | null>({
-    employee: {
-      id: 'emp-001',
-      employeeCode: 'EMP001',
-      name: 'Demo User',
-      email: 'demo@quikboom.com',
-      phone: '+91 98250 12345',
-      department: 'Technology',
-      designation: 'Lead Architect',
-      status: 'ACTIVE',
-      joiningDate: '2024-01-15',
-    },
-    counts: {
-      attendance: 245,
-      attendances: 210,
-      breaks: 35,
-      leave: 12,
-      remote: 5,
-      visits: 38,
-      payroll: 12,
-      location: 560,
-      total: 872,
-    },
-  });
+  const [employeeSearchResults, setEmployeeSearchResults] = useState<any[]>([]);
+  const [isSearchingEmployees, setIsSearchingEmployees] = useState(false);
+  const [isLoadingEmployeeSummary, setIsLoadingEmployeeSummary] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeSummary | null>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const searchEmployees = useCallback(async (query: string) => {
+    if (!query.trim() || query.trim().length < 2) {
+      setEmployeeSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+    setIsSearchingEmployees(true);
+    try {
+      const res: any = await api.get('/employees', {
+        params: { search: query.trim(), limit: 10, page: 1 },
+      });
+      const data = res?.data || res;
+      const employees = Array.isArray(data) ? data : (data?.data || data?.employees || []);
+      setEmployeeSearchResults(employees);
+      setShowSearchDropdown(employees.length > 0);
+    } catch {
+      setEmployeeSearchResults([]);
+      setShowSearchDropdown(false);
+    } finally {
+      setIsSearchingEmployees(false);
+    }
+  }, []);
+
+  const handleSelectEmployee = async (emp: any) => {
+    setShowSearchDropdown(false);
+    setEmployeeSearch(`${emp.firstName} ${emp.lastName} (${emp.employeeCode || emp.empCode || ''})`);
+    setIsLoadingEmployeeSummary(true);
+    try {
+      const res: any = await api.get(`/admin/data-management/employees/${emp.id}/summary`);
+      const data = res?.data || res;
+      setSelectedEmployee(data);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to load employee data';
+      toast.error(msg);
+      setSelectedEmployee(null);
+    } finally {
+      setIsLoadingEmployeeSummary(false);
+    }
+  };
+
+  const handleEmployeeSearchChange = (value: string) => {
+    setEmployeeSearch(value);
+    if (value.trim().length >= 2) {
+      searchEmployees(value);
+    } else {
+      setEmployeeSearchResults([]);
+      setShowSearchDropdown(false);
+    }
+  };
 
   // Confirmation Modal state
   const [modalState, setModalState] = useState<{
@@ -776,22 +819,67 @@ export default function DataManagementPage() {
           {/* Employee Search Box */}
           <AdminCard title="Select Employee for Isolated Data Purge" description="Search employee by Name, Employee Code, or Email">
             <div className="flex flex-col sm:flex-row gap-3">
-              <AdminSearchInput
-                value={employeeSearch}
-                onChange={setEmployeeSearch}
-                placeholder="Type employee name or EMP code (e.g. Demo User, EMP001)..."
-              />
+              <div className="relative flex-1" ref={searchDropdownRef}>
+                <AdminSearchInput
+                  value={employeeSearch}
+                  onChange={handleEmployeeSearchChange}
+                  placeholder="Type employee name or EMP code (min. 2 chars)..."
+                />
+                {showSearchDropdown && employeeSearchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 overflow-hidden max-h-64 overflow-y-auto">
+                    {employeeSearchResults.map((emp: any) => (
+                      <button
+                        key={emp.id}
+                        onClick={() => handleSelectEmployee(emp)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100 last:border-0"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#23C45E] to-[#1AA14D] text-white flex items-center justify-center font-black text-xs shrink-0">
+                          {(emp.firstName?.[0] || '?').toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 truncate">
+                            {emp.firstName} {emp.lastName}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-semibold">
+                            {emp.employeeCode || emp.empCode || ''} • {emp.department?.name || emp.designation?.name || ''}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <AdminButton
                 variant="primary"
-                onClick={() => toast.success(`Selected employee Demo User (EMP001)`)}
+                loading={isSearchingEmployees || isLoadingEmployeeSummary}
+                onClick={() => searchEmployees(employeeSearch)}
               >
                 Search
               </AdminButton>
             </div>
           </AdminCard>
 
+          {/* Loading skeleton while fetching employee summary */}
+          {isLoadingEmployeeSummary && (
+            <div className="space-y-4 animate-pulse">
+              <div className="h-24 bg-slate-100 rounded-3xl" />
+              <div className="grid grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => <div key={i} className="h-20 bg-slate-100 rounded-2xl" />)}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state – prompt user to search */}
+          {!isLoadingEmployeeSummary && !selectedEmployee && (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3 text-slate-400">
+              <Search className="w-10 h-10 opacity-30" />
+              <p className="text-sm font-bold">Search and select an employee above</p>
+              <p className="text-xs">Enter at least 2 characters to see matching employees</p>
+            </div>
+          )}
+
           {/* Selected Employee Card */}
-          {selectedEmployee && (
+          {!isLoadingEmployeeSummary && selectedEmployee && (
             <div className="space-y-6">
               <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
