@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Database,
   AlertTriangle,
@@ -92,7 +93,38 @@ interface EmployeeSummary {
 }
 
 export default function DataManagementPage() {
-  const [activeTab, setActiveTab] = useState<'summary' | 'modules' | 'employees' | 'reset-all' | 'history'>('summary');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Valid tab values — includes 'employee' alias for sidebar backward-compat
+  type TabValue = 'summary' | 'modules' | 'employees' | 'employee' | 'reset-all' | 'history';
+
+  const getTabFromUrl = (): TabValue => {
+    const raw = searchParams.get('tab') || 'summary';
+    // Normalize aliases
+    if (raw === 'employee') return 'employees';
+    const valid: TabValue[] = ['summary', 'modules', 'employees', 'reset-all', 'history'];
+    return valid.includes(raw as TabValue) ? (raw as TabValue) : 'summary';
+  };
+
+  const [activeTab, setActiveTab] = useState<TabValue>(getTabFromUrl);
+
+  // Sync tab with URL query param on every navigation (sidebar clicks)
+  useEffect(() => {
+    const tab = getTabFromUrl();
+    setActiveTab(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Navigate to tab — updates URL so sidebar highlight stays in sync
+  const goToTab = (tab: TabValue) => {
+    const normalizedTab = tab === 'employee' ? 'employees' : tab;
+    if (normalizedTab === 'summary') {
+      router.push('/settings/data-management');
+    } else {
+      router.push(`/settings/data-management?tab=${normalizedTab}`);
+    }
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
 
@@ -471,7 +503,7 @@ export default function DataManagementPage() {
       {/* Navigation Sub-Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto custom-scrollbar">
         <button
-          onClick={() => setActiveTab('summary')}
+          onClick={() => goToTab('summary')}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'summary'
               ? 'bg-slate-900 text-white shadow-md'
@@ -482,7 +514,7 @@ export default function DataManagementPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('modules')}
+          onClick={() => goToTab('modules')}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'modules'
               ? 'bg-slate-900 text-white shadow-md'
@@ -493,7 +525,7 @@ export default function DataManagementPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('employees')}
+          onClick={() => goToTab('employees')}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'employees'
               ? 'bg-slate-900 text-white shadow-md'
@@ -504,7 +536,7 @@ export default function DataManagementPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('reset-all')}
+          onClick={() => goToTab('reset-all')}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'reset-all'
               ? 'bg-rose-600 text-white shadow-md'
@@ -515,7 +547,7 @@ export default function DataManagementPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('history')}
+          onClick={() => goToTab('history')}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'history'
               ? 'bg-slate-900 text-white shadow-md'

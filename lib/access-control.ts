@@ -347,7 +347,7 @@ export const adminNavigation: {
       items: [
         { name: 'Data Overview', href: '/settings/data-management', icon: Database, permission: 'data_reset.view' },
         { name: 'Module-wise Reset', href: '/settings/data-management?tab=modules', icon: RefreshCw, permission: 'data_reset.module' },
-        { name: 'Employee-wise Reset', href: '/settings/data-management?tab=employee', icon: User, permission: 'data_reset.employee' },
+        { name: 'Employee-wise Reset', href: '/settings/data-management?tab=employees', icon: User, permission: 'data_reset.employee' },
         { name: 'Reset History', href: '/settings/data-management?tab=history', icon: History, permission: 'data_reset.view' },
       ],
     },
