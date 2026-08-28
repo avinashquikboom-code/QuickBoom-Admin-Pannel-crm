@@ -29,14 +29,28 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      toast.error('Email address is required.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      toast.error('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Backend API authentication via dedicated Super Admin login endpoint
-      const res: any = await api.post('/admin/auth/login/super-admin', { email, password }).catch(() => {
-        // Fallback to standard /auth/login with admin headers if needed
-        return api.post('/auth/login', { email, password });
+      // Clear previous authentication session
+      useAuthStore.getState().logout();
+
+      // Backend API authentication via dedicated Admin login endpoint
+      const res: any = await api.post('/admin/auth/login/super-admin', {
+        email: cleanEmail,
+        password,
       });
+
       const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
       const user = payload?.user;
       const tokens = payload?.tokens || payload;
@@ -47,17 +61,17 @@ export default function LoginPage() {
         throw new Error('Invalid response structure received from authentication service');
       }
 
-      // STRICT SUPER ADMIN ONLY CHECK: Inspect database/backend authenticated roles
+      // ADMIN ROLE CHECK: Inspect database/backend authenticated roles
       const userRoles: string[] = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
-      const isSuperAdmin = userRoles.some(
+      const isAdmin = userRoles.some(
         (r: string) => {
           const normalized = String(r).toUpperCase().replace(/\s+/g, '_');
-          return normalized === 'SUPER_ADMIN';
+          return normalized === 'SUPER_ADMIN' || normalized === 'ADMIN' || normalized === 'COMPANY_ADMIN';
         }
       );
 
-      if (!isSuperAdmin) {
-        throw new Error('Access Denied: The Admin Panel is strictly for SUPER_ADMIN only. Other roles must use the mobile application.');
+      if (!isAdmin) {
+        throw new Error('Access Denied: The Admin Panel is strictly for Administrators only. Other roles must use the mobile application.');
       }
 
       const mappedUser = {

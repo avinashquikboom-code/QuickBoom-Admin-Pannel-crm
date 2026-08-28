@@ -530,6 +530,8 @@ export const CENTRAL_NAVIGATION = adminNavigation.superAdmin;
 
 export const ADMIN_PANEL_ALLOWED_ROLES: string[] = [
   'SUPER_ADMIN',
+  'ADMIN',
+  'COMPANY_ADMIN',
 ];
 
 // Helper Functions
@@ -537,10 +539,13 @@ export function getUserRole(user: UserType | null): string {
   if (!user) return 'Unauthorized';
   const roleList = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
   if (roleList.length === 0) return 'Unauthorized';
-  const hasSuperAdmin = roleList.some(
-    (r) => String(r).toUpperCase().replace(/\s+/g, '_') === 'SUPER_ADMIN'
+  const hasAdmin = roleList.some(
+    (r) => {
+      const norm = String(r).toUpperCase().replace(/\s+/g, '_');
+      return norm === 'SUPER_ADMIN' || norm === 'ADMIN' || norm === 'COMPANY_ADMIN';
+    }
   );
-  if (hasSuperAdmin) return 'Super Admin';
+  if (hasAdmin) return 'Super Admin';
   return roleList[0];
 }
 

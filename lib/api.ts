@@ -209,12 +209,15 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Skip token refresh if the failed endpoint was the refresh endpoint itself or login
+    // Skip token refresh if the failed endpoint was the refresh endpoint itself or any login endpoint
     const isAuthUrl =
       typeof originalRequest.url === 'string' &&
       (originalRequest.url.includes('/auth/refresh') ||
         originalRequest.url.includes('/auth/login') ||
-        originalRequest.url.includes('/auth/register'));
+        originalRequest.url.includes('/admin/auth/login') ||
+        originalRequest.url.includes('/mobile/auth/login') ||
+        originalRequest.url.includes('/auth/register') ||
+        originalRequest.url.includes('/login'));
 
     // Attempt token refresh ONLY on 401 (Authentication/Expiration) — NEVER on 403 (Forbidden)
     if (
