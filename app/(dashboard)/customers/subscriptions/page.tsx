@@ -34,6 +34,7 @@ export default function CustomerSubscriptionsPage() {
   // 1. Fetch Subscriptions from backend
   const { data: subResponse, isLoading, refetch } = useQuery({
     queryKey: ['admin-subscriptions-list', statusFilter, searchTerm, page, pageSize],
+    refetchInterval: 10000,
     queryFn: async () => {
       try {
         const params: any = { page, limit: pageSize };

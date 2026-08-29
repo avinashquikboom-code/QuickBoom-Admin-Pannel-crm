@@ -45,6 +45,7 @@ export default function OfflinePaymentRequestsPage() {
   // 1. Fetch Offline Requests from backend
   const { data: reqResponse, isLoading, refetch } = useQuery({
     queryKey: ['admin-offline-requests', statusFilter, searchTerm, page, pageSize],
+    refetchInterval: 10000,
     queryFn: async () => {
       try {
         const params: any = { page, limit: pageSize };
@@ -87,6 +88,10 @@ export default function OfflinePaymentRequestsPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-offline-requests'] });
       queryClient.invalidateQueries({ queryKey: ['admin-subscriptions-list'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-invoices'] });
       setIsViewModalOpen(false);
       setSelectedRequest(null);
     },
@@ -101,9 +106,12 @@ export default function OfflinePaymentRequestsPage() {
       const res: any = await api.post(`/admin/subscriptions/offline-requests/${id}/reject`, { reason });
       return res.data;
     },
-    onSuccess: () => {
-      toast.success('Offline payment request rejected.');
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'Offline payment request rejected.');
       queryClient.invalidateQueries({ queryKey: ['admin-offline-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-subscriptions-list'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-detail'] });
       setIsRejectModalOpen(false);
       setIsViewModalOpen(false);
       setSelectedRequest(null);

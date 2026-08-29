@@ -68,6 +68,7 @@ export default function CustomerDetailPage() {
   // 1. Fetch Customer Profile Details
   const { data: customer, isLoading: isCustomerLoading, refetch: refetchCustomer } = useQuery({
     queryKey: ['customer-detail', customerId],
+    refetchInterval: 10000,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/customers/${customerId}`);
@@ -81,6 +82,7 @@ export default function CustomerDetailPage() {
   // 2. Fetch Customer Subscriptions (Current & History)
   const { data: subData, isLoading: isSubLoading, refetch: refetchSubscriptions } = useQuery({
     queryKey: ['customer-subscriptions', customerId],
+    refetchInterval: 10000,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/admin/customers/${customerId}/subscriptions`);
@@ -100,6 +102,7 @@ export default function CustomerDetailPage() {
     refetch: refetchInvoices,
   } = useQuery({
     queryKey: ['customer-invoices', customerId],
+    refetchInterval: 10000,
     queryFn: async () => {
       const res: any = await api.get('/invoices', { params: { customerId } });
       const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
@@ -115,6 +118,7 @@ export default function CustomerDetailPage() {
     refetch: refetchInstallments,
   } = useQuery({
     queryKey: ['customer-installments', customerId],
+    refetchInterval: 10000,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/admin/customers/${customerId}/installments`);
@@ -137,6 +141,7 @@ export default function CustomerDetailPage() {
     },
     onSuccess: (data: any) => {
       toast.success(data?.message || 'Installment payment recorded & plan extended!');
+      handleInvalidateAll();
       refetchInstallments();
       refetchSubscriptions();
       refetchInvoices();
@@ -158,6 +163,7 @@ export default function CustomerDetailPage() {
     },
     onSuccess: (data: any) => {
       toast.success(data?.message || 'New plan created and initial installment settled!');
+      handleInvalidateAll();
       refetchInstallments();
       refetchSubscriptions();
       refetchInvoices();
