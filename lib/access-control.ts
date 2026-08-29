@@ -35,6 +35,7 @@ import {
   Megaphone,
   Image as ImageIcon,
   Zap,
+  Share2,
 } from 'lucide-react';
 import { User as UserType } from './store';
 
@@ -335,6 +336,7 @@ export const adminNavigation: {
       items: [
         { name: 'Trending Content', href: '/trending', icon: TrendingUp, permission: 'customers.manage' },
         { name: 'Home Banners', href: '/marketing/banners', icon: ImageIcon, permission: 'customers.manage' },
+        { name: 'Social Media Handlers', href: '/marketing/social-media', icon: Share2, permission: 'customers.manage' },
       ],
     },
 
