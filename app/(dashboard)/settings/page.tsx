@@ -677,16 +677,6 @@ export default function SettingsPage() {
                   />
                   Enable Razorpay
                 </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 px-2 border-l border-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={enableOfflinePayment}
-                    onChange={(e) => setEnableOfflinePayment(e.target.checked)}
-                    className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
-                  />
-                  Enable Offline Payment
-                </label>
               </div>
             </div>
 
@@ -1199,18 +1189,6 @@ export default function SettingsPage() {
                     placeholder="my-quikboom-bucket"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block font-extrabold text-slate-700 mb-1.5">Custom CDN Domain (Optional)</label>
-                  <input
-                    type="text"
-                    value={awsCustomDomain}
-                    onChange={(e) => setAwsCustomDomain(e.target.value)}
-                    placeholder="cdn.yourdomain.com"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">If set, image URLs use this domain instead of the default S3 URL format.</p>
                 </div>
               </div>
 
