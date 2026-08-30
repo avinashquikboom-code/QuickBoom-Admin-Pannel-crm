@@ -416,166 +416,190 @@ export default function OfflinePaymentRequestsPage() {
         />
       </div>
 
-      {/* 5. View Details Modal */}
-      {isViewModalOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-bold text-lg text-slate-900">Offline Payment Details</h3>
-                <p className="text-xs text-slate-500">Order: {selectedRequest.orderNumber}</p>
-              </div>
+      {/* 5. View Details Right-Side Drawer */}
+      <AdminFormDrawer
+        isOpen={isViewModalOpen && !!selectedRequest}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedRequest(null);
+        }}
+        title="Offline Payment Details"
+        description={selectedRequest ? `Order Number: ${selectedRequest.orderNumber}` : ''}
+        icon={Receipt}
+        maxWidth="sm:max-w-[500px]"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setIsViewModalOpen(false);
+                setSelectedRequest(null);
+              }}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+            >
+              Close
+            </button>
+            {(selectedRequest?.paymentStatus === 'PAID' || selectedRequest?.paymentStatus === 'SUCCESS') && (
               <button
-                onClick={() => {
-                  setIsViewModalOpen(false);
-                  setSelectedRequest(null);
-                }}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                type="button"
+                onClick={() => handleDownloadReceipt(selectedRequest)}
+                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <Download className="w-4 h-4" />
+                Download Receipt
               </button>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl">
-                <div>
-                  <span className="text-xs text-slate-400 block font-medium">Customer</span>
-                  <span className="font-bold text-slate-900">{selectedRequest.customerName}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block font-medium">Business Name</span>
-                  <span className="font-bold text-slate-900">{selectedRequest.businessName}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block font-medium">Plan Name</span>
-                  <span className="font-bold text-emerald-900">{selectedRequest.planName}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block font-medium">Billing Cycle</span>
-                  <span className="font-bold text-slate-900 uppercase">{selectedRequest.billingCycle}</span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl space-y-1.5">
-                <div className="flex justify-between text-xs text-slate-600">
-                  <span>Base Plan Amount:</span>
-                  <span>₹{(selectedRequest.baseAmount || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between text-xs text-slate-600">
-                  <span>GST (18%):</span>
-                  <span>₹{(selectedRequest.gst || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div className="flex justify-between font-bold text-sm text-slate-900 pt-1 border-t border-slate-200">
-                  <span>Total Payable:</span>
-                  <span className="text-emerald-700">₹{(selectedRequest.totalAmount || 0).toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl space-y-1 text-xs text-slate-600">
-                <div>
-                  <span className="font-medium text-slate-500">Transaction Reference: </span>
-                  <span className="font-mono font-bold text-slate-900">{selectedRequest.transactionId || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-slate-500">Payment Status: </span>
-                  <span className="font-bold">{selectedRequest.paymentStatus}</span>
-                </div>
-                {selectedRequest.invoiceNumber && (
-                  <div>
-                    <span className="font-medium text-slate-500">Invoice Number: </span>
-                    <span className="font-bold text-emerald-700">{selectedRequest.invoiceNumber}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setIsViewModalOpen(false);
-                  setSelectedRequest(null);
-                }}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 text-sm font-semibold hover:bg-slate-50"
-              >
-                Close
-              </button>
-              {(selectedRequest.paymentStatus === 'PAID' || selectedRequest.paymentStatus === 'SUCCESS') && (
+            )}
+            {selectedRequest?.paymentStatus === 'PENDING' && (
+              <>
                 <button
-                  onClick={() => handleDownloadReceipt(selectedRequest)}
-                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 flex items-center gap-1.5 shadow-sm"
+                  type="button"
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    setIsRejectModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
-                  Download Receipt
+                  Reject
                 </button>
-              )}
-              {selectedRequest.paymentStatus === 'PENDING' && (
-                <>
-                  <button
-                    onClick={() => {
-                      setIsViewModalOpen(false);
-                      setIsRejectModalOpen(true);
-                    }}
-                    className="px-4 py-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-sm font-bold hover:bg-rose-100"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    onClick={() => approveMutation.mutate(selectedRequest.id)}
-                    disabled={approveMutation.isPending}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 shadow-sm"
-                  >
-                    Confirm Cash Payment
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => approveMutation.mutate(selectedRequest.id)}
+                  disabled={approveMutation.isPending}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {approveMutation.isPending ? 'Confirming...' : 'Confirm Cash Payment'}
+                </button>
+              </>
+            )}
+          </div>
+        }
+      >
+        {selectedRequest && (
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/60">
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">Customer</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedRequest.customerId) {
+                      setViewingCustomerId(selectedRequest.customerId);
+                    }
+                  }}
+                  className="font-bold text-slate-900 text-left hover:text-[#1AA14D] transition-colors cursor-pointer block"
+                >
+                  {selectedRequest.customerName}
+                </button>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">Business Name</span>
+                <span className="font-bold text-slate-900">{selectedRequest.businessName}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">Plan Name</span>
+                <span className="font-bold text-emerald-800">{selectedRequest.planName}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">Billing Cycle</span>
+                <span className="font-bold text-slate-900 uppercase">{selectedRequest.billingCycle}</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-2">
+              <div className="flex justify-between text-slate-600 font-medium">
+                <span>Base Plan Amount:</span>
+                <span>₹{(selectedRequest.baseAmount || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between text-slate-600 font-medium">
+                <span>GST (18%):</span>
+                <span>₹{(selectedRequest.gst || 0).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex justify-between font-black text-sm text-slate-900 pt-1.5 border-t border-slate-200">
+                <span>Total Payable:</span>
+                <span className="text-emerald-700">₹{(selectedRequest.totalAmount || 0).toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-2 text-slate-600">
+              <div>
+                <span className="font-medium text-slate-500">Transaction Reference: </span>
+                <span className="font-mono font-bold text-slate-900">{selectedRequest.transactionId || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-medium text-slate-500">Payment Status: </span>
+                <span className="font-bold text-slate-900">{selectedRequest.paymentStatus}</span>
+              </div>
+              {selectedRequest.invoiceNumber && (
+                <div>
+                  <span className="font-medium text-slate-500">Invoice Number: </span>
+                  <span className="font-bold text-emerald-700">{selectedRequest.invoiceNumber}</span>
+                </div>
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </AdminFormDrawer>
 
-      {/* 6. Reject Reason Modal */}
-      {isRejectModalOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h3 className="font-bold text-lg text-slate-900">Reject Offline Payment</h3>
-            <p className="text-xs text-slate-500">
-              Provide an optional reason for rejecting the offline payment request for <strong>{selectedRequest.customerName}</strong>.
-            </p>
-
-            <textarea
-              rows={3}
-              placeholder="e.g. Bank transfer reference could not be verified with accounts team..."
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-            />
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setIsRejectModalOpen(false);
-                  setRejectReason('');
-                }}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 text-sm font-semibold hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() =>
-                  rejectMutation.mutate({
-                    id: selectedRequest.id,
-                    reason: rejectReason.trim(),
-                  })
-                }
-                disabled={rejectMutation.isPending}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold shadow-sm"
-              >
-                Confirm Rejection
-              </button>
-            </div>
+      {/* 6. Reject Reason Right-Side Drawer */}
+      <AdminFormDrawer
+        isOpen={isRejectModalOpen && !!selectedRequest}
+        onClose={() => {
+          setIsRejectModalOpen(false);
+          setRejectReason('');
+        }}
+        title="Reject Offline Payment"
+        description={selectedRequest ? `Customer: ${selectedRequest.customerName}` : ''}
+        icon={XCircle}
+        maxWidth="sm:max-w-[460px]"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setIsRejectModalOpen(false);
+                setRejectReason('');
+              }}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-slate-700 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                rejectMutation.mutate({
+                  id: selectedRequest?.id,
+                  reason: rejectReason.trim(),
+                })
+              }
+              disabled={rejectMutation.isPending}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              {rejectMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
+            </button>
           </div>
+        }
+      >
+        <div className="space-y-3 text-xs">
+          <p className="text-slate-500 font-medium">
+            Provide an optional reason for rejecting the offline payment request for <strong>{selectedRequest?.customerName}</strong>.
+          </p>
+
+          <textarea
+            rows={4}
+            placeholder="e.g. Bank transfer reference could not be verified with accounts team..."
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-rose-500"
+          />
         </div>
-      )}
+      </AdminFormDrawer>
+
+      {/* 7. Customer Details Right-Side Drawer */}
+      <CustomerDetailsDrawer
+        customerId={viewingCustomerId}
+        isOpen={!!viewingCustomerId}
+        onClose={() => setViewingCustomerId(null)}
+      />
     </div>
   );
 }

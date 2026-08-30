@@ -29,6 +29,7 @@ import {
   AdminStatusBadge,
   AdminCard,
   AdminFormDrawer,
+  CustomerDetailsDrawer,
   ColumnDef,
 } from '@/components/admin';
 
@@ -57,6 +58,7 @@ const ALL_POSSIBLE_FEATURES = [
 
 export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState<'customers' | 'plans' | 'billing'>('customers');
+  const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
 
   // Drawer states
   const [isCustomerDrawerOpen, setIsCustomerDrawerOpen] = useState(false);
@@ -321,7 +323,15 @@ export default function SuperAdminPage() {
     {
       key: 'name',
       header: 'Company Name',
-      render: (t) => <span className="font-extrabold text-slate-900">{t.name}</span>,
+      render: (t) => (
+        <button
+          type="button"
+          onClick={() => setViewingCustomerId(t.id)}
+          className="font-extrabold text-slate-900 text-left hover:text-[#1AA14D] transition-colors cursor-pointer block"
+        >
+          {t.name}
+        </button>
+      ),
     },
     {
       key: 'plan',
@@ -359,13 +369,22 @@ export default function SuperAdminPage() {
       className: 'text-right',
       headerClassName: 'text-right',
       render: (row) => (
-        <button
-          type="button"
-          onClick={() => handleOpenCustomizePlan(row)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F9EE] text-[#1AA14D] hover:bg-[#23C45E] hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
-        >
-          <Sliders className="w-3.5 h-3.5" /> Customize Plan
-        </button>
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setViewingCustomerId(row.id)}
+            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+          >
+            Details
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOpenCustomizePlan(row)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#E8F9EE] text-[#1AA14D] hover:bg-[#23C45E] hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
+          >
+            <Sliders className="w-3.5 h-3.5" /> Customize Plan
+          </button>
+        </div>
       ),
     },
   ];
@@ -913,6 +932,13 @@ export default function SuperAdminPage() {
           </div>
         </div>
       </AdminFormDrawer>
+
+      {/* Customer Details Right-Side Drawer */}
+      <CustomerDetailsDrawer
+        customerId={viewingCustomerId}
+        isOpen={!!viewingCustomerId}
+        onClose={() => setViewingCustomerId(null)}
+      />
     </div>
   );
 }

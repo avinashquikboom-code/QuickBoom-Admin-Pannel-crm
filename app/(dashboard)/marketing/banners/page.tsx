@@ -898,59 +898,70 @@ export default function HomeBannersPage() {
         </form>
       </AdminFormDrawer>
 
-      {/* 6. Preview Modal */}
-      {previewBanner && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setPreviewBanner(null)}
-        >
-          <div
-            className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full shadow-2xl space-y-4 p-5 animate-in fade-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="relative rounded-xl overflow-hidden bg-muted aspect-video border border-border">
+      {/* 6. Preview Right-Side Drawer */}
+      <AdminFormDrawer
+        isOpen={!!previewBanner}
+        onClose={() => setPreviewBanner(null)}
+        title={previewBanner?.title || 'Banner Preview'}
+        description={previewBanner ? `Priority #${previewBanner.priority} • ${previewBanner.isPublished ? 'Published' : 'Draft'}` : ''}
+        icon={ImageIcon}
+        maxWidth="sm:max-w-[500px]"
+        footer={
+          <div className="flex items-center justify-between gap-2 w-full">
+            {previewBanner?.ctaText ? (
+              <div className="text-xs font-medium text-foreground">
+                Action: <span className="font-semibold text-primary">{previewBanner.ctaText}</span>
+              </div>
+            ) : <div />}
+            <button
+              type="button"
+              onClick={() => setPreviewBanner(null)}
+              className="px-4 py-2 text-xs font-bold bg-muted hover:bg-muted/80 rounded-xl text-foreground transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        {previewBanner && (
+          <div className="space-y-4 text-xs">
+            <div className="relative rounded-2xl overflow-hidden bg-muted aspect-video border border-border shadow-sm">
               <img
                 src={previewBanner.imageUrl}
                 alt={previewBanner.title}
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4 text-white">
-                <div className="text-xs font-semibold text-primary uppercase tracking-wider">
+                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
                   Priority #{previewBanner.priority}
                 </div>
-                <h3 className="text-lg font-bold">{previewBanner.title}</h3>
+                <h3 className="text-base font-bold text-white leading-tight">{previewBanner.title}</h3>
                 {previewBanner.subtitle && (
-                  <p className="text-xs text-white/80">{previewBanner.subtitle}</p>
+                  <p className="text-xs text-white/80 mt-0.5">{previewBanner.subtitle}</p>
                 )}
               </div>
             </div>
 
             {previewBanner.description && (
-              <p className="text-xs text-muted-foreground">{previewBanner.description}</p>
+              <div className="p-3.5 bg-muted/40 rounded-xl border border-border">
+                <span className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Description</span>
+                <p className="text-xs text-foreground font-medium">{previewBanner.description}</p>
+              </div>
             )}
 
-            <div className="flex items-center justify-between pt-2 border-t border-border">
-              {previewBanner.ctaText ? (
-                <div className="text-xs font-medium text-foreground">
-                  Button Action:{' '}
-                  <span className="font-semibold text-primary">{previewBanner.ctaText}</span>
-                  {previewBanner.ctaUrl && (
-                    <span className="text-muted-foreground ml-1">({previewBanner.ctaUrl})</span>
-                  )}
-                </div>
-              ) : (
-                <span className="text-xs text-muted-foreground">No CTA configured</span>
-              )}
-              <button
-                onClick={() => setPreviewBanner(null)}
-                className="px-3 py-1.5 text-xs font-semibold bg-muted hover:bg-muted/80 rounded-lg text-foreground transition-colors"
-              >
-                Close Preview
-              </button>
+            <div className="grid grid-cols-2 gap-3 p-3.5 bg-muted/40 rounded-xl border border-border">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">CTA Button</span>
+                <p className="font-bold text-foreground">{previewBanner.ctaText || 'None'}</p>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-muted-foreground block mb-0.5">CTA Target Route</span>
+                <p className="font-mono text-[11px] text-muted-foreground truncate">{previewBanner.ctaUrl || 'None'}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </AdminFormDrawer>
 
       {/* 7. Delete Confirmation Dialog */}
       <AdminConfirmDialog

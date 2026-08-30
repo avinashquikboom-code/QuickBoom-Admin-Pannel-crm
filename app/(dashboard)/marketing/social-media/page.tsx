@@ -33,6 +33,7 @@ import {
   AdminFormDrawer,
   AdminPagination,
   AdminConfirmDialog,
+  CustomerDetailsDrawer,
 } from '@/components/admin';
 import {
   SocialMediaService,
@@ -76,6 +77,7 @@ export default function SocialMediaHandlersPage() {
   const [editingHandler, setEditingHandler] = useState<SocialMediaHandlerItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SocialMediaHandlerItem | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [viewingCustomerModalId, setViewingCustomerModalId] = useState<number | string | null>(null);
 
   // Form states
   const [formCustomerId, setFormCustomerId] = useState<string>('');
@@ -417,9 +419,17 @@ export default function SocialMediaHandlersPage() {
                   <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                     {/* Customer */}
                     <td className="py-3.5 px-4">
-                      <div className="font-semibold text-foreground">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.customerId) {
+                            setViewingCustomerModalId(item.customerId);
+                          }
+                        }}
+                        className="font-semibold text-foreground text-left hover:text-[#1AA14D] transition-colors cursor-pointer block"
+                      >
                         {item.customer?.name || item.customer?.companyName || `Customer #${item.customerId}`}
-                      </div>
+                      </button>
                       {item.customer?.email && (
                         <div className="text-xs text-muted-foreground">{item.customer.email}</div>
                       )}
@@ -796,6 +806,13 @@ export default function SocialMediaHandlersPage() {
         confirmLabel="Delete Handler"
         variant="danger"
         loading={deleteMutation.isPending}
+      />
+
+      {/* 7. Customer Details Right-Side Drawer */}
+      <CustomerDetailsDrawer
+        customerId={viewingCustomerModalId}
+        isOpen={!!viewingCustomerModalId}
+        onClose={() => setViewingCustomerModalId(null)}
       />
     </div>
   );

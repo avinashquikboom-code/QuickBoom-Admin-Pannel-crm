@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { CustomerDetailsDrawer } from '@/components/admin';
 
 export default function CustomerUsageAnalyticsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,6 +29,7 @@ export default function CustomerUsageAnalyticsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
+  const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
   const limit = 20;
 
   const {
@@ -314,12 +316,13 @@ export default function CustomerUsageAnalyticsPage() {
                 <div key={c.id} className="p-4 bg-slate-50 hover:bg-slate-100/70 rounded-2xl border border-slate-100 space-y-3 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Link
-                        href={`/customers/${c.id}`}
-                        className="font-black text-slate-900 text-sm hover:text-[#23C45E] transition-colors"
+                      <button
+                        type="button"
+                        onClick={() => setViewingCustomerId(c.id)}
+                        className="font-black text-slate-900 text-sm hover:text-[#23C45E] transition-colors cursor-pointer text-left"
                       >
                         {c.name}
-                      </Link>
+                      </button>
                       {c.domain && c.domain !== 'N/A' && (
                         <span className="text-slate-400 font-mono text-[11px]">({c.domain})</span>
                       )}
@@ -397,6 +400,13 @@ export default function CustomerUsageAnalyticsPage() {
           </div>
         )}
       </div>
+
+      {/* Customer Details Right-Side Drawer */}
+      <CustomerDetailsDrawer
+        customerId={viewingCustomerId}
+        isOpen={!!viewingCustomerId}
+        onClose={() => setViewingCustomerId(null)}
+      />
     </div>
   );
 }
