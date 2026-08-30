@@ -269,26 +269,27 @@ export default function TrendingManagementPage() {
     );
   };
 
-  const trendingItems = trendingResponse?.data || [];
+  const rawItems = (trendingResponse as any)?.data || (trendingResponse as any)?.items || (Array.isArray(trendingResponse) ? trendingResponse : []);
+  const trendingItems: TrendingContentItem[] = Array.isArray(rawItems) ? rawItems : [];
   const displayedItems = trendingItems.filter((item) => {
     if (mediaFilter === 'ALL') return true;
     const isVideo = resolveIsVideo(item);
     return mediaFilter === 'VIDEO' ? isVideo : !isVideo;
   });
 
-  const pagination = trendingResponse?.pagination || trendingResponse?.meta || {
-    total: 0,
-    page: 1,
-    limit: 20,
-    totalPages: 1,
+  const pagination = (trendingResponse as any)?.pagination || (trendingResponse as any)?.meta || {
+    total: trendingItems.length,
+    page: page,
+    limit: pageSize,
+    totalPages: Math.max(1, Math.ceil(trendingItems.length / pageSize)),
   };
 
   // Dynamic real database stats
-  const statsAll = trendingResponse?.stats?.total ?? trendingItems.length;
-  const statsReels = trendingResponse?.stats?.reels ?? trendingItems.filter((i) => i.category === 'REEL').length;
-  const statsStories = trendingResponse?.stats?.stories ?? trendingItems.filter((i) => i.category === 'STORY').length;
-  const statsOffers = trendingResponse?.stats?.offers ?? trendingItems.filter((i) => i.category === 'OFFER').length;
-  const statsHighRoi = trendingResponse?.stats?.highRoi ?? trendingItems.filter((i) => i.category === 'HIGH_ROI_AD').length;
+  const statsAll = (trendingResponse as any)?.stats?.total ?? trendingItems.length;
+  const statsReels = (trendingResponse as any)?.stats?.reels ?? trendingItems.filter((i) => i.category === 'REEL').length;
+  const statsStories = (trendingResponse as any)?.stats?.stories ?? trendingItems.filter((i) => i.category === 'STORY').length;
+  const statsOffers = (trendingResponse as any)?.stats?.offers ?? trendingItems.filter((i) => i.category === 'OFFER').length;
+  const statsHighRoi = (trendingResponse as any)?.stats?.highRoi ?? trendingItems.filter((i) => i.category === 'HIGH_ROI_AD').length;
 
   const saveMutation = useMutation({
     mutationFn: async () => {

@@ -127,16 +127,16 @@ export class TrendingService {
    * Fetch paginated list of trending items with filters
    */
   static async getTrendingList(params?: QueryTrendingParams): Promise<TrendingListResponse> {
-    const response = await api.get('/admin/trending', { params });
-    return response.data;
+    const response: any = await api.get('/admin/trending', { params });
+    return response;
   }
 
   /**
    * Fetch single trending item by ID
    */
   static async getTrendingById(id: number | string): Promise<{ success: boolean; data: TrendingContentItem }> {
-    const response = await api.get(`/admin/trending/${id}`);
-    return response.data;
+    const response: any = await api.get(`/admin/trending/${id}`);
+    return response;
   }
 
   /**
@@ -144,10 +144,10 @@ export class TrendingService {
    */
   static async createTrending(payload: CreateTrendingPayload | FormData): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
     if (payload instanceof FormData) {
-      const response = await api.post('/admin/trending', payload, {
+      const response: any = await api.post('/admin/trending', payload, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return response.data;
+      return response;
     }
 
     if ((payload.files && payload.files.length > 0) || payload.file) {
@@ -167,14 +167,14 @@ export class TrendingService {
           }
         }
       });
-      const response = await api.post('/admin/trending', formData, {
+      const response: any = await api.post('/admin/trending', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return response.data;
+      return response;
     }
 
-    const response = await api.post('/admin/trending', payload);
-    return response.data;
+    const response: any = await api.post('/admin/trending', payload);
+    return response;
   }
 
   /**
@@ -182,10 +182,10 @@ export class TrendingService {
    */
   static async updateTrending(id: number | string, payload: UpdateTrendingPayload | FormData): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
     if (payload instanceof FormData) {
-      const response = await api.patch(`/admin/trending/${id}`, payload, {
+      const response: any = await api.patch(`/admin/trending/${id}`, payload, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return response.data;
+      return response;
     }
 
     if (payload.file) {
@@ -200,37 +200,37 @@ export class TrendingService {
           }
         }
       });
-      const response = await api.patch(`/admin/trending/${id}`, formData, {
+      const response: any = await api.patch(`/admin/trending/${id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return response.data;
+      return response;
     }
 
-    const response = await api.patch(`/admin/trending/${id}`, payload);
-    return response.data;
+    const response: any = await api.patch(`/admin/trending/${id}`, payload);
+    return response;
   }
 
   /**
    * Delete a trending item
    */
   static async deleteTrending(id: number | string): Promise<{ success: boolean; message: string }> {
-    const response = await api.delete(`/admin/trending/${id}`);
-    return response.data;
+    const response: any = await api.delete(`/admin/trending/${id}`);
+    return response;
   }
 
   /**
    * Toggle or update published status
    */
   static async setPublished(id: number | string, isPublished: boolean): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
-    const response = await api.patch(`/admin/trending/${id}/publish`, { isPublished });
-    return response.data;
+    const response: any = await api.patch(`/admin/trending/${id}/publish`, { isPublished });
+    return response;
   }
 
   /**
    * Toggle or update active status
    */
   static async setActiveStatus(id: number | string, isActive: boolean): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
-    const response = await api.patch(`/admin/trending/${id}/status`, { isActive });
-    return response.data;
+    const response: any = await api.patch(`/admin/trending/${id}/status`, { isActive });
+    return response;
   }
 }
