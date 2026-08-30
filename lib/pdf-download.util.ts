@@ -14,12 +14,22 @@ export async function extractPdfBlob(res: any): Promise<Blob> {
     blob = res;
   } else if (res?.data instanceof Blob) {
     blob = res.data;
-  } else if (res instanceof ArrayBuffer || ArrayBuffer.isView(res)) {
+  } else if (res instanceof ArrayBuffer) {
     blob = new Blob([res], { type: 'application/pdf' });
+  } else if (ArrayBuffer.isView(res)) {
+    const copiedBytes = new Uint8Array(res.byteLength);
+    copiedBytes.set(new Uint8Array(res.buffer, res.byteOffset, res.byteLength));
+    blob = new Blob([copiedBytes.buffer], { type: 'application/pdf' });
+  } else if (res?.data instanceof ArrayBuffer) {
+    blob = new Blob([res.data], { type: 'application/pdf' });
+  } else if (res?.data && ArrayBuffer.isView(res.data)) {
+    const copiedBytes = new Uint8Array(res.data.byteLength);
+    copiedBytes.set(new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength));
+    blob = new Blob([copiedBytes.buffer], { type: 'application/pdf' });
   } else if (typeof res === 'string') {
     // If it's a binary string or base64, wrap as binary blob
     blob = new Blob([res], { type: 'application/pdf' });
-  } else if (res && typeof res === 'object' && res.data) {
+  } else if (typeof res?.data === 'string') {
     blob = new Blob([res.data], { type: 'application/pdf' });
   } else {
     throw new Error('Invalid PDF data received from server');
