@@ -74,6 +74,7 @@ export default function TrendingManagementPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<TrendingCategory | 'ALL'>('ALL');
+  const [mediaFilter, setMediaFilter] = useState<'ALL' | 'IMAGE' | 'VIDEO'>('ALL');
   const [publishFilter, setPublishFilter] = useState<'ALL' | 'PUBLISHED' | 'UNPUBLISHED'>('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -102,6 +103,8 @@ export default function TrendingManagementPage() {
   const [mediaSource, setMediaSource] = useState<'UPLOAD' | 'URL'>('UPLOAD');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
   const [formMediaUrl, setFormMediaUrl] = useState('');
   const [formThumbnailUrl, setFormThumbnailUrl] = useState('');
 
@@ -124,6 +127,8 @@ export default function TrendingManagementPage() {
     setMediaSource('UPLOAD');
     setSelectedFile(null);
     setFilePreview(null);
+    setSelectedFiles([]);
+    setFilePreviews([]);
     setFormMediaUrl('');
     setFormThumbnailUrl('');
     setFormCtaText('View Idea');
@@ -138,34 +143,53 @@ export default function TrendingManagementPage() {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const incomingFiles = Array.from(e.target.files || []);
+    if (incomingFiles.length === 0) return;
 
-    if (mediaType === 'IMAGE') {
-      const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-      if (!allowedImageTypes.includes(file.type.toLowerCase())) {
-        toast.error('Invalid image format. Supported formats: JPG, JPEG, PNG, WEBP');
-        return;
+    const validFiles: File[] = [];
+    const validPreviews: string[] = [];
+
+    for (const file of incomingFiles) {
+      if (mediaType === 'IMAGE') {
+        const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedImageTypes.includes(file.type.toLowerCase())) {
+          toast.error(`"${file.name}" is not a valid image format (JPG, PNG, WEBP).`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`"${file.name}" exceeds 10MB limit.`);
+          continue;
+        }
+      } else {
+        const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
+        if (!allowedVideoTypes.includes(file.type.toLowerCase()) && !file.name.match(/\.(mp4|mov|webm)$/i)) {
+          toast.error(`"${file.name}" is not a valid video format (MP4, MOV, WEBM).`);
+          continue;
+        }
+        if (file.size > 100 * 1024 * 1024) {
+          toast.error(`"${file.name}" exceeds 100MB limit.`);
+          continue;
+        }
       }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Image exceeds 10MB limit.');
-        return;
-      }
-    } else {
-      const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
-      if (!allowedVideoTypes.includes(file.type.toLowerCase()) && !file.name.match(/\.(mp4|mov|webm)$/i)) {
-        toast.error('Invalid video format. Supported formats: MP4, MOV, WEBM');
-        return;
-      }
-      if (file.size > 100 * 1024 * 1024) {
-        toast.error('Video exceeds 100MB limit.');
-        return;
-      }
+      validFiles.push(file);
+      validPreviews.push(URL.createObjectURL(file));
     }
 
-    setSelectedFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setFilePreview(objectUrl);
+    if (validFiles.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
+      setFilePreviews((prev) => [...prev, ...validPreviews]);
+      setSelectedFile(validFiles[0]);
+      setFilePreview(validPreviews[0]);
+    }
+  };
+
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setFilePreviews((prev) => prev.filter((_, i) => i !== index));
+    if (selectedFiles.length <= 1) {
+      setSelectedFile(null);
+      setFilePreview(null);
+    }
   };
 
   const openCreateDrawer = () => {
@@ -215,7 +239,7 @@ export default function TrendingManagementPage() {
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ['admin-trending', selectedCategory, publishFilter, search, page, pageSize],
+    queryKey: ['admin-trending', selectedCategory, mediaFilter, publishFilter, search, page, pageSize],
     queryFn: async () => {
       const params: any = { page, limit: pageSize };
       if (selectedCategory !== 'ALL') params.category = selectedCategory;
@@ -227,6 +251,16 @@ export default function TrendingManagementPage() {
   });
 
   const trendingItems = trendingResponse?.data || [];
+  const displayedItems = trendingItems.filter((item) => {
+    if (mediaFilter === 'ALL') return true;
+    const isVideo =
+      item.metadata?.mediaType === 'VIDEO' ||
+      item.category === 'REEL' ||
+      Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i)) ||
+      Boolean(extractYouTubeVideoId(item.mediaUrl));
+    return mediaFilter === 'VIDEO' ? isVideo : !isVideo;
+  });
+
   const pagination = trendingResponse?.pagination || trendingResponse?.meta || {
     total: 0,
     page: 1,
@@ -244,7 +278,7 @@ export default function TrendingManagementPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       // Validation for media (Image OR Video = compulsory)
-      if (mediaSource === 'UPLOAD' && !selectedFile && (!editingItem || !editingItem.mediaUrl)) {
+      if (mediaSource === 'UPLOAD' && selectedFiles.length === 0 && !selectedFile && (!editingItem || !editingItem.mediaUrl)) {
         throw new Error('Please upload an image or video.');
       }
 
@@ -275,8 +309,9 @@ export default function TrendingManagementPage() {
         mediaType,
         mediaSource,
         thumbnailUrl: formThumbnailUrl.trim() || undefined,
-        mediaUrl: mediaSource === 'URL' ? formMediaUrl.trim() : (editingItem && !selectedFile ? editingItem.mediaUrl || undefined : undefined),
-        file: selectedFile || undefined,
+        mediaUrl: mediaSource === 'URL' ? formMediaUrl.trim() : (editingItem && selectedFiles.length === 0 ? editingItem.mediaUrl || undefined : undefined),
+        files: selectedFiles.length > 0 ? selectedFiles : (selectedFile ? [selectedFile] : undefined),
+        file: selectedFiles.length > 0 ? selectedFiles[0] : (selectedFile || undefined),
         ctaText: formCtaText.trim() || undefined,
         ctaUrl: formCtaUrl.trim() || undefined,
         platform: formPlatform.trim() || 'INSTAGRAM',
@@ -298,8 +333,9 @@ export default function TrendingManagementPage() {
         return TrendingService.createTrending(payload);
       }
     },
-    onSuccess: () => {
-      toast.success(editingItem ? 'Trending content updated successfully' : 'Trending content published successfully');
+    onSuccess: (res: any) => {
+      const msg = res?.message || (editingItem ? 'Trending content updated successfully' : 'Trending content published successfully');
+      toast.success(msg);
       setIsDrawerOpen(false);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['admin-trending'] });
@@ -486,6 +522,26 @@ export default function TrendingManagementPage() {
           ))}
         </div>
 
+        {/* Media Format Filter Tabs (All / Images / Videos) */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl">
+          {(['ALL', 'IMAGE', 'VIDEO'] as const).map((fmt) => (
+            <button
+              key={fmt}
+              onClick={() => {
+                setMediaFilter(fmt);
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                mediaFilter === fmt
+                  ? 'bg-[#1AA14D] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-950'
+              }`}
+            >
+              {fmt === 'ALL' ? 'All Formats' : fmt === 'IMAGE' ? '🖼️ Images' : '🎥 Videos'}
+            </button>
+          ))}
+        </div>
+
         {/* Search & Publish Status Filters */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Search Box */}
@@ -572,7 +628,7 @@ export default function TrendingManagementPage() {
               <span>Retry Request</span>
             </button>
           </div>
-        ) : trendingItems.length === 0 ? (
+        ) : displayedItems.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-20 text-center text-slate-400 font-bold space-y-3 shadow-xs">
             <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
               <TrendingUp className="w-7 h-7" />
@@ -585,7 +641,7 @@ export default function TrendingManagementPage() {
         ) : viewMode === 'GRID' ? (
           /* Instagram-Style Media Cards Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {trendingItems.map((item) => {
+            {displayedItems.map((item) => {
               const isVideo =
                 item.metadata?.mediaType === 'VIDEO' ||
                 item.category === 'REEL' ||
@@ -800,7 +856,7 @@ export default function TrendingManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {trendingItems.map((item) => {
+                  {displayedItems.map((item) => {
                     const isVideo =
                       item.metadata?.mediaType === 'VIDEO' ||
                       item.category === 'REEL' ||
@@ -1153,33 +1209,111 @@ export default function TrendingManagementPage() {
 
             {/* 3. Input Controls based on Source */}
             {mediaSource === 'UPLOAD' ? (
-              <div className="space-y-2">
-                {filePreview || (editingItem && editingItem.mediaUrl && !selectedFile) ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 p-2 flex items-center justify-center max-h-56 group">
-                    {mediaType === 'IMAGE' ? (
-                      <img
-                        src={filePreview || editingItem?.mediaUrl || ''}
-                        alt="Preview"
-                        className="max-h-48 object-contain rounded-xl"
-                      />
+              <div className="space-y-3">
+                {selectedFiles.length > 0 || filePreview || (editingItem && editingItem.mediaUrl) ? (
+                  <div className="space-y-2.5">
+                    {/* Multi-file preview list */}
+                    {selectedFiles.length > 1 ? (
+                      <div className="space-y-2">
+                        <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800 font-bold">
+                          <span className="flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-[#23C45E]" />
+                            {selectedFiles.length} files selected (will create {selectedFiles.length} separate records)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedFiles([]);
+                              setFilePreviews([]);
+                              setSelectedFile(null);
+                              setFilePreview(null);
+                            }}
+                            className="text-[11px] text-rose-600 hover:text-rose-800 font-extrabold cursor-pointer"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                          {selectedFiles.map((file, idx) => (
+                            <div
+                              key={idx}
+                              className="p-2 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                {file.type.startsWith('image/') ? (
+                                  <img
+                                    src={filePreviews[idx]}
+                                    alt="thumb"
+                                    className="w-10 h-10 rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-200">
+                                    <Video className="w-5 h-5" />
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-slate-800 truncate">{file.name}</p>
+                                  <p className="text-[10px] text-slate-400 font-medium">
+                                    {(file.size / (1024 * 1024)).toFixed(2)} MB • {file.type.startsWith('video/') ? 'Video' : 'Image'}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeSelectedFile(idx)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                                title="Remove file"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ) : (
-                      <video
-                        src={filePreview || editingItem?.mediaUrl || ''}
-                        controls
-                        className="max-h-48 rounded-xl"
-                      />
+                      /* Single file preview */
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 p-2 flex items-center justify-center max-h-56 group">
+                        {mediaType === 'IMAGE' ? (
+                          <img
+                            src={filePreview || editingItem?.mediaUrl || ''}
+                            alt="Preview"
+                            className="max-h-48 object-contain rounded-xl"
+                          />
+                        ) : (
+                          <video
+                            src={filePreview || editingItem?.mediaUrl || ''}
+                            controls
+                            className="max-h-48 rounded-xl"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedFile(null);
+                            setFilePreview(null);
+                            setSelectedFiles([]);
+                            setFilePreviews([]);
+                          }}
+                          className="absolute top-3 right-3 p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full transition-colors shadow-md cursor-pointer"
+                          title="Remove / change file"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedFile(null);
-                        setFilePreview(null);
-                      }}
-                      className="absolute top-3 right-3 p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full transition-colors shadow-md cursor-pointer"
-                      title="Remove / change file"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+
+                    {/* Add more files button */}
+                    <label className="border border-dashed border-slate-300 hover:border-[#23C45E] bg-white rounded-xl p-2.5 flex items-center justify-center gap-2 cursor-pointer transition-colors text-xs font-bold text-slate-700 hover:text-[#1AA14D]">
+                      <Plus className="w-4 h-4" />
+                      <span>Add More {mediaType === 'IMAGE' ? 'Images' : 'Videos'}</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept={mediaType === 'IMAGE' ? 'image/jpeg,image/png,image/webp,image/jpg' : 'video/mp4,video/quicktime,video/webm'}
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
                 ) : (
                   <label className="border-2 border-dashed border-slate-300 hover:border-[#23C45E] bg-white rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group">
@@ -1188,14 +1322,15 @@ export default function TrendingManagementPage() {
                     </div>
                     <div className="text-center">
                       <p className="text-xs font-black text-slate-800">
-                        Click to choose {mediaType === 'IMAGE' ? 'an image' : 'a video'} file
+                        Click to choose {mediaType === 'IMAGE' ? 'image(s)' : 'video(s)'} (Single or Multiple)
                       </p>
                       <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                        {mediaType === 'IMAGE' ? 'JPG, JPEG, PNG, WEBP (Max 10MB)' : 'MP4, MOV, WEBM (Max 100MB)'}
+                        {mediaType === 'IMAGE' ? 'JPG, JPEG, PNG, WEBP (Max 10MB each)' : 'MP4, MOV, WEBM (Max 100MB each)'}
                       </p>
                     </div>
                     <input
                       type="file"
+                      multiple
                       accept={mediaType === 'IMAGE' ? 'image/jpeg,image/png,image/webp,image/jpg' : 'video/mp4,video/quicktime,video/webm'}
                       onChange={handleFileSelect}
                       className="hidden"
