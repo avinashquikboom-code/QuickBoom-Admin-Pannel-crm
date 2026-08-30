@@ -149,11 +149,26 @@ export default function TrendingManagementPage() {
     const validFiles: File[] = [];
     const validPreviews: string[] = [];
 
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/avi'];
+
     for (const file of incomingFiles) {
-      if (mediaType === 'IMAGE') {
-        const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        if (!allowedImageTypes.includes(file.type.toLowerCase())) {
-          toast.error(`"${file.name}" is not a valid image format (JPG, PNG, WEBP).`);
+      const cleanType = file.type.toLowerCase();
+      const isVideo = cleanType.startsWith('video/') || file.name.match(/\.(mp4|mov|webm|mkv|avi)$/i);
+      const isImage = cleanType.startsWith('image/') || file.name.match(/\.(jpg|jpeg|png|webp)$/i);
+
+      if (isVideo) {
+        if (!allowedVideoTypes.includes(cleanType) && !file.name.match(/\.(mp4|mov|webm|mkv|avi)$/i)) {
+          toast.error(`"${file.name}" is not a supported video format (MP4, MOV, WEBM).`);
+          continue;
+        }
+        if (file.size > 100 * 1024 * 1024) {
+          toast.error(`"${file.name}" exceeds 100MB limit.`);
+          continue;
+        }
+      } else if (isImage) {
+        if (!allowedImageTypes.includes(cleanType) && !file.name.match(/\.(jpg|jpeg|png|webp)$/i)) {
+          toast.error(`"${file.name}" is not a supported image format (JPG, PNG, WEBP).`);
           continue;
         }
         if (file.size > 10 * 1024 * 1024) {
@@ -161,16 +176,10 @@ export default function TrendingManagementPage() {
           continue;
         }
       } else {
-        const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
-        if (!allowedVideoTypes.includes(file.type.toLowerCase()) && !file.name.match(/\.(mp4|mov|webm)$/i)) {
-          toast.error(`"${file.name}" is not a valid video format (MP4, MOV, WEBM).`);
-          continue;
-        }
-        if (file.size > 100 * 1024 * 1024) {
-          toast.error(`"${file.name}" exceeds 100MB limit.`);
-          continue;
-        }
+        toast.error(`"${file.name}" is not a supported image or video format.`);
+        continue;
       }
+
       validFiles.push(file);
       validPreviews.push(URL.createObjectURL(file));
     }
@@ -250,14 +259,20 @@ export default function TrendingManagementPage() {
     },
   });
 
+  const resolveIsVideo = (item: TrendingContentItem): boolean => {
+    if (item.metadata?.mediaType === 'VIDEO') return true;
+    if (item.metadata?.mediaType === 'IMAGE') return false;
+    return (
+      Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm|mkv|avi)(\?.*)?$/i)) ||
+      Boolean(extractYouTubeVideoId(item.mediaUrl)) ||
+      item.category === 'REEL'
+    );
+  };
+
   const trendingItems = trendingResponse?.data || [];
   const displayedItems = trendingItems.filter((item) => {
     if (mediaFilter === 'ALL') return true;
-    const isVideo =
-      item.metadata?.mediaType === 'VIDEO' ||
-      item.category === 'REEL' ||
-      Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i)) ||
-      Boolean(extractYouTubeVideoId(item.mediaUrl));
+    const isVideo = resolveIsVideo(item);
     return mediaFilter === 'VIDEO' ? isVideo : !isVideo;
   });
 
@@ -338,7 +353,9 @@ export default function TrendingManagementPage() {
       toast.success(msg);
       setIsDrawerOpen(false);
       resetForm();
+      setPage(1);
       queryClient.invalidateQueries({ queryKey: ['admin-trending'] });
+      refetch();
     },
     onError: (err: any) => {
       toast.error(getErrorMessage(err));
@@ -380,6 +397,7 @@ export default function TrendingManagementPage() {
       setIsDeleteOpen(false);
       setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ['admin-trending'] });
+      refetch();
     },
     onError: (err: any) => {
       toast.error(getErrorMessage(err));
@@ -642,12 +660,7 @@ export default function TrendingManagementPage() {
           /* Instagram-Style Media Cards Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {displayedItems.map((item) => {
-              const isVideo =
-                item.metadata?.mediaType === 'VIDEO' ||
-                item.category === 'REEL' ||
-                Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i)) ||
-                Boolean(extractYouTubeVideoId(item.mediaUrl));
-
+              const isVideo = resolveIsVideo(item);
               const mediaDisplayUrl = item.mediaUrl || item.thumbnailUrl || '';
               const youtubeId = extractYouTubeVideoId(item.mediaUrl);
 
@@ -857,12 +870,7 @@ export default function TrendingManagementPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {displayedItems.map((item) => {
-                    const isVideo =
-                      item.metadata?.mediaType === 'VIDEO' ||
-                      item.category === 'REEL' ||
-                      Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i)) ||
-                      Boolean(extractYouTubeVideoId(item.mediaUrl));
-
+                    const isVideo = resolveIsVideo(item);
                     const mediaDisplayUrl = item.mediaUrl || item.thumbnailUrl || '';
 
                     return (
@@ -1305,11 +1313,11 @@ export default function TrendingManagementPage() {
                     {/* Add more files button */}
                     <label className="border border-dashed border-slate-300 hover:border-[#23C45E] bg-white rounded-xl p-2.5 flex items-center justify-center gap-2 cursor-pointer transition-colors text-xs font-bold text-slate-700 hover:text-[#1AA14D]">
                       <Plus className="w-4 h-4" />
-                      <span>Add More {mediaType === 'IMAGE' ? 'Images' : 'Videos'}</span>
+                      <span>Add More Images or Videos</span>
                       <input
                         type="file"
                         multiple
-                        accept={mediaType === 'IMAGE' ? 'image/jpeg,image/png,image/webp,image/jpg' : 'video/mp4,video/quicktime,video/webm'}
+                        accept="image/jpeg,image/png,image/webp,image/jpg,video/mp4,video/quicktime,video/webm"
                         onChange={handleFileSelect}
                         className="hidden"
                       />
@@ -1322,16 +1330,16 @@ export default function TrendingManagementPage() {
                     </div>
                     <div className="text-center">
                       <p className="text-xs font-black text-slate-800">
-                        Click to choose {mediaType === 'IMAGE' ? 'image(s)' : 'video(s)'} (Single or Multiple)
+                        Click to choose images or videos (Single or Multiple)
                       </p>
                       <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                        {mediaType === 'IMAGE' ? 'JPG, JPEG, PNG, WEBP (Max 10MB each)' : 'MP4, MOV, WEBM (Max 100MB each)'}
+                        JPG, PNG, WEBP (Max 10MB) • MP4, MOV, WEBM (Max 100MB)
                       </p>
                     </div>
                     <input
                       type="file"
                       multiple
-                      accept={mediaType === 'IMAGE' ? 'image/jpeg,image/png,image/webp,image/jpg' : 'video/mp4,video/quicktime,video/webm'}
+                      accept="image/jpeg,image/png,image/webp,image/jpg,video/mp4,video/quicktime,video/webm"
                       onChange={handleFileSelect}
                       className="hidden"
                     />
