@@ -27,6 +27,8 @@ import {
   Play,
   Maximize2,
   X,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -54,6 +56,20 @@ function extractYouTubeVideoId(url?: string | null): string | null {
   return match ? match[1] : null;
 }
 
+function formatContentDate(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 export default function TrendingManagementPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -61,6 +77,7 @@ export default function TrendingManagementPage() {
   const [publishFilter, setPublishFilter] = useState<'ALL' | 'PUBLISHED' | 'UNPUBLISHED'>('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [viewMode, setViewMode] = useState<'GRID' | 'TABLE'>('GRID');
 
   // Drawer / Modal states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -486,18 +503,44 @@ export default function TrendingManagementPage() {
             <option value="PUBLISHED">Published Only</option>
             <option value="UNPUBLISHED">Drafts / Unpublished</option>
           </select>
+
+          {/* View Switcher Toggle: Instagram Grid vs Table */}
+          <div className="flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/60">
+            <button
+              type="button"
+              onClick={() => setViewMode('GRID')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ${
+                viewMode === 'GRID' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+              title="Instagram Grid View"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span className="hidden md:inline text-[11px]">Grid</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('TABLE')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ${
+                viewMode === 'TABLE' ? 'bg-white text-slate-950 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+              title="Table List View"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span className="hidden md:inline text-[11px]">Table</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* 4. Real Data Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* 4. Content Listing (Instagram Grid View & Data Table) */}
+      <div>
         {isLoading ? (
-          <div className="py-20 text-center text-slate-400 font-bold flex flex-col items-center gap-3">
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-20 text-center text-slate-400 font-bold flex flex-col items-center gap-3 shadow-xs">
             <RefreshCw className="w-8 h-8 animate-spin text-[#23C45E]" />
             <span>Fetching trending media from database...</span>
           </div>
         ) : trendingItems.length === 0 ? (
-          <div className="py-20 text-center text-slate-400 font-bold space-y-3">
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-20 text-center text-slate-400 font-bold space-y-3 shadow-xs">
             <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
               <TrendingUp className="w-7 h-7" />
             </div>
@@ -506,225 +549,428 @@ export default function TrendingManagementPage() {
               Click &quot;Add Trending Media&quot; above to upload your first image or video creative.
             </p>
           </div>
+        ) : viewMode === 'GRID' ? (
+          /* Instagram-Style Media Cards Grid */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {trendingItems.map((item) => {
+              const isVideo =
+                item.metadata?.mediaType === 'VIDEO' ||
+                item.category === 'REEL' ||
+                Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i)) ||
+                Boolean(extractYouTubeVideoId(item.mediaUrl));
+
+              const mediaDisplayUrl = item.mediaUrl || item.thumbnailUrl || '';
+              const youtubeId = extractYouTubeVideoId(item.mediaUrl);
+
+              return (
+                <div
+                  key={item.id}
+                  className="group bg-white rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between"
+                >
+                  {/* Top Media Preview Section (Instagram 4:5 Portrait Media Presentation) */}
+                  <div
+                    className="relative aspect-[4/5] w-full bg-slate-950 overflow-hidden cursor-pointer"
+                    onClick={() => {
+                      if (mediaDisplayUrl) {
+                        setPreviewMedia({
+                          url: mediaDisplayUrl,
+                          type: isVideo ? 'VIDEO' : 'IMAGE',
+                          title: item.title,
+                        });
+                      }
+                    }}
+                  >
+                    {/* Media Image / Video Thumbnail */}
+                    {isVideo ? (
+                      <div className="w-full h-full relative flex items-center justify-center bg-slate-950">
+                        {item.thumbnailUrl ? (
+                          <img
+                            src={item.thumbnailUrl}
+                            alt={item.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-black text-slate-400 p-4 text-center">
+                            <Video className="w-10 h-10 text-emerald-400 mb-2" />
+                            <span className="text-[11px] font-bold">Video Asset</span>
+                          </div>
+                        )}
+
+                        {/* Play Overlay Button */}
+                        <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                          <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center text-white shadow-xl group-hover:scale-110 group-active:scale-95 transition-all">
+                            <Play className="w-6 h-6 fill-white text-white translate-x-0.5" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : mediaDisplayUrl ? (
+                      <div className="w-full h-full relative overflow-hidden">
+                        <img
+                          src={mediaDisplayUrl}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            (e.target as any).src = 'https://placehold.co/400x500?text=Creative+Image';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                          <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center text-white shadow-lg">
+                            <Maximize2 className="w-5 h-5" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
+                        <ImageIcon className="w-10 h-10 mb-2" />
+                        <span className="text-[11px] font-bold">No Media</span>
+                      </div>
+                    )}
+
+                    {/* Top Floating Badges */}
+                    <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
+                      {getCategoryBadge(item.category)}
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-xs">
+                        <Instagram className="w-3 h-3 text-[#23C45E]" />
+                        {item.platform || 'INSTAGRAM'}
+                      </span>
+                    </div>
+
+                    {/* Bottom Floating Info Pill */}
+                    <div className="absolute bottom-3 inset-x-3 flex items-center justify-between pointer-events-none">
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-white border border-white/10">
+                        ⭐ Priority {item.priority}
+                      </span>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-[#23C45E] text-slate-950 shadow-xs">
+                        {isVideo ? (youtubeId ? 'YouTube' : 'Video') : 'Image'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card Body & Details */}
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div>
+                      <h3 className="font-extrabold text-slate-900 text-sm line-clamp-2 leading-snug group-hover:text-[#1AA14D] transition-colors">
+                        {item.title}
+                      </h3>
+                      {item.description && (
+                        <p className="text-xs text-slate-500 line-clamp-2 mt-1 font-medium leading-relaxed">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* CTA Link chip */}
+                    {item.ctaUrl && (
+                      <div>
+                        <a
+                          href={item.ctaUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-extrabold text-[#1AA14D] bg-[#23C45E]/10 hover:bg-[#23C45E]/20 px-2.5 py-1 rounded-lg transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span>{item.ctaText || 'View Campaign Link'}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Schedule / Created Date */}
+                    <div className="pt-2 border-t border-slate-100 flex flex-col gap-1 text-[11px] text-slate-400 font-medium">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-slate-600 font-bold">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{formatContentDate(item.createdAt)}</span>
+                        </span>
+                        <span className="font-mono text-[10px] uppercase font-bold text-slate-400">
+                          {item.objective || 'ENGAGEMENT'}
+                        </span>
+                      </div>
+                      {item.startAt && (
+                        <div className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md font-bold inline-flex items-center gap-1 self-start">
+                          <span>Live from: {formatContentDate(item.startAt)}</span>
+                          {item.endAt && <span>→ {formatContentDate(item.endAt)}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Footer & Action Toolbar */}
+                  <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      {/* Publish Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={() => togglePublishMutation.mutate({ id: item.id, isPublished: !item.isPublished })}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-2xs ${
+                          item.isPublished
+                            ? 'bg-emerald-100/80 text-emerald-800 border border-emerald-300/60 hover:bg-emerald-200'
+                            : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
+                        }`}
+                        title={item.isPublished ? 'Live on Customer App (Click to unpublish)' : 'Draft (Click to publish)'}
+                      >
+                        {item.isPublished ? <Eye className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        <span>{item.isPublished ? 'Published' : 'Draft'}</span>
+                      </button>
+
+                      {/* Active Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={() => toggleStatusMutation.mutate({ id: item.id, isActive: !item.isActive })}
+                        className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                          item.isActive ? 'text-[#1AA14D] hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-200'
+                        }`}
+                        title={item.isActive ? 'Active (Click to disable)' : 'Inactive (Click to activate)'}
+                      >
+                        {item.isActive ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditDrawer(item)}
+                        className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all cursor-pointer shadow-2xs"
+                        title="Edit Creative"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeleteTarget(item);
+                          setIsDeleteOpen(true);
+                        }}
+                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                        title="Delete Creative"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Creative / Media</th>
-                  <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4">Platform & Format</th>
-                  <th className="py-3.5 px-4">Priority</th>
-                  <th className="py-3.5 px-4">Schedule</th>
-                  <th className="py-3.5 px-4">Customer App Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {trendingItems.map((item) => {
-                  const isVideo =
-                    item.metadata?.mediaType === 'VIDEO' ||
-                    item.category === 'REEL' ||
-                    Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i));
+          /* Table View Alternative */
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    <th className="py-3.5 px-4">Creative / Media</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4">Platform & Format</th>
+                    <th className="py-3.5 px-4">Priority</th>
+                    <th className="py-3.5 px-4">Schedule</th>
+                    <th className="py-3.5 px-4">Customer App Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {trendingItems.map((item) => {
+                    const isVideo =
+                      item.metadata?.mediaType === 'VIDEO' ||
+                      item.category === 'REEL' ||
+                      Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i)) ||
+                      Boolean(extractYouTubeVideoId(item.mediaUrl));
 
-                  const mediaDisplayUrl = item.mediaUrl || item.thumbnailUrl || '';
+                    const mediaDisplayUrl = item.mediaUrl || item.thumbnailUrl || '';
 
-                  return (
-                    <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                      {/* Content / Title / Media Thumbnail */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          {/* Media Thumbnail with Lightbox click */}
-                          <div
-                            className="relative w-12 h-12 rounded-xl bg-slate-900 border border-slate-200 shrink-0 overflow-hidden group cursor-pointer"
-                            onClick={() => {
-                              if (mediaDisplayUrl) {
-                                setPreviewMedia({
-                                  url: mediaDisplayUrl,
-                                  type: isVideo ? 'VIDEO' : 'IMAGE',
-                                  title: item.title,
-                                });
-                              }
-                            }}
-                          >
-                            {isVideo ? (
-                              <div className="w-full h-full flex items-center justify-center bg-slate-950 text-white relative">
-                                {item.thumbnailUrl ? (
-                                  <img
-                                    src={item.thumbnailUrl}
-                                    alt={item.title}
-                                    className="w-full h-full object-cover opacity-80"
-                                  />
-                                ) : (
-                                  <Video className="w-5 h-5 text-emerald-400" />
-                                )}
-                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/50 transition-colors">
-                                  <Play className="w-4 h-4 text-white fill-white" />
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                        {/* Content / Title / Media Thumbnail */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="relative w-12 h-12 rounded-xl bg-slate-900 border border-slate-200 shrink-0 overflow-hidden group cursor-pointer"
+                              onClick={() => {
+                                if (mediaDisplayUrl) {
+                                  setPreviewMedia({
+                                    url: mediaDisplayUrl,
+                                    type: isVideo ? 'VIDEO' : 'IMAGE',
+                                    title: item.title,
+                                  });
+                                }
+                              }}
+                            >
+                              {isVideo ? (
+                                <div className="w-full h-full flex items-center justify-center bg-slate-950 text-white relative">
+                                  {item.thumbnailUrl ? (
+                                    <img
+                                      src={item.thumbnailUrl}
+                                      alt={item.title}
+                                      className="w-full h-full object-cover opacity-80"
+                                    />
+                                  ) : (
+                                    <Video className="w-5 h-5 text-emerald-400" />
+                                  )}
+                                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/50 transition-colors">
+                                    <Play className="w-4 h-4 text-white fill-white" />
+                                  </div>
                                 </div>
-                              </div>
-                            ) : mediaDisplayUrl ? (
-                              <img
-                                src={mediaDisplayUrl}
-                                alt={item.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                onError={(e) => {
-                                  (e.target as any).src = 'https://placehold.co/100x100?text=Image';
-                                }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
-                                <ImageIcon className="w-5 h-5" />
-                              </div>
-                            )}
+                              ) : mediaDisplayUrl ? (
+                                <img
+                                  src={mediaDisplayUrl}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  onError={(e) => {
+                                    (e.target as any).src = 'https://placehold.co/100x100?text=Image';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+                                  <ImageIcon className="w-5 h-5" />
+                                </div>
+                              )}
 
-                            {/* Hover overlay hint */}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                              <Maximize2 className="w-3.5 h-3.5" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <Maximize2 className="w-3.5 h-3.5" />
+                              </div>
+                            </div>
+
+                            <div className="min-w-0 max-w-xs">
+                              <p className="font-extrabold text-slate-900 truncate">{item.title}</p>
+                              {item.description && (
+                                <p className="text-xs text-slate-500 truncate mt-0.5">{item.description}</p>
+                              )}
+                              {item.ctaUrl && (
+                                <a
+                                  href={item.ctaUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[11px] text-[#1AA14D] hover:underline inline-flex items-center gap-1 mt-0.5 font-bold"
+                                >
+                                  {item.ctaText || 'Target Link'}
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
                             </div>
                           </div>
+                        </td>
 
-                          <div className="min-w-0 max-w-xs">
-                            <p className="font-extrabold text-slate-900 truncate">{item.title}</p>
-                            {item.description && (
-                              <p className="text-xs text-slate-500 truncate mt-0.5">{item.description}</p>
-                            )}
-                            {item.ctaUrl && (
-                              <a
-                                href={item.ctaUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[11px] text-[#1AA14D] hover:underline inline-flex items-center gap-1 mt-0.5 font-bold"
+                        {/* Category */}
+                        <td className="py-3 px-4">{getCategoryBadge(item.category)}</td>
+
+                        {/* Platform & Media Type */}
+                        <td className="py-3 px-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md uppercase">
+                                {item.platform || 'INSTAGRAM'}
+                              </span>
+                              <span
+                                className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md uppercase ${
+                                  isVideo
+                                    ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                }`}
                               >
-                                {item.ctaText || 'Target Link'}
-                                <ExternalLink className="w-2.5 h-2.5" />
-                              </a>
+                                {isVideo ? '🎥 VIDEO' : '🖼️ IMAGE'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="inline-block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                {item.objective || 'ENGAGEMENT'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Priority */}
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-md font-extrabold text-xs bg-slate-100 text-slate-700 border border-slate-200">
+                            ⭐ {item.priority}
+                          </span>
+                        </td>
+
+                        {/* Schedule & Created Date */}
+                        <td className="py-3 px-4">
+                          <div className="text-xs text-slate-600 space-y-1">
+                            <p className="flex items-center gap-1 font-semibold text-slate-800">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              <span>{formatContentDate(item.createdAt)}</span>
+                            </p>
+                            {item.startAt && (
+                              <p className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+                                <span className="font-bold text-[10px] uppercase">Live:</span>
+                                {formatContentDate(item.startAt)}
+                              </p>
+                            )}
+                            {item.endAt && (
+                              <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+                                <span className="font-bold text-[10px] uppercase">Ends:</span>
+                                {formatContentDate(item.endAt)}
+                              </p>
                             )}
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Category */}
-                      <td className="py-3 px-4">{getCategoryBadge(item.category)}</td>
-
-                      {/* Platform & Media Type */}
-                      <td className="py-3 px-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md uppercase">
-                              {item.platform || 'INSTAGRAM'}
-                            </span>
-                            <span
-                              className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-md uppercase ${
-                                isVideo
-                                  ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+                        {/* Status & Live Toggles */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => togglePublishMutation.mutate({ id: item.id, isPublished: !item.isPublished })}
+                              className={`px-2.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-2xs ${
+                                item.isPublished
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
                               }`}
+                              title={item.isPublished ? 'Live on Customer App (Click to unpublish)' : 'Unpublished (Click to publish)'}
                             >
-                              {isVideo ? '🎥 VIDEO' : '🖼️ IMAGE'}
-                            </span>
+                              {item.isPublished ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                              {item.isPublished ? 'Published' : 'Draft'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => toggleStatusMutation.mutate({ id: item.id, isActive: !item.isActive })}
+                              className={`p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                item.isActive
+                                  ? 'text-[#1AA14D] hover:bg-emerald-50'
+                                  : 'text-slate-400 hover:bg-slate-100'
+                              }`}
+                              title={item.isActive ? 'Active (Click to disable)' : 'Inactive (Click to activate)'}
+                            >
+                              {item.isActive ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                            </button>
                           </div>
-                          <div>
-                            <span className="inline-block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                              {item.objective || 'ENGAGEMENT'}
-                            </span>
+                        </td>
+
+                        {/* Action Buttons */}
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => openEditDrawer(item)}
+                              className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                              title="Edit Content"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDeleteTarget(item);
+                                setIsDeleteOpen(true);
+                              }}
+                              className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                              title="Delete Content"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                        </div>
-                      </td>
-
-                      {/* Priority */}
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-md font-extrabold text-xs bg-slate-100 text-slate-700 border border-slate-200">
-                          ⭐ {item.priority}
-                        </span>
-                      </td>
-
-                      {/* Schedule */}
-                      <td className="py-3 px-4">
-                        <div className="text-xs text-slate-600 space-y-0.5">
-                          {item.startAt ? (
-                            <p className="flex items-center gap-1 font-medium">
-                              <span className="text-[10px] text-slate-400 font-bold">Start:</span>
-                              {new Date(item.startAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                            </p>
-                          ) : (
-                            <p className="text-slate-400 text-[11px] font-medium">Immediate</p>
-                          )}
-                          {item.endAt && (
-                            <p className="flex items-center gap-1 text-slate-500 font-medium">
-                              <span className="text-[10px] text-slate-400 font-bold">End:</span>
-                              {new Date(item.endAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Status & Live Toggles */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          {/* Publish Toggle Button */}
-                          <button
-                            type="button"
-                            onClick={() => togglePublishMutation.mutate({ id: item.id, isPublished: !item.isPublished })}
-                            className={`px-2.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-2xs ${
-                              item.isPublished
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                                : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
-                            }`}
-                            title={item.isPublished ? 'Live on Customer App (Click to unpublish)' : 'Unpublished (Click to publish)'}
-                          >
-                            {item.isPublished ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                            {item.isPublished ? 'Published' : 'Draft'}
-                          </button>
-
-                          {/* Active Toggle Button */}
-                          <button
-                            type="button"
-                            onClick={() => toggleStatusMutation.mutate({ id: item.id, isActive: !item.isActive })}
-                            className={`p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              item.isActive
-                                ? 'text-[#1AA14D] hover:bg-emerald-50'
-                                : 'text-slate-400 hover:bg-slate-100'
-                            }`}
-                            title={item.isActive ? 'Active (Click to disable)' : 'Inactive (Click to activate)'}
-                          >
-                            {item.isActive ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </td>
-
-                      {/* Action Buttons */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => openEditDrawer(item)}
-                            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-                            title="Edit Content"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeleteTarget(item);
-                              setIsDeleteOpen(true);
-                            }}
-                            className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                            title="Delete Content"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="p-3 border-t border-slate-200">
+          <div className="p-4 mt-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
             <AdminPagination
               page={pagination.page}
               pageSize={pageSize}
