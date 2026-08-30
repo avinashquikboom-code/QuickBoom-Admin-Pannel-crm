@@ -22,6 +22,7 @@ export * from './filters/AdminFilterBar';
 // Dialogs & Drawers
 export * from './dialogs/AdminConfirmDialog';
 export * from './dialogs/AdminFormDrawer';
+export * from './drawers/CustomerDetailsDrawer';
 
 // States
 export * from './states/AdminEmptyState';

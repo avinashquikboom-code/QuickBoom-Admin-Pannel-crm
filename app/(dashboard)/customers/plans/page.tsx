@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { AdminPageHero } from '@/components/admin/layout/AdminPageHeader';
+import { AdminPageHero, AdminFormDrawer } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function CustomerPlansPage() {
@@ -542,275 +542,263 @@ export default function CustomerPlansPage() {
         )}
       </div>
 
-      {/* 4. PACKAGE MODAL (CREATE / EDIT STANDARD PLAN) */}
-      {showPackageModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-black text-slate-900 text-base">
-                {editingPackage ? `Edit ${editingPackage.name}` : 'Create Subscription Package'}
-              </h3>
+      {/* 4. PACKAGE RIGHT-SIDE DRAWER (CREATE / EDIT STANDARD PLAN) */}
+      <AdminFormDrawer
+        isOpen={showPackageModal}
+        onClose={() => setShowPackageModal(false)}
+        title={editingPackage ? `Edit ${editingPackage.name}` : 'Create Subscription Package'}
+        description="Configure standard pricing tiers and deliverable quotas."
+        icon={Layers}
+        maxWidth="sm:max-w-[540px]"
+        footer={
+          <div className="flex items-center justify-between gap-2 w-full">
+            {editingPackage ? (
               <button
+                type="button"
+                onClick={() => {
+                  handleDeletePlan(editingPackage);
+                  setShowPackageModal(false);
+                }}
+                className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Deactivate Plan</span>
+              </button>
+            ) : <div />}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
                 onClick={() => setShowPackageModal(false)}
-                className="text-slate-400 hover:text-slate-700 font-bold text-sm cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Package Name</label>
-                <input
-                  type="text"
-                  value={packageForm.name}
-                  onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
-                  placeholder="e.g. Standard Package"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Package Code</label>
-                  <input
-                    type="text"
-                    value={packageForm.code}
-                    onChange={(e) => setPackageForm({ ...packageForm, code: e.target.value.toUpperCase() })}
-                    placeholder="e.g. STANDARD"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 uppercase"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Monthly Price (₹)</label>
-                  <input
-                    type="number"
-                    value={packageForm.monthlyPrice}
-                    onChange={(e) => setPackageForm({ ...packageForm, monthlyPrice: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Yearly Price (₹)</label>
-                <input
-                  type="number"
-                  value={packageForm.yearlyPrice}
-                  onChange={(e) => setPackageForm({ ...packageForm, yearlyPrice: Number(e.target.value) })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Description / Subtitle</label>
-                <textarea
-                  rows={2}
-                  value={packageForm.description}
-                  onChange={(e) => setPackageForm({ ...packageForm, description: e.target.value })}
-                  placeholder="Target audience & description..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Deliverables & Features</label>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={featureInput}
-                    onChange={(e) => setFeatureInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addFeatureItem();
-                      }
-                    }}
-                    placeholder="e.g. 6 Reels or Trending Hashtags"
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800"
-                  />
-                  <button
-                    type="button"
-                    onClick={addFeatureItem}
-                    className="px-3 py-2 bg-slate-900 text-white font-bold rounded-xl cursor-pointer"
-                  >
-                    Add
-                  </button>
-                </div>
-                <div className="space-y-1 max-h-36 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200">
-                  {packageForm.features.map((f, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-1 text-slate-800">
-                      <span>• {f}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFeatureItem(idx)}
-                        className="text-rose-500 hover:text-rose-700 font-bold"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="pkgActive"
-                  checked={packageForm.isActive}
-                  onChange={(e) => setPackageForm({ ...packageForm, isActive: e.target.checked })}
-                  className="w-4 h-4 rounded text-emerald-600"
-                />
-                <label htmlFor="pkgActive" className="font-bold text-slate-700">
-                  Active (Visible on Customer Mobile App)
-                </label>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-              {editingPackage ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleDeletePlan(editingPackage);
-                    setShowPackageModal(false);
-                  }}
-                  className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl cursor-pointer flex items-center gap-1.5"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Deactivate Plan</span>
-                </button>
-              ) : <div />}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowPackageModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => savePackageMutation.mutate(packageForm)}
-                  disabled={savePackageMutation.isPending || !packageForm.name || !packageForm.code}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl cursor-pointer shadow-sm"
-                >
-                  {savePackageMutation.isPending ? 'Saving...' : 'Save Plan'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5. CUSTOM OPTION MODAL (CREATE / EDIT CUSTOM SERVICE) */}
-      {showOptionModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-black text-slate-900 text-base">
-                {editingOption ? `Edit Service: ${editingOption.name}` : 'Add Custom Plan Service'}
-              </h3>
-              <button
-                onClick={() => setShowOptionModal(false)}
-                className="text-slate-400 hover:text-slate-700 font-bold text-sm cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Service Name</label>
-                <input
-                  type="text"
-                  value={optionForm.name}
-                  onChange={(e) => setOptionForm({ ...optionForm, name: e.target.value })}
-                  placeholder="e.g. Social Media Reels"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Service Code</label>
-                  <input
-                    type="text"
-                    value={optionForm.code}
-                    onChange={(e) => setOptionForm({ ...optionForm, code: e.target.value.toUpperCase() })}
-                    placeholder="e.g. OPT_REELS"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 uppercase"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Monthly Unit Price (₹)</label>
-                  <input
-                    type="number"
-                    value={optionForm.monthlyPrice}
-                    onChange={(e) => setOptionForm({ ...optionForm, monthlyPrice: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Unit Name</label>
-                  <input
-                    type="text"
-                    value={optionForm.unitName}
-                    onChange={(e) => setOptionForm({ ...optionForm, unitName: e.target.value })}
-                    placeholder="e.g. Reel, Post, Campaign"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Category</label>
-                  <select
-                    value={optionForm.category}
-                    onChange={(e) => setOptionForm({ ...optionForm, category: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                  >
-                    <option value="CONTENT">CONTENT</option>
-                    <option value="CREATIVES">CREATIVES</option>
-                    <option value="ADS">ADS</option>
-                    <option value="SUPPORT">SUPPORT</option>
-                    <option value="CRM">CRM</option>
-                    <option value="STORAGE">STORAGE</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="optActive"
-                  checked={optionForm.isActive}
-                  onChange={(e) => setOptionForm({ ...optionForm, isActive: e.target.checked })}
-                  className="w-4 h-4 rounded text-emerald-600"
-                />
-                <label htmlFor="optActive" className="font-bold text-slate-700">
-                  Active in Custom Plan Builder
-                </label>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setShowOptionModal(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                onClick={() => saveOptionMutation.mutate(optionForm)}
-                disabled={saveOptionMutation.isPending || !optionForm.name || !optionForm.code}
-                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl cursor-pointer shadow-sm"
+                type="button"
+                onClick={() => savePackageMutation.mutate(packageForm)}
+                disabled={savePackageMutation.isPending || !packageForm.name || !packageForm.code}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl cursor-pointer shadow-sm disabled:opacity-50"
               >
-                {saveOptionMutation.isPending ? 'Saving...' : 'Save Service'}
+                {savePackageMutation.isPending ? 'Saving...' : 'Save Plan'}
               </button>
             </div>
           </div>
+        }
+      >
+        <div className="space-y-4 text-xs">
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Package Name</label>
+            <input
+              type="text"
+              value={packageForm.name}
+              onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
+              placeholder="e.g. Standard Package"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-[#23C45E]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Package Code</label>
+              <input
+                type="text"
+                value={packageForm.code}
+                onChange={(e) => setPackageForm({ ...packageForm, code: e.target.value.toUpperCase() })}
+                placeholder="e.g. STANDARD"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 uppercase focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Monthly Price (₹)</label>
+              <input
+                type="number"
+                value={packageForm.monthlyPrice}
+                onChange={(e) => setPackageForm({ ...packageForm, monthlyPrice: Number(e.target.value) })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Yearly Price (₹)</label>
+            <input
+              type="number"
+              value={packageForm.yearlyPrice}
+              onChange={(e) => setPackageForm({ ...packageForm, yearlyPrice: Number(e.target.value) })}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-[#23C45E]"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Description / Subtitle</label>
+            <textarea
+              rows={2}
+              value={packageForm.description}
+              onChange={(e) => setPackageForm({ ...packageForm, description: e.target.value })}
+              placeholder="Target audience & description..."
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-[#23C45E]"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Deliverables & Features</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={featureInput}
+                onChange={(e) => setFeatureInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addFeatureItem();
+                  }
+                }}
+                placeholder="e.g. 6 Reels or Trending Hashtags"
+                className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800"
+              />
+              <button
+                type="button"
+                onClick={addFeatureItem}
+                className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl cursor-pointer"
+              >
+                Add
+              </button>
+            </div>
+            <div className="space-y-1 max-h-36 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              {packageForm.features.map((f, idx) => (
+                <div key={idx} className="flex items-center justify-between p-1 text-slate-800">
+                  <span>• {f}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeFeatureItem(idx)}
+                    className="text-rose-500 hover:text-rose-700 font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              type="checkbox"
+              id="pkgActive"
+              checked={packageForm.isActive}
+              onChange={(e) => setPackageForm({ ...packageForm, isActive: e.target.checked })}
+              className="w-4 h-4 rounded text-emerald-600"
+            />
+            <label htmlFor="pkgActive" className="font-bold text-slate-700 cursor-pointer">
+              Active (Visible on Customer Mobile App)
+            </label>
+          </div>
         </div>
-      )}
+      </AdminFormDrawer>
+
+      {/* 5. CUSTOM OPTION RIGHT-SIDE DRAWER (CREATE / EDIT CUSTOM SERVICE) */}
+      <AdminFormDrawer
+        isOpen={showOptionModal}
+        onClose={() => setShowOptionModal(false)}
+        title={editingOption ? `Edit Service: ${editingOption.name}` : 'Add Custom Plan Service'}
+        description="Configure add-on service modules and unit rates for dynamic custom plans."
+        icon={Sliders}
+        maxWidth="sm:max-w-[500px]"
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <button
+              type="button"
+              onClick={() => setShowOptionModal(false)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => saveOptionMutation.mutate(optionForm)}
+              disabled={saveOptionMutation.isPending || !optionForm.name || !optionForm.code}
+              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl cursor-pointer shadow-sm disabled:opacity-50"
+            >
+              {saveOptionMutation.isPending ? 'Saving...' : 'Save Service'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 text-xs">
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Service Name</label>
+            <input
+              type="text"
+              value={optionForm.name}
+              onChange={(e) => setOptionForm({ ...optionForm, name: e.target.value })}
+              placeholder="e.g. Social Media Reels"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-[#23C45E]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Service Code</label>
+              <input
+                type="text"
+                value={optionForm.code}
+                onChange={(e) => setOptionForm({ ...optionForm, code: e.target.value.toUpperCase() })}
+                placeholder="e.g. OPT_REELS"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 uppercase focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Monthly Unit Price (₹)</label>
+              <input
+                type="number"
+                value={optionForm.monthlyPrice}
+                onChange={(e) => setOptionForm({ ...optionForm, monthlyPrice: Number(e.target.value) })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Unit Name</label>
+              <input
+                type="text"
+                value={optionForm.unitName}
+                onChange={(e) => setOptionForm({ ...optionForm, unitName: e.target.value })}
+                placeholder="e.g. Reel, Post, Campaign"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Category</label>
+              <select
+                value={optionForm.category}
+                onChange={(e) => setOptionForm({ ...optionForm, category: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-[#23C45E]"
+              >
+                <option value="CONTENT">CONTENT</option>
+                <option value="CREATIVES">CREATIVES</option>
+                <option value="ADS">ADS</option>
+                <option value="SUPPORT">SUPPORT</option>
+                <option value="CRM">CRM</option>
+                <option value="STORAGE">STORAGE</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              type="checkbox"
+              id="optActive"
+              checked={optionForm.isActive}
+              onChange={(e) => setOptionForm({ ...optionForm, isActive: e.target.checked })}
+              className="w-4 h-4 rounded text-emerald-600"
+            />
+            <label htmlFor="optActive" className="font-bold text-slate-700 cursor-pointer">
+              Active in Custom Plan Builder
+            </label>
+          </div>
+        </div>
+      </AdminFormDrawer>
     </div>
   );
 }

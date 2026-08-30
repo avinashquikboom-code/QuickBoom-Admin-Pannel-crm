@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminPagination } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer, CustomerDetailsDrawer } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -36,11 +36,12 @@ export default function OfflinePaymentRequestsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  // Modal states
+  // Modal / Drawer states
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
 
   // 1. Fetch Offline Requests from backend
   const { data: reqResponse, isLoading, refetch } = useQuery({

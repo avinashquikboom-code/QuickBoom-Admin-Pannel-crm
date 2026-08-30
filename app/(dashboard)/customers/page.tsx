@@ -39,7 +39,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
-import { AdminPagination } from '@/components/admin';
+import { AdminPagination, AdminFormDrawer, CustomerDetailsDrawer } from '@/components/admin';
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
@@ -62,6 +62,7 @@ export default function CustomersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<any | null>(null);
+  const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
 
   // Form State for Add / Edit
   const [customerForm, setCustomerForm] = useState({
@@ -569,12 +570,13 @@ export default function CustomersPage() {
                             {cust.name?.charAt(0) || 'C'}
                           </div>
                           <div>
-                            <Link
-                              href={`/customers/${cust.id}`}
-                              className="font-black text-slate-900 text-sm hover:text-emerald-600 transition-colors block"
+                            <button
+                              type="button"
+                              onClick={() => setViewingCustomerId(cust.id)}
+                              className="font-black text-slate-900 text-sm hover:text-[#1AA14D] transition-colors block text-left cursor-pointer"
                             >
                               {cust.name}
-                            </Link>
+                            </button>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-slate-400 font-medium text-[11px]">
                                 {cust.companyName || cust.company || 'Direct Client'}
@@ -689,13 +691,14 @@ export default function CustomersPage() {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
 
-                          <Link
-                            href={`/customers/${cust.id}`}
+                          <button
+                            type="button"
+                            onClick={() => setViewingCustomerId(cust.id)}
                             className="flex items-center gap-1 px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
                           >
                             <Eye className="w-3.5 h-3.5" />
                             <span>Details</span>
-                          </Link>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -721,263 +724,262 @@ export default function CustomersPage() {
         />
       </div>
 
-      {/* 5. ADD / EDIT CUSTOMER DRAWER MODAL */}
-      {(isCreateOpen || editingCustomer) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in-50 duration-150">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative max-h-[90vh] overflow-y-auto">
+      {/* 5. ADD / EDIT CUSTOMER RIGHT-SIDE DRAWER */}
+      <AdminFormDrawer
+        isOpen={isCreateOpen || !!editingCustomer}
+        onClose={() => {
+          setIsCreateOpen(false);
+          setEditingCustomer(null);
+        }}
+        title={editingCustomer ? 'Edit Customer Profile' : 'Add New Customer'}
+        description="Fill in customer profile information, business contact parameters, and employee allocation."
+        icon={Building2}
+        maxWidth="sm:max-w-[580px]"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
             <button
+              type="button"
               onClick={() => {
                 setIsCreateOpen(false);
                 setEditingCustomer(null);
               }}
-              className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer"
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              Cancel
             </button>
 
-            <h3 className="text-xl font-black text-slate-900 mb-1">
-              {editingCustomer ? 'Edit Customer Profile' : 'Add New Customer'}
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mb-6">
-              Fill in customer profile information, business contact parameters, and employee allocation.
-            </p>
-
-            <form onSubmit={handleFormSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Customer Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Acme Enterprise"
-                    value={customerForm.name}
-                    onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Company / Organization</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Acme Global Holdings Ltd"
-                    value={customerForm.companyName}
-                    onChange={(e) => setCustomerForm({ ...customerForm, companyName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    placeholder="contact@company.com"
-                    value={customerForm.email}
-                    onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Phone *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="+91 98200 00000"
-                    value={customerForm.phone}
-                    onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Alternate Phone</label>
-                  <input
-                    type="text"
-                    placeholder="+91 98200 11111"
-                    value={customerForm.alternatePhone}
-                    onChange={(e) => setCustomerForm({ ...customerForm, alternatePhone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase text-slate-700 mb-1">Street Address</label>
-                <input
-                  type="text"
-                  placeholder="Office 402, High Street Towers"
-                  value={customerForm.address}
-                  onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">City</label>
-                  <input
-                    type="text"
-                    placeholder="Mumbai"
-                    value={customerForm.city}
-                    onChange={(e) => setCustomerForm({ ...customerForm, city: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">State</label>
-                  <input
-                    type="text"
-                    placeholder="Maharashtra"
-                    value={customerForm.state}
-                    onChange={(e) => setCustomerForm({ ...customerForm, state: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Country</label>
-                  <input
-                    type="text"
-                    placeholder="India"
-                    value={customerForm.country}
-                    onChange={(e) => setCustomerForm({ ...customerForm, country: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Pincode</label>
-                  <input
-                    type="text"
-                    placeholder="400001"
-                    value={customerForm.pincode}
-                    onChange={(e) => setCustomerForm({ ...customerForm, pincode: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Customer Type</label>
-                  <select
-                    value={customerForm.customerType}
-                    onChange={(e) => setCustomerForm({ ...customerForm, customerType: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                  >
-                    <option value="ENTERPRISE">Enterprise</option>
-                    <option value="SME">SME</option>
-                    <option value="STARTUP">Startup</option>
-                    <option value="INDIVIDUAL">Individual</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Industry</label>
-                  <input
-                    type="text"
-                    placeholder="IT, Real Estate, etc."
-                    value={customerForm.industry}
-                    onChange={(e) => setCustomerForm({ ...customerForm, industry: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Source</label>
-                  <select
-                    value={customerForm.source}
-                    onChange={(e) => setCustomerForm({ ...customerForm, source: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                  >
-                    <option value="DIRECT">Direct</option>
-                    <option value="WEBSITE">Website</option>
-                    <option value="REFERRAL">Referral</option>
-                    <option value="GOOGLE_PLACES">Google Places</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Status</label>
-                  <select
-                    value={customerForm.status}
-                    onChange={(e) => setCustomerForm({ ...customerForm, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                  >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Assigned Employee</label>
-                  <input
-                    type="text"
-                    placeholder="Rahul Sharma"
-                    value={customerForm.assignedEmployee}
-                    onChange={(e) => setCustomerForm({ ...customerForm, assignedEmployee: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">Department</label>
-                  <input
-                    type="text"
-                    placeholder="Sales & Business Development"
-                    value={customerForm.department}
-                    onChange={(e) => setCustomerForm({ ...customerForm, department: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase text-slate-700 mb-1">Notes & Details</label>
-                <textarea
-                  rows={3}
-                  placeholder="Enter relationship notes, special SLAs, requirements..."
-                  value={customerForm.notes}
-                  onChange={(e) => setCustomerForm({ ...customerForm, notes: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCreateOpen(false);
-                    setEditingCustomer(null);
-                  }}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                  className="px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
-                >
-                  {createMutation.isPending || updateMutation.isPending
-                    ? 'Saving...'
-                    : editingCustomer
-                    ? 'Update Customer'
-                    : 'Create Customer'}
-                </button>
-              </div>
-            </form>
+            <button
+              type="button"
+              onClick={handleFormSubmit}
+              disabled={createMutation.isPending || updateMutation.isPending}
+              className="px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
+            >
+              {createMutation.isPending || updateMutation.isPending
+                ? 'Saving...'
+                : editingCustomer
+                ? 'Update Customer'
+                : 'Create Customer'}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        <form onSubmit={handleFormSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Customer Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Acme Enterprise"
+                value={customerForm.name}
+                onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Company / Organization</label>
+              <input
+                type="text"
+                placeholder="e.g. Acme Global Holdings Ltd"
+                value={customerForm.companyName}
+                onChange={(e) => setCustomerForm({ ...customerForm, companyName: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Email</label>
+              <input
+                type="email"
+                placeholder="contact@company.com"
+                value={customerForm.email}
+                onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Phone *</label>
+              <input
+                type="text"
+                required
+                placeholder="+91 98200 00000"
+                value={customerForm.phone}
+                onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Alternate Phone</label>
+              <input
+                type="text"
+                placeholder="+91 98200 11111"
+                value={customerForm.alternatePhone}
+                onChange={(e) => setCustomerForm({ ...customerForm, alternatePhone: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-black uppercase text-slate-700 mb-1">Street Address</label>
+            <input
+              type="text"
+              placeholder="Office 402, High Street Towers"
+              value={customerForm.address}
+              onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">City</label>
+              <input
+                type="text"
+                placeholder="Mumbai"
+                value={customerForm.city}
+                onChange={(e) => setCustomerForm({ ...customerForm, city: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">State</label>
+              <input
+                type="text"
+                placeholder="Maharashtra"
+                value={customerForm.state}
+                onChange={(e) => setCustomerForm({ ...customerForm, state: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Country</label>
+              <input
+                type="text"
+                placeholder="India"
+                value={customerForm.country}
+                onChange={(e) => setCustomerForm({ ...customerForm, country: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Pincode</label>
+              <input
+                type="text"
+                placeholder="400001"
+                value={customerForm.pincode}
+                onChange={(e) => setCustomerForm({ ...customerForm, pincode: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Customer Type</label>
+              <select
+                value={customerForm.customerType}
+                onChange={(e) => setCustomerForm({ ...customerForm, customerType: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              >
+                <option value="ENTERPRISE">Enterprise</option>
+                <option value="SME">SME</option>
+                <option value="STARTUP">Startup</option>
+                <option value="INDIVIDUAL">Individual</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Industry</label>
+              <input
+                type="text"
+                placeholder="IT, Real Estate, etc."
+                value={customerForm.industry}
+                onChange={(e) => setCustomerForm({ ...customerForm, industry: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Source</label>
+              <select
+                value={customerForm.source}
+                onChange={(e) => setCustomerForm({ ...customerForm, source: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              >
+                <option value="DIRECT">Direct</option>
+                <option value="WEBSITE">Website</option>
+                <option value="REFERRAL">Referral</option>
+                <option value="GOOGLE_PLACES">Google Places</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Status</label>
+              <select
+                value={customerForm.status}
+                onChange={(e) => setCustomerForm({ ...customerForm, status: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              >
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Assigned Employee</label>
+              <input
+                type="text"
+                placeholder="Rahul Sharma"
+                value={customerForm.assignedEmployee}
+                onChange={(e) => setCustomerForm({ ...customerForm, assignedEmployee: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Department</label>
+              <input
+                type="text"
+                placeholder="Sales & Business Development"
+                value={customerForm.department}
+                onChange={(e) => setCustomerForm({ ...customerForm, department: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-black uppercase text-slate-700 mb-1">Notes & Details</label>
+            <textarea
+              rows={3}
+              placeholder="Enter relationship notes, special SLAs, requirements..."
+              value={customerForm.notes}
+              onChange={(e) => setCustomerForm({ ...customerForm, notes: e.target.value })}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#23C45E]"
+            />
+          </div>
+        </form>
+      </AdminFormDrawer>
+
+      {/* 6. CUSTOMER DETAILS RIGHT-SIDE DRAWER */}
+      <CustomerDetailsDrawer
+        customerId={viewingCustomerId}
+        isOpen={!!viewingCustomerId}
+        onClose={() => setViewingCustomerId(null)}
+        onEdit={(cust) => handleOpenEdit(cust)}
+      />
 
       {/* 6. DELETE CONFIRMATION MODAL */}
       {deletingCustomer && (

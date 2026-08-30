@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminPagination } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminPagination, CustomerDetailsDrawer } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -30,6 +30,7 @@ export default function CustomerSubscriptionsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
 
   // 1. Fetch Subscriptions from backend
   const { data: subResponse, isLoading, refetch } = useQuery({
@@ -247,7 +248,13 @@ export default function CustomerSubscriptionsPage() {
                 subscriptions.map((s: any) => (
                   <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-5 py-4">
-                      <div className="font-bold text-slate-900">{s.customerName}</div>
+                      <button
+                        type="button"
+                        onClick={() => setViewingCustomerId(s.customerId)}
+                        className="font-bold text-slate-900 text-left hover:text-[#1AA14D] transition-colors cursor-pointer block"
+                      >
+                        {s.customerName}
+                      </button>
                       <div className="text-slate-400 text-[11px]">{s.customerEmail}</div>
                     </td>
                     <td className="px-5 py-4">
@@ -266,12 +273,13 @@ export default function CustomerSubscriptionsPage() {
                     </td>
                     <td className="px-5 py-4">{getStatusBadge(s.status, s.daysRemaining)}</td>
                     <td className="px-5 py-4 text-right">
-                      <Link
-                        href={`/customers/${s.customerId}`}
+                      <button
+                        type="button"
+                        onClick={() => setViewingCustomerId(s.customerId)}
                         className="inline-block px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-xs transition-all cursor-pointer"
                       >
                         Manage
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -293,6 +301,13 @@ export default function CustomerSubscriptionsPage() {
           disabled={isLoading}
         />
       </div>
+
+      {/* Customer Details Right-Side Drawer */}
+      <CustomerDetailsDrawer
+        customerId={viewingCustomerId}
+        isOpen={!!viewingCustomerId}
+        onClose={() => setViewingCustomerId(null)}
+      />
     </div>
   );
 }
