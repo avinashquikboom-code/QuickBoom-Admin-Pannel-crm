@@ -30,6 +30,8 @@ import {
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
+  VisitDetailsDrawer,
+  CompanyDetailsDrawer,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -45,6 +47,8 @@ export default function VisitsPage() {
   // Modals / Drawers
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<any>(null);
+  const [viewingVisitId, setViewingVisitId] = useState<number | string | null>(null);
+  const [viewingCompanyId, setViewingCompanyId] = useState<number | string | null>(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -450,16 +454,21 @@ export default function VisitsPage() {
                             {clientName[0] || 'V'}
                           </div>
                           <div className="min-w-0">
-                            <Link
-                              href={`/visits/${visit.id}`}
-                              className="font-extrabold text-slate-900 hover:text-blue-600 text-sm truncate block transition-colors"
+                            <button
+                              type="button"
+                              onClick={() => setViewingVisitId(visit.id)}
+                              className="font-extrabold text-slate-900 hover:text-blue-600 text-sm truncate block transition-colors text-left cursor-pointer"
                             >
                               {clientName}
-                            </Link>
+                            </button>
                             {visit.company && (
-                              <Link href={`/companies/${visit.company.id}`} className="text-slate-400 hover:text-purple-600 font-medium text-[11px] flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setViewingCompanyId(visit.company.id)}
+                                className="text-slate-400 hover:text-purple-600 font-medium text-[11px] flex items-center gap-1 text-left cursor-pointer"
+                              >
                                 <Building className="w-3 h-3" /> {visit.company.name}
-                              </Link>
+                              </button>
                             )}
                           </div>
                         </div>
@@ -510,13 +519,14 @@ export default function VisitsPage() {
 
                       <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/visits/${visit.id}`}
-                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-blue-600 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setViewingVisitId(visit.id)}
+                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-blue-600 transition-colors cursor-pointer"
                             title="View Visit Details"
                           >
                             <Eye className="w-4 h-4" />
-                          </Link>
+                          </button>
 
                           {visit.status !== 'COMPLETED' && (
                             <button
@@ -779,6 +789,20 @@ export default function VisitsPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      {/* Visit Details Right-Side Drawer */}
+      <VisitDetailsDrawer
+        visitId={viewingVisitId}
+        isOpen={!!viewingVisitId}
+        onClose={() => setViewingVisitId(null)}
+      />
+
+      {/* Company Details Right-Side Drawer */}
+      <CompanyDetailsDrawer
+        companyId={viewingCompanyId}
+        isOpen={!!viewingCompanyId}
+        onClose={() => setViewingCompanyId(null)}
+      />
     </div>
   );
 }

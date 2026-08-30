@@ -23,7 +23,13 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminPagination } from '@/components/admin';
+import {
+  AdminPageHero,
+  AdminStatCard,
+  AdminPagination,
+  AdminFormDrawer,
+  CustomerDetailsDrawer,
+} from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -62,6 +68,7 @@ export default function SchedulesPage() {
   const [selectedSchedule, setSelectedSchedule] = useState<ScheduleItem | null>(null);
   const [editStatus, setEditStatus] = useState<string>('');
   const [editNotes, setEditNotes] = useState<string>('');
+  const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
 
   // 1. Fetch Calendar View
   const { data: calendarData = [], isLoading: isCalLoading } = useQuery({
@@ -431,104 +438,112 @@ export default function SchedulesPage() {
         </div>
       )}
 
-      {/* 6. DETAIL / EDIT DRAWER */}
-      {selectedSchedule && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <h3 className="font-black text-slate-900 text-lg">Schedule Milestone</h3>
-                  <p className="text-xs text-slate-400 font-medium">#{selectedSchedule.id} • {selectedSchedule.monthYear}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedSchedule(null)}
-                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-4 text-xs">
-                <div className="bg-slate-50 p-4 rounded-2xl space-y-2 border border-slate-100">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold">Customer:</span>
-                    <span className="font-black text-slate-900">{selectedSchedule.customerName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold">Plan:</span>
-                    <span className="font-bold text-slate-800">{selectedSchedule.planName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold">Cycle Window:</span>
-                    <span className="font-bold text-slate-800">
-                      {new Date(selectedSchedule.startDate).toLocaleDateString()} - {new Date(selectedSchedule.endDate).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-bold">Assigned To:</span>
-                    <span className="font-bold text-slate-800">{selectedSchedule.assignedEmployee}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-slate-400 mb-1.5">
-                    Update Execution Status
-                  </label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                  >
-                    <option value="PLANNED">PLANNED</option>
-                    <option value="IN_PROGRESS">IN_PROGRESS</option>
-                    <option value="COMPLETED">COMPLETED</option>
-                    <option value="OVERDUE">OVERDUE</option>
-                    <option value="CANCELLED">CANCELLED</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-slate-400 mb-1.5">
-                    Delivery Notes / Deliverables
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Add execution updates, reel links, or milestone notes..."
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-6 border-t border-slate-100 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setSelectedSchedule(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() =>
+      {/* 6. DETAIL / EDIT RIGHT-SIDE DRAWER */}
+      <AdminFormDrawer
+        isOpen={!!selectedSchedule}
+        onClose={() => setSelectedSchedule(null)}
+        title="Schedule Milestone"
+        description={selectedSchedule ? `#${selectedSchedule.id} • ${selectedSchedule.monthYear}` : ''}
+        icon={CalendarIcon}
+        maxWidth="sm:max-w-[500px]"
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <button
+              type="button"
+              onClick={() => setSelectedSchedule(null)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedSchedule) {
                   updateMutation.mutate({
                     id: selectedSchedule.id,
                     payload: {
                       status: editStatus,
                       notes: editNotes,
                     },
-                  })
+                  });
                 }
-                disabled={updateMutation.isPending}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition-all cursor-pointer"
+              }}
+              disabled={updateMutation.isPending}
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition-all cursor-pointer"
+            >
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        }
+      >
+        {selectedSchedule && (
+          <div className="space-y-4 text-xs">
+            <div className="bg-slate-50 p-4 rounded-2xl space-y-2 border border-slate-200/80">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 font-bold">Customer:</span>
+                <button
+                  type="button"
+                  onClick={() => setViewingCustomerId(selectedSchedule.customerId)}
+                  className="font-black text-slate-900 hover:text-[#1AA14D] cursor-pointer"
+                >
+                  {selectedSchedule.customerName}
+                </button>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-bold">Plan:</span>
+                <span className="font-bold text-slate-800">{selectedSchedule.planName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-bold">Cycle Window:</span>
+                <span className="font-bold text-slate-800">
+                  {new Date(selectedSchedule.startDate).toLocaleDateString()} - {new Date(selectedSchedule.endDate).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-bold">Assigned To:</span>
+                <span className="font-bold text-slate-800">{selectedSchedule.assignedEmployee}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-black uppercase text-slate-400 mb-1.5">
+                Update Execution Status
+              </label>
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#23C45E]"
               >
-                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </button>
+                <option value="PLANNED">PLANNED</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="OVERDUE">OVERDUE</option>
+                <option value="CANCELLED">CANCELLED</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-black uppercase text-slate-400 mb-1.5">
+                Delivery Notes / Deliverables
+              </label>
+              <textarea
+                rows={4}
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Add execution updates, reel links, or milestone notes..."
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-[#23C45E]"
+              />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </AdminFormDrawer>
+
+      {/* Customer Details Right-Side Drawer */}
+      <CustomerDetailsDrawer
+        customerId={viewingCustomerId}
+        isOpen={!!viewingCustomerId}
+        onClose={() => setViewingCustomerId(null)}
+      />
     </div>
   );
 }

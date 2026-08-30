@@ -23,6 +23,11 @@ export * from './filters/AdminFilterBar';
 export * from './dialogs/AdminConfirmDialog';
 export * from './dialogs/AdminFormDrawer';
 export * from './drawers/CustomerDetailsDrawer';
+export * from './drawers/CompanyDetailsDrawer';
+export * from './drawers/ContactDetailsDrawer';
+export * from './drawers/DealDetailsDrawer';
+export * from './drawers/TaskDetailsDrawer';
+export * from './drawers/VisitDetailsDrawer';
 
 // States
 export * from './states/AdminEmptyState';

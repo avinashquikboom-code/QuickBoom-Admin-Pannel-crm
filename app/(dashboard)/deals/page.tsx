@@ -35,6 +35,8 @@ import {
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
+  DealDetailsDrawer,
+  CompanyDetailsDrawer,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -52,6 +54,8 @@ export default function DealsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMoveStageOpen, setIsMoveStageOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<any>(null);
+  const [viewingDealId, setViewingDealId] = useState<number | string | null>(null);
+  const [viewingCompanyId, setViewingCompanyId] = useState<number | string | null>(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -527,12 +531,13 @@ export default function DealsPage() {
                       className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-slate-300 transition-all text-xs space-y-3 group"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <Link
-                          href={`/deals/${deal.id}`}
-                          className="font-extrabold text-slate-900 group-hover:text-[#1AA14D] text-sm leading-snug line-clamp-2"
+                        <button
+                          type="button"
+                          onClick={() => setViewingDealId(deal.id)}
+                          className="font-extrabold text-slate-900 group-hover:text-[#1AA14D] text-sm leading-snug line-clamp-2 text-left cursor-pointer"
                         >
                           {deal.title}
-                        </Link>
+                        </button>
                         <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-[#1AA14D] font-extrabold text-[10px] shrink-0">
                           {deal.probability}%
                         </span>
@@ -540,10 +545,14 @@ export default function DealsPage() {
 
                       <div className="space-y-1 text-slate-500 font-medium">
                         {deal.company && (
-                          <p className="flex items-center gap-1.5 text-slate-700 font-bold">
+                          <button
+                            type="button"
+                            onClick={() => setViewingCompanyId(deal.company.id)}
+                            className="flex items-center gap-1.5 text-slate-700 font-bold hover:text-blue-600 text-left cursor-pointer"
+                          >
                             <Building className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                             <span className="truncate">{deal.company.name}</span>
-                          </p>
+                          </button>
                         )}
                         {deal.contact && (
                           <p className="flex items-center gap-1.5 text-[11px]">
@@ -621,12 +630,13 @@ export default function DealsPage() {
                             <DollarSign className="w-5 h-5" />
                           </div>
                           <div className="min-w-0">
-                            <Link
-                              href={`/deals/${deal.id}`}
-                              className="font-extrabold text-slate-900 hover:text-purple-600 text-sm truncate block transition-colors"
+                            <button
+                              type="button"
+                              onClick={() => setViewingDealId(deal.id)}
+                              className="font-extrabold text-slate-900 hover:text-purple-600 text-sm truncate block transition-colors text-left cursor-pointer"
                             >
                               {deal.title}
-                            </Link>
+                            </button>
                             <p className="text-slate-400 font-medium text-[11px]">#{deal.id}</p>
                           </div>
                         </div>
@@ -634,9 +644,13 @@ export default function DealsPage() {
 
                       <td className="py-4 px-4">
                         {deal.company ? (
-                          <Link href={`/companies/${deal.company.id}`} className="font-bold text-slate-800 hover:text-blue-600 flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setViewingCompanyId(deal.company.id)}
+                            className="font-bold text-slate-800 hover:text-blue-600 flex items-center gap-1 text-left cursor-pointer"
+                          >
                             <Building className="w-3.5 h-3.5 text-purple-600" /> {deal.company.name}
-                          </Link>
+                          </button>
                         ) : (
                           <span className="text-slate-400 font-bold italic">Individual Account</span>
                         )}
@@ -668,13 +682,14 @@ export default function DealsPage() {
 
                       <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/deals/${deal.id}`}
-                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-purple-600 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setViewingDealId(deal.id)}
+                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-purple-600 transition-colors cursor-pointer"
                             title="View Deal"
                           >
                             <Eye className="w-4 h-4" />
-                          </Link>
+                          </button>
 
                           {!deal.isWon && (
                             <button
@@ -983,6 +998,41 @@ export default function DealsPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      {/* Deal Details Right-Side Drawer */}
+      <DealDetailsDrawer
+        dealId={viewingDealId}
+        isOpen={!!viewingDealId}
+        onClose={() => setViewingDealId(null)}
+        onEdit={(d) => {
+          setSelectedDeal(d);
+          setForm({
+            id: d.id,
+            title: d.title,
+            amount: d.amount,
+            currency: d.currency || 'INR',
+            probability: d.probability || 60,
+            stageId: d.stageId || '',
+            pipelineId: d.pipelineId || '',
+            companyId: d.companyId || '',
+            contactId: d.contactId || '',
+            leadId: d.leadId || '',
+            assignedToId: d.assignedToId || '',
+            expectedClosing: d.expectedCloseDate ? d.expectedCloseDate.split('T')[0] : '',
+            source: d.source || 'INBOUND',
+            description: d.description || '',
+            notes: d.notes || '',
+          });
+          setIsDrawerOpen(true);
+        }}
+      />
+
+      {/* Company Details Right-Side Drawer */}
+      <CompanyDetailsDrawer
+        companyId={viewingCompanyId}
+        isOpen={!!viewingCompanyId}
+        onClose={() => setViewingCompanyId(null)}
+      />
     </div>
   );
 }

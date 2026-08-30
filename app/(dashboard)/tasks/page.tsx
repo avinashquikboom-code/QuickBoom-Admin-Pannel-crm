@@ -41,6 +41,7 @@ import {
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
+  TaskDetailsDrawer,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -66,6 +67,7 @@ export default function TasksPage() {
   const [isSubmitProofOpen, setIsSubmitProofOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [viewingTaskId, setViewingTaskId] = useState<number | string | null>(null);
 
   // Forms State
   const [form, setForm] = useState({
@@ -683,12 +685,13 @@ export default function TasksPage() {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <Link
-                              href={`/tasks/${task.id}`}
-                              className="font-extrabold text-slate-900 hover:text-[#1AA14D] text-sm truncate block transition-colors max-w-[280px]"
+                            <button
+                              type="button"
+                              onClick={() => setViewingTaskId(task.id)}
+                              className="font-extrabold text-slate-900 hover:text-[#1AA14D] text-sm truncate block transition-colors max-w-[280px] text-left cursor-pointer"
                             >
                               {task.title}
-                            </Link>
+                            </button>
                             <span className="text-slate-400 font-medium text-[11px] block">
                               {task.taskNumber || `TSK-${task.id}`}
                             </span>
@@ -782,13 +785,14 @@ export default function TasksPage() {
 
                       <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/tasks/${task.id}`}
-                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-slate-900 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setViewingTaskId(task.id)}
+                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
                             title="View Full Task Details"
                           >
                             <Eye className="w-4 h-4" />
-                          </Link>
+                          </button>
 
                           {(task.status === 'UNDER_REVIEW' || task.status === 'SUBMITTED' || hasProof) && (
                             <button
@@ -1318,6 +1322,31 @@ export default function TasksPage() {
           </div>
         </div>
       )}
+
+      {/* Task Details Right-Side Drawer */}
+      <TaskDetailsDrawer
+        taskId={viewingTaskId}
+        isOpen={!!viewingTaskId}
+        onClose={() => setViewingTaskId(null)}
+        onEdit={(t) => {
+          setSelectedTask(t);
+          setForm({
+            id: String(t.id),
+            title: t.title || '',
+            description: t.description || '',
+            priority: t.priority || 'MEDIUM',
+            departmentId: t.departmentId ? String(t.departmentId) : '',
+            employeeId: t.employeeId ? String(t.employeeId) : '',
+            dueDate: t.dueDate ? t.dueDate.split('T')[0] : '',
+            dueTime: t.dueTime || '06:30 PM',
+            startDate: t.startDate ? t.startDate.split('T')[0] : '',
+            startTime: t.startTime || '09:00 AM',
+            category: t.category || 'OPERATIONS',
+            notes: t.notes || '',
+          });
+          setIsDrawerOpen(true);
+        }}
+      />
     </div>
   );
 }

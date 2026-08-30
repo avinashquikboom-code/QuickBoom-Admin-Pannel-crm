@@ -33,6 +33,8 @@ import {
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
+  ContactDetailsDrawer,
+  CompanyDetailsDrawer,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -49,6 +51,8 @@ export default function ContactsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isVisitDrawerOpen, setIsVisitDrawerOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<any>(null);
+  const [viewingContactId, setViewingContactId] = useState<number | string | null>(null);
+  const [viewingCompanyId, setViewingCompanyId] = useState<number | string | null>(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -472,12 +476,13 @@ export default function ContactsPage() {
                             {contact.firstName?.[0] || 'C'}
                           </div>
                           <div className="min-w-0">
-                            <Link
-                              href={`/contacts/${contact.id}`}
-                              className="font-extrabold text-slate-900 hover:text-[#1AA14D] text-sm truncate block transition-colors"
+                            <button
+                              type="button"
+                              onClick={() => setViewingContactId(contact.id)}
+                              className="font-extrabold text-slate-900 hover:text-[#1AA14D] text-sm truncate block transition-colors text-left cursor-pointer"
                             >
                               {fullName}
-                            </Link>
+                            </button>
                             <p className="text-slate-400 font-medium text-[11px]">#{contact.id}</p>
                           </div>
                         </div>
@@ -485,13 +490,14 @@ export default function ContactsPage() {
 
                       <td className="py-4 px-4">
                         {contact.company ? (
-                          <Link
-                            href={`/companies/${contact.company.id}`}
-                            className="font-bold text-slate-800 hover:text-blue-600 flex items-center gap-1.5"
+                          <button
+                            type="button"
+                            onClick={() => setViewingCompanyId(contact.company.id)}
+                            className="font-bold text-slate-800 hover:text-blue-600 flex items-center gap-1.5 text-left cursor-pointer"
                           >
                             <Building className="w-3.5 h-3.5 text-slate-400" />
                             <span>{contact.company.name}</span>
-                          </Link>
+                          </button>
                         ) : (
                           <span className="text-slate-400 font-bold text-xs italic">No Company</span>
                         )}
@@ -536,13 +542,14 @@ export default function ContactsPage() {
 
                       <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/contacts/${contact.id}`}
-                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-[#1AA14D] transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setViewingContactId(contact.id)}
+                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-[#1AA14D] transition-colors cursor-pointer"
                             title="View Contact Profile"
                           >
                             <Eye className="w-4 h-4" />
-                          </Link>
+                          </button>
 
                           <button
                             onClick={() => handleOpenScheduleVisit(contact)}
@@ -874,6 +881,20 @@ export default function ContactsPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      {/* Contact Details Right-Side Drawer */}
+      <ContactDetailsDrawer
+        contactId={viewingContactId}
+        isOpen={!!viewingContactId}
+        onClose={() => setViewingContactId(null)}
+      />
+
+      {/* Company Details Right-Side Drawer */}
+      <CompanyDetailsDrawer
+        companyId={viewingCompanyId}
+        isOpen={!!viewingCompanyId}
+        onClose={() => setViewingCompanyId(null)}
+      />
     </div>
   );
 }

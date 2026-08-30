@@ -42,6 +42,11 @@ export interface CreateTrendingPayload {
   category: TrendingCategory;
   thumbnailUrl?: string;
   mediaUrl?: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  mediaType?: 'IMAGE' | 'VIDEO';
+  mediaSource?: 'UPLOAD' | 'URL';
+  file?: File | null;
   ctaText?: string;
   ctaUrl?: string;
   platform?: string;
@@ -61,6 +66,11 @@ export interface UpdateTrendingPayload {
   category?: TrendingCategory;
   thumbnailUrl?: string;
   mediaUrl?: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  mediaType?: 'IMAGE' | 'VIDEO';
+  mediaSource?: 'UPLOAD' | 'URL';
+  file?: File | null;
   ctaText?: string;
   ctaUrl?: string;
   platform?: string;
@@ -118,17 +128,67 @@ export class TrendingService {
   }
 
   /**
-   * Create a new trending content item
+   * Create a new trending content item (supports both file upload & URL)
    */
-  static async createTrending(payload: CreateTrendingPayload): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
+  static async createTrending(payload: CreateTrendingPayload | FormData): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
+    if (payload instanceof FormData) {
+      const response = await api.post('/admin/trending', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
+
+    if (payload.file) {
+      const formData = new FormData();
+      formData.append('file', payload.file);
+      Object.entries(payload).forEach(([key, val]) => {
+        if (key !== 'file' && val !== undefined && val !== null) {
+          if (typeof val === 'object') {
+            formData.append(key, JSON.stringify(val));
+          } else {
+            formData.append(key, String(val));
+          }
+        }
+      });
+      const response = await api.post('/admin/trending', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
+
     const response = await api.post('/admin/trending', payload);
     return response.data;
   }
 
   /**
-   * Update an existing trending item
+   * Update an existing trending item (supports file replace & URL update)
    */
-  static async updateTrending(id: number | string, payload: UpdateTrendingPayload): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
+  static async updateTrending(id: number | string, payload: UpdateTrendingPayload | FormData): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
+    if (payload instanceof FormData) {
+      const response = await api.patch(`/admin/trending/${id}`, payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
+
+    if (payload.file) {
+      const formData = new FormData();
+      formData.append('file', payload.file);
+      Object.entries(payload).forEach(([key, val]) => {
+        if (key !== 'file' && val !== undefined && val !== null) {
+          if (typeof val === 'object') {
+            formData.append(key, JSON.stringify(val));
+          } else {
+            formData.append(key, String(val));
+          }
+        }
+      });
+      const response = await api.patch(`/admin/trending/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
+
     const response = await api.patch(`/admin/trending/${id}`, payload);
     return response.data;
   }

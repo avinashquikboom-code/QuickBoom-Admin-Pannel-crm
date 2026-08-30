@@ -35,6 +35,7 @@ import {
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
+  CompanyDetailsDrawer,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -53,6 +54,7 @@ export default function CompaniesPage() {
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [isAddDealOpen, setIsAddDealOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [viewingCompanyId, setViewingCompanyId] = useState<number | string | null>(null);
 
   // Google Places Search State
   const [googleQuery, setGoogleQuery] = useState('');
@@ -569,12 +571,13 @@ export default function CompaniesPage() {
                             {comp.name?.[0] || 'C'}
                           </div>
                           <div className="min-w-0">
-                            <Link
-                              href={`/companies/${comp.id}`}
-                              className="font-extrabold text-slate-900 hover:text-purple-600 text-sm truncate block transition-colors"
+                            <button
+                              type="button"
+                              onClick={() => setViewingCompanyId(comp.id)}
+                              className="font-extrabold text-slate-900 hover:text-purple-600 text-sm truncate block transition-colors text-left cursor-pointer"
                             >
                               {comp.name}
-                            </Link>
+                            </button>
                             <div className="flex items-center gap-2 mt-0.5">
                               {comp.rating ? (
                                 <span className="flex items-center gap-0.5 text-[10px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded-md">
@@ -623,13 +626,14 @@ export default function CompaniesPage() {
 
                       <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/companies/${comp.id}`}
-                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-purple-600 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => setViewingCompanyId(comp.id)}
+                            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-purple-600 transition-colors cursor-pointer"
                             title="View Company Profile"
                           >
                             <Eye className="w-4 h-4" />
-                          </Link>
+                          </button>
 
                           <button
                             onClick={() => {
@@ -1108,6 +1112,21 @@ export default function CompaniesPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      {/* Company Details Right-Side Drawer */}
+      <CompanyDetailsDrawer
+        companyId={viewingCompanyId}
+        isOpen={!!viewingCompanyId}
+        onClose={() => setViewingCompanyId(null)}
+        onAddContact={(c) => {
+          setSelectedCompany(c);
+          setIsAddContactOpen(true);
+        }}
+        onAddDeal={(c) => {
+          setSelectedCompany(c);
+          setIsAddDealOpen(true);
+        }}
+      />
     </div>
   );
 }

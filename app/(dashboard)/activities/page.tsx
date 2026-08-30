@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Activity, PhoneCall, Mail, Calendar, MessageSquare, Plus, RefreshCw, Layers, CheckCircle2, Clock } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
-import { AdminPageHero, AdminStatCard, AdminPagination } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer } from '@/components/admin';
+import { toast } from 'react-hot-toast';
 
 interface ActivityItem {
   id: string;
@@ -20,6 +21,40 @@ export default function ActivitiesPage() {
   const [filterType, setFilterType] = useState<string>('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [isLogDrawerOpen, setIsLogDrawerOpen] = useState(false);
+  const [isLogging, setIsLogging] = useState(false);
+
+  const [formData, setFormData] = useState({
+    type: 'CALL',
+    subject: '',
+    performedBy: 'Rahul Sharma',
+    relatedTo: 'Acme Enterprises',
+    activityDate: new Date().toISOString().split('T')[0],
+    activityTime: '14:30',
+    outcome: 'POSITIVE',
+    details: '',
+  });
+
+  const handleLogSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLogging(true);
+    setTimeout(() => {
+      setIsLogging(false);
+      setIsLogDrawerOpen(false);
+      toast.success('Activity logged successfully!');
+      setFormData({
+        type: 'CALL',
+        subject: '',
+        performedBy: 'Rahul Sharma',
+        relatedTo: 'Acme Enterprises',
+        activityDate: new Date().toISOString().split('T')[0],
+        activityTime: '14:30',
+        outcome: 'POSITIVE',
+        details: '',
+      });
+      refetch();
+    }, 600);
+  };
 
   const { data: auditResponse, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['admin-activities-audit', page, pageSize],
@@ -110,13 +145,14 @@ export default function ActivitiesPage() {
               <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
             </button>
 
-            <Link
-              href="/activities/create"
+            <button
+              type="button"
+              onClick={() => setIsLogDrawerOpen(true)}
               className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>Log Activity</span>
-            </Link>
+            </button>
           </div>
         }
       />
@@ -208,6 +244,129 @@ export default function ActivitiesPage() {
           disabled={isLoading}
         />
       </div>
+
+      {/* Log Activity Right-Side Drawer */}
+      <AdminFormDrawer
+        isOpen={isLogDrawerOpen}
+        onClose={() => setIsLogDrawerOpen(false)}
+        title="Log Client Activity"
+        description="Record an outbound phone call, client meeting, demo, or email communication."
+        icon={Activity}
+        maxWidth="sm:max-w-[560px]"
+      >
+        <form onSubmit={handleLogSubmit} className="space-y-4 text-xs">
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+              Activity Channel Type
+            </label>
+            <select
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E]"
+            >
+              <option value="CALL">Phone Call (Inbound / Outbound)</option>
+              <option value="MEETING">Face-to-Face / Online Meeting</option>
+              <option value="EMAIL">Email Communication</option>
+              <option value="DEMO">Product Demonstration</option>
+              <option value="NOTE">Internal Account Note</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+              Subject / Headline *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Discovery call with Chief Technology Officer"
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                Performed By
+              </label>
+              <input
+                type="text"
+                value={formData.performedBy}
+                onChange={(e) => setFormData({ ...formData, performedBy: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                Related Account / Lead
+              </label>
+              <input
+                type="text"
+                value={formData.relatedTo}
+                onChange={(e) => setFormData({ ...formData, relatedTo: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                Date
+              </label>
+              <input
+                type="date"
+                value={formData.activityDate}
+                onChange={(e) => setFormData({ ...formData, activityDate: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                Time
+              </label>
+              <input
+                type="time"
+                value={formData.activityTime}
+                onChange={(e) => setFormData({ ...formData, activityTime: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+              Detailed Discussion Notes
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Summary of discussion topics, questions asked, next steps..."
+              value={formData.details}
+              onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E]"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3">
+            <button
+              type="button"
+              onClick={() => setIsLogDrawerOpen(false)}
+              className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLogging}
+              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20"
+            >
+              {isLogging ? 'Logging...' : 'Log Activity'}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
     </div>
   );
 }
