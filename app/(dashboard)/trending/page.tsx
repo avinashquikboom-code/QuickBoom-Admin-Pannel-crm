@@ -207,7 +207,14 @@ export default function TrendingManagementPage() {
 
   // ── Queries & Mutations ───────────────────────────────────────────────────
 
-  const { data: trendingResponse, isLoading, refetch, isFetching } = useQuery({
+  const {
+    data: trendingResponse,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ['admin-trending', selectedCategory, publishFilter, search, page, pageSize],
     queryFn: async () => {
       const params: any = { page, limit: pageSize };
@@ -538,6 +545,26 @@ export default function TrendingManagementPage() {
           <div className="bg-white rounded-3xl border border-slate-200/80 p-20 text-center text-slate-400 font-bold flex flex-col items-center gap-3 shadow-xs">
             <RefreshCw className="w-8 h-8 animate-spin text-[#23C45E]" />
             <span>Fetching trending media from database...</span>
+          </div>
+        ) : isError ? (
+          <div className="bg-white rounded-3xl border border-rose-200/80 p-16 text-center space-y-4 shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center mx-auto border border-rose-200">
+              <XCircle className="w-7 h-7" />
+            </div>
+            <div>
+              <p className="text-sm text-rose-700 font-extrabold">Failed to load trending content</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                {getErrorMessage(error)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer inline-flex items-center gap-2 shadow-sm"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry Request</span>
+            </button>
           </div>
         ) : trendingItems.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-20 text-center text-slate-400 font-bold space-y-3 shadow-xs">
