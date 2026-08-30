@@ -119,8 +119,15 @@ export class BannerService {
     id: number | string,
     payload: UpdateBannerPayload | FormData,
   ): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
-    const response: any = await api.patch(`/admin/marketing/banners/${id}`, payload);
-    return response?.data || response;
+    console.log(`[HOME_BANNER_UPDATE_REQUEST]\nbannerId: ${id}\npayload:`, payload);
+    try {
+      const response: any = await api.patch(`/admin/marketing/banners/${id}`, payload);
+      console.log(`[HOME_BANNER_UPDATE_RESPONSE]\nstatus: 200\ndata:`, response);
+      return response?.data || response;
+    } catch (error) {
+      console.error(`[HOME_BANNER_UPDATE_ERROR]\nerror:`, error);
+      throw error;
+    }
   }
 
   /**
