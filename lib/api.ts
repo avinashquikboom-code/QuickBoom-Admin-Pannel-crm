@@ -315,16 +315,24 @@ api.interceptors.response.use(
       }
     }
 
+    const status = error?.response?.status;
     const message = getErrorMessage(error);
+
+    const isNoSubscriptionOrEmpty =
+      typeof message === 'string' &&
+      (message.toLowerCase().includes('no subscription') ||
+        message.toLowerCase().includes('no active sub') ||
+        message.toLowerCase().includes('subscription not found'));
 
     if (
       typeof message === 'string' &&
       message !== '[object Event]' &&
-      message !== '[object Object]'
+      message !== '[object Object]' &&
+      status !== 401 &&
+      status !== 404 &&
+      !isNoSubscriptionOrEmpty
     ) {
-      if (error?.response?.status !== 401) {
-        toast.error(message);
-      }
+      toast.error(message);
     }
 
     return Promise.reject(error);

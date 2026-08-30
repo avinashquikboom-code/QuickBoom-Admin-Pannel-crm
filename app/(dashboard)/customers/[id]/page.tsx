@@ -55,6 +55,18 @@ import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
 
+function getCustomerDisplayName(customer: any): string {
+  if (!customer) return 'Customer';
+  return (
+    customer.companyName ||
+    customer.legalCompanyName ||
+    customer.businessName ||
+    customer.company ||
+    customer.name ||
+    'Customer'
+  );
+}
+
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -513,7 +525,7 @@ export default function CustomerDetailPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{customer?.name || 'Customer'}</h1>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{getCustomerDisplayName(customer)}</h1>
               {customer?.isActive || customer?.status === 'ACTIVE' ? (
                 <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-black">
                   Active
@@ -526,7 +538,7 @@ export default function CustomerDetailPage() {
             </div>
 
             <p className="text-slate-300 text-xs sm:text-sm font-medium">
-              Company: <strong className="text-white">{customer?.companyName || customer?.company}</strong> • Active Plan:{' '}
+              Company: <strong className="text-white">{customer?.companyName || customer?.legalCompanyName || customer?.company || customer?.name || '—'}</strong> • Active Plan:{' '}
               <strong className="text-[#23C45E]">{currentSub?.planName || customer?.plan || 'No Active Plan'}</strong>
             </p>
           </div>
