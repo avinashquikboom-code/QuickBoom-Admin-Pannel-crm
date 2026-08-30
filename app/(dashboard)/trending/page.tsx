@@ -46,6 +46,14 @@ import {
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 
+function extractYouTubeVideoId(url?: string | null): string | null {
+  if (!url) return null;
+  const match = url.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([a-zA-Z0-9_-]{11})/i,
+  );
+  return match ? match[1] : null;
+}
+
 export default function TrendingManagementPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -158,7 +166,8 @@ export default function TrendingManagementPage() {
     const isVideo =
       item.metadata?.mediaType === 'VIDEO' ||
       item.category === 'REEL' ||
-      Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i));
+      Boolean(item.mediaUrl?.match(/\.(mp4|mov|webm)(\?.*)?$/i)) ||
+      Boolean(extractYouTubeVideoId(item.mediaUrl));
 
     const detectedType: 'IMAGE' | 'VIDEO' = isVideo ? 'VIDEO' : 'IMAGE';
     const detectedSource: 'UPLOAD' | 'URL' = item.metadata?.mediaSource || 'URL';
@@ -201,12 +210,12 @@ export default function TrendingManagementPage() {
     totalPages: 1,
   };
 
-  // Stats calculation
-  const statsAll = trendingItems.length;
-  const statsReels = trendingItems.filter((i) => i.category === 'REEL').length;
-  const statsStories = trendingItems.filter((i) => i.category === 'STORY').length;
-  const statsOffers = trendingItems.filter((i) => i.category === 'OFFER').length;
-  const statsHighRoi = trendingItems.filter((i) => i.category === 'HIGH_ROI_AD').length;
+  // Dynamic real database stats
+  const statsAll = trendingResponse?.stats?.total ?? trendingItems.length;
+  const statsReels = trendingResponse?.stats?.reels ?? trendingItems.filter((i) => i.category === 'REEL').length;
+  const statsStories = trendingResponse?.stats?.stories ?? trendingItems.filter((i) => i.category === 'STORY').length;
+  const statsOffers = trendingResponse?.stats?.offers ?? trendingItems.filter((i) => i.category === 'OFFER').length;
+  const statsHighRoi = trendingResponse?.stats?.highRoi ?? trendingItems.filter((i) => i.category === 'HIGH_ROI_AD').length;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -1120,50 +1129,65 @@ export default function TrendingManagementPage() {
         </div>
       </AdminFormDrawer>
 
-      {/* 6. Full-Screen Media Lightbox Modal */}
-      {previewMedia && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"
-          onClick={() => setPreviewMedia(null)}
-        >
+      {/* 6. Full-Screen In-App Media Lightbox Modal */}
+      {previewMedia && (() => {
+        const youtubeId = previewMedia.type === 'VIDEO' ? extractYouTubeVideoId(previewMedia.url) : null;
+
+        return (
           <div
-            className="relative max-w-4xl max-h-[90vh] bg-slate-950 rounded-3xl overflow-hidden border border-white/20 p-2 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={() => setPreviewMedia(null)}
           >
-            {previewMedia.type === 'IMAGE' ? (
-              <img
-                src={previewMedia.url}
-                alt={previewMedia.title || 'Creative Media'}
-                className="max-w-full max-h-[82vh] object-contain rounded-2xl"
-              />
-            ) : (
-              <video
-                src={previewMedia.url}
-                controls
-                autoPlay
-                className="max-w-full max-h-[82vh] rounded-2xl"
-              />
-            )}
-
-            {previewMedia.title && (
-              <div className="p-3 text-white text-xs font-extrabold flex items-center justify-between">
-                <span className="truncate">{previewMedia.title}</span>
-                <span className="text-slate-400 font-mono text-[10px] uppercase">
-                  {previewMedia.type}
-                </span>
-              </div>
-            )}
-
-            <button
-              onClick={() => setPreviewMedia(null)}
-              className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black text-white rounded-full transition-colors cursor-pointer"
-              title="Close Preview"
+            <div
+              className="relative max-w-4xl max-h-[92vh] bg-slate-950 rounded-3xl overflow-hidden border border-white/20 p-2.5 shadow-2xl flex flex-col items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X className="w-5 h-5" />
-            </button>
+              {previewMedia.type === 'IMAGE' ? (
+                <img
+                  src={previewMedia.url}
+                  alt={previewMedia.title || 'Creative Media'}
+                  className="max-w-full max-h-[82vh] object-contain rounded-2xl"
+                />
+              ) : youtubeId ? (
+                <div className="w-[340px] sm:w-[480px] md:w-[600px] aspect-[9/16] max-h-[80vh] flex items-center justify-center bg-black rounded-2xl overflow-hidden shadow-2xl">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1`}
+                    title={previewMedia.title || 'YouTube In-App Player'}
+                    className="w-full h-full border-0 rounded-2xl"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <video
+                  src={previewMedia.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-w-full max-h-[82vh] rounded-2xl bg-black shadow-2xl"
+                />
+              )}
+
+              {previewMedia.title && (
+                <div className="w-full pt-2.5 px-2 text-white text-xs font-extrabold flex items-center justify-between">
+                  <span className="truncate max-w-md">{previewMedia.title}</span>
+                  <span className="text-slate-400 font-mono text-[10px] uppercase bg-white/10 px-2 py-0.5 rounded-md">
+                    {youtubeId ? 'YOUTUBE EMBED' : previewMedia.type}
+                  </span>
+                </div>
+              )}
+
+              <button
+                onClick={() => setPreviewMedia(null)}
+                className="absolute top-4 right-4 p-2 bg-black/70 hover:bg-black text-white rounded-full transition-colors cursor-pointer shadow-lg z-10"
+                title="Close Preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 7. Delete Confirmation Dialog */}
       <AdminConfirmDialog

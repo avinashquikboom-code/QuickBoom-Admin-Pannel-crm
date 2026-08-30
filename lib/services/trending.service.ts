@@ -96,6 +96,13 @@ export interface QueryTrendingParams {
 export interface TrendingListResponse {
   success: boolean;
   data: TrendingContentItem[];
+  stats?: {
+    total: number;
+    reels: number;
+    stories: number;
+    offers: number;
+    highRoi: number;
+  };
   meta?: {
     total: number;
     page: number;
