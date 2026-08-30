@@ -47,6 +47,7 @@ export interface CreateTrendingPayload {
   mediaType?: 'IMAGE' | 'VIDEO';
   mediaSource?: 'UPLOAD' | 'URL';
   file?: File | null;
+  files?: File[];
   ctaText?: string;
   ctaUrl?: string;
   platform?: string;
@@ -71,6 +72,7 @@ export interface UpdateTrendingPayload {
   mediaType?: 'IMAGE' | 'VIDEO';
   mediaSource?: 'UPLOAD' | 'URL';
   file?: File | null;
+  files?: File[];
   ctaText?: string;
   ctaUrl?: string;
   platform?: string;
@@ -85,6 +87,7 @@ export interface UpdateTrendingPayload {
 
 export interface QueryTrendingParams {
   category?: TrendingCategory;
+  mediaType?: 'IMAGE' | 'VIDEO' | 'ALL';
   search?: string;
   isPublished?: boolean | string;
   isActive?: boolean | string;
@@ -102,6 +105,8 @@ export interface TrendingListResponse {
     stories: number;
     offers: number;
     highRoi: number;
+    images?: number;
+    videos?: number;
   };
   meta?: {
     total: number;
@@ -135,7 +140,7 @@ export class TrendingService {
   }
 
   /**
-   * Create a new trending content item (supports both file upload & URL)
+   * Create a new trending content item (supports single file, multiple files & URL)
    */
   static async createTrending(payload: CreateTrendingPayload | FormData): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
     if (payload instanceof FormData) {
@@ -145,11 +150,16 @@ export class TrendingService {
       return response.data;
     }
 
-    if (payload.file) {
+    if ((payload.files && payload.files.length > 0) || payload.file) {
       const formData = new FormData();
-      formData.append('file', payload.file);
+      if (payload.files && payload.files.length > 0) {
+        payload.files.forEach((f) => formData.append('files', f));
+      } else if (payload.file) {
+        formData.append('file', payload.file);
+      }
+
       Object.entries(payload).forEach(([key, val]) => {
-        if (key !== 'file' && val !== undefined && val !== null) {
+        if (key !== 'file' && key !== 'files' && val !== undefined && val !== null) {
           if (typeof val === 'object') {
             formData.append(key, JSON.stringify(val));
           } else {
