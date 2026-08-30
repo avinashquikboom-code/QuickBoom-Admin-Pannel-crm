@@ -21,6 +21,7 @@ import api from '@/lib/api';
 import { AdminPageHero, AdminStatCard, AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
+import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
 
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
@@ -130,24 +131,16 @@ export default function InvoicesPage() {
   };
 
   const handleDownloadInvoice = async (inv: any) => {
-    try {
-      toast.loading(`Preparing PDF for #${inv.invoiceNumber || inv.id}...`, { id: 'inv-dl' });
-      const res = await api.get(`/invoices/${inv.id}/download`, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoice_${inv.invoiceNumber || inv.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Invoice PDF downloaded', { id: 'inv-dl' });
-    } catch (err) {
-      toast.error(getErrorMessage(err) || 'Failed to download invoice PDF', { id: 'inv-dl' });
-    }
+    const invNo = inv.invoiceNumber || inv.invoiceNo || inv.id;
+    await downloadPdfFromEndpoint(
+      `/invoices/${inv.id}/download`,
+      `invoice_${invNo}.pdf`,
+      {
+        loadingMessage: `Preparing PDF for #${invNo}...`,
+        successMessage: 'Invoice PDF downloaded',
+        toastId: 'inv-dl',
+      }
+    );
   };
 
   const invoicesList = Array.isArray(invoicesData) ? invoicesData : [];

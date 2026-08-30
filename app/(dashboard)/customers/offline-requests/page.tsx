@@ -28,6 +28,7 @@ import api from '@/lib/api';
 import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer, CustomerDetailsDrawer } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
+import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
 
 export default function OfflinePaymentRequestsPage() {
   const queryClient = useQueryClient();
@@ -124,25 +125,16 @@ export default function OfflinePaymentRequestsPage() {
   });
 
   const handleDownloadReceipt = async (req: any) => {
-    try {
-      const receiptNo = req.invoiceUrl || `REC-${new Date(req.requestDate || Date.now()).getFullYear()}-${String(req.id).padStart(6, '0')}`;
-      toast.loading(`Preparing Receipt PDF for ${receiptNo}...`, { id: 'rec-dl' });
-      const res = await api.get(`/receipts/${receiptNo}/download`, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `receipt_${receiptNo}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Payment Receipt PDF downloaded', { id: 'rec-dl' });
-    } catch (err) {
-      toast.error(getErrorMessage(err) || 'Failed to download receipt PDF', { id: 'rec-dl' });
-    }
+    const receiptNo = req.invoiceUrl || `REC-${new Date(req.requestDate || Date.now()).getFullYear()}-${String(req.id).padStart(6, '0')}`;
+    await downloadPdfFromEndpoint(
+      `/receipts/${receiptNo}/download`,
+      `receipt_${receiptNo}.pdf`,
+      {
+        loadingMessage: `Preparing Receipt PDF for ${receiptNo}...`,
+        successMessage: 'Payment Receipt PDF downloaded',
+        toastId: 'rec-dl',
+      }
+    );
   };
 
   const totalCount = pagination.total || requests.length;

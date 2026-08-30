@@ -53,6 +53,7 @@ import api from '@/lib/api';
 import { SocialMediaService, SocialMediaHandlerItem } from '@/lib/services/social-media.service';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
+import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -420,25 +421,16 @@ export default function CustomerDetailPage() {
   };
 
   const handleDownloadInvoice = async (inv: any) => {
-    try {
-      const invNo = inv.invoiceNumber || inv.invoiceNo || inv.id;
-      toast.loading(`Preparing PDF for #${invNo}...`, { id: 'inv-dl' });
-      const res = await api.get(`/invoices/${inv.id}/download`, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoice_${invNo}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Invoice PDF downloaded', { id: 'inv-dl' });
-    } catch (err) {
-      toast.error(getErrorMessage(err) || 'Failed to download invoice PDF', { id: 'inv-dl' });
-    }
+    const invNo = inv.invoiceNumber || inv.invoiceNo || inv.id;
+    await downloadPdfFromEndpoint(
+      `/invoices/${inv.id}/download`,
+      `invoice_${invNo}.pdf`,
+      {
+        loadingMessage: `Preparing PDF for #${invNo}...`,
+        successMessage: 'Invoice PDF downloaded',
+        toastId: 'inv-dl',
+      }
+    );
   };
 
   const getStatusBadge = (status: string) => {
