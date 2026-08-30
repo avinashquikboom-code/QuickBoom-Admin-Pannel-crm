@@ -312,7 +312,15 @@ export function CustomerDetailsDrawer({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2 text-xs">
+                <div className="grid grid-cols-3 gap-2 pt-2 text-xs">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Purchase Date</span>
+                    <p className="font-bold text-slate-800 mt-0.5">
+                      {customer.subscriptionCreatedAt || customer.createdAt
+                        ? new Date(customer.subscriptionCreatedAt || customer.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : '—'}
+                    </p>
+                  </div>
                   <div>
                     <span className="text-[10px] font-bold uppercase text-slate-400">Start Date</span>
                     <p className="font-bold text-slate-800 mt-0.5">
@@ -322,7 +330,7 @@ export function CustomerDetailsDrawer({
                     </p>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-400">Expiry Date</span>
+                    <span className="text-[10px] font-bold uppercase text-slate-400">End Date</span>
                     <p className="font-bold text-slate-800 mt-0.5">
                       {customer.subscriptionEndDate
                         ? new Date(customer.subscriptionEndDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -337,21 +345,32 @@ export function CustomerDetailsDrawer({
                 <div className="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-3">
                   <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">Subscription History</h4>
                   <div className="divide-y divide-slate-100">
-                    {customer.subscriptions.map((s: any) => (
-                      <div key={s.id} className="py-2.5 flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-slate-800">{s.plan?.name || `Plan #${s.planId}`}</p>
-                          <p className="text-[10px] text-slate-400">
-                            {s.startDate ? new Date(s.startDate).toLocaleDateString() : 'N/A'} → {s.endDate ? new Date(s.endDate).toLocaleDateString() : 'N/A'}
-                          </p>
+                    {customer.subscriptions.map((s: any) => {
+                      const isUpcoming = s.startDate && new Date(s.startDate) > new Date();
+                      const isExpired = s.endDate && new Date(s.endDate) < new Date();
+                      const statusText = isUpcoming ? 'UPCOMING' : isExpired ? 'EXPIRED' : (s.status || 'ACTIVE');
+
+                      return (
+                        <div key={s.id} className="py-2.5 flex items-center justify-between">
+                          <div>
+                            <p className="font-bold text-slate-800">{s.plan?.name || `Plan #${s.planId}`}</p>
+                            <p className="text-[10px] text-slate-400">
+                              {s.createdAt ? `Purchased: ${new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} • ` : ''}
+                              {s.startDate ? new Date(s.startDate).toLocaleDateString() : 'N/A'} → {s.endDate ? new Date(s.endDate).toLocaleDateString() : 'N/A'}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            statusText === 'UPCOMING'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : statusText === 'ACTIVE'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {statusText}
+                          </span>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          s.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {s.status}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

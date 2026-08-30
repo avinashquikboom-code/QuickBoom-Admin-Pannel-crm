@@ -443,6 +443,14 @@ export default function CustomerDetailPage() {
 
   const getStatusBadge = (status: string) => {
     const norm = (status || '').toUpperCase();
+    if (norm === 'UPCOMING') {
+      return (
+        <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-black flex items-center gap-1.5 shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-amber-500" />
+          UPCOMING
+        </span>
+      );
+    }
     if (norm === 'ACTIVE') {
       return (
         <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black flex items-center gap-1.5 shadow-xs">
