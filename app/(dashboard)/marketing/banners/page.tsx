@@ -229,12 +229,8 @@ export default function HomeBannersPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim()) {
-      toast.error('Title is required');
-      return;
-    }
     if (!editingBanner && !formImageFile) {
-      toast.error('Please select an image file to upload for the banner');
+      toast.error('Please upload a banner image file');
       return;
     }
 
@@ -248,7 +244,7 @@ export default function HomeBannersPage() {
     }
 
     const formData = new FormData();
-    formData.append('title', formTitle.trim());
+    formData.append('title', formTitle.trim() || 'Home Banner');
     if (formSubtitle.trim()) formData.append('subtitle', formSubtitle.trim());
     if (formDescription.trim()) formData.append('description', formDescription.trim());
     if (formImageFile) formData.append('image', formImageFile);
@@ -631,12 +627,11 @@ export default function HomeBannersPage() {
           {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1">
-              Banner Title <span className="text-red-500">*</span>
+              Banner Title <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
             </label>
             <input
               type="text"
-              required
-              placeholder="e.g., Summer Fitness Challenge 50% Off"
+              placeholder="e.g., Summer Fitness Challenge 50% Off (Optional)"
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"

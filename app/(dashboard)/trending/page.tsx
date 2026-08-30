@@ -243,27 +243,33 @@ export default function TrendingManagementPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!formTitle.trim()) {
-        throw new Error('Please enter a content title');
-      }
-
-      // Validation for media
+      // Validation for media (Image OR Video = compulsory)
       if (mediaSource === 'UPLOAD' && !selectedFile && (!editingItem || !editingItem.mediaUrl)) {
-        throw new Error(`Please select a ${mediaType.toLowerCase()} file to upload.`);
+        throw new Error('Please upload an image or video.');
       }
 
       if (mediaSource === 'URL') {
         const urlToValidate = formMediaUrl.trim();
-        if (!urlToValidate) {
-          throw new Error(`Please enter a valid ${mediaType.toLowerCase()} URL.`);
+        if (!urlToValidate && (!editingItem || !editingItem.mediaUrl)) {
+          throw new Error('Please upload an image or video.');
         }
-        if (!urlToValidate.startsWith('http://') && !urlToValidate.startsWith('https://')) {
+        if (urlToValidate && !urlToValidate.startsWith('http://') && !urlToValidate.startsWith('https://')) {
           throw new Error('Media URL must start with http:// or https://');
         }
       }
 
+      const resolvedTitle =
+        formTitle.trim() ||
+        (formCategory === 'REEL'
+          ? 'Viral Reel'
+          : formCategory === 'STORY'
+          ? 'Story Creative'
+          : formCategory === 'OFFER'
+          ? 'Promo Offer'
+          : 'High ROI Ad');
+
       const payload: CreateTrendingPayload = {
-        title: formTitle.trim(),
+        title: resolvedTitle,
         description: formDescription.trim() || undefined,
         category: formCategory,
         mediaType,
@@ -1027,12 +1033,11 @@ export default function TrendingManagementPage() {
           {/* Content Title */}
           <div>
             <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1">
-              Content Title *
+              Content Title <span className="text-[10px] text-slate-400 font-normal lowercase">(optional)</span>
             </label>
             <input
               type="text"
-              required
-              placeholder="e.g. 90-Day Transformation Reel / Monsoon Flash Offer"
+              placeholder="e.g. 90-Day Transformation Reel / Monsoon Flash Offer (Optional)"
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
               className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#23C45E] focus:outline-none text-slate-900 font-bold"
