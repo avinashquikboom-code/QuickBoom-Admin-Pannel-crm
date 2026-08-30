@@ -111,6 +111,7 @@ export default function HomeBannersPage() {
     onSuccess: () => {
       toast.success('Home banner uploaded & created successfully');
       queryClient.invalidateQueries({ queryKey: ['marketing-banners'] });
+      refetch();
       closeDrawer();
     },
     onError: (err) => toast.error(getErrorMessage(err)),
@@ -122,6 +123,7 @@ export default function HomeBannersPage() {
     onSuccess: () => {
       toast.success('Banner updated successfully');
       queryClient.invalidateQueries({ queryKey: ['marketing-banners'] });
+      refetch();
       closeDrawer();
     },
     onError: (err) => toast.error(getErrorMessage(err)),
@@ -245,14 +247,14 @@ export default function HomeBannersPage() {
 
     const formData = new FormData();
     formData.append('title', formTitle.trim() || 'Home Banner');
-    if (formSubtitle.trim()) formData.append('subtitle', formSubtitle.trim());
-    if (formDescription.trim()) formData.append('description', formDescription.trim());
+    formData.append('subtitle', formSubtitle.trim());
+    formData.append('description', formDescription.trim());
     if (formImageFile) formData.append('image', formImageFile);
-    if (formCtaText.trim()) formData.append('ctaText', formCtaText.trim());
-    if (formCtaUrl.trim()) formData.append('ctaUrl', formCtaUrl.trim());
+    formData.append('ctaText', formCtaText.trim());
+    formData.append('ctaUrl', formCtaUrl.trim());
     formData.append('priority', String(formPriority));
-    if (formStartAt) formData.append('startAt', new Date(formStartAt).toISOString());
-    if (formEndAt) formData.append('endAt', new Date(formEndAt).toISOString());
+    formData.append('startAt', formStartAt ? new Date(formStartAt).toISOString() : '');
+    formData.append('endAt', formEndAt ? new Date(formEndAt).toISOString() : '');
     formData.append('isActive', String(formIsActive));
     formData.append('isPublished', String(formIsPublished));
 

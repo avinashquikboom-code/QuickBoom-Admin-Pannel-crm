@@ -108,10 +108,7 @@ export class BannerService {
   static async createBanner(
     payload: CreateBannerPayload | FormData,
   ): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
-    const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
-    const response: any = await api.post('/admin/marketing/banners', payload, {
-      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
-    });
+    const response: any = await api.post('/admin/marketing/banners', payload);
     return response?.data || response;
   }
 
@@ -122,10 +119,7 @@ export class BannerService {
     id: number | string,
     payload: UpdateBannerPayload | FormData,
   ): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
-    const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
-    const response: any = await api.patch(`/admin/marketing/banners/${id}`, payload, {
-      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
-    });
+    const response: any = await api.patch(`/admin/marketing/banners/${id}`, payload);
     return response?.data || response;
   }
 
