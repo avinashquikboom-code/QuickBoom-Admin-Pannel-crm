@@ -240,6 +240,7 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['Super Admin'],
       items: [
+        { name: 'Live Dashboard', href: '/hrm/live-dashboard', icon: Activity, permission: 'attendance.view_all', badge: 'LIVE' },
         { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
         { name: 'Teams', href: '/teams', icon: Users, permission: 'employee.view' },
         { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
@@ -424,6 +425,7 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
+        { name: 'Live Dashboard', href: '/hrm/live-dashboard', icon: Activity, permission: 'attendance.view', badge: 'LIVE' },
         { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view' },
       ],
     },
