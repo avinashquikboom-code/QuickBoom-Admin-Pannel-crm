@@ -78,20 +78,20 @@ export default function ShiftDetailPage() {
                 <ArrowLeft className="w-4 h-4" />
               </Link>
               <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider">
-                {shift.code}
+                {shift?.code || 'SHIFT'}
               </span>
               <span
                 className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                  shift.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-500/20 text-slate-300'
+                  shift?.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-500/20 text-slate-300'
                 }`}
               >
-                {shift.status}
+                {shift?.status || 'ACTIVE'}
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{shift.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{shift?.name || 'Shift Details'}</h1>
             <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-2xl">
-              {shift.startTime} – {shift.endTime} • {shift.durationHours} Hours • {shift.gracePeriodMinutes}m Grace
+              {shift?.startTime || '09:30 AM'} – {shift?.endTime || '06:30 PM'} • {shift?.durationHours ?? 9} Hours • {shift?.gracePeriodMinutes ?? 15}m Grace
             </p>
           </div>
 
