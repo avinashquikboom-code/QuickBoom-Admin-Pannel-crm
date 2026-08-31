@@ -88,21 +88,28 @@ export default function ShiftsPage() {
     queryFn: async () => {
       try {
         const res = await api.get('/shifts/metrics');
-        return res.data;
-      } catch {
+        return res.data?.data || res.data || {
+          total: 0,
+          active: 0,
+          assignedEmployees: 0,
+          nightShifts: 0,
+          rotationalShifts: 0,
+        };
+      } catch (err) {
+        console.error('Failed to fetch shift metrics:', err);
         return {
-          total: 4,
-          active: 4,
-          assignedEmployees: 28,
-          nightShifts: 1,
-          rotationalShifts: 1,
+          total: 0,
+          active: 0,
+          assignedEmployees: 0,
+          nightShifts: 0,
+          rotationalShifts: 0,
         };
       }
     },
   });
 
   // 2. Fetch Shifts List
-  const { data: shifts = [], isLoading } = useQuery({
+  const { data: shifts = [], isLoading, isError } = useQuery({
     queryKey: ['shifts-list', statusFilter, typeFilter, searchTerm],
     queryFn: async () => {
       try {
@@ -113,88 +120,10 @@ export default function ShiftsPage() {
 
         const res = await api.get('/shifts', { params });
         const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
-        return list;
-      } catch {
-        return [
-          {
-            id: 1,
-            name: 'General Day Shift',
-            code: 'GDS-01',
-            startTime: '09:30 AM',
-            endTime: '06:30 PM',
-            durationHours: 9.0,
-            gracePeriodMinutes: 15,
-            halfDayThresholdHours: 4.5,
-            breakDurationMinutes: 60,
-            isNightShift: false,
-            isRotational: false,
-            workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-            color: '#3B82F6',
-            status: 'ACTIVE',
-            employeeCount: 18,
-            guidance: {
-              overtimeRule: 'Overtime commences after 9 hours of active shift work; calculated at 1.5x regular wage.',
-              punchInRule: 'Punch-in permitted 30 mins before shift start. 15-minute grace period applies.',
-              punchOutRule: 'Early departure before shift completion requires supervisor clearance.',
-              breakPolicy: '1-hour lunch break + two 15-min tea breaks.',
-              nightShiftAllowance: 'N/A',
-              swapPolicy: 'Shift swap requests must be submitted 24 hours in advance with mutual consent.',
-              geofenceRequirement: 'Mandatory GPS check-in within 150m of assigned office geofence.',
-            },
-          },
-          {
-            id: 2,
-            name: 'Morning Operations Shift',
-            code: 'MOS-02',
-            startTime: '07:00 AM',
-            endTime: '04:00 PM',
-            durationHours: 9.0,
-            gracePeriodMinutes: 10,
-            halfDayThresholdHours: 4.5,
-            breakDurationMinutes: 45,
-            isNightShift: false,
-            isRotational: true,
-            workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-            color: '#10B981',
-            status: 'ACTIVE',
-            employeeCount: 6,
-            guidance: {
-              overtimeRule: 'Overtime computed after 9h at 1.5x base hourly.',
-              punchInRule: 'Early check-in from 06:30 AM.',
-              punchOutRule: 'Auto-checkout safety at 06:00 PM.',
-              breakPolicy: '45 mins lunch break.',
-              nightShiftAllowance: 'N/A',
-              swapPolicy: 'Requires roster supervisor confirmation.',
-              geofenceRequirement: 'Mandatory 150m office radius.',
-            },
-          },
-          {
-            id: 3,
-            name: 'Night Support Shift',
-            code: 'NSS-03',
-            startTime: '09:00 PM',
-            endTime: '06:00 AM',
-            durationHours: 9.0,
-            gracePeriodMinutes: 15,
-            halfDayThresholdHours: 4.5,
-            breakDurationMinutes: 60,
-            isNightShift: true,
-            isRotational: false,
-            workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-            color: '#8B5CF6',
-            status: 'ACTIVE',
-            employeeCount: 4,
-            guidance: {
-              overtimeRule: 'Overtime computed after 9h at 2.0x base hourly for night hours.',
-              punchInRule: 'Punch-in from 08:30 PM.',
-              punchOutRule: 'Company transport escort provided at 06:00 AM.',
-              breakPolicy: 'Midnight meal break between 01:00 AM and 02:00 AM.',
-              nightShiftAllowance: '₹250 per night shift allowance + complimentary cab pickup.',
-              swapPolicy: 'Requires 48 hours advance notice.',
-              geofenceRequirement: 'Mandatory GPS check-in.',
-            },
-          },
-        ];
+        return Array.isArray(list) ? list : [];
+      } catch (err) {
+        console.error('Failed to fetch shifts list:', err);
+        return [];
       }
     },
   });
