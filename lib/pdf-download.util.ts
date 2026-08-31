@@ -7,30 +7,27 @@ import { getErrorMessage } from './utils';
  * whether the response was unwrapped by an interceptor (returning Blob directly)
  * or still wrapped in AxiosResponse (res.data).
  */
-export async function extractPdfBlob(res: any): Promise<Blob> {
+export async function extractPdfBlob(res: unknown): Promise<Blob> {
   let blob: Blob;
 
-  if (res instanceof Blob) {
-    blob = res;
-  } else if (res?.data instanceof Blob) {
-    blob = res.data;
-  } else if (res instanceof ArrayBuffer) {
-    blob = new Blob([res], { type: 'application/pdf' });
-  } else if (ArrayBuffer.isView(res)) {
-    const copiedBytes = new Uint8Array(res.byteLength);
-    copiedBytes.set(new Uint8Array(res.buffer, res.byteOffset, res.byteLength));
-    blob = new Blob([copiedBytes.buffer], { type: 'application/pdf' });
-  } else if (res?.data instanceof ArrayBuffer) {
-    blob = new Blob([res.data], { type: 'application/pdf' });
-  } else if (res?.data && ArrayBuffer.isView(res.data)) {
-    const copiedBytes = new Uint8Array(res.data.byteLength);
-    copiedBytes.set(new Uint8Array(res.data.buffer, res.data.byteOffset, res.data.byteLength));
-    blob = new Blob([copiedBytes.buffer], { type: 'application/pdf' });
-  } else if (typeof res === 'string') {
-    // If it's a binary string or base64, wrap as binary blob
-    blob = new Blob([res], { type: 'application/pdf' });
-  } else if (typeof res?.data === 'string') {
-    blob = new Blob([res.data], { type: 'application/pdf' });
+  const data =
+    res !== null && typeof res === 'object' && 'data' in res
+      ? (res as { data: unknown }).data
+      : res;
+
+  if (data instanceof Blob) {
+    blob = data;
+  } else if (data instanceof ArrayBuffer) {
+    blob = new Blob([data], { type: 'application/pdf' });
+  } else if (ArrayBuffer.isView(data)) {
+    const view = data;
+    const buffer = new ArrayBuffer(view.byteLength);
+    new Uint8Array(buffer).set(
+      new Uint8Array(view.buffer as ArrayBuffer, view.byteOffset, view.byteLength),
+    );
+    blob = new Blob([buffer], { type: 'application/pdf' });
+  } else if (typeof data === 'string') {
+    blob = new Blob([data], { type: 'application/pdf' });
   } else {
     throw new Error('Invalid PDF data received from server');
   }
