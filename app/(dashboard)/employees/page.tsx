@@ -271,8 +271,14 @@ export default function EmployeesPage() {
     },
   });
 
-  const rawList = Array.isArray(employeesRes?.items)
+  const rawList = Array.isArray(employeesRes?.employees)
+    ? employeesRes.employees
+    : Array.isArray(employeesRes?.items)
     ? employeesRes.items
+    : Array.isArray(employeesRes?.data?.employees)
+    ? employeesRes.data.employees
+    : Array.isArray(employeesRes?.data?.items)
+    ? employeesRes.data.items
     : Array.isArray(employeesRes?.data)
     ? employeesRes.data
     : Array.isArray(employeesRes)
@@ -282,8 +288,8 @@ export default function EmployeesPage() {
   const pagination = employeesRes?.pagination || {
     page: employeesRes?.page || page,
     limit: employeesRes?.limit || limit,
-    total: employeesRes?.total || rawList.length,
-    totalPages: employeesRes?.totalPages || Math.ceil((employeesRes?.total || rawList.length) / limit) || 1,
+    total: employeesRes?.counts?.total ?? employeesRes?.total ?? rawList.length,
+    totalPages: employeesRes?.totalPages || Math.ceil((employeesRes?.counts?.total ?? employeesRes?.total ?? rawList.length) / limit) || 1,
   };
   const employees: EmployeeMaster[] = useMemo(() => {
     return rawList.map((e: any) => {
@@ -358,20 +364,16 @@ export default function EmployeesPage() {
     return set.size > 0 ? Array.from(set) : ['Head Office'];
   }, [officesData, employees]);
 
-  // Client-side filtering for department, designation, and employment type
+  // Server-side filtering handles search, department, designation, status, type;
+  // Fallback to employees list directly to ensure all server results are rendered
   const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
-      if (departmentFilter !== 'ALL' && emp.department !== departmentFilter) return false;
-      if (designationFilter !== 'ALL' && emp.designation !== designationFilter) return false;
-      if (typeFilter !== 'ALL' && emp.employmentType !== typeFilter) return false;
-      return true;
-    });
-  }, [employees, departmentFilter, designationFilter, typeFilter]);
+    return employees;
+  }, [employees]);
 
   // Summary statistics (ONLY Master data counts)
-  const totalCount = employees.length;
-  const activeCount = employees.filter((e) => e.status === 'ACTIVE').length;
-  const inactiveCount = employees.filter((e) => e.status === 'INACTIVE').length;
+  const totalCount = employeesRes?.counts?.total ?? pagination.total ?? employees.length;
+  const activeCount = employeesRes?.counts?.active ?? employees.filter((e) => e.status === 'ACTIVE').length;
+  const inactiveCount = employeesRes?.counts?.inactive ?? employees.filter((e) => e.status === 'INACTIVE').length;
 
   // Toggle status mutation
   const toggleStatusMutation = useMutation({
