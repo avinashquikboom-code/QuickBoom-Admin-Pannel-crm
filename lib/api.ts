@@ -17,14 +17,21 @@ const api = axios.create({
  * Helper to safely extract token, refreshToken, user, and customerId from Zustand memory
  * with robust fallback to persisted localStorage to guarantee consistency during Next.js hydration or tab switching.
  */
+const isValidTokenString = (val: any): val is string =>
+  typeof val === 'string' &&
+  val.trim().length > 0 &&
+  val !== 'null' &&
+  val !== 'undefined' &&
+  val !== '[object Object]';
+
 export function getPersistedAuthSession() {
   if (typeof window === 'undefined') {
     return { token: null, refreshToken: null, user: null, customerId: null };
   }
 
   const state = useAuthStore.getState();
-  let token = state.token;
-  let refreshToken = state.refreshToken;
+  let token = isValidTokenString(state.token) ? state.token.trim() : null;
+  let refreshToken = isValidTokenString(state.refreshToken) ? state.refreshToken.trim() : null;
   let user = state.user;
   let customerId = state.customerId;
 
@@ -34,8 +41,12 @@ export function getPersistedAuthSession() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.state) {
-          token = token || parsed.state.token || null;
-          refreshToken = refreshToken || parsed.state.refreshToken || null;
+          if (!token && isValidTokenString(parsed.state.token)) {
+            token = parsed.state.token.trim();
+          }
+          if (!refreshToken && isValidTokenString(parsed.state.refreshToken)) {
+            refreshToken = parsed.state.refreshToken.trim();
+          }
           user = user || parsed.state.user || null;
           customerId = customerId || parsed.state.customerId || null;
         }
@@ -47,10 +58,16 @@ export function getPersistedAuthSession() {
 
   // Fallback to direct localStorage keys if Zustand store hasn't been populated
   if (!token) {
-    token = localStorage.getItem('accessToken') || localStorage.getItem('token') || null;
+    const rawAccessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+    if (isValidTokenString(rawAccessToken)) {
+      token = rawAccessToken.trim();
+    }
   }
   if (!refreshToken) {
-    refreshToken = localStorage.getItem('refreshToken') || null;
+    const rawRefresh = localStorage.getItem('refreshToken');
+    if (isValidTokenString(rawRefresh)) {
+      refreshToken = rawRefresh.trim();
+    }
   }
   if (!user) {
     try {

@@ -48,6 +48,19 @@ export const useAuthStore = create<AuthState>()(
         const permissions = user.permissions || ROLE_DEFAULT_PERMISSIONS[primaryRole] || ROLE_DEFAULT_PERMISSIONS['Super Admin'] || [];
         const subscriptionFeatures = user.subscriptionFeatures || { ...DEFAULT_SUBSCRIPTION_FEATURES };
 
+        if (typeof window !== 'undefined') {
+          try {
+            if (token) {
+              localStorage.setItem('accessToken', token);
+              localStorage.setItem('token', token);
+            }
+            if (refreshToken) {
+              localStorage.setItem('refreshToken', refreshToken);
+            }
+            localStorage.setItem('user', JSON.stringify(user));
+          } catch (_) {}
+        }
+
         set({
           user: {
             ...user,
@@ -63,6 +76,18 @@ export const useAuthStore = create<AuthState>()(
       },
 
       updateTokens: (token: string, refreshToken?: string) => {
+        if (typeof window !== 'undefined') {
+          try {
+            if (token) {
+              localStorage.setItem('accessToken', token);
+              localStorage.setItem('token', token);
+            }
+            if (refreshToken) {
+              localStorage.setItem('refreshToken', refreshToken);
+            }
+          } catch (_) {}
+        }
+
         set((state) => ({
           token,
           refreshToken: refreshToken || state.refreshToken,
@@ -128,7 +153,15 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      logout: () =>
+      logout: () => {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          } catch (_) {}
+        }
         set({
           user: null,
           token: null,
@@ -136,7 +169,8 @@ export const useAuthStore = create<AuthState>()(
           customerId: null,
           isAuthenticated: false,
           _hasHydrated: true,
-        }),
+        });
+      },
     }),
     {
       name: 'quikboom-next-auth-storage',
