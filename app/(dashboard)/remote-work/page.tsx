@@ -30,7 +30,7 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminFormDrawer, AdminPagination } from '@/components/admin';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage, formatTimeIST } from '@/lib/utils';
 
 type RequestTab = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 type DateRangeFilter = 'ALL' | 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH';
@@ -777,9 +777,9 @@ export default function RemoteWorkPage() {
                         REMOTE
                       </span>
                     </td>
-                    <td className="py-3.5 px-6 font-mono font-bold text-slate-800">{w.punchIn}</td>
+                    <td className="py-3.5 px-6 font-mono font-bold text-slate-800">{formatTimeIST(w.punchIn)}</td>
                     <td className="py-3.5 px-6 font-mono text-slate-600">{w.break}</td>
-                    <td className="py-3.5 px-6 font-mono text-slate-600">{w.punchOut}</td>
+                    <td className="py-3.5 px-6 font-mono text-slate-600">{formatTimeIST(w.punchOut)}</td>
                   </tr>
                 ))
               )}

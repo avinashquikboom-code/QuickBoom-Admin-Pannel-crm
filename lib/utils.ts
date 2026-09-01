@@ -62,5 +62,59 @@ export function formatDateTime(value: any, defaultValue: string = '—'): string
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Asia/Kolkata',
   });
+}
+
+export function formatTimeIST(value: any, defaultValue: string = '—'): string {
+  if (value === null || value === undefined || value === '' || value === '—' || value === '--:--') {
+    return defaultValue;
+  }
+
+  // If already formatted like "07:14 PM" or "7:14 AM"
+  if (typeof value === 'string' && /^(0?[1-9]|1[0-2]):[0-5][0-9]\s*(AM|PM)$/i.test(value.trim())) {
+    return value.trim();
+  }
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return typeof value === 'string' ? value : defaultValue;
+  }
+
+  return d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata',
+  });
+}
+
+/**
+ * Format total minutes as 'Xh Ym' (e.g. 0 -> '0h 0m', 1 -> '0h 1m', 30 -> '0h 30m', 60 -> '1h 0m', 90 -> '1h 30m', 125 -> '2h 5m').
+ */
+export function formatDurationHoursMinutes(minutes: number | string | null | undefined): string {
+  if (minutes === null || minutes === undefined || minutes === '') {
+    return '0h 0m';
+  }
+
+  let totalMins = 0;
+  if (typeof minutes === 'string') {
+    const trimmed = minutes.trim();
+    if (/^\d+h\s+\d+m$/i.test(trimmed)) {
+      return trimmed;
+    }
+    const minMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:min|m)?$/i);
+    if (minMatch) {
+      totalMins = Math.round(parseFloat(minMatch[1]));
+    } else {
+      const parsed = parseFloat(trimmed);
+      totalMins = isNaN(parsed) ? 0 : Math.round(parsed);
+    }
+  } else {
+    totalMins = Math.max(0, Math.round(Number(minutes)));
+  }
+
+  const hours = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  return `${hours}h ${mins}m`;
 }

@@ -28,6 +28,7 @@ import {
   Compass,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { formatTimeIST, formatDurationHoursMinutes } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 
 interface EmployeeLiveRecord {
@@ -106,20 +107,12 @@ interface LiveDashboardData {
   timestamp: string;
 }
 
-function formatMinutes(minutes: number): string {
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hrs.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m`;
+function formatMinutes(minutes: number | string | null | undefined): string {
+  return formatDurationHoursMinutes(minutes);
 }
 
 function formatTime(isoString: string | null): string {
-  if (!isoString) return '—';
-  try {
-    const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return '—';
-  }
+  return formatTimeIST(isoString);
 }
 
 export default function HrmsLiveDashboardPage() {

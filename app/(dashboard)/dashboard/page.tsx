@@ -47,6 +47,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
+import { formatTimeIST } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 
 type DateRangeOption = '7d' | '30d' | '90d' | '1y';
@@ -871,10 +872,10 @@ export default function AdminDashboardPage() {
                       <td className="py-3.5 px-6">
                         <div className="space-y-0.5">
                           <span className="font-bold text-slate-900 block text-xs">
-                            In: {rec.checkIn || rec.punchIn || '—'}
+                            In: {formatTimeIST(rec.checkIn || rec.punchIn)}
                           </span>
                           <span className="text-[11px] text-slate-500 block">
-                            Out: {rec.checkOut || rec.punchOut || (isPunched ? 'Active On-Duty' : '—')}
+                            Out: {formatTimeIST(rec.checkOut || rec.punchOut, isPunched ? 'Active On-Duty' : '—')}
                           </span>
                         </div>
                       </td>

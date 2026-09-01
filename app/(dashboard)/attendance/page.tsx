@@ -21,6 +21,7 @@ import {
   Users,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { formatTimeIST, formatDurationHoursMinutes } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPagination } from '@/components/admin';
 
@@ -135,11 +136,11 @@ export default function AttendancePage() {
         branch: a.branch || a.office || 'Head Office',
         office: a.branch || a.office || 'Head Office',
         date: a.date || selectedDate,
-        punchIn: a.punchIn || '—',
-        punchOut: a.punchOut || '—',
-        workingHours: a.workingHours || '0h 0m',
+        punchIn: a.punchInFormatted || formatTimeIST(a.punchIn || a.punchInAt || a.checkIn),
+        punchOut: a.punchOutFormatted || formatTimeIST(a.punchOut || a.punchOutAt || a.checkOut),
+        workingHours: formatDurationHoursMinutes(a.workingMinutes ?? a.workingHours),
         breaksCount: a.breaksCount || 0,
-        totalBreak: a.totalBreak || '0 min',
+        totalBreak: formatDurationHoursMinutes(a.totalBreakMinutes ?? a.totalBreak ?? a.breakDuration),
         status: a.status || 'PRESENT',
         location: a.location || 'Office GPS',
       }))

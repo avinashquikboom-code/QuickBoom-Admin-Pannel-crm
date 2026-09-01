@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { formatDurationHoursMinutes } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminFormDrawer } from '@/components/admin';
 
@@ -293,12 +294,12 @@ export default function EmployeeDetailPage() {
               </div>
               <div className="p-3.5 bg-slate-50 rounded-2xl">
                 <span className="text-[10px] text-slate-400 font-bold uppercase">Working Hours</span>
-                <p className="text-sm font-black text-emerald-700">{todayAtt.workingHours || '0h 0m'}</p>
+                <p className="text-sm font-black text-emerald-700">{formatDurationHoursMinutes(todayAtt.workingHours)}</p>
               </div>
               <div className="p-3.5 bg-slate-50 rounded-2xl">
                 <span className="text-[10px] text-slate-400 font-bold uppercase">Total Breaks</span>
                 <p className="text-sm font-black text-amber-700">
-                  {todayAtt.breaksToday || 0} ({todayAtt.totalBreak || '0 min'})
+                  {todayAtt.breaksToday || 0} ({formatDurationHoursMinutes(todayAtt.totalBreakMinutes ?? todayAtt.totalBreak)})
                 </p>
               </div>
             </div>
@@ -339,7 +340,7 @@ export default function EmployeeDetailPage() {
                       <td className="p-3 font-bold text-slate-900">{att.date}</td>
                       <td className="p-3 font-mono">{att.checkIn}</td>
                       <td className="p-3 font-mono">{att.checkOut}</td>
-                      <td className="p-3 font-mono text-emerald-700 font-bold">{att.workingHours}</td>
+                      <td className="p-3 font-mono text-emerald-700 font-bold">{formatDurationHoursMinutes(att.workingMinutes ?? att.workingHours)}</td>
                       <td className="p-3 text-slate-500">{att.location}</td>
                       <td className="p-3">
                         <span
@@ -371,7 +372,7 @@ export default function EmployeeDetailPage() {
               <Coffee className="w-4 h-4 text-amber-600" /> Today's Break Sessions & Duration
             </h3>
             <span className="text-amber-700 font-bold">
-              Total Today: {todayAtt.totalBreak || '0 min'}
+              Total Today: {formatDurationHoursMinutes(todayAtt.totalBreakMinutes ?? todayAtt.totalBreak)}
             </span>
           </div>
 
@@ -397,7 +398,7 @@ export default function EmployeeDetailPage() {
                       <td className="p-3 font-bold text-slate-900">Break {b.breakNumber}</td>
                       <td className="p-3 font-mono font-bold text-slate-800">{b.start}</td>
                       <td className="p-3 font-mono">{b.end || '—'}</td>
-                      <td className="p-3 font-bold text-amber-700">{b.duration}</td>
+                      <td className="p-3 font-bold text-amber-700">{formatDurationHoursMinutes(b.duration)}</td>
                       <td className="p-3">
                         {b.isActive ? (
                           <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-black uppercase animate-pulse">
