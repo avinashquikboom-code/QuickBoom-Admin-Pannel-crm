@@ -264,14 +264,16 @@ export default function EmployeesPage() {
         if (typeFilter !== 'ALL') params.employmentType = typeFilter;
 
         const res: any = await api.get('/employees', { params });
-        return res?.data || res || {};
+        return res || {};
       } catch {
         return {};
       }
     },
   });
 
-  const rawList = Array.isArray(employeesRes?.employees)
+  const rawList = Array.isArray(employeesRes?.data)
+    ? employeesRes.data
+    : Array.isArray(employeesRes?.employees)
     ? employeesRes.employees
     : Array.isArray(employeesRes?.items)
     ? employeesRes.items
@@ -279,8 +281,6 @@ export default function EmployeesPage() {
     ? employeesRes.data.employees
     : Array.isArray(employeesRes?.data?.items)
     ? employeesRes.data.items
-    : Array.isArray(employeesRes?.data)
-    ? employeesRes.data
     : Array.isArray(employeesRes)
     ? employeesRes
     : [];
