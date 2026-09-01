@@ -241,6 +241,7 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'Live Dashboard', href: '/hrm/live-dashboard', icon: Activity, permission: 'attendance.view_all', badge: 'LIVE' },
+        { name: 'Office Management', href: '/hrms/offices', icon: Building2, permission: 'hrm.manage' },
         { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
         { name: 'Teams', href: '/teams', icon: Users, permission: 'employee.view' },
         { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
@@ -381,7 +382,19 @@ export const adminNavigation: {
       ],
     },
 
-    // 2. Employees
+    // 2. Offices & Branches
+    {
+      id: 'offices',
+      category: 'Offices',
+      sectionIcon: Building2,
+      feature: 'hrm',
+      roles: ['HR'],
+      items: [
+        { name: 'Office Management', href: '/hrms/offices', icon: Building2, permission: 'department.view' },
+      ],
+    },
+
+    // 3. Employees
     {
       id: 'employees',
       category: 'Employees',

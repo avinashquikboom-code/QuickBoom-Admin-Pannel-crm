@@ -32,5 +32,8 @@ export * from './drawers/VisitDetailsDrawer';
 // States
 export * from './states/AdminEmptyState';
 
+// Maps
+export * from './maps/MapLocationPicker';
+
 // Form Components
 export * from './forms';
