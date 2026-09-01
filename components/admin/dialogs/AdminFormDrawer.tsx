@@ -15,6 +15,8 @@ export interface AdminFormDrawerProps {
   maxWidth?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  hideFooter?: boolean;
+  showFooter?: boolean;
   onSave?: (e?: React.FormEvent) => void;
   saveLabel?: string;
   cancelLabel?: string;
@@ -33,6 +35,8 @@ export function AdminFormDrawer({
   maxWidth,
   children,
   footer,
+  hideFooter = false,
+  showFooter = false,
   onSave,
   saveLabel = 'Save Changes',
   cancelLabel = 'Cancel',
@@ -126,35 +130,37 @@ export function AdminFormDrawer({
           </div>
 
           {/* 3. Fixed Footer */}
-          <div className="px-5 py-4 sm:px-6 sm:py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
-            {footer ? (
-              footer
-            ) : (
-              <>
-                <AdminButton
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                >
-                  {cancelLabel}
-                </AdminButton>
-
-                {onSave && (
+          {!hideFooter && (footer || onSave || showFooter) && (
+            <div className="px-5 py-4 sm:px-6 sm:py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
+              {footer ? (
+                footer
+              ) : (
+                <>
                   <AdminButton
                     type="button"
-                    variant="primary"
+                    variant="secondary"
                     size="sm"
-                    onClick={onSave}
-                    loading={isSubmitting}
+                    onClick={onClose}
+                    disabled={isSubmitting}
                   >
-                    {saveLabel}
+                    {cancelLabel}
                   </AdminButton>
-                )}
-              </>
-            )}
-          </div>
+
+                  {onSave && (
+                    <AdminButton
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={onSave}
+                      loading={isSubmitting}
+                    >
+                      {saveLabel}
+                    </AdminButton>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
