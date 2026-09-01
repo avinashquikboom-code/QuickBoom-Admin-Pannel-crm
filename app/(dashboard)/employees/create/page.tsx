@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Phone, Building2, Calendar, DollarSign, RefreshCw, MapPin } from 'lucide-react';
+import { User, Mail, Phone, Building2, Calendar, DollarSign, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -19,13 +19,10 @@ import {
 export default function CreateEmployeePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [autoGenerateId, setAutoGenerateId] = useState(true);
-  const [isFetchingNextId, setIsFetchingNextId] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    employeeCode: 'QB0001',
     email: '',
     phone: '',
     departmentId: '' as string | number,
@@ -81,23 +78,6 @@ export default function CreateEmployeePage() {
 
   const designations: any[] = Array.isArray(designationsRes) ? designationsRes : [];
 
-  const fetchNextId = async () => {
-    setIsFetchingNextId(true);
-    try {
-      const res: any = await api.get('/employees/next-id');
-      const nextId = res?.nextEmployeeId || res?.data?.nextEmployeeId || 'QB0001';
-      setFormData((prev) => ({ ...prev, employeeCode: nextId }));
-    } catch {
-      // Fallback
-    } finally {
-      setIsFetchingNextId(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchNextId();
-  }, []);
-
   // Set default office when offices load
   useEffect(() => {
     if (offices.length > 0 && !formData.officeId) {
@@ -133,8 +113,7 @@ export default function CreateEmployeePage() {
       const payload: any = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
-        employeeCode: autoGenerateId ? undefined : formData.employeeCode.trim(),
-        autoGenerateCode: autoGenerateId,
+        // employeeCode intentionally omitted — backend always auto-generates
         email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim() || undefined,
         departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
@@ -215,40 +194,17 @@ export default function CreateEmployeePage() {
             />
           </AdminFormField>
 
-          <div className="space-y-1.5">
-            <AdminFormField label="Employee ID" required>
-              <div className="relative">
-                <AdminInput
-                  type="text"
-                  required
-                  placeholder="QB0001"
-                  value={formData.employeeCode}
-                  disabled={autoGenerateId}
-                  onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
-                />
-                {autoGenerateId && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-[#1AA14D] bg-[#E8F9EE] px-2 py-0.5 rounded">
-                    Auto
-                  </span>
-                )}
-              </div>
-            </AdminFormField>
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer pt-1 select-none">
-              <input
-                type="checkbox"
-                checked={autoGenerateId}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setAutoGenerateId(checked);
-                  if (checked) {
-                    fetchNextId();
-                  }
-                }}
-                className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
-              />
-              <span>Auto Generate Employee ID</span>
-            </label>
-          </div>
+          {/* Employee ID — read-only, system-generated */}
+          <AdminFormField label="Employee ID">
+            <div className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+              <span className="flex-1 font-mono font-bold text-slate-400 text-xs tracking-wider select-none">
+                Auto-generated on save
+              </span>
+              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-black uppercase tracking-wide select-none">
+                System
+              </span>
+            </div>
+          </AdminFormField>
 
           <AdminFormField label="PAN / National ID">
             <AdminInput

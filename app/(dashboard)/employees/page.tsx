@@ -437,12 +437,8 @@ export default function EmployeesPage() {
       };
 
       if (drawerMode === 'create') {
-        const createPayload = {
-          ...payload,
-          employeeCode: autoGenerateId ? undefined : formData.employeeCode,
-          autoGenerateCode: autoGenerateId,
-        };
-        return api.post('/employees', createPayload);
+        // employeeCode intentionally omitted — backend always auto-generates
+        return api.post('/employees', payload);
       } else {
         if (!selectedEmployee) return;
         return api.patch(`/employees/${selectedEmployee.id}`, payload);
@@ -452,8 +448,9 @@ export default function EmployeesPage() {
       const generatedCode =
         res?.employeeCode ||
         res?.data?.employeeCode ||
+        res?.data?.data?.employeeCode ||
         formData.employeeCode ||
-        'QB0001';
+        '';
       toast.success(
         drawerMode === 'create'
           ? `Employee created successfully (${generatedCode})`
@@ -590,22 +587,7 @@ export default function EmployeesPage() {
     },
   });
 
-  // Employee ID Auto-generation state
-  const [autoGenerateId, setAutoGenerateId] = useState(true);
-  const [isFetchingNextId, setIsFetchingNextId] = useState(false);
-
-  const handleFetchNextId = async () => {
-    setIsFetchingNextId(true);
-    try {
-      const res: any = await api.get('/employees/next-id');
-      const nextId = res?.nextEmployeeId || res?.data?.nextEmployeeId || 'QB0001';
-      setFormData((prev) => ({ ...prev, employeeCode: nextId }));
-    } catch {
-      // Fallback
-    } finally {
-      setIsFetchingNextId(false);
-    }
-  };
+  // Employee ID is always system-generated — no client-side state needed
 
   // Handlers for Drawer
   const handleOpenDetails = (emp: EmployeeMaster) => {
@@ -618,7 +600,6 @@ export default function EmployeesPage() {
   };
 
   const handleOpenCreate = () => {
-    setAutoGenerateId(true);
     setDrawerMode('create');
     setSelectedEmployee(null);
     setCurrentStep(1);
@@ -637,7 +618,7 @@ export default function EmployeesPage() {
       gender: 'Male',
       dob: '',
       address: '',
-      employeeCode: 'QB0001',
+      employeeCode: '',  // cleared — backend will assign on save
       joiningDate: new Date().toISOString().split('T')[0],
       employmentType: 'FULL_TIME',
       status: 'ACTIVE',
@@ -662,7 +643,6 @@ export default function EmployeesPage() {
       password: '',
       confirmPassword: '',
     });
-    handleFetchNextId();
     setIsDetailsDrawerOpen(false);
     setIsFormDrawerOpen(true);
   };
@@ -750,10 +730,7 @@ export default function EmployeesPage() {
         toast.error('Joining Date is required');
         return false;
       }
-      if (!autoGenerateId && !formData.employeeCode.trim()) {
-        toast.error('Employee ID is required');
-        return false;
-      }
+      // Employee ID is always system-generated — no validation needed
       return true;
     }
 
@@ -1865,66 +1842,27 @@ export default function EmployeesPage() {
                     </h3>
                   </div>
 
-                  {/* Employee ID Block */}
-                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <label className="text-[11px] font-extrabold text-slate-700 uppercase">
-                          Employee ID *
-                        </label>
-                        {drawerMode === 'create' && autoGenerateId && (
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-black uppercase">
-                            Auto-generated on save
-                          </span>
-                        )}
-                        {drawerMode === 'edit' && (
-                          <span className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded-full text-[10px] font-black uppercase">
-                            Permanent / Read-only
-                          </span>
-                        )}
-                      </div>
-
-                      {drawerMode === 'create' && (
-                        <button
-                          type="button"
-                          onClick={handleFetchNextId}
-                          disabled={isFetchingNextId}
-                          className="flex items-center gap-1 text-[11px] font-extrabold text-[#1AA14D] hover:text-emerald-800 transition-colors cursor-pointer disabled:opacity-50"
-                          title="Preview next sequential Employee ID"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${isFetchingNextId ? 'animate-spin' : ''}`} />
-                          <span>Preview Next ID</span>
-                        </button>
+                  {/* Employee ID — always system-generated, read-only */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <label className="text-[11px] font-extrabold text-slate-700 uppercase">
+                        Employee ID
+                      </label>
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase">
+                        {drawerMode === 'create' ? 'System-generated' : 'Permanent'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl">
+                      {drawerMode === 'edit' ? (
+                        <span className="flex-1 font-mono font-black text-slate-800 text-sm tracking-wider">
+                          {formData.employeeCode}
+                        </span>
+                      ) : (
+                        <span className="flex-1 font-mono font-bold text-slate-400 text-xs tracking-wider select-none">
+                          Auto-generated on save
+                        </span>
                       )}
                     </div>
-
-                    <input
-                      type="text"
-                      required
-                      disabled={drawerMode === 'edit' || (drawerMode === 'create' && autoGenerateId)}
-                      value={formData.employeeCode}
-                      onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
-                      placeholder="e.g. QB0001"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E] disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
-                    />
-
-                    {drawerMode === 'create' && (
-                      <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer pt-1 select-none">
-                        <input
-                          type="checkbox"
-                          checked={autoGenerateId}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setAutoGenerateId(checked);
-                            if (checked) {
-                              handleFetchNextId();
-                            }
-                          }}
-                          className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer accent-[#23C45E]"
-                        />
-                        <span>Auto Generate Employee ID (QB0001 format)</span>
-                      </label>
-                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -2516,8 +2454,8 @@ export default function EmployeesPage() {
                       <div>
                         <span className="text-slate-400 font-bold block text-[10px]">EMPLOYEE ID</span>
                         <span className="font-mono font-black text-[#1AA14D]">
-                          {drawerMode === 'create' && autoGenerateId
-                            ? 'Auto Generated (QB000X)'
+                          {drawerMode === 'create'
+                            ? 'Auto-generated on save'
                             : formData.employeeCode}
                         </span>
                       </div>
