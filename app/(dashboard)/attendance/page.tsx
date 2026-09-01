@@ -25,6 +25,18 @@ import { formatTimeIST, formatDurationHoursMinutes } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPagination } from '@/components/admin';
 
+interface BreakSession {
+  id: number;
+  sessionNumber: number;
+  breakStart: string | null;
+  breakEnd: string | null;
+  breakStartFormatted: string;
+  breakEndFormatted: string;
+  durationMinutes: number;
+  durationFormatted: string;
+  isOngoing: boolean;
+}
+
 interface AttendanceRecord {
   id: string;
   employeeName: string;
@@ -34,9 +46,13 @@ interface AttendanceRecord {
   date: string;
   punchIn: string;
   punchOut: string;
+  punchInAt: string | null;
+  punchOutAt: string | null;
+  grossWorkingHours: string;
   workingHours: string;
   breaksCount: number;
   totalBreak: string;
+  breakSessions: BreakSession[];
   status: string;
   location: string;
 }
@@ -48,6 +64,7 @@ export default function AttendancePage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
 
   // Fetch real offices
   const { data: officesData } = useQuery({
@@ -129,21 +146,59 @@ export default function AttendancePage() {
   const officeBreakdown = Array.isArray(liveData?.offices) ? liveData.offices : [];
 
   const records: AttendanceRecord[] = Array.isArray(attendanceData)
-    ? attendanceData.map((a: any) => ({
-        id: String(a.id),
-        employeeName: a.employeeName || 'Employee',
-        employeeId: a.employeeId || 'EMP-001',
-        branch: a.branch || a.office || 'Head Office',
-        office: a.branch || a.office || 'Head Office',
-        date: a.date || selectedDate,
-        punchIn: a.punchInFormatted || formatTimeIST(a.punchIn || a.punchInAt || a.checkIn),
-        punchOut: a.punchOutFormatted || formatTimeIST(a.punchOut || a.punchOutAt || a.checkOut),
-        workingHours: formatDurationHoursMinutes(a.workingMinutes ?? a.workingHours),
-        breaksCount: a.breaksCount || 0,
-        totalBreak: formatDurationHoursMinutes(a.totalBreakMinutes ?? a.totalBreak ?? a.breakDuration),
-        status: a.status || 'PRESENT',
-        location: a.location || 'Office GPS',
-      }))
+    ? attendanceData.map((a: any) => {
+        const punchInFormatted = a.punchInFormatted || formatTimeIST(a.punchInAt || a.punchIn || a.punchInTime || a.checkIn, '—');
+        const punchOutFormatted = a.punchOutFormatted || formatTimeIST(a.punchOutAt || a.punchOut || a.punchOutTime || a.checkOut, '—');
+        const breakMins = a.totalBreakMinutes ?? (a.breaks ? a.breaks.reduce((acc: number, b: any) => acc + (b.duration || 0), 0) : 0);
+        const netWorking = a.workingHours || a.netWorkingHours || formatDurationHoursMinutes(a.workingMinutes);
+        const grossWorking = a.grossWorkingHours || formatDurationHoursMinutes(a.grossWorkingMinutes ?? (a.workingMinutes ? a.workingMinutes + breakMins : 0));
+
+        const breakSessions: BreakSession[] = Array.isArray(a.breakSessions)
+          ? a.breakSessions.map((b: any, idx: number) => ({
+              id: b.id || idx + 1,
+              sessionNumber: b.sessionNumber || idx + 1,
+              breakStart: b.breakStart || null,
+              breakEnd: b.breakEnd || null,
+              breakStartFormatted: b.breakStartFormatted || formatTimeIST(b.breakStart, '—'),
+              breakEndFormatted: b.breakEndFormatted || (b.breakEnd ? formatTimeIST(b.breakEnd, '—') : 'Active Break'),
+              durationMinutes: b.durationMinutes ?? b.duration ?? 0,
+              durationFormatted: b.durationFormatted || formatDurationHoursMinutes(b.durationMinutes ?? b.duration ?? 0),
+              isOngoing: !b.breakEnd,
+            }))
+          : Array.isArray(a.breaks)
+          ? a.breaks.map((b: any, idx: number) => ({
+              id: b.id || idx + 1,
+              sessionNumber: idx + 1,
+              breakStart: b.breakStart || null,
+              breakEnd: b.breakEnd || null,
+              breakStartFormatted: formatTimeIST(b.breakStart, '—'),
+              breakEndFormatted: b.breakEnd ? formatTimeIST(b.breakEnd, '—') : 'Active Break',
+              durationMinutes: b.duration || 0,
+              durationFormatted: formatDurationHoursMinutes(b.duration || 0),
+              isOngoing: !b.breakEnd,
+            }))
+          : [];
+
+        return {
+          id: String(a.id),
+          employeeName: a.employeeName || 'Employee',
+          employeeId: a.employeeId || 'EMP-001',
+          branch: a.branch || a.office || 'Head Office',
+          office: a.branch || a.office || 'Head Office',
+          date: a.attendanceDate || a.date || selectedDate,
+          punchIn: punchInFormatted,
+          punchOut: punchOutFormatted,
+          punchInAt: a.punchInAt || null,
+          punchOutAt: a.punchOutAt || null,
+          grossWorkingHours: grossWorking,
+          workingHours: netWorking,
+          breaksCount: a.breaksCount ?? breakSessions.length,
+          totalBreak: a.totalBreak || a.breakDuration || formatDurationHoursMinutes(breakMins),
+          breakSessions,
+          status: a.status || 'PRESENT',
+          location: a.location || 'Office GPS',
+        };
+      })
     : [];
 
   const filteredRecords = records.filter((r) => {
@@ -310,7 +365,7 @@ export default function AttendancePage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search staff, code, branch..."
+            placeholder="Search employee name, ID, branch..."
             className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
@@ -356,6 +411,7 @@ export default function AttendancePage() {
               <option value="PRESENT">Present</option>
               <option value="LATE">Late</option>
               <option value="HALF_DAY">Half Day</option>
+              <option value="ON_BREAK">On Break</option>
               <option value="ON_LEAVE">On Leave</option>
               <option value="ABSENT">Absent</option>
             </select>
@@ -363,20 +419,20 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* 5. Real Attendance Table */}
+      {/* 5. Authoritative Attendance Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-4">Employee</th>
-                <th className="py-3.5 px-4">Office / Branch</th>
-                <th className="py-3.5 px-4">Check In</th>
-                <th className="py-3.5 px-4">Check Out</th>
+                <th className="py-3.5 px-4">Date</th>
+                <th className="py-3.5 px-4">Punch In</th>
+                <th className="py-3.5 px-4">Punch Out</th>
+                <th className="py-3.5 px-4">Break</th>
                 <th className="py-3.5 px-4">Working Hours</th>
-                <th className="py-3.5 px-4">Breaks</th>
                 <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Location</th>
+                <th className="py-3.5 px-4 text-center">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
@@ -404,27 +460,23 @@ export default function AttendancePage() {
                     </td>
 
                     <td className="py-3.5 px-4 font-semibold text-slate-700">
-                      <div className="flex items-center gap-1">
-                        <Building2 className="w-3 h-3 text-slate-400" />
-                        <span>{r.branch}</span>
-                      </div>
+                      {r.date}
                     </td>
 
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{r.punchIn}</td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
+                      {r.punchIn}
+                    </td>
 
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{r.punchOut}</td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
+                      {r.punchOut}
+                    </td>
 
-                    <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">{r.workingHours}</td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-amber-700">
+                      {r.totalBreak}
+                    </td>
 
-                    <td className="py-3.5 px-4">
-                      {r.breaksCount > 0 ? (
-                        <div>
-                          <p className="font-bold text-slate-800">{r.breaksCount} breaks</p>
-                          <p className="text-[10px] text-slate-400">Total: {r.totalBreak}</p>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300 font-bold">—</span>
-                      )}
+                    <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">
+                      {r.workingHours}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -434,6 +486,8 @@ export default function AttendancePage() {
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             : r.status === 'LATE'
                             ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                            : r.status === 'ON_BREAK'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
                             : r.status === 'ON_LEAVE'
                             ? 'bg-purple-50 text-purple-700 border border-purple-200'
                             : 'bg-rose-50 text-rose-700 border border-rose-200'
@@ -443,11 +497,15 @@ export default function AttendancePage() {
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 text-slate-500 font-medium">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>{r.location}</span>
-                      </div>
+                    <td className="py-3.5 px-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRecord(r)}
+                        className="inline-flex items-center justify-center p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                        title="View Detailed Timesheet & Breaks"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -470,6 +528,107 @@ export default function AttendancePage() {
           disabled={isLoading}
         />
       </div>
+
+      {/* 6. Detailed Timesheet Drawer / Modal */}
+      {selectedRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in-50">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-base">Attendance Timesheet</h3>
+                <p className="text-xs text-slate-500">{selectedRecord.employeeName} ({selectedRecord.employeeId})</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedRecord(null)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Attendance Date</p>
+                <p className="font-extrabold text-slate-900 mt-0.5">{selectedRecord.date}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Status</p>
+                <p className="font-extrabold text-emerald-700 mt-0.5">{selectedRecord.status}</p>
+              </div>
+
+              <div className="p-3 bg-emerald-50/40 rounded-xl border border-emerald-100">
+                <p className="text-[10px] font-bold text-emerald-700 uppercase">Punch In</p>
+                <p className="font-mono font-extrabold text-emerald-900 text-sm mt-0.5">{selectedRecord.punchIn}</p>
+              </div>
+              <div className="p-3 bg-blue-50/40 rounded-xl border border-blue-100">
+                <p className="text-[10px] font-bold text-blue-700 uppercase">Punch Out</p>
+                <p className="font-mono font-extrabold text-blue-900 text-sm mt-0.5">{selectedRecord.punchOut}</p>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Gross Working</p>
+                <p className="font-mono font-extrabold text-slate-800 mt-0.5">{selectedRecord.grossWorkingHours}</p>
+              </div>
+              <div className="p-3 bg-amber-50/40 rounded-xl border border-amber-100">
+                <p className="text-[10px] font-bold text-amber-700 uppercase">Total Break</p>
+                <p className="font-mono font-extrabold text-amber-800 mt-0.5">{selectedRecord.totalBreak}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-emerald-700 uppercase">Net Working Duration</p>
+                <p className="text-xs text-emerald-600 font-medium">Gross Working − Total Break</p>
+              </div>
+              <span className="text-lg font-black font-mono text-emerald-900">{selectedRecord.workingHours}</span>
+            </div>
+
+            {/* Break Sessions Breakdown */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                <Coffee className="w-4 h-4 text-amber-600" /> Break Sessions
+              </h4>
+              {selectedRecord.breakSessions.length === 0 ? (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs text-slate-400 font-medium">
+                  No break sessions recorded for this day (0h 0m).
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {selectedRecord.breakSessions.map((b) => (
+                    <div
+                      key={b.id}
+                      className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-black flex items-center justify-center">
+                          {b.sessionNumber}
+                        </span>
+                        <span className="font-semibold text-slate-800 font-mono">
+                          {b.breakStartFormatted} → {b.breakEndFormatted}
+                        </span>
+                      </div>
+                      <span className="font-bold text-amber-800 font-mono bg-amber-50 px-2 py-0.5 rounded-md">
+                        {b.durationFormatted}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedRecord(null)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
