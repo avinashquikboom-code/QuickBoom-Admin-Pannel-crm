@@ -55,11 +55,9 @@ export function MapLocationPicker({
   const circleInstance = useRef<any>(null);
   const autocompleteInstance = useRef<any>(null);
 
-  const apiKey =
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-    'AIzaSyBzIu9g59dQo-ICpmusnRorJ8tJ3OYFlRA';
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-  // Load Google Maps Script
+  // Load Google Maps Script with modern async loading
   const loadGoogleMaps = useCallback((): Promise<void> => {
     if (typeof window === 'undefined') return Promise.resolve();
 
@@ -83,7 +81,7 @@ export function MapLocationPicker({
 
       const script = document.createElement('script');
       script.id = 'google-maps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async&libraries=places,geometry,marker`;
       script.async = true;
       script.defer = true;
       script.onload = () => resolve();
@@ -94,22 +92,23 @@ export function MapLocationPicker({
     return window.__googleMapsLoadingPromise;
   }, [apiKey]);
 
-  // Initialize Map
+  // Initialize Map with AdvancedMarkerElement & Places Library
   useEffect(() => {
     let isMounted = true;
 
     loadGoogleMaps()
-      .then(() => {
+      .then(async () => {
         if (!isMounted || !mapRef.current || !window.google?.maps) return;
 
         const centerLat = latitude && !isNaN(latitude) && latitude !== 0 ? latitude : 19.076;
         const centerLng = longitude && !isNaN(longitude) && longitude !== 0 ? longitude : 72.8777;
-        const center = new window.google.maps.LatLng(centerLat, centerLng);
+        const center = { lat: centerLat, lng: centerLng };
 
-        // 1. Create Map
+        // 1. Create Map with MapId (required for AdvancedMarkerElement)
         const map = new window.google.maps.Map(mapRef.current, {
           center,
           zoom: 16,
+          mapId: 'DEMO_MAP_ID',
           mapTypeId: window.google.maps.MapTypeId.ROADMAP,
           disableDefaultUI: false,
           zoomControl: true,
@@ -120,14 +119,40 @@ export function MapLocationPicker({
         });
         googleMapInstance.current = map;
 
-        // 2. Create Marker
-        const marker = new window.google.maps.Marker({
-          position: center,
-          map,
-          draggable: interactive,
-          animation: window.google.maps.Animation.DROP,
-          title: 'Office Location',
-        });
+        // 2. Create Marker (Migrated to AdvancedMarkerElement with legacy fallback)
+        let marker: any = null;
+        try {
+          if (window.google.maps.importLibrary) {
+            const { AdvancedMarkerElement } = await window.google.maps.importLibrary('marker');
+            marker = new AdvancedMarkerElement({
+              position: center,
+              map,
+              title: 'Office Location',
+              gmpDraggable: interactive,
+            });
+          } else if (window.google.maps.marker?.AdvancedMarkerElement) {
+            marker = new window.google.maps.marker.AdvancedMarkerElement({
+              position: center,
+              map,
+              title: 'Office Location',
+              gmpDraggable: interactive,
+            });
+          } else {
+            marker = new window.google.maps.Marker({
+              position: center,
+              map,
+              draggable: interactive,
+              title: 'Office Location',
+            });
+          }
+        } catch {
+          marker = new window.google.maps.Marker({
+            position: center,
+            map,
+            draggable: interactive,
+            title: 'Office Location',
+          });
+        }
         markerInstance.current = marker;
 
         // 3. Create Geofence Circle
@@ -145,55 +170,88 @@ export function MapLocationPicker({
           circleInstance.current = circle;
         }
 
-        // 4. Marker drag event
-        if (interactive) {
-          marker.addListener('dragend', (e: any) => {
-            const newLat = e.latLng.lat();
-            const newLng = e.latLng.lng();
-            if (circleInstance.current) {
-              circleInstance.current.setCenter(e.latLng);
+        // 4. Marker drag event & map click
+        if (interactive && marker) {
+          const handleNewPosition = (lat: number, lng: number) => {
+            const pos = { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) };
+            if (marker.position !== undefined) {
+              marker.position = pos;
+            } else if (typeof marker.setPosition === 'function') {
+              marker.setPosition(pos);
             }
-            onChange({ latitude: Number(newLat.toFixed(6)), longitude: Number(newLng.toFixed(6)) });
-          });
-
-          // Map click event to move marker
-          map.addListener('click', (e: any) => {
-            const newLat = e.latLng.lat();
-            const newLng = e.latLng.lng();
-            marker.setPosition(e.latLng);
             if (circleInstance.current) {
-              circleInstance.current.setCenter(e.latLng);
+              circleInstance.current.setCenter(pos);
             }
-            onChange({ latitude: Number(newLat.toFixed(6)), longitude: Number(newLng.toFixed(6)) });
-          });
+            onChange({ latitude: pos.lat, longitude: pos.lng });
+          };
 
-          // 5. Places Autocomplete on search input
-          if (searchInputRef.current && window.google.maps.places) {
-            const autocomplete = new window.google.maps.places.Autocomplete(
-              searchInputRef.current,
-              { types: ['geocode', 'establishment'] }
-            );
-            autocomplete.bindTo('bounds', map);
-            autocompleteInstance.current = autocomplete;
-
-            autocomplete.addListener('place_changed', () => {
-              const place = autocomplete.getPlace();
-              if (!place.geometry || !place.geometry.location) return;
-
-              const loc = place.geometry.location;
-              map.setCenter(loc);
-              map.setZoom(17);
-              marker.setPosition(loc);
-              if (circleInstance.current) {
-                circleInstance.current.setCenter(loc);
+          if (marker.addListener) {
+            marker.addListener('dragend', (e: any) => {
+              let lat: number;
+              let lng: number;
+              if (marker.position) {
+                lat = typeof marker.position.lat === 'function' ? marker.position.lat() : marker.position.lat;
+                lng = typeof marker.position.lng === 'function' ? marker.position.lng() : marker.position.lng;
+              } else if (e?.latLng) {
+                lat = e.latLng.lat();
+                lng = e.latLng.lng();
+              } else {
+                return;
               }
-
-              onChange({
-                latitude: Number(loc.lat().toFixed(6)),
-                longitude: Number(loc.lng().toFixed(6)),
-                address: place.formatted_address || place.name,
-              });
+              handleNewPosition(lat, lng);
             });
+          }
+
+          map.addListener('click', (e: any) => {
+            if (e?.latLng) {
+              handleNewPosition(e.latLng.lat(), e.latLng.lng());
+            }
+          });
+
+          // 5. Places Autocomplete with modern library import
+          try {
+            if (window.google.maps.importLibrary) {
+              await window.google.maps.importLibrary('places');
+            }
+            if (searchInputRef.current && window.google.maps.places) {
+              const autocomplete = new window.google.maps.places.Autocomplete(
+                searchInputRef.current,
+                { types: ['geocode', 'establishment'] }
+              );
+              autocomplete.bindTo('bounds', map);
+              autocompleteInstance.current = autocomplete;
+
+              autocomplete.addListener('place_changed', () => {
+                const place = autocomplete.getPlace();
+                if (!place.geometry || !place.geometry.location) return;
+
+                const loc = place.geometry.location;
+                const newLat = Number(loc.lat().toFixed(6));
+                const newLng = Number(loc.lng().toFixed(6));
+                const newPos = { lat: newLat, lng: newLng };
+
+                map.setCenter(newPos);
+                map.setZoom(17);
+
+                if (marker.position !== undefined) {
+                  marker.position = newPos;
+                } else if (typeof marker.setPosition === 'function') {
+                  marker.setPosition(newPos);
+                }
+
+                if (circleInstance.current) {
+                  circleInstance.current.setCenter(newPos);
+                }
+
+                onChange({
+                  latitude: newLat,
+                  longitude: newLng,
+                  address: place.formatted_address || place.name,
+                });
+              });
+            }
+          } catch (placesErr) {
+            console.warn('[MAP_LOCATION_PICKER] Places autocomplete init:', placesErr);
           }
         }
 
@@ -217,17 +275,32 @@ export function MapLocationPicker({
     if (!isMapLoaded || !googleMapInstance.current || !markerInstance.current) return;
     if (isNaN(latitude) || isNaN(longitude) || (latitude === 0 && longitude === 0)) return;
 
-    const currentPos = markerInstance.current.getPosition();
-    if (
-      currentPos &&
-      Math.abs(currentPos.lat() - latitude) < 0.00001 &&
-      Math.abs(currentPos.lng() - longitude) < 0.00001
-    ) {
+    const marker = markerInstance.current;
+    let curLat = 0;
+    let curLng = 0;
+
+    if (marker.position) {
+      curLat = typeof marker.position.lat === 'function' ? marker.position.lat() : marker.position.lat;
+      curLng = typeof marker.position.lng === 'function' ? marker.position.lng() : marker.position.lng;
+    } else if (typeof marker.getPosition === 'function') {
+      const pos = marker.getPosition();
+      if (pos) {
+        curLat = pos.lat();
+        curLng = pos.lng();
+      }
+    }
+
+    if (Math.abs(curLat - latitude) < 0.00001 && Math.abs(curLng - longitude) < 0.00001) {
       return; // Already synchronized
     }
 
-    const newCenter = new window.google.maps.LatLng(latitude, longitude);
-    markerInstance.current.setPosition(newCenter);
+    const newCenter = { lat: latitude, lng: longitude };
+    if (marker.position !== undefined) {
+      marker.position = newCenter;
+    } else if (typeof marker.setPosition === 'function') {
+      marker.setPosition(newCenter);
+    }
+
     googleMapInstance.current.panTo(newCenter);
 
     if (circleInstance.current) {
@@ -254,12 +327,19 @@ export function MapLocationPicker({
         setIsSearching(false);
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
+        const loc = { lat, lng };
 
         if (googleMapInstance.current && markerInstance.current) {
-          const loc = new window.google.maps.LatLng(lat, lng);
           googleMapInstance.current.setCenter(loc);
           googleMapInstance.current.setZoom(17);
-          markerInstance.current.setPosition(loc);
+
+          const marker = markerInstance.current;
+          if (marker.position !== undefined) {
+            marker.position = loc;
+          } else if (typeof marker.setPosition === 'function') {
+            marker.setPosition(loc);
+          }
+
           if (circleInstance.current) {
             circleInstance.current.setCenter(loc);
           }
@@ -278,16 +358,16 @@ export function MapLocationPicker({
     <div className="w-full space-y-3">
       {/* Top Search & Controls Bar */}
       {interactive && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search office address or landmark..."
+              placeholder="Search office address or place..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#23C45E] focus:outline-none text-slate-900 font-medium shadow-2xs"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs font-medium"
             />
           </div>
 
@@ -295,78 +375,60 @@ export function MapLocationPicker({
             type="button"
             onClick={handleUseCurrentLocation}
             disabled={isSearching}
-            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
           >
             <Crosshair className={`w-3.5 h-3.5 ${isSearching ? 'animate-spin' : ''}`} />
-            <span>Use My GPS</span>
+            <span>{isSearching ? 'Locating...' : 'My Location'}</span>
           </button>
         </div>
       )}
 
-      {/* Map Display Container */}
+      {/* Map Container */}
       <div
         className="relative w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100"
         style={{ height }}
       >
         <div ref={mapRef} className="w-full h-full" />
 
-        {/* Loading / Error Overlay */}
-        {!isMapLoaded && !loadError && (
-          <div className="absolute inset-0 bg-slate-100 flex flex-col items-center justify-center p-4 text-center">
-            <div className="w-8 h-8 border-3 border-[#23C45E] border-t-transparent rounded-full animate-spin mb-3" />
-            <p className="text-xs font-bold text-slate-600">Loading Google Maps & Geofence...</p>
-          </div>
-        )}
-
         {loadError && (
-          <div className="absolute inset-0 bg-slate-50 flex flex-col items-center justify-center p-6 text-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
-              <AlertCircle className="w-5 h-5" />
-            </div>
+          <div className="absolute inset-0 bg-slate-50/95 flex flex-col items-center justify-center p-6 text-center space-y-2">
+            <AlertCircle className="w-8 h-8 text-amber-600" />
             <p className="text-xs font-bold text-slate-800">{loadError}</p>
-            <p className="text-[11px] text-slate-500 max-w-sm">
-              Please check your Google Maps API key or enter the numeric latitude and longitude coordinates in the inputs below.
+            <p className="text-[11px] text-slate-500">
+              You can manually specify latitude & longitude below.
             </p>
-          </div>
-        )}
-
-        {/* Live Coordinate Overlay Chip */}
-        {isMapLoaded && (
-          <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-md flex items-center gap-3 text-[11px] font-mono text-slate-800 z-10">
-            <div className="flex items-center gap-1">
-              <span className="font-bold text-slate-400">Lat:</span>
-              <span className="font-bold text-slate-900">{latitude?.toFixed(4) ?? '--'}</span>
-            </div>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1">
-              <span className="font-bold text-slate-400">Lng:</span>
-              <span className="font-bold text-slate-900">{longitude?.toFixed(4) ?? '--'}</span>
-            </div>
-            {showRadius && (
-              <>
-                <span className="text-slate-300">|</span>
-                <div className="flex items-center gap-1 font-sans">
-                  <span className="font-bold text-emerald-600">Radius:</span>
-                  <span className="font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
-                    {radiusMeters}m
-                  </span>
-                </div>
-              </>
-            )}
           </div>
         )}
       </div>
 
-      {/* Helper Legend / Info */}
-      {interactive && (
-        <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#23C45E]" />
-            Drag marker or click anywhere on the map to position the office.
+      {/* Coordinate & Radius Status Footer */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="font-mono text-slate-700 font-bold">
+            {latitude.toFixed(6)}, {longitude.toFixed(6)}
           </span>
-          <span className="text-slate-400">Green circle = Attendance Geofence</span>
         </div>
-      )}
+
+        {showRadius && (
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 font-medium">Geofence Radius:</span>
+            {onRadiusChange ? (
+              <input
+                type="number"
+                min="50"
+                max="5000"
+                step="50"
+                value={radiusMeters || 200}
+                onChange={(e) => onRadiusChange(Number(e.target.value))}
+                className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none"
+              />
+            ) : (
+              <span className="font-extrabold text-emerald-700">{radiusMeters || 200}m</span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
