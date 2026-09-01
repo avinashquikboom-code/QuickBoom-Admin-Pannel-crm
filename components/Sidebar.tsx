@@ -64,10 +64,20 @@ export function getActiveNavHref(
         if (currentPath === itemPath) {
           score = 500;
         }
-        // 3. Deals / CRM alias compatibility
+        // 3. Route alias compatibility (Deals/CRM, Offices, Live Dashboard)
         else if (
           (itemPath === '/deals' || itemPath === '/crm') &&
           (currentPath === '/deals' || currentPath === '/crm')
+        ) {
+          score = 400;
+        } else if (
+          (itemPath === '/hrms/offices' || itemPath === '/offices' || itemPath === '/hrm/offices') &&
+          (currentPath === '/hrms/offices' || currentPath === '/offices' || currentPath === '/hrm/offices')
+        ) {
+          score = 400;
+        } else if (
+          (itemPath === '/hrm/live-dashboard' || itemPath === '/live-dashboard') &&
+          (currentPath === '/hrm/live-dashboard' || currentPath === '/live-dashboard')
         ) {
           score = 400;
         }

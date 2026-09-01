@@ -749,7 +749,11 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
     }
 
     for (const item of section.items) {
-      const matches = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+      const matches =
+        pathname === item.href ||
+        (item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
+        (item.href === '/hrms/offices' && (pathname === '/offices' || pathname === '/hrm/offices')) ||
+        (item.href === '/hrm/live-dashboard' && pathname === '/live-dashboard');
       if (matches) {
         // Check feature
         if (item.feature && !isFeatureEnabled(user, item.feature)) {

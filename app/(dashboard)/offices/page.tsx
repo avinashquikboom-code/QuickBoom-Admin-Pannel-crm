@@ -1,3 +1,5 @@
 'use client';
 
-export { default } from '../hrms/offices/page';
+import OfficeManagementPage from '../hrms/offices/page';
+
+export default OfficeManagementPage;
