@@ -99,7 +99,7 @@ export default function EditEmployeePage() {
       setFormData({
         firstName: employeeData.firstName || '',
         lastName: employeeData.lastName || '',
-        employeeCode: employeeData.employeeCode || employeeData.employeeId || `EMP-${id}`,
+        employeeCode: employeeData.employeeId || employeeData.employeeCode || `EMP-${id}`,
         email: employeeData.email || '',
         phone: employeeData.phone || '',
         departmentId: employeeData.departmentId || employeeData.department?.id || '',

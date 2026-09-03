@@ -80,6 +80,16 @@ export function getActiveNavHref(
           (currentPath === '/hrm/live-dashboard' || currentPath === '/live-dashboard')
         ) {
           score = 400;
+        } else if (
+          (itemPath === '/teams' || itemPath === '/team-management') &&
+          (currentPath === '/teams' || currentPath === '/team-management')
+        ) {
+          score = 450;
+        } else if (
+          (itemPath === '/squads' || itemPath === '/squad-management') &&
+          (currentPath === '/squads' || currentPath === '/squad-management')
+        ) {
+          score = 450;
         }
         // 4. Strict nested route prefix match (e.g. /customers/123 -> /customers)
         // Root and single top-level endpoints should not prefix-match other paths

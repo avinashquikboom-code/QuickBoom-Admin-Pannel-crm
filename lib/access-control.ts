@@ -143,6 +143,16 @@ const SUPER_ADMIN_PERMISSIONS: string[] = [
   'banners.manage',
   'marketing.view',
   'marketing.manage',
+  'team.view',
+  'team.manage',
+  'team.create',
+  'team.update',
+  'teams.view',
+  'teams.manage',
+  'squad.view',
+  'squad.manage',
+  'squads.view',
+  'squads.manage',
 ];
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
@@ -153,6 +163,16 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
     'employee.view',
     'employee.create',
     'employee.update',
+    'team.view',
+    'team.manage',
+    'team.create',
+    'team.update',
+    'teams.view',
+    'teams.manage',
+    'squad.view',
+    'squad.manage',
+    'squads.view',
+    'squads.manage',
     'department.view',
     'department.create',
     'department.update',
@@ -243,7 +263,8 @@ export const adminNavigation: {
         { name: 'Live Dashboard', href: '/hrm/live-dashboard', icon: Activity, permission: 'attendance.view_all', badge: 'LIVE' },
         { name: 'Office Management', href: '/hrms/offices', icon: Building2, permission: 'hrm.manage' },
         { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
-        { name: 'Teams', href: '/teams', icon: Users, permission: 'employee.view' },
+        { name: 'Team Management', href: '/teams', icon: Users, permission: 'employee.view' },
+        { name: 'Squad Management', href: '/squads', icon: Users, permission: 'employee.view' },
         { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
         { name: 'Designations', href: '/designations', icon: Award, permission: 'designation.view' },
         { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view_all' },
@@ -403,6 +424,8 @@ export const adminNavigation: {
       roles: ['HR'],
       items: [
         { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
+        { name: 'Team Management', href: '/teams', icon: Users, permission: 'employee.view' },
+        { name: 'Squad Management', href: '/squads', icon: Users, permission: 'employee.view' },
       ],
     },
 
@@ -753,7 +776,9 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
         pathname === item.href ||
         (item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
         (item.href === '/hrms/offices' && (pathname === '/offices' || pathname === '/hrm/offices')) ||
-        (item.href === '/hrm/live-dashboard' && pathname === '/live-dashboard');
+        (item.href === '/hrm/live-dashboard' && pathname === '/live-dashboard') ||
+        (item.href === '/teams' && (pathname === '/team-management' || pathname === '/squads' || pathname === '/squad-management')) ||
+        (item.href === '/squads' && (pathname === '/teams' || pathname === '/team-management' || pathname === '/squad-management'));
       if (matches) {
         // Check feature
         if (item.feature && !isFeatureEnabled(user, item.feature)) {

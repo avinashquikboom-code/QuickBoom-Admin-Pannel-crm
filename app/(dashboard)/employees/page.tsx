@@ -308,8 +308,8 @@ export default function EmployeesPage() {
 
       return {
         id: String(e.id),
-        employeeId: e.employeeCode || e.employeeId || `EMP-${e.id}`,
-        employeeCode: e.employeeCode || e.employeeId || `EMP-${e.id}`,
+        employeeId: e.employeeId || e.employeeCode || `EMP-${e.id}`,
+        employeeCode: e.employeeId || e.employeeCode || `EMP-${e.id}`,
         firstName: fName,
         lastName: lName,
         name: full,
@@ -1123,6 +1123,7 @@ export default function EmployeesPage() {
               <thead className="bg-slate-50/80 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100">
                 <tr>
                   <th className="py-3.5 px-4">Employee</th>
+                  <th className="py-3.5 px-4">Employee ID</th>
                   <th className="py-3.5 px-4">Contact</th>
                   <th className="py-3.5 px-4">Office</th>
                   <th className="py-3.5 px-4">Department</th>
@@ -1155,13 +1156,20 @@ export default function EmployeesPage() {
                               {emp.name}
                             </p>
                             <span className="text-[11px] font-mono font-bold text-slate-400">
-                              {emp.employeeCode}
+                              {emp.employeeId}
                             </span>
                           </div>
                         </div>
                       </td>
 
-                      {/* 2. Contact */}
+                      {/* 2. Employee ID */}
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-mono font-bold text-xs">
+                          {emp.employeeId}
+                        </span>
+                      </td>
+
+                      {/* 3. Contact */}
                       <td className="py-3.5 px-4">
                         <p className="font-bold text-slate-800">{emp.email}</p>
                         <p className="text-[11px] text-slate-500 font-mono">{emp.phone}</p>
@@ -1320,7 +1328,7 @@ export default function EmployeesPage() {
                   </h2>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[11px] text-slate-500 font-mono font-bold">
-                      {selectedEmployee.employeeCode}
+                      {selectedEmployee.employeeId || selectedEmployee.employeeCode}
                     </span>
                     <span className="text-slate-300">•</span>
                     <span
@@ -1416,7 +1424,7 @@ export default function EmployeesPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3.5 bg-slate-50 rounded-xl">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Employee ID / Code</span>
-                      <p className="font-mono font-black text-slate-900 mt-1">{selectedEmployee.employeeCode}</p>
+                      <p className="font-mono font-black text-slate-900 mt-1">{selectedEmployee.employeeId || selectedEmployee.employeeCode}</p>
                     </div>
                     <div className="p-3.5 bg-slate-50 rounded-xl">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Joining Date</span>

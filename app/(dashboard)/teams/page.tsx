@@ -216,34 +216,126 @@ export default function TeamsPage() {
     );
   });
 
+  const totalTeams = teamsPagination.total ?? teamsList.length;
+  const totalMembers = teamsList.reduce((acc, t) => acc + (t.members?.length || 0), 0);
+  const assignedLeads = teamsList.filter((t) => t.leaderId || t.leader).length;
+  const activeSquads = teamsList.filter((t) => t.members && t.members.length > 0).length;
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
-            Team & Squad Management
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Organize staff into operational units, assign team leads, and manage member rosters.
-          </p>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+      {/* 1. Page Hero Header Card */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
+                HRM • Workforce Units
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+              Team & Squad Management
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
+              Organize staff into operational units, assign team leads, and manage member rosters.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => refetchTeams()}
+              disabled={isTeamsLoading}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${isTeamsLoading ? 'animate-spin text-[#23C45E]' : ''}`} />
+            </button>
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer group active:scale-[0.98]"
+            >
+              <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>+ Create Team</span>
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => refetchTeams()}
-            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition"
-            title="Refresh"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition"
-          >
-            <Plus className="w-4 h-4" />
-            Create Team
-          </button>
+      </div>
+
+      {/* 2. Summary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Teams */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Total Teams
+            </span>
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
+              {isTeamsLoading ? '...' : totalTeams}
+            </p>
+            <span className="text-xs font-bold text-slate-500 mt-0.5 block">
+              Registered squads & units
+            </span>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center">
+            <Users className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Total Members */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Total Members
+            </span>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">
+              {isTeamsLoading ? '...' : totalMembers}
+            </p>
+            <span className="text-xs font-bold text-emerald-700 mt-0.5 block">
+              Assigned personnel
+            </span>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+            <Users className="w-6 h-6 text-[#23C45E]" />
+          </div>
+        </div>
+
+        {/* Assigned Leads */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Assigned Leads
+            </span>
+            <p className="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">
+              {isTeamsLoading ? '...' : assignedLeads}
+            </p>
+            <span className="text-xs font-bold text-indigo-700 mt-0.5 block">
+              Squad leadership
+            </span>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Active Squads */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Active Squads
+            </span>
+            <p className="text-2xl sm:text-3xl font-black text-blue-600 mt-1">
+              {isTeamsLoading ? '...' : activeSquads}
+            </p>
+            <span className="text-xs font-bold text-slate-500 mt-0.5 block">
+              Operational units
+            </span>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+            <Building2 className="w-6 h-6" />
+          </div>
         </div>
       </div>
 

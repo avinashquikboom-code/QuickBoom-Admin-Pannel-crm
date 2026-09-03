@@ -277,90 +277,122 @@ export default function ClaimsPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <Receipt className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
-            Claims & Expense Reimbursements
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Track employee business expenses, receipts, policy allowances, and reimbursement payouts.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              refetchClaims();
-              refetchMetrics();
-            }}
-            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition"
-            title="Refresh"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition"
-          >
-            <Plus className="w-4 h-4" />
-            Submit Expense Claim
-          </button>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
+      {/* 1. Page Hero Header Card */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
+                HRM • Expense & Reimbursements
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+              Claims & Expense Reimbursements
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
+              Track employee business expenses, receipts, policy allowances, and reimbursement payouts.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                refetchClaims();
+                refetchMetrics();
+              }}
+              disabled={isClaimsLoading || isMetricsLoading}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${isClaimsLoading || isMetricsLoading ? 'animate-spin text-[#23C45E]' : ''}`} />
+            </button>
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer group active:scale-[0.98]"
+            >
+              <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>+ Submit Expense Claim</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* 2. Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Claimed</span>
-            <span className="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
-              <DollarSign className="w-5 h-5" />
+        {/* Total Claimed */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Total Claimed
+            </span>
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
+              {isMetricsLoading ? '...' : formatCurrency(metrics?.totalClaimed || 0)}
+            </p>
+            <span className="text-xs font-bold text-slate-500 mt-0.5 block">
+              {metrics?.totalClaims || 0} submitted claims
             </span>
           </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(metrics?.totalClaimed)}</h3>
-            <p className="text-xs text-slate-500 mt-1">{metrics?.totalClaims || 0} submitted claims</p>
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center">
+            <DollarSign className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pending Review</span>
-            <span className="p-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg">
-              <Clock className="w-5 h-5" />
+        {/* Pending Review */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Pending Review
+            </span>
+            <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-1">
+              {isMetricsLoading ? '...' : (metrics?.pendingClaims ?? 0)}
+            </p>
+            <span className="text-xs font-bold text-amber-700 mt-0.5 block">
+              Awaiting HR review
             </span>
           </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{metrics?.pendingClaims || 0}</h3>
-            <p className="text-xs text-slate-500 mt-1">Awaiting approval</p>
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center">
+            <Clock className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Approved Amount</span>
-            <span className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg">
-              <CheckCircle className="w-5 h-5" />
+        {/* Approved Amount */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Approved Amount
+            </span>
+            <p className="text-2xl sm:text-3xl font-black text-blue-600 mt-1">
+              {isMetricsLoading ? '...' : formatCurrency(metrics?.totalApproved || 0)}
+            </p>
+            <span className="text-xs font-bold text-slate-500 mt-0.5 block">
+              {metrics?.approvedClaims || 0} claims approved
             </span>
           </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(metrics?.totalApproved)}</h3>
-            <p className="text-xs text-slate-500 mt-1">{metrics?.approvedClaims || 0} claims approved</p>
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+            <CheckCircle className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Reimbursed</span>
-            <span className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg">
-              <TrendingUp className="w-5 h-5" />
+        {/* Total Reimbursed */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
+              Total Reimbursed
+            </span>
+            <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">
+              {isMetricsLoading ? '...' : formatCurrency(metrics?.totalPaid || 0)}
+            </p>
+            <span className="text-xs font-bold text-emerald-700 mt-0.5 block">
+              {metrics?.paidClaims || 0} paid out
             </span>
           </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(metrics?.totalPaid)}</h3>
-            <p className="text-xs text-slate-500 mt-1">{metrics?.paidClaims || 0} paid out</p>
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+            <TrendingUp className="w-6 h-6 text-[#23C45E]" />
           </div>
         </div>
       </div>
