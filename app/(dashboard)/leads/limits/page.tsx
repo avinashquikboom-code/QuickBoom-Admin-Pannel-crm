@@ -171,8 +171,8 @@ export default function LeadGenerationLimitsPage() {
     setIsRoleDrawerOpen(true);
   };
 
-  const handleSaveRole = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveRole = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!selectedRole) return;
     updateRoleMutation.mutate({
       roleName: selectedRole.roleName,
@@ -190,8 +190,8 @@ export default function LeadGenerationLimitsPage() {
     setIsEmployeeDrawerOpen(true);
   };
 
-  const handleSaveEmployee = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveEmployee = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!selectedEmployee) return;
 
     const daily = empFormDaily.trim() === '' ? null : Number(empFormDaily);
@@ -719,19 +719,19 @@ export default function LeadGenerationLimitsPage() {
       <AdminConfirmDialog
         isOpen={isResetConfirmOpen}
         title="Reset to Role Default Quota"
-        message={`Are you sure you want to remove the custom quota for ${employeeToReset?.name}? This employee will inherit their role (${employeeToReset?.role}) default limit.`}
+        description={`Are you sure you want to remove the custom quota for ${employeeToReset?.name}? This employee will inherit their role (${employeeToReset?.role}) default limit.`}
         confirmLabel="Reset Limits"
-        isDanger={false}
+        variant="primary"
         onConfirm={() => {
           if (employeeToReset) {
             clearEmployeeMutation.mutate(employeeToReset.employeeId);
           }
         }}
-        onCancel={() => {
+        onClose={() => {
           setIsResetConfirmOpen(false);
           setEmployeeToReset(null);
         }}
-        isLoading={clearEmployeeMutation.isPending}
+        loading={clearEmployeeMutation.isPending}
       />
     </div>
   );
