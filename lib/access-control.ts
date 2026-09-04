@@ -286,6 +286,7 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
+        { name: 'Lead Limits', href: '/leads/limits', icon: ShieldCheck, permission: 'leads.view' },
         { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
         { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
         { name: 'Deals', href: '/deals', icon: Kanban, permission: 'deals.view' },
@@ -699,6 +700,7 @@ export function filterNavigation(
 export const SUPER_ADMIN_ONLY_ROUTES: string[] = [
   '/crm',
   '/leads',
+  '/leads/limits',
   '/contacts',
   '/companies',
   '/visits',
