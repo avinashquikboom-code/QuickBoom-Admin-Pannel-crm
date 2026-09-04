@@ -11,6 +11,10 @@ export const getErrorMessage = (error: unknown): string => {
   if (error && typeof error === 'object') {
     const err = error as any;
 
+    if (Array.isArray(err.response?.data?.errors) && err.response.data.errors.length > 0) {
+      return err.response.data.errors.join(', ');
+    }
+
     if (typeof err.response?.data?.message === 'string') {
       return err.response.data.message;
     }

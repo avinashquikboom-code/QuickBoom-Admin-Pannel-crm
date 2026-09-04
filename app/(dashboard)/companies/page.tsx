@@ -186,12 +186,15 @@ export default function CompaniesPage() {
     setIsSearchingPlaces(true);
     try {
       const res: any = await api.post('/data-capture/extract', {
+        keyword: googleQuery.trim(),
+        location: (googleLocation || '').trim(),
         query: `${googleQuery} in ${googleLocation}`,
         source: 'GOOGLE_MAPS',
         limit: 10,
+        maxResults: 10,
       });
 
-      const records = res?.data?.records || res?.records || [];
+      const records = res?.data?.records || res?.records || res?.data?.places || res?.places || [];
       setPlaceResults(records);
       if (records.length === 0) {
         toast('No matching places found. Try another search query.');
