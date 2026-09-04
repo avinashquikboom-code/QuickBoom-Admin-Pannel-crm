@@ -33,6 +33,7 @@ export default function InvoicesPage() {
 
   // Form states
   const [formInvoiceNo, setFormInvoiceNo] = useState(`INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [formCustomerId, setFormCustomerId] = useState('');
   const [formContactId, setFormContactId] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formDueDate, setFormDueDate] = useState('');
@@ -43,10 +44,11 @@ export default function InvoicesPage() {
     queryFn: async () => {
       const params: any = { page, limit: pageSize };
       if (selectedStatus !== 'ALL') params.status = selectedStatus;
-      if (search.trim()) params.search = search.trim();
-      const res: any = await api.get('/invoices', { params });
-      const items = res?.data?.items || res?.items || res?.data || (Array.isArray(res) ? res : []);
-      const pagination = res?.pagination || res?.meta || res?.data?.pagination || {
+      if (search) params.search = search;
+      const res = await api.get('/invoices', { params });
+      const raw = res.data;
+      const items = raw?.data || raw?.items || [];
+      const pagination = raw?.pagination || raw?.meta || {
         page,
         pageSize,
         total: Array.isArray(items) ? items.length : 0,
@@ -66,6 +68,15 @@ export default function InvoicesPage() {
 
   const invoicesData = invoicesResponse?.items || [];
   const invoicesPagination = invoicesResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
+
+  const { data: customersList = [] } = useQuery({
+    queryKey: ['customers-for-invoice'],
+    queryFn: async () => {
+      const res = await api.get('/customers');
+      const d = res.data?.data || res.data;
+      return Array.isArray(d) ? d : d?.items || [];
+    },
+  });
 
   const { data: contactsList = [] } = useQuery({
     queryKey: ['contacts-for-invoice'],
@@ -108,6 +119,7 @@ export default function InvoicesPage() {
 
   const resetForm = () => {
     setFormInvoiceNo(`INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+    setFormCustomerId('');
     setFormContactId('');
     setFormAmount('');
     setFormDueDate('');
@@ -122,9 +134,10 @@ export default function InvoicesPage() {
     }
     createMutation.mutate({
       invoiceNo: formInvoiceNo,
+      customerId: formCustomerId ? Number(formCustomerId) : undefined,
       contactId: formContactId ? Number(formContactId) : undefined,
       totalAmount: Number(formAmount),
-      dueDate: formDueDate || undefined,
+      dueDate: formDueDate ? new Date(formDueDate).toISOString() : undefined,
       notes: formNotes || undefined,
       status: 'PENDING',
     });
@@ -368,6 +381,24 @@ export default function InvoicesPage() {
               onChange={(e) => setFormInvoiceNo(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Customer / Business Account
+            </label>
+            <select
+              value={formCustomerId}
+              onChange={(e) => setFormCustomerId(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">-- Choose Customer Account (Optional) --</option>
+              {customersList.map((c: any) => (
+                <option key={c.id} value={c.id}>
+                  {c.companyName || c.name} ({c.email || `ID: ${c.id}`})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
