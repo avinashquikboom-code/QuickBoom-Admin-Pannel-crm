@@ -8,7 +8,6 @@ import {
   Clock,
   Check,
   X,
-  Plus,
   Search,
   Building2,
   Calendar,
@@ -67,17 +66,8 @@ export default function LoansPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedLoan, setSelectedLoan] = useState<LoanRecord | null>(null);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
-
-  // Form states
-  const [formEmployeeId, setFormEmployeeId] = useState<string>('');
-  const [formAmount, setFormAmount] = useState<string>('');
-  const [formReason, setFormReason] = useState<string>('');
-  const [formTerm, setFormTerm] = useState<number>(12);
-  const [formInterest, setFormInterest] = useState<number>(0);
-  const [formNotes, setFormNotes] = useState<string>('');
 
   // Review states
   const [reviewApprovedAmount, setReviewApprovedAmount] = useState<string>('');
@@ -122,33 +112,6 @@ export default function LoansPage() {
 
   const loansList: LoanRecord[] = loansResponse?.items || [];
   const loansPagination = loansResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
-
-  const { data: employeesList = [] } = useQuery({
-    queryKey: ['employees-simple-list'],
-    queryFn: async () => {
-      const res = await api.get('/employees', { params: { limit: 500 } });
-      const data = res.data?.data || res.data?.items || res.data?.employees || res.data;
-      return Array.isArray(data) ? data : data?.employees || data?.items || [];
-    },
-  });
-
-  // Mutations
-  const createMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const res = await api.post('/loans', payload);
-      return res.data;
-    },
-    onSuccess: () => {
-      toast.success('Loan application submitted successfully');
-      setIsCreateOpen(false);
-      resetForm();
-      queryClient.invalidateQueries({ queryKey: ['loans-list'] });
-      queryClient.invalidateQueries({ queryKey: ['loans-metrics'] });
-    },
-    onError: (err) => {
-      toast.error(getErrorMessage(err));
-    },
-  });
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, payload }: { id: number; payload: any }) => {
@@ -198,34 +161,6 @@ export default function LoansPage() {
       toast.error(getErrorMessage(err));
     },
   });
-
-  const resetForm = () => {
-    setFormEmployeeId('');
-    setFormAmount('');
-    setFormReason('');
-    setFormTerm(12);
-    setFormInterest(0);
-    setFormNotes('');
-  };
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formEmployeeId || !formAmount || !formReason) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    const amount = Number(formAmount);
-    const emi = Math.round((amount / formTerm) * 100) / 100;
-    createMutation.mutate({
-      employeeId: Number(formEmployeeId),
-      loanAmount: amount,
-      reason: formReason,
-      termMonths: formTerm,
-      interestRate: Number(formInterest),
-      monthlyEmi: emi,
-      notes: formNotes || undefined,
-    });
-  };
 
   const handleApproveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,13 +244,6 @@ export default function LoansPage() {
               title="Refresh"
             >
               <RefreshCw className={`w-4 h-4 ${isLoansLoading || isMetricsLoading ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
-            <button
-              onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer group active:scale-[0.98]"
-            >
-              <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span>+ New Loan Request</span>
             </button>
           </div>
         </div>
@@ -457,15 +385,7 @@ export default function LoansPage() {
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                     <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p className="font-semibold text-slate-600 mb-1">No loan applications found</p>
-                    <p className="text-xs text-slate-400 mb-3">Create a new employee loan request to get started.</p>
-                    <button
-                      type="button"
-                      onClick={() => setIsCreateOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-bold rounded-xl text-xs shadow-xs transition-transform active:scale-95 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ New Loan Request</span>
-                    </button>
+                    <p className="text-xs text-slate-400">There are currently no employee loan applications in this category.</p>
                   </td>
                 </tr>
               ) : (
@@ -562,133 +482,6 @@ export default function LoansPage() {
           disabled={isLoansLoading}
         />
       </div>
-
-      {/* New Loan Drawer */}
-      <AdminFormDrawer
-        isOpen={isCreateOpen}
-        onClose={() => {
-          setIsCreateOpen(false);
-          resetForm();
-        }}
-        title="Submit New Loan Request"
-        subtitle="Apply for an employee loan or emergency advance"
-      >
-        <form onSubmit={handleCreateSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Select Employee <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formEmployeeId}
-              onChange={(e) => setFormEmployeeId(e.target.value)}
-              required
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">-- Choose Employee --</option>
-              {employeesList.map((emp: any) => {
-                const fullName = emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || `Employee #${emp.id}`;
-                const empCode = emp.employeeCode || emp.code || `EMP-${emp.id}`;
-                return (
-                  <option key={emp.id} value={emp.id}>
-                    {fullName} ({empCode})
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Loan Amount (₹) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              min="500"
-              step="500"
-              required
-              placeholder="e.g. 50000"
-              value={formAmount}
-              onChange={(e) => setFormAmount(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Tenure (Months)
-              </label>
-              <select
-                value={formTerm}
-                onChange={(e) => setFormTerm(Number(e.target.value))}
-                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value={3}>3 Months</option>
-                <option value={6}>6 Months</option>
-                <option value={12}>12 Months (1 Year)</option>
-                <option value={18}>18 Months</option>
-                <option value={24}>24 Months (2 Years)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Interest Rate (%)
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                value={formInterest}
-                onChange={(e) => setFormInterest(Number(e.target.value))}
-                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Purpose / Reason for Loan <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              rows={3}
-              required
-              placeholder="e.g. Medical emergency, Home renovation..."
-              value={formReason}
-              onChange={(e) => setFormReason(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Internal HR Notes
-            </label>
-            <textarea
-              rows={2}
-              placeholder="Optional notes or remarks"
-              value={formNotes}
-              onChange={(e) => setFormNotes(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm disabled:opacity-50"
-            >
-              {createMutation.isPending ? 'Submitting...' : 'Submit Request'}
-            </button>
-          </div>
-        </form>
-      </AdminFormDrawer>
 
       {/* Review / Approve Drawer */}
       <AdminFormDrawer
