@@ -43,37 +43,72 @@ export default function InvoicesPage() {
     queryKey: ['invoices', selectedStatus, search, page, pageSize],
     queryFn: async () => {
       const params: any = { page, limit: pageSize };
-      if (selectedStatus !== 'ALL') params.status = selectedStatus;
-      if (search) params.search = search;
-      const res = await api.get('/invoices', { params });
-      const raw = res.data;
-      const items = raw?.data || raw?.items || [];
-      const pagination = raw?.pagination || raw?.meta || {
-        page,
-        pageSize,
-        total: Array.isArray(items) ? items.length : 0,
-        totalPages: 1,
-      };
+      if (selectedStatus && selectedStatus !== 'ALL') params.status = selectedStatus;
+      if (search && search.trim()) params.search = search.trim();
+      const res: any = await api.get('/invoices', { params });
+
+      // Unpack response safely across all interceptor unwrapping scenarios
+      let items: any[] = [];
+      if (Array.isArray(res)) {
+        items = res;
+      } else if (Array.isArray(res?.data)) {
+        items = res.data;
+      } else if (Array.isArray(res?.items)) {
+        items = res.items;
+      } else if (Array.isArray(res?.data?.data)) {
+        items = res.data.data;
+      } else if (Array.isArray(res?.data?.items)) {
+        items = res.data.items;
+      }
+
+      const paginationSource =
+        res?.pagination ||
+        res?.meta ||
+        res?.data?.pagination ||
+        res?.data?.meta ||
+        {};
+
+      const summarySource =
+        res?.summary ||
+        res?.counts ||
+        res?.data?.summary ||
+        res?.data?.counts ||
+        {};
+
+      const total = Number(paginationSource.total ?? summarySource.totalInvoices ?? items.length) || 0;
+      const totalPages = Number(paginationSource.totalPages ?? Math.ceil(total / pageSize)) || 1;
+
       return {
-        items: Array.isArray(items) ? items : [],
+        items,
+        summary: {
+          totalInvoices: Number(summarySource.totalInvoices ?? total) || 0,
+          pendingPayments: Number(summarySource.pendingPayments ?? summarySource.pending ?? items.filter((i: any) => i.status === 'PENDING').length) || 0,
+          paidInvoices: Number(summarySource.paidInvoices ?? summarySource.paid ?? items.filter((i: any) => i.status === 'PAID').length) || 0,
+          overdueInvoices: Number(summarySource.overdueInvoices ?? summarySource.overdue ?? 0) || 0,
+        },
         pagination: {
-          page: Number(pagination.page) || page,
-          pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
-          total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
-          totalPages: Number(pagination.totalPages) || 1,
+          page: Number(paginationSource.page) || page,
+          pageSize: Number(paginationSource.pageSize || paginationSource.limit) || pageSize,
+          total,
+          totalPages,
         },
       };
     },
   });
 
-  const invoicesData = invoicesResponse?.items || [];
+  const invoicesList = Array.isArray(invoicesResponse?.items) ? invoicesResponse.items : [];
   const invoicesPagination = invoicesResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
+  const invoicesSummary = invoicesResponse?.summary || {
+    totalInvoices: invoicesPagination.total,
+    pendingPayments: 0,
+    paidInvoices: 0,
+  };
 
   const { data: customersList = [] } = useQuery({
     queryKey: ['customers-for-invoice'],
     queryFn: async () => {
-      const res = await api.get('/customers');
-      const d = res.data?.data || res.data;
+      const res: any = await api.get('/customers');
+      const d = res?.data?.data || res?.data || res;
       return Array.isArray(d) ? d : d?.items || [];
     },
   });
@@ -81,16 +116,16 @@ export default function InvoicesPage() {
   const { data: contactsList = [] } = useQuery({
     queryKey: ['contacts-for-invoice'],
     queryFn: async () => {
-      const res = await api.get('/contacts');
-      const d = res.data?.data || res.data;
+      const res: any = await api.get('/contacts');
+      const d = res?.data?.data || res?.data || res;
       return Array.isArray(d) ? d : d?.items || [];
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const res = await api.post('/invoices', payload);
-      return res.data;
+      const res: any = await api.post('/invoices', payload);
+      return res?.data || res;
     },
     onSuccess: () => {
       toast.success('Invoice generated successfully');
@@ -105,8 +140,8 @@ export default function InvoicesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number | string) => {
-      const res = await api.delete(`/invoices/${id}`);
-      return res.data;
+      const res: any = await api.delete(`/invoices/${id}`);
+      return res?.data || res;
     },
     onSuccess: () => {
       toast.success('Invoice deleted');
@@ -128,9 +163,15 @@ export default function InvoicesPage() {
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formAmount) {
-      toast.error('Please enter the total invoice amount');
+    if (!formAmount || Number(formAmount) <= 0) {
+      toast.error('Please enter a valid total invoice amount');
       return;
+    }
+    if (!formCustomerId && !formContactId) {
+      if (customersList && customersList.length > 0) {
+        toast.error('Please select a Customer / Business Account');
+        return;
+      }
     }
     createMutation.mutate({
       invoiceNo: formInvoiceNo,
@@ -156,16 +197,8 @@ export default function InvoicesPage() {
     );
   };
 
-  const invoicesList = Array.isArray(invoicesData) ? invoicesData : [];
-
-  const filteredInvoices = invoicesList.filter((inv: any) => {
-    const invIdStr = String(inv.invoiceNumber || inv.id || '');
-    const clientStr = String(inv.clientName || '');
-    const matchesSearch =
-      invIdStr.toLowerCase().includes(search.toLowerCase()) ||
-      clientStr.toLowerCase().includes(search.toLowerCase());
-    return matchesSearch;
-  });
+  // Backend query handles search, filtering, and pagination across database
+  const filteredInvoices = invoicesList;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -214,21 +247,21 @@ export default function InvoicesPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <AdminStatCard
           title="Total Invoices"
-          value={invoicesList.length}
+          value={invoicesSummary.totalInvoices}
           description="All generated client invoices"
           icon={FileText}
           iconBg="slate"
         />
         <AdminStatCard
           title="Pending Payments"
-          value={invoicesList.filter((i: any) => i.status === 'PENDING').length}
+          value={invoicesSummary.pendingPayments}
           description="Awaiting client settlement"
           icon={Clock}
           iconBg="amber"
         />
         <AdminStatCard
           title="Paid Invoices"
-          value={invoicesList.filter((i: any) => i.status === 'PAID').length}
+          value={invoicesSummary.paidInvoices}
           description="Successfully reconciled"
           icon={CheckCircle2}
           iconBg="primary"
@@ -242,7 +275,10 @@ export default function InvoicesPage() {
             {['ALL', 'PAID', 'PENDING', 'OVERDUE', 'DRAFT'].map((status) => (
               <button
                 key={status}
-                onClick={() => setSelectedStatus(status)}
+                onClick={() => {
+                  setSelectedStatus(status);
+                  setPage(1);
+                }}
                 className={`px-3 py-1.5 text-xs font-bold rounded-xl transition ${
                   selectedStatus === status
                     ? 'bg-slate-900 text-white'
@@ -260,7 +296,10 @@ export default function InvoicesPage() {
               type="text"
               placeholder="Search invoice or client..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
