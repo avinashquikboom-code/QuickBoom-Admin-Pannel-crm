@@ -36,6 +36,10 @@ import {
   DollarSign,
   FileCheck,
   Plus,
+  ShieldCheck,
+  Save,
+  AlertCircle,
+  Check,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -135,6 +139,48 @@ export default function EmployeesPage() {
   const [quickOfficeLng, setQuickOfficeLng] = useState('72.8777');
   const [quickOfficeRadius, setQuickOfficeRadius] = useState('200');
   const [isQuickOfficeSubmitting, setIsQuickOfficeSubmitting] = useState(false);
+
+  // Module Permissions Modal State (Role & Employee-specific Access Control)
+  const [permEmployee, setPermEmployee] = useState<EmployeeMaster | null>(null);
+  const [permModules, setPermModules] = useState<any[]>([]);
+  const [permOverrides, setPermOverrides] = useState<Record<string, 'DEFAULT' | 'ALLOW' | 'DENY'>>({});
+  const [isPermLoading, setIsPermLoading] = useState(false);
+  const [isPermSaving, setIsPermSaving] = useState(false);
+
+  const handleOpenPermissionsModal = async (emp: EmployeeMaster) => {
+    setPermEmployee(emp);
+    setIsPermLoading(true);
+    try {
+      const res: any = await api.get(`/works/permissions/overrides/employee/${emp.id}`);
+      const data = res?.data || res;
+      setPermModules(data?.modules || []);
+      const initialOverrides: Record<string, 'DEFAULT' | 'ALLOW' | 'DENY'> = {};
+      (data?.modules || []).forEach((m: any) => {
+        initialOverrides[m.moduleKey] = m.override || 'DEFAULT';
+      });
+      setPermOverrides(initialOverrides);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to fetch employee module permissions');
+    } finally {
+      setIsPermLoading(false);
+    }
+  };
+
+  const handleSaveEmployeePermissions = async () => {
+    if (!permEmployee) return;
+    setIsPermSaving(true);
+    try {
+      await api.put(`/works/permissions/overrides/employee/${permEmployee.id}`, {
+        overrides: permOverrides,
+      });
+      toast.success(`Module permissions saved for ${permEmployee.name || permEmployee.firstName}!`);
+      setPermEmployee(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to save module permissions');
+    } finally {
+      setIsPermSaving(false);
+    }
+  };
 
   // Form state structured into 6 distinct sections (shared state across all steps)
   const [formData, setFormData] = useState({
@@ -1240,6 +1286,14 @@ export default function EmployeesPage() {
                             title="View Complete Profile"
                           >
                             <Eye className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenPermissionsModal(emp)}
+                            className="p-1.5 hover:bg-emerald-50 rounded-lg text-slate-500 hover:text-emerald-700 transition-colors cursor-pointer"
+                            title="Manage Module Permissions"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
                           </button>
 
                           <button
@@ -2986,6 +3040,143 @@ export default function EmployeesPage() {
                   <Plus className="w-3.5 h-3.5" />
                 )}
                 <span>Save Office Location</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. Employee Module Permissions Override Modal */}
+      {permEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200/80 w-full max-w-2xl overflow-hidden animate-scale-in">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shadow-sm">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    Module Access Permissions
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold border border-slate-200">
+                      {(permEmployee as any)?.role?.replace(/_/g, ' ') || permEmployee.designation || 'Employee'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Configure role-override permissions for <strong className="text-slate-800">{permEmployee.name || permEmployee.firstName}</strong> ({permEmployee.employeeId || 'ID'})
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPermEmployee(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 max-h-[65vh] overflow-y-auto space-y-4">
+              {isPermLoading ? (
+                <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+                  <div className="w-8 h-8 border-3 border-emerald-500/20 border-t-emerald-600 rounded-full animate-spin" />
+                  <p className="text-xs font-semibold text-slate-500">Loading module permissions...</p>
+                </div>
+              ) : permModules.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 text-xs">
+                  No standard work modules found.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3.5 bg-amber-50/70 border border-amber-200/60 rounded-2xl flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                      <strong>Permission Priority:</strong> Employee Override (<code className="font-bold">ALLOW</code> / <code className="font-bold">DENY</code>) overrides the default Role-level permission. Choosing <code className="font-bold">DEFAULT</code> inherits whatever the role currently permits.
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-white">
+                    {permModules.map((mod: any) => {
+                      const currentOverride = permOverrides[mod.moduleKey] || 'DEFAULT';
+                      const effectiveAllowed =
+                        currentOverride === 'ALLOW'
+                          ? true
+                          : currentOverride === 'DENY'
+                          ? false
+                          : !!mod.roleAllowed;
+
+                      return (
+                        <div key={mod.moduleKey} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-slate-800">{mod.label}</span>
+                              <span className="text-[10px] font-semibold text-slate-400 font-mono">({mod.moduleKey})</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[11px] text-slate-500">
+                                Base Role: <strong className={mod.roleAllowed ? 'text-emerald-600' : 'text-slate-500'}>{mod.roleAllowed ? 'Allowed' : 'Not Allowed'}</strong>
+                              </span>
+                              <span className="text-slate-300">•</span>
+                              <span className="text-[11px] text-slate-500">
+                                Effective: <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-bold text-[10px] ${effectiveAllowed ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                  {effectiveAllowed ? 'ACTIVE ACCESS' : 'BLOCKED'}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                            {(['DEFAULT', 'ALLOW', 'DENY'] as const).map((opt) => {
+                              const active = currentOverride === opt;
+                              let btnClass = 'text-slate-600 hover:text-slate-900';
+                              if (active) {
+                                if (opt === 'DEFAULT') btnClass = 'bg-white text-slate-800 shadow-sm font-bold border border-slate-200';
+                                if (opt === 'ALLOW') btnClass = 'bg-emerald-600 text-white shadow-sm font-bold';
+                                if (opt === 'DENY') btnClass = 'bg-rose-600 text-white shadow-sm font-bold';
+                              }
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => setPermOverrides(prev => ({ ...prev, [mod.moduleKey]: opt }))}
+                                  className={`px-3 py-1 text-xs rounded-lg transition-all cursor-pointer ${btnClass}`}
+                                >
+                                  {opt === 'DEFAULT' ? 'Default' : opt === 'ALLOW' ? 'Allow' : 'Deny'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isPermSaving}
+                onClick={() => setPermEmployee(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPermSaving || isPermLoading}
+                onClick={handleSaveEmployeePermissions}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isPermSaving ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Check className="w-3.5 h-3.5" />
+                )}
+                <span>Save Permissions</span>
               </button>
             </div>
           </div>
