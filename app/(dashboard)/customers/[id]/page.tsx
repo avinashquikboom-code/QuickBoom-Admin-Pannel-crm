@@ -124,8 +124,13 @@ export default function CustomerDetailPage() {
     queryKey: ['customer-invoices', customerId],
     refetchInterval: 10000,
     queryFn: async () => {
-      const res: any = await api.get('/invoices', { params: { customerId } });
-      const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
+      // Use dedicated admin endpoint to avoid CustomerGuard cross-customer 403
+      const res: any = await api.get(`/invoices/customers/${customerId}/invoices`);
+      // api interceptor already unwraps response.data → res is the JSON body
+      const items =
+        res?.items ||
+        res?.data ||
+        (Array.isArray(res) ? res : []);
       return Array.isArray(items) ? items : [];
     },
     enabled: Boolean(customerId),

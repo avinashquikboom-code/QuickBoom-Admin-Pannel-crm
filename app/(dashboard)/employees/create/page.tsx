@@ -33,6 +33,7 @@ export default function CreateEmployeePage() {
     designationName: '',
     officeId: '' as string | number,
     officeLocation: 'Head Office',
+    shiftId: '' as string | number,
     joiningDate: new Date().toISOString().split('T')[0],
     employmentType: 'Full-Time',
     monthlySalary: '75000',
@@ -53,6 +54,18 @@ export default function CreateEmployeePage() {
   });
 
   const offices: any[] = Array.isArray(officesRes) ? officesRes : [];
+
+  // Dynamic Shifts query
+  const { data: shiftsRes, isLoading: isShiftsLoading } = useQuery({
+    queryKey: ['active-shifts'],
+    queryFn: async () => {
+      const res: any = await api.get('/shifts', { params: { status: 'ACTIVE' } });
+      const items = res?.data?.data || res?.data?.items || res?.data || (Array.isArray(res) ? res : []);
+      return Array.isArray(items) ? items : [];
+    },
+  });
+
+  const shifts: any[] = Array.isArray(shiftsRes) ? shiftsRes : [];
 
   // Dynamic Departments query
   const { data: departmentsRes } = useQuery({
@@ -136,6 +149,7 @@ export default function CreateEmployeePage() {
         designationId: formData.designationId ? Number(formData.designationId) : undefined,
         designationName: formData.designationName || undefined,
         officeId: formData.officeId ? Number(formData.officeId) : undefined,
+        shiftId: formData.shiftId ? Number(formData.shiftId) : undefined,
         branch: formData.officeLocation || 'Head Office',
         joiningDate: formData.joiningDate,
         employmentType: formData.employmentType === 'Full-Time' ? 'FULL_TIME' : formData.employmentType.toUpperCase().replace(/\s+/g, '_'),
@@ -238,7 +252,7 @@ export default function CreateEmployeePage() {
         </AdminFormSection>
 
         {/* Section 2: Employment Information */}
-        <AdminFormSection title="Employment Details" description="Office geofence, department, designation, and joining date" icon={Building2} columns={2}>
+        <AdminFormSection title="Employment Details" description="Office geofence, shift, department, designation, and joining date" icon={Building2} columns={2}>
           <AdminFormField label="Assigned Office (Attendance Geofence)" required>
             <select
               required
@@ -258,6 +272,27 @@ export default function CreateEmployeePage() {
               {offices.map((off) => (
                 <option key={off.id} value={off.id}>
                   {off.name} {off.city ? `(${off.city})` : ''} • Radius: {off.radiusMeters || 200}m
+                </option>
+              ))}
+            </select>
+          </AdminFormField>
+
+          <AdminFormField label="Assigned Shift (Work Schedule)">
+            <select
+              value={formData.shiftId}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  shiftId: e.target.value,
+                });
+              }}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+            >
+              <option value="">-- Select Shift (Optional) --</option>
+              {isShiftsLoading && <option disabled>Loading shifts...</option>}
+              {shifts.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.startTime} - {s.endTime})
                 </option>
               ))}
             </select>

@@ -200,14 +200,20 @@ export default function EmployeeDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div className="p-3 bg-slate-50 rounded-2xl">
             <span className="text-[10px] font-bold text-slate-400 uppercase">Department</span>
-            <p className="font-bold text-slate-900">{emp.department}</p>
+            <p className="font-bold text-slate-900">{emp.department || '—'}</p>
           </div>
           <div className="p-3 bg-slate-50 rounded-2xl">
             <span className="text-[10px] font-bold text-slate-400 uppercase">Assigned Office</span>
-            <p className="font-bold text-slate-900">{emp.branch}</p>
+            <p className="font-bold text-slate-900">{emp.branch || 'Head Office'}</p>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-2xl">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Assigned Shift</span>
+            <p className="font-bold text-slate-900">
+              {emp.shift?.name || emp.shiftName || emp.shift || 'General Shift'}
+            </p>
           </div>
           <div className="p-3 bg-slate-50 rounded-2xl">
             <span className="text-[10px] font-bold text-slate-400 uppercase">Today's Status</span>
@@ -256,18 +262,29 @@ export default function EmployeeDetailPage() {
         <div className="space-y-4">
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 space-y-4 text-xs">
             <h3 className="font-extrabold text-slate-900 text-sm">Personal & Organizational Details</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div>
                 <span className="text-slate-400">Email:</span>
                 <p className="font-bold text-slate-800">{emp.email}</p>
               </div>
               <div>
                 <span className="text-slate-400">Mobile:</span>
-                <p className="font-bold text-slate-800">{emp.phone}</p>
+                <p className="font-bold text-slate-800">{emp.phone || '—'}</p>
               </div>
               <div>
                 <span className="text-slate-400">Assigned Branch / Office:</span>
-                <p className="font-bold text-slate-800">{emp.branch}</p>
+                <p className="font-bold text-slate-800">{emp.branch || 'Head Office'}</p>
+              </div>
+              <div>
+                <span className="text-slate-400">Assigned Shift:</span>
+                <p className="font-bold text-slate-800">
+                  {emp.shift?.name || emp.shiftName || emp.shift || 'General Shift'}
+                  {(emp.shift?.startTime || emp.shiftObj?.startTime) && (
+                    <span className="block text-[11px] text-slate-500 font-normal">
+                      {emp.shift?.startTime || emp.shiftObj?.startTime} - {emp.shift?.endTime || emp.shiftObj?.endTime}
+                    </span>
+                  )}
+                </p>
               </div>
               <div>
                 <span className="text-slate-400">Joining Date:</span>

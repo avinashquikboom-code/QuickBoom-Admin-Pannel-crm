@@ -57,6 +57,8 @@ interface RemoteRequestItem {
   remoteWorkDate: string;
   fromDate: string;
   toDate: string;
+  startTime?: string;
+  endTime?: string;
   days: number;
   duration: string;
   reason: string;
@@ -557,8 +559,11 @@ export default function RemoteWorkPage() {
                     <td className="py-3.5 px-6 font-bold text-slate-800">{req.office}</td>
                     <td className="py-3.5 px-6 text-slate-700">{req.department}</td>
                     <td className="py-3.5 px-6 text-slate-600">{req.designation}</td>
-                    <td className="py-3.5 px-6 font-mono font-bold text-slate-800">
-                      {req.remoteWorkDate}
+                    <td className="py-3.5 px-6 font-mono text-xs text-slate-800">
+                      <div className="font-bold">{req.remoteWorkDate}</div>
+                      <div className="text-[10px] text-slate-500 font-sans">
+                        {req.startTime || '09:00 AM'} – {req.endTime || '06:00 PM'}
+                      </div>
                     </td>
                     <td className="py-3.5 px-6 font-black text-[#1AA14D]">{req.duration}</td>
                     <td className="py-3.5 px-6 text-slate-600 max-w-[180px] truncate" title={req.reason}>
@@ -885,6 +890,15 @@ export default function RemoteWorkPage() {
                     Applied On
                   </span>
                   <span className="font-mono text-slate-600">{selectedRequest.appliedOn}</span>
+                </div>
+
+                <div className="col-span-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase block">
+                    Active Time Window
+                  </span>
+                  <span className="font-mono font-bold text-slate-800 text-xs">
+                    {selectedRequest.startTime || '09:00 AM'} – {selectedRequest.endTime || '06:00 PM'} (Authoritative IST)
+                  </span>
                 </div>
 
                 <div className="col-span-2 pt-1 border-t border-slate-200/50">

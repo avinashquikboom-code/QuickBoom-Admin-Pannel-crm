@@ -61,6 +61,10 @@ export interface EmployeeMaster {
   departmentId?: number | null;
   designationId?: number | null;
   officeId?: number | null;
+  shiftId?: number | null;
+  shift?: string | any | null;
+  shiftName?: string | null;
+  shiftObj?: any;
   officeObj?: any;
   department: string;
   designation: string;
@@ -202,6 +206,7 @@ export default function EmployeesPage() {
 
     // Step 3: Organization / Work Information (Dynamic Master Linkage)
     officeId: '' as string | number,
+    shiftId: '' as string | number,
     branch: 'Head Office',
     departmentId: '' as string | number,
     departmentName: '',
@@ -289,6 +294,24 @@ export default function EmployeesPage() {
   const activeDesignations: { id: number; name: string; code: string; departmentId?: number }[] = useMemo(() => {
     return Array.isArray(activeDesigsRes) ? activeDesigsRes : [];
   }, [activeDesigsRes]);
+
+  // Dynamic Shifts query
+  const { data: activeShiftsRes, isLoading: isLoadingShifts, refetch: refetchShifts } = useQuery({
+    queryKey: ['active-shifts'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/shifts', { params: { status: 'ACTIVE' } });
+        const items = res?.data?.data || res?.data?.items || res?.data || (Array.isArray(res) ? res : []);
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const activeShifts: { id: number; name: string; startTime: string; endTime: string }[] = useMemo(() => {
+    return Array.isArray(activeShiftsRes) ? activeShiftsRes : [];
+  }, [activeShiftsRes]);
 
   // 4. Fetch Employee Master Records with server-side filters & pagination
   const {
@@ -460,6 +483,7 @@ export default function EmployeesPage() {
         password: formData.password?.trim() || undefined,
         confirmPassword: formData.confirmPassword?.trim() || undefined,
         officeId: formData.officeId ? Number(formData.officeId) : undefined,
+        shiftId: formData.shiftId ? Number(formData.shiftId) : (drawerMode === 'edit' ? null : undefined),
         branch: formData.branch || 'Head Office',
         departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
         departmentName: formData.departmentName || undefined,
@@ -674,6 +698,7 @@ export default function EmployeesPage() {
       status: 'ACTIVE',
       managerId: '',
       officeId: defaultOffice ? defaultOffice.id : '',
+      shiftId: '',
       branch: defaultOffice ? defaultOffice.name : (officesList[0] || 'Head Office'),
       departmentId: defaultDept ? defaultDept.id : '',
       departmentName: defaultDept ? defaultDept.name : 'Engineering & IT',
@@ -743,6 +768,7 @@ export default function EmployeesPage() {
       status: emp.status,
       managerId: emp.managerId ? String(emp.managerId) : '',
       officeId: emp.officeId || (matchedOffice ? matchedOffice.id : ''),
+      shiftId: emp.shiftId || (emp.shift as any)?.id || '',
       branch: emp.office || emp.branch || (matchedOffice ? matchedOffice.name : 'Head Office'),
       departmentId: emp.departmentId || (matchedDept ? matchedDept.id : ''),
       departmentName: emp.department || (matchedDept ? matchedDept.name : 'Engineering & IT'),
@@ -1172,6 +1198,7 @@ export default function EmployeesPage() {
                   <th className="py-3.5 px-4">Employee ID</th>
                   <th className="py-3.5 px-4">Contact</th>
                   <th className="py-3.5 px-4">Office</th>
+                  <th className="py-3.5 px-4">Shift</th>
                   <th className="py-3.5 px-4">Department</th>
                   <th className="py-3.5 px-4">Designation</th>
                   <th className="py-3.5 px-4">Employment Type</th>
@@ -1226,6 +1253,14 @@ export default function EmployeesPage() {
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">
                           <Building2 className="w-3.5 h-3.5 text-slate-400" />
                           {emp.branch}
+                        </span>
+                      </td>
+
+                      {/* Shift */}
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200/60">
+                          <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          {emp.shift?.name || emp.shiftName || emp.shift || 'General Shift'}
                         </span>
                       </td>
 
@@ -1665,6 +1700,13 @@ export default function EmployeesPage() {
                       </p>
                     </div>
                     <div className="p-3.5 bg-slate-50 rounded-xl">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Assigned Shift</span>
+                      <p className="font-extrabold text-slate-900 mt-1 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                        {selectedEmployee.shift?.name || selectedEmployee.shiftName || selectedEmployee.shift || 'General Shift'}
+                      </p>
+                    </div>
+                    <div className="p-3.5 bg-slate-50 rounded-xl">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Department</span>
                       <p className="font-extrabold text-slate-900 mt-1">{selectedEmployee.department}</p>
                     </div>
@@ -2047,6 +2089,36 @@ export default function EmployeesPage() {
                         Assigned: {formData.branch}
                       </p>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                      Assigned Shift (Work Schedule)
+                    </label>
+                    <select
+                      value={formData.shiftId || ''}
+                      onChange={(e) => {
+                        const sId = e.target.value;
+                        setFormData((prev) => ({
+                          ...prev,
+                          shiftId: sId ? Number(sId) : '',
+                        }));
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                    >
+                      <option value="">-- Select Shift (Optional) --</option>
+                      {isLoadingShifts ? (
+                        <option value="" disabled>Loading shifts...</option>
+                      ) : activeShifts.length === 0 ? (
+                        <option value="" disabled>No active shifts found</option>
+                      ) : (
+                        activeShifts.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.startTime} - {s.endTime})
+                          </option>
+                        ))
+                      )}
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
