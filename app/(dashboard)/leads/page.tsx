@@ -697,6 +697,14 @@ export default function LeadsPage() {
         description="Discover, assign, track and convert potential customers into sales deals."
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href="/leads/limits"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs flex items-center gap-2 transition-all border border-white/20 cursor-pointer active:scale-95"
+            >
+              <ShieldCheck className="w-4 h-4 text-sky-300" />
+              <span>Lead Limits</span>
+            </Link>
+
             <button
               onClick={() => {
                 setIsPlacesDrawerOpen(true);
