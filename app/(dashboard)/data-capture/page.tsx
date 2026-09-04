@@ -208,7 +208,42 @@ export default function DataCapturePage() {
         params.search = searchQuery.trim();
       }
       const res: any = await api.get('/data-capture', { params });
-      return res?.data || res || { data: [], total: 0, page: 1, limit: 20, totalPages: 1 };
+
+      // Robustly extract items array from various API response shapes
+      let items: CapturedPlace[] = [];
+      if (Array.isArray(res)) {
+        items = res;
+      } else if (Array.isArray(res?.data)) {
+        items = res.data;
+      } else if (Array.isArray(res?.items)) {
+        items = res.items;
+      } else if (Array.isArray(res?.data?.data)) {
+        items = res.data.data;
+      } else if (Array.isArray(res?.data?.items)) {
+        items = res.data.items;
+      }
+
+      const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {};
+      const total = Number(
+        pagination?.total ??
+        res?.total ??
+        res?.data?.total ??
+        items.length
+      );
+      const totalPages = Number(
+        pagination?.totalPages ??
+        res?.totalPages ??
+        res?.data?.totalPages ??
+        Math.max(1, Math.ceil(total / limit))
+      );
+
+      return {
+        data: items,
+        total,
+        totalPages,
+        page: Number(pagination?.page ?? res?.page ?? page),
+        limit: Number(pagination?.limit ?? pagination?.pageSize ?? res?.limit ?? limit),
+      };
     },
   });
 
@@ -642,7 +677,13 @@ export default function DataCapturePage() {
               variant="outline"
               size="sm"
               icon={Download}
-              onClick={() => handleExportCSV(places)}
+              onClick={() =>
+                handleExportCSV(
+                  selectedIds.length > 0
+                    ? places.filter((p) => p.id && selectedIds.includes(p.id))
+                    : places
+                )
+              }
               disabled={places.length === 0}
             >
               Export CSV
