@@ -126,9 +126,9 @@ export default function LoansPage() {
   const { data: employeesList = [] } = useQuery({
     queryKey: ['employees-simple-list'],
     queryFn: async () => {
-      const res = await api.get('/employees');
-      const data = res.data?.data || res.data;
-      return Array.isArray(data) ? data : data?.employees || [];
+      const res = await api.get('/employees', { params: { limit: 500 } });
+      const data = res.data?.data || res.data?.items || res.data?.employees || res.data;
+      return Array.isArray(data) ? data : data?.employees || data?.items || [];
     },
   });
 
@@ -456,7 +456,16 @@ export default function LoansPage() {
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                     <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    No loan applications found for the selected filter.
+                    <p className="font-semibold text-slate-600 mb-1">No loan applications found</p>
+                    <p className="text-xs text-slate-400 mb-3">Create a new employee loan request to get started.</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-bold rounded-xl text-xs shadow-xs transition-transform active:scale-95 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ New Loan Request</span>
+                    </button>
                   </td>
                 </tr>
               ) : (
@@ -576,11 +585,15 @@ export default function LoansPage() {
               className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">-- Choose Employee --</option>
-              {employeesList.map((emp: any) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName} ({emp.employeeCode})
-                </option>
-              ))}
+              {employeesList.map((emp: any) => {
+                const fullName = emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || `Employee #${emp.id}`;
+                const empCode = emp.employeeCode || emp.code || `EMP-${emp.id}`;
+                return (
+                  <option key={emp.id} value={emp.id}>
+                    {fullName} ({empCode})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

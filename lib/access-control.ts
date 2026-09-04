@@ -264,7 +264,6 @@ export const adminNavigation: {
         { name: 'Office Management', href: '/hrms/offices', icon: Building2, permission: 'hrm.manage' },
         { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
         { name: 'Team Management', href: '/teams', icon: Users, permission: 'employee.view' },
-        { name: 'Squad Management', href: '/squads', icon: Users, permission: 'employee.view' },
         { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
         { name: 'Designations', href: '/designations', icon: Award, permission: 'designation.view' },
         { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view_all' },
@@ -425,7 +424,6 @@ export const adminNavigation: {
       items: [
         { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
         { name: 'Team Management', href: '/teams', icon: Users, permission: 'employee.view' },
-        { name: 'Squad Management', href: '/squads', icon: Users, permission: 'employee.view' },
       ],
     },
 
@@ -777,8 +775,7 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
         (item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
         (item.href === '/hrms/offices' && (pathname === '/offices' || pathname === '/hrm/offices')) ||
         (item.href === '/hrm/live-dashboard' && pathname === '/live-dashboard') ||
-        (item.href === '/teams' && (pathname === '/team-management' || pathname === '/squads' || pathname === '/squad-management')) ||
-        (item.href === '/squads' && (pathname === '/teams' || pathname === '/team-management' || pathname === '/squad-management'));
+        (item.href === '/teams' && pathname === '/team-management');
       if (matches) {
         // Check feature
         if (item.feature && !isFeatureEnabled(user, item.feature)) {

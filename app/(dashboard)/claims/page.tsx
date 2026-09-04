@@ -7,7 +7,6 @@ import {
   XCircle,
   Clock,
   Check,
-  Plus,
   Search,
   RefreshCw,
   AlertCircle,
@@ -63,17 +62,8 @@ export default function ClaimsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedClaim, setSelectedClaim] = useState<ClaimRecord | null>(null);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
-
-  // Form states
-  const [formEmployeeId, setFormEmployeeId] = useState<string>('');
-  const [formCategory, setFormCategory] = useState<string>('TRAVEL');
-  const [formAmount, setFormAmount] = useState<string>('');
-  const [formDescription, setFormDescription] = useState<string>('');
-  const [formReceiptUrl, setFormReceiptUrl] = useState<string>('');
-  const [formClaimDate, setFormClaimDate] = useState<string>('');
 
   // Review states
   const [reviewApprovedAmount, setReviewApprovedAmount] = useState<string>('');
@@ -119,32 +109,7 @@ export default function ClaimsPage() {
   const claimsList: ClaimRecord[] = claimsResponse?.items || [];
   const claimsPagination = claimsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
-  const { data: employeesList = [] } = useQuery({
-    queryKey: ['employees-simple-list'],
-    queryFn: async () => {
-      const res = await api.get('/employees');
-      const data = res.data?.data || res.data;
-      return Array.isArray(data) ? data : data?.employees || [];
-    },
-  });
-
   // Mutations
-  const createMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const res = await api.post('/claims', payload);
-      return res.data;
-    },
-    onSuccess: () => {
-      toast.success('Expense claim submitted successfully');
-      setIsCreateOpen(false);
-      resetForm();
-      queryClient.invalidateQueries({ queryKey: ['claims-list'] });
-      queryClient.invalidateQueries({ queryKey: ['claims-metrics'] });
-    },
-    onError: (err) => {
-      toast.error(getErrorMessage(err));
-    },
-  });
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, approvedAmount, notes }: { id: number; approvedAmount: number; notes?: string }) => {
@@ -209,31 +174,6 @@ export default function ClaimsPage() {
       toast.error(getErrorMessage(err));
     },
   });
-
-  const resetForm = () => {
-    setFormEmployeeId('');
-    setFormCategory('TRAVEL');
-    setFormAmount('');
-    setFormDescription('');
-    setFormReceiptUrl('');
-    setFormClaimDate('');
-  };
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formEmployeeId || !formAmount || !formDescription) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    createMutation.mutate({
-      employeeId: Number(formEmployeeId),
-      category: formCategory,
-      amount: Number(formAmount),
-      description: formDescription,
-      claimDate: formClaimDate || new Date().toISOString(),
-      receiptUrl: formReceiptUrl || undefined,
-    });
-  };
 
   const handleApproveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,13 +250,6 @@ export default function ClaimsPage() {
               title="Refresh"
             >
               <RefreshCw className={`w-4 h-4 ${isClaimsLoading || isMetricsLoading ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
-            <button
-              onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer group active:scale-[0.98]"
-            >
-              <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span>+ Submit Expense Claim</span>
             </button>
           </div>
         </div>
@@ -603,130 +536,6 @@ export default function ClaimsPage() {
           disabled={isClaimsLoading}
         />
       </div>
-
-      {/* New Claim Drawer */}
-      <AdminFormDrawer
-        isOpen={isCreateOpen}
-        onClose={() => {
-          setIsCreateOpen(false);
-          resetForm();
-        }}
-        title="Submit New Expense Claim"
-        subtitle="Submit a business reimbursement with receipt proof"
-      >
-        <form onSubmit={handleCreateSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Select Employee <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formEmployeeId}
-              onChange={(e) => setFormEmployeeId(e.target.value)}
-              required
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">-- Choose Employee --</option>
-              {employeesList.map((emp: any) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName} ({emp.employeeCode})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Category <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formCategory}
-                onChange={(e) => setFormCategory(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="TRAVEL">Travel</option>
-                <option value="FOOD">Food & Meals</option>
-                <option value="FUEL">Fuel & Commute</option>
-                <option value="ACCOMMODATION">Accommodation</option>
-                <option value="MEDICAL">Medical</option>
-                <option value="COMMUNICATION">Communication / Internet</option>
-                <option value="OFFICE_SUPPLIES">Office Supplies</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Amount (₹) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                required
-                placeholder="e.g. 2400"
-                value={formAmount}
-                onChange={(e) => setFormAmount(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Expense Date
-            </label>
-            <input
-              type="date"
-              value={formClaimDate}
-              onChange={(e) => setFormClaimDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Receipt Document URL
-            </label>
-            <input
-              type="url"
-              placeholder="https://storage... or receipt file link"
-              value={formReceiptUrl}
-              onChange={(e) => setFormReceiptUrl(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Expense Description & Business Justification <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              rows={3}
-              required
-              placeholder="e.g. Client site visit travel fare, team project lunch..."
-              value={formDescription}
-              onChange={(e) => setFormDescription(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm disabled:opacity-50"
-            >
-              {createMutation.isPending ? 'Submitting...' : 'Submit Claim'}
-            </button>
-          </div>
-        </form>
-      </AdminFormDrawer>
 
       {/* Review / Approve Drawer */}
       <AdminFormDrawer

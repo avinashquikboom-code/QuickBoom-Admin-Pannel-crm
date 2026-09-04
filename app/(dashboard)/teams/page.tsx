@@ -219,7 +219,7 @@ export default function TeamsPage() {
   const totalTeams = teamsPagination.total ?? teamsList.length;
   const totalMembers = teamsList.reduce((acc, t) => acc + (t.members?.length || 0), 0);
   const assignedLeads = teamsList.filter((t) => t.leaderId || t.leader).length;
-  const activeSquads = teamsList.filter((t) => t.members && t.members.length > 0).length;
+  const activeTeams = teamsList.filter((t) => t.members && t.members.length > 0).length;
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
@@ -237,7 +237,7 @@ export default function TeamsPage() {
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              Team & Squad Management
+              Team Management
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
               Organize staff into operational units, assign team leads, and manage member rosters.
@@ -276,7 +276,7 @@ export default function TeamsPage() {
               {isTeamsLoading ? '...' : totalTeams}
             </p>
             <span className="text-xs font-bold text-slate-500 mt-0.5 block">
-              Registered squads & units
+              Registered teams & units
             </span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center">
@@ -312,7 +312,7 @@ export default function TeamsPage() {
               {isTeamsLoading ? '...' : assignedLeads}
             </p>
             <span className="text-xs font-bold text-indigo-700 mt-0.5 block">
-              Squad leadership
+              Team leadership
             </span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center">
@@ -320,14 +320,14 @@ export default function TeamsPage() {
           </div>
         </div>
 
-        {/* Active Squads */}
+        {/* Active Teams */}
         <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
-              Active Squads
+              Active Teams
             </span>
             <p className="text-2xl sm:text-3xl font-black text-blue-600 mt-1">
-              {isTeamsLoading ? '...' : activeSquads}
+              {isTeamsLoading ? '...' : activeTeams}
             </p>
             <span className="text-xs font-bold text-slate-500 mt-0.5 block">
               Operational units
@@ -360,7 +360,7 @@ export default function TeamsPage() {
       ) : filteredTeams.length === 0 ? (
         <div className="p-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-center text-slate-400">
           <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          No teams found. Click "Create Team" to set up your first functional squad.
+          No teams found. Click "Create Team" to set up your first team.
         </div>
       ) : (
         <>
@@ -483,7 +483,7 @@ export default function TeamsPage() {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         title="Create New Team"
-        subtitle="Set up a functional squad or project team"
+        subtitle="Set up a functional department or project team"
       >
         <form onSubmit={handleCreateSubmit} className="space-y-4">
           <div>

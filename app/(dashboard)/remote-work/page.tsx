@@ -8,7 +8,6 @@ import {
   Clock,
   Check,
   X,
-  Plus,
   Search,
   Building2,
   Calendar,
@@ -110,15 +109,6 @@ export default function RemoteWorkPage() {
   const [confirmApproveReq, setConfirmApproveReq] = useState<RemoteRequestItem | null>(null);
   const [rejectModalReq, setRejectModalReq] = useState<RemoteRequestItem | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-
-  // Apply new Remote Work Drawer
-  const [isApplyDrawerOpen, setIsApplyDrawerOpen] = useState(false);
-  const [applyForm, setApplyForm] = useState({
-    employeeId: '',
-    fromDate: new Date().toISOString().split('T')[0],
-    toDate: new Date().toISOString().split('T')[0],
-    reason: '',
-  });
 
   // ==========================================
   // 1. DATA QUERIES
@@ -222,22 +212,8 @@ export default function RemoteWorkPage() {
     },
   });
 
-  const { data: employeesData } = useQuery({
-    queryKey: ['active-employees-remote-dropdown'],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/employees', { params: { limit: 200 } });
-        const list = res?.data?.employees || res?.employees || res?.data || res;
-        return Array.isArray(list) ? list : [];
-      } catch {
-        return [];
-      }
-    },
-  });
-
   const offices = Array.isArray(officesData) ? officesData : [];
   const departments = Array.isArray(departmentsData) ? departmentsData : [];
-  const employeesList = Array.isArray(employeesData) ? employeesData : [];
 
   const summary = remoteData?.summary || {
     totalRequests: 0,
@@ -304,48 +280,6 @@ export default function RemoteWorkPage() {
     },
   });
 
-  // Create Remote Request Mutation
-  const createMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      return api.post('/remote-requests', payload);
-    },
-    onSuccess: (res: any) => {
-      const msg = res?.data?.message || res?.message || 'Remote work request submitted successfully';
-      toast.success(typeof msg === 'string' ? msg : 'Submitted');
-      setIsApplyDrawerOpen(false);
-      setApplyForm({
-        employeeId: '',
-        fromDate: new Date().toISOString().split('T')[0],
-        toDate: new Date().toISOString().split('T')[0],
-        reason: '',
-      });
-      queryClient.invalidateQueries({ queryKey: ['admin-remote-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-today-remote-workers'] });
-    },
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
-    },
-  });
-
-  const handleApplySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!applyForm.employeeId) {
-      toast.error('Please select an employee');
-      return;
-    }
-    if (!applyForm.fromDate || !applyForm.toDate) {
-      toast.error('Start and end dates are required');
-      return;
-    }
-
-    createMutation.mutate({
-      employeeId: Number(applyForm.employeeId),
-      fromDate: applyForm.fromDate,
-      toDate: applyForm.toDate,
-      reason: applyForm.reason.trim() || undefined,
-    });
-  };
-
   const isAnyFetching = isFetchingRequests || isFetchingToday;
 
   return (
@@ -381,14 +315,6 @@ export default function RemoteWorkPage() {
               title="Refresh all data"
             >
               <RefreshCw className={`w-4 h-4 ${isAnyFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
-
-            <button
-              onClick={() => setIsApplyDrawerOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Apply Remote Work</span>
             </button>
           </div>
         </div>
@@ -998,100 +924,6 @@ export default function RemoteWorkPage() {
             )}
           </div>
         )}
-      </AdminFormDrawer>
-
-      {/* =========================================================================
-          DRAWER 2: APPLY FOR REMOTE WORK REQUEST
-          ========================================================================= */}
-      <AdminFormDrawer
-        isOpen={isApplyDrawerOpen}
-        onClose={() => setIsApplyDrawerOpen(false)}
-        title="Apply Remote Work"
-        subtitle="Submit a remote work application on behalf of an employee"
-        icon={Plus}
-        maxWidth="max-w-md"
-        footer={
-          <div className="flex items-center justify-end gap-3 w-full">
-            <button
-              type="button"
-              disabled={createMutation.isPending}
-              onClick={() => setIsApplyDrawerOpen(false)}
-              className="px-4 py-2.5 rounded-2xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={createMutation.isPending}
-              onClick={handleApplySubmit}
-              className="px-6 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-2xl font-black text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer disabled:opacity-50"
-            >
-              {createMutation.isPending ? 'Submitting...' : 'Submit Request'}
-            </button>
-          </div>
-        }
-      >
-        <form onSubmit={handleApplySubmit} className="space-y-4">
-          <div>
-            <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-              Select Employee *
-            </label>
-            <select
-              required
-              value={applyForm.employeeId}
-              onChange={(e) => setApplyForm({ ...applyForm, employeeId: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-            >
-              <option value="">Choose Employee...</option>
-              {employeesList.map((emp: any) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName} ({emp.employeeCode || `EMP-${emp.id}`})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-                Start Date *
-              </label>
-              <input
-                type="date"
-                required
-                value={applyForm.fromDate}
-                onChange={(e) => setApplyForm({ ...applyForm, fromDate: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-                End Date *
-              </label>
-              <input
-                type="date"
-                required
-                value={applyForm.toDate}
-                onChange={(e) => setApplyForm({ ...applyForm, toDate: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-black text-slate-700 uppercase mb-1">
-              Reason / Justification
-            </label>
-            <textarea
-              rows={3}
-              value={applyForm.reason}
-              onChange={(e) => setApplyForm({ ...applyForm, reason: e.target.value })}
-              placeholder="e.g. Remote work due to travel / client meeting nearby home..."
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-            />
-          </div>
-        </form>
       </AdminFormDrawer>
 
       {/* =========================================================================
