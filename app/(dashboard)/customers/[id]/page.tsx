@@ -47,6 +47,7 @@ import {
   Youtube,
   Linkedin,
   ExternalLink,
+  RotateCcw,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -54,6 +55,7 @@ import { SocialMediaService, SocialMediaHandlerItem } from '@/lib/services/socia
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
+import { ResetCustomerDataModal } from '@/components/admin';
 
 function getCustomerDisplayName(customer: any): string {
   if (!customer) return 'Customer';
@@ -84,6 +86,9 @@ export default function CustomerDetailPage() {
     subscriptionId: number;
     planName: string;
   } | null>(null);
+
+  // Customer-Scoped Data Reset Modal State
+  const [isResetDataModalOpen, setIsResetDataModalOpen] = useState(false);
 
   // 1. Fetch Customer Profile Details
   const { data: customer, isLoading: isCustomerLoading, refetch: refetchCustomer } = useQuery({
@@ -549,6 +554,15 @@ export default function CustomerDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setIsResetDataModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 hover:text-white font-bold rounded-2xl text-xs transition-all cursor-pointer border border-rose-500/30 shadow-xs"
+              title="Reset all business and transactional data for this customer"
+            >
+              <RotateCcw className="w-4 h-4 text-rose-400" />
+              <span>Reset Customer Data</span>
+            </button>
+
             <button
               onClick={handleRefresh}
               className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer border border-white/10"
@@ -2213,6 +2227,28 @@ export default function CustomerDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Customer-Scoped Data Reset Modal */}
+      <ResetCustomerDataModal
+        isOpen={isResetDataModalOpen}
+        onClose={() => setIsResetDataModalOpen(false)}
+        customerId={customerId}
+        customerName={customer?.name}
+        companyName={customer?.companyName || customer?.company}
+        onSuccess={() => {
+          handleRefresh();
+          queryClient.invalidateQueries({ queryKey: ['customer-detail', customerId] });
+          queryClient.invalidateQueries({ queryKey: ['customer-subscriptions', customerId] });
+          queryClient.invalidateQueries({ queryKey: ['customer-invoices', customerId] });
+          queryClient.invalidateQueries({ queryKey: ['customer-activities', customerId] });
+          queryClient.invalidateQueries({ queryKey: ['customer-tasks', customerId] });
+          queryClient.invalidateQueries({ queryKey: ['customer-visits', customerId] });
+          queryClient.invalidateQueries({ queryKey: ['customer-deals', customerId] });
+          queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+          queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+        }}
+      />
     </div>
   );
+
 }

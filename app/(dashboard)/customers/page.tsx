@@ -34,12 +34,13 @@ import {
   MapPin,
   Tag,
   ShieldCheck,
+  RotateCcw,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
-import { AdminPagination, AdminFormDrawer, CustomerDetailsDrawer } from '@/components/admin';
+import { AdminPagination, AdminFormDrawer, CustomerDetailsDrawer, ResetCustomerDataModal } from '@/components/admin';
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
@@ -62,6 +63,7 @@ export default function CustomersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState<any | null>(null);
+  const [resettingCustomer, setResettingCustomer] = useState<any | null>(null);
   const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
 
   // Form State for Add / Edit
@@ -696,6 +698,15 @@ export default function CustomersPage() {
 
                           <button
                             type="button"
+                            onClick={() => setResettingCustomer(cust)}
+                            className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                            title="Reset Customer Data"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => setViewingCustomerId(cust.id)}
                             className="flex items-center gap-1 px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-lg text-xs transition-all cursor-pointer shadow-2xs"
                           >
@@ -1018,6 +1029,22 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      {/* Customer-Scoped Data Reset Modal */}
+      {resettingCustomer && (
+        <ResetCustomerDataModal
+          isOpen={!!resettingCustomer}
+          onClose={() => setResettingCustomer(null)}
+          customerId={resettingCustomer.id}
+          customerName={resettingCustomer.name}
+          companyName={resettingCustomer.companyName || resettingCustomer.company}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+            queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+          }}
+        />
+      )}
     </div>
   );
+
 }

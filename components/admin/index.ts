@@ -21,6 +21,7 @@ export * from './filters/AdminFilterBar';
 
 // Dialogs & Drawers
 export * from './dialogs/AdminConfirmDialog';
+export * from './dialogs/ResetCustomerDataModal';
 export * from './dialogs/AdminFormDrawer';
 export * from './drawers/CustomerDetailsDrawer';
 export * from './drawers/CompanyDetailsDrawer';

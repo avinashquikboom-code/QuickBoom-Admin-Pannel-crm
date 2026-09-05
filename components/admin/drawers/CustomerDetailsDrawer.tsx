@@ -22,10 +22,12 @@ import {
   Eye,
   AlertCircle,
   Check,
+  RotateCcw,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { AdminFormDrawer } from '../dialogs/AdminFormDrawer';
+import { ResetCustomerDataModal } from '../dialogs/ResetCustomerDataModal';
 
 export interface CustomerDetailsDrawerProps {
   customerId: number | string | null;
@@ -40,7 +42,9 @@ export function CustomerDetailsDrawer({
   onClose,
   onEdit,
 }: CustomerDetailsDrawerProps) {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'SUBSCRIPTION' | 'USERS' | 'CONTACT'>('OVERVIEW');
+  const [isResetOpen, setIsResetOpen] = useState(false);
 
   // Fetch real customer data from existing API
   const {
@@ -83,6 +87,16 @@ export function CustomerDetailsDrawer({
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Full Page View</span>
             </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsResetOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+              title="Reset Customer Data"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+              <span>Reset Data</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -465,6 +479,24 @@ export function CustomerDetailsDrawer({
           )}
         </div>
       )}
+
+      {/* Customer-Scoped Data Reset Modal */}
+      {customer && (
+        <ResetCustomerDataModal
+          isOpen={isResetOpen}
+          onClose={() => setIsResetOpen(false)}
+          customerId={customer.id}
+          customerName={customer.name}
+          companyName={customer.companyName || customer.company}
+          onSuccess={() => {
+            refetch();
+            queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer', customerId] });
+            queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+            queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+          }}
+        />
+      )}
     </AdminFormDrawer>
   );
+
 }
