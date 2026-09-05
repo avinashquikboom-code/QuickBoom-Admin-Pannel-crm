@@ -323,7 +323,7 @@ api.interceptors.response.use(
         processQueue(refreshErr, null);
         authStore.logout();
         if (window.location.pathname !== '/login') {
-          toast.error('Session expired. Please log in again.');
+          toast.error('Your session has expired. Please login again.');
           window.location.href = '/login';
         }
         return Promise.reject(refreshErr);
