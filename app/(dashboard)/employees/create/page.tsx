@@ -137,6 +137,12 @@ export default function CreateEmployeePage() {
       }
     }
 
+    // New validation: Employee Type must be selected
+    if (!formData.employeeType) {
+      toast.error('Employee type is required');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -361,9 +367,11 @@ export default function CreateEmployeePage() {
 
           <AdminFormField label="Employee Type" required>
             <AdminSelect
+              required
               value={formData.employeeType}
               onChange={(e) => setFormData({ ...formData, employeeType: e.target.value })}
               options={[
+                { value: '', label: '-- Select Employee Type --' },
                 { value: 'COMPANY', label: 'Company (Corporate Workforce)' },
                 { value: 'FREELANCER', label: 'Freelancer (Independent Contractor)' },
               ]}
