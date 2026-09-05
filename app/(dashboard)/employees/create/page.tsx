@@ -36,6 +36,8 @@ export default function CreateEmployeePage() {
     shiftId: '' as string | number,
     joiningDate: new Date().toISOString().split('T')[0],
     employmentType: 'Full-Time',
+    employeeType: 'COMPANY',
+    city: '',
     monthlySalary: '75000',
     panNumber: '',
     address: '',
@@ -153,6 +155,8 @@ export default function CreateEmployeePage() {
         branch: formData.officeLocation || 'Head Office',
         joiningDate: formData.joiningDate,
         employmentType: formData.employmentType === 'Full-Time' ? 'FULL_TIME' : formData.employmentType.toUpperCase().replace(/\s+/g, '_'),
+        employeeType: formData.employeeType,
+        city: formData.city.trim() || undefined,
         status: 'ACTIVE',
         address: formData.address.trim() || undefined,
         documents: formData.panNumber.trim() ? { panNumber: formData.panNumber.trim() } : undefined,
@@ -247,6 +251,15 @@ export default function CreateEmployeePage() {
               placeholder="ABCDE1234F"
               value={formData.panNumber}
               onChange={(e) => setFormData({ ...formData, panNumber: e.target.value.toUpperCase() })}
+            />
+          </AdminFormField>
+
+          <AdminFormField label="City / Location">
+            <AdminInput
+              type="text"
+              placeholder="e.g. Mumbai"
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
             />
           </AdminFormField>
         </AdminFormSection>
@@ -344,6 +357,17 @@ export default function CreateEmployeePage() {
                 </option>
               ))}
             </select>
+          </AdminFormField>
+
+          <AdminFormField label="Employee Type" required>
+            <AdminSelect
+              value={formData.employeeType}
+              onChange={(e) => setFormData({ ...formData, employeeType: e.target.value })}
+              options={[
+                { value: 'COMPANY', label: 'Company (Corporate Workforce)' },
+                { value: 'FREELANCER', label: 'Freelancer (Independent Contractor)' },
+              ]}
+            />
           </AdminFormField>
 
           <AdminFormField label="Employment Type" required>

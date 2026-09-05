@@ -71,6 +71,8 @@ export interface EmployeeMaster {
   branch: string;
   office: string;
   employmentType: string;
+  employeeType?: 'COMPANY' | 'FREELANCER';
+  city?: string | null;
   address: string | null;
   status: 'ACTIVE' | 'INACTIVE';
   mobileLoginEnabled?: boolean;
@@ -392,6 +394,8 @@ export default function EmployeesPage() {
         branch: e.branch || e.office || 'Head Office',
         office: e.branch || e.office || 'Head Office',
         employmentType: e.employmentType || 'FULL_TIME',
+        employeeType: e.employeeType || 'COMPANY',
+        city: e.city || null,
         address: e.address || null,
         status: e.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
         mobileLoginEnabled: e.mobileLoginEnabled !== false,
@@ -1276,9 +1280,20 @@ export default function EmployeesPage() {
 
                       {/* 6. Employment Type */}
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-extrabold uppercase tracking-wider">
-                          {emp.employmentType.replace('_', ' ')}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                              emp.employeeType === 'FREELANCER'
+                                ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}
+                          >
+                            {emp.employeeType === 'FREELANCER' ? 'Freelancer' : 'Company'}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-extrabold uppercase tracking-wider">
+                            {emp.employmentType.replace('_', ' ')}
+                          </span>
+                        </div>
                       </td>
 
                       {/* 7. Joining Date */}
@@ -1520,6 +1535,12 @@ export default function EmployeesPage() {
                       <p className="font-extrabold text-slate-900 mt-1 flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
                         {selectedEmployee.joiningDate}
+                      </p>
+                    </div>
+                    <div className="p-3.5 bg-slate-50 rounded-xl">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Employee Type</span>
+                      <p className={`font-extrabold mt-1 uppercase ${selectedEmployee.employeeType === 'FREELANCER' ? 'text-purple-700' : 'text-emerald-700'}`}>
+                        {selectedEmployee.employeeType === 'FREELANCER' ? 'Freelancer' : 'Company'}
                       </p>
                     </div>
                     <div className="p-3.5 bg-slate-50 rounded-xl">
