@@ -148,21 +148,7 @@ interface LeadItem {
   createdAt: string;
 }
 
-interface GooglePlaceResult {
-  provider: string;
-  googlePlaceId: string;
-  businessName: string;
-  category?: string;
-  address?: string;
-  phone?: string;
-  website?: string;
-  rating?: number;
-  reviewCount?: number;
-  latitude?: number;
-  longitude?: number;
-  googleMapsUrl?: string;
-  businessStatus?: string;
-}
+
 
 export default function LeadsPage() {
   const queryClient = useQueryClient();
@@ -180,7 +166,7 @@ export default function LeadsPage() {
   const [drawerNewNote, setDrawerNewNote] = useState('');
 
   const [isAddDrawerOpen, setIsAddDrawerOpen] = useState(false);
-  const [isPlacesDrawerOpen, setIsPlacesDrawerOpen] = useState(false);
+
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [selectedLeadForAction, setSelectedLeadForAction] = useState<LeadItem | null>(null);
@@ -215,12 +201,7 @@ export default function LeadsPage() {
     notes: '',
   });
 
-  // Google Places Search State
-  const [placeKeyword, setPlaceKeyword] = useState('Restaurants');
-  const [placeLocation, setPlaceLocation] = useState('Navi Mumbai');
-  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
-  const [placesResults, setPlacesResults] = useState<GooglePlaceResult[]>([]);
-  const [duplicateCheckedPlaces, setDuplicateCheckedPlaces] = useState<Record<string, any>>({});
+  
 
   // Follow-up form
   const [followUpOutcome, setFollowUpOutcome] = useState('Interested');
@@ -233,6 +214,13 @@ export default function LeadsPage() {
   const [convertDealTitle, setConvertDealTitle] = useState('');
   const [convertDealValue, setConvertDealValue] = useState('100000');
   const [convertNotes, setConvertNotes] = useState('');
+
+  // Google Places Discovery state
+  const [isPlacesDrawerOpen, setIsPlacesDrawerOpen] = useState(false);
+  const [googleQuery, setGoogleQuery] = useState('');
+  const [googleLocation, setGoogleLocation] = useState('');
+  const [placesResults, setPlaceResults] = useState<any[]>([]);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
 
   // 1. Fetch Real Leads List
   const { data: leadsResponse, isLoading: isLoadingLeads, refetch } = useQuery({
@@ -608,83 +596,35 @@ export default function LeadsPage() {
     setIsConvertModalOpen(true);
   };
 
-  // Google Places Search Handler
+  // Google Places Search handler
   const handleSearchGooglePlaces = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!placeKeyword.trim() || !placeLocation.trim()) {
-      toast.error('Please enter search keyword and location');
-      return;
-    }
+    if (!googleQuery.trim()) return;
+
     setIsSearchingPlaces(true);
     try {
       const res: any = await api.post('/data-capture/extract', {
-        keyword: placeKeyword.trim(),
-        location: placeLocation.trim(),
-        maxResults: 20,
+        keyword: googleQuery.trim(),
+        location: (googleLocation || '').trim(),
+        query: `${googleQuery} in ${googleLocation}`,
+        source: 'GOOGLE_MAPS',
+        limit: 10,
+        maxResults: 10,
       });
-
-      const extractedItems: GooglePlaceResult[] = Array.isArray(res?.data)
-        ? res.data
-        : Array.isArray(res)
-        ? res
-        : [];
-      setPlacesResults(extractedItems);
-
-      // Check duplicates for results
-      const dupMap: Record<string, any> = {};
-      for (const item of extractedItems.slice(0, 10)) {
-        try {
-          const dupRes: any = await api.post('/leads/check-duplicate', {
-            googlePlaceId: item.googlePlaceId,
-            phone: item.phone,
-            companyName: item.businessName,
-            website: item.website,
-          });
-          if (dupRes?.isDuplicate || dupRes?.data?.isDuplicate) {
-            dupMap[item.googlePlaceId] = dupRes?.data || dupRes;
-          }
-        } catch {
-          // ignore duplicate check errors on bulk
-        }
+      const records =
+        res?.data?.records ||
+        res?.records ||
+        res?.data?.places ||
+        res?.places ||
+        [];
+      setPlaceResults(records);
+      if (records.length === 0) {
+        toast('No matching places found. Try another search query.');
       }
-      setDuplicateCheckedPlaces(dupMap);
-      toast.success(`Discovered ${extractedItems.length} verified businesses!`);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      toast.error('Failed to query Google Places API');
     } finally {
       setIsSearchingPlaces(false);
-    }
-  };
-
-  // Import Google Place into Lead directly
-  const handleImportGooglePlace = async (place: GooglePlaceResult) => {
-    try {
-      const payload = {
-        title: place.businessName,
-        companyName: place.businessName,
-        category: place.category || 'Local Business',
-        source: 'GOOGLE_PLACES',
-        firstName: place.businessName.split(' ')[0] || 'Manager',
-        lastName: place.businessName.split(' ').slice(1).join(' ') || 'Team',
-        phone: place.phone || undefined,
-        website: place.website || undefined,
-        address: place.address || undefined,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        googlePlaceId: place.googlePlaceId,
-        rating: place.rating,
-        reviewCount: place.reviewCount,
-        status: 'NEW',
-        priority: (place.rating && place.rating >= 4.5 ? 'HIGH' : 'MEDIUM') as any,
-        value: 75000,
-      };
-
-      await api.post('/leads', payload);
-      toast.success(`Imported "${place.businessName}" as a CRM Lead!`);
-      queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
-    } catch (err) {
-      toast.error(getErrorMessage(err));
     }
   };
 
@@ -1701,130 +1641,6 @@ export default function LeadsPage() {
       )}
 
       {/* =========================================================================
-          6. GOOGLE PLACES SEARCH DRAWER (INTEGRATED)
-          ========================================================================= */}
-      <AdminFormDrawer
-        isOpen={isPlacesDrawerOpen}
-        onClose={() => setIsPlacesDrawerOpen(false)}
-        title="Google Places Prospect Search"
-        subtitle="Search verified local businesses using existing Google Maps Platform Places API"
-        size="lg"
-      >
-        <div className="space-y-6">
-          {/* Search Bar */}
-          <form onSubmit={handleSearchGooglePlaces} className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                Keyword / Industry
-              </label>
-              <input
-                type="text"
-                value={placeKeyword}
-                onChange={(e) => setPlaceKeyword(e.target.value)}
-                placeholder="e.g. Restaurants, Hospitals"
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">
-                Target City / Area
-              </label>
-              <input
-                type="text"
-                value={placeLocation}
-                onChange={(e) => setPlaceLocation(e.target.value)}
-                placeholder="e.g. Navi Mumbai, Bangalore"
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-              />
-            </div>
-
-            <div className="flex items-end">
-              <button
-                type="submit"
-                disabled={isSearchingPlaces}
-                className="w-full py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#23C45E]/20 cursor-pointer disabled:opacity-50"
-              >
-                {isSearchingPlaces ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Globe className="w-4 h-4" />
-                )}
-                <span>Search Places</span>
-              </button>
-            </div>
-          </form>
-
-          {/* Results Stream */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                Extracted Businesses ({placesResults.length})
-              </p>
-              {placesResults.length > 0 && (
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                  Grounded live via Places API
-                </span>
-              )}
-            </div>
-
-            {isSearchingPlaces ? (
-              <div className="p-12 text-center text-slate-400 font-bold text-xs animate-pulse">
-                Extracting local business profiles from Google Places...
-              </div>
-            ) : placesResults.length > 0 ? (
-              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
-                {placesResults.map((p) => {
-                  const isDup = duplicateCheckedPlaces[p.googlePlaceId]?.isDuplicate;
-
-                  return (
-                    <div
-                      key={p.googlePlaceId}
-                      className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-emerald-300 transition-colors"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-extrabold text-slate-900 text-sm truncate">{p.businessName}</h4>
-                          {isDup && (
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-black text-[9px] uppercase rounded">
-                              Already in CRM
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                          {p.rating && (
-                            <span className="font-extrabold text-amber-600 flex items-center gap-1">
-                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                              {p.rating} ({p.reviewCount || 0})
-                            </span>
-                          )}
-                          {p.category && <span>• {p.category}</span>}
-                          {p.phone && <span>• {p.phone}</span>}
-                        </div>
-
-                        {p.address && <p className="text-[11px] text-slate-400 truncate">{p.address}</p>}
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => handleImportGooglePlace(p)}
-                          className="px-3.5 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-95"
-                        >
-                          <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                          <span>Import Lead</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-8 text-center text-slate-400 text-xs font-bold border border-dashed border-slate-200 rounded-2xl">
-                Enter keyword and location above to discover high-value business leads.
-              </div>
-            )}
-          </div>
         </div>
       </AdminFormDrawer>
 
@@ -2241,6 +2057,117 @@ export default function LeadsPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      {/* Google Places Discovery Drawer */}
+      {isPlacesDrawerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center"
+          onClick={() => setIsPlacesDrawerOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <div>
+                <p className="font-black text-base text-slate-900">Google Places Discovery</p>
+                <p className="text-xs text-slate-500 mt-0.5">Search businesses and import as leads</p>
+              </div>
+              <button
+                onClick={() => setIsPlacesDrawerOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Search form */}
+            <form onSubmit={handleSearchGooglePlaces} className="p-4 bg-slate-50 border-b border-slate-100 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. Restaurants, IT companies..."
+                  value={googleQuery}
+                  onChange={(e) => setGoogleQuery(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-300"
+                />
+                <input
+                  type="text"
+                  placeholder="Location (e.g. Mumbai)"
+                  value={googleLocation}
+                  onChange={(e) => setGoogleLocation(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-300"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSearchingPlaces || !googleQuery.trim()}
+                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
+              >
+                {isSearchingPlaces ? 'Searching...' : 'Search Google Places'}
+              </button>
+            </form>
+
+            {/* Results */}
+            <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
+              {placesResults.length === 0 && !isSearchingPlaces && (
+                <div className="py-12 text-center text-slate-400">
+                  <Globe className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  <p className="text-xs font-semibold">Enter a keyword and location to discover businesses</p>
+                </div>
+              )}
+              {placesResults.map((place: any, i: number) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors group"
+                  onClick={() => {
+                    setLeadForm((prev) => ({
+                      ...prev,
+                      title: place.title || place.name || prev.title,
+                      businessName: place.title || place.name || prev.businessName,
+                      phone: place.phone || prev.phone,
+                      email: place.email || prev.email,
+                      website: place.website || prev.website,
+                      address: place.address || prev.address,
+                      city: place.city || prev.city,
+                      state: place.state || prev.state,
+                      country: place.country || prev.country,
+                      latitude: place.latitude ? String(place.latitude) : prev.latitude,
+                      longitude: place.longitude ? String(place.longitude) : prev.longitude,
+                      googlePlaceId: place.googlePlaceId || place.placeId || prev.googlePlaceId,
+                      rating: place.rating ? String(place.rating) : prev.rating,
+                      reviewCount: place.reviewCount ? String(place.reviewCount) : prev.reviewCount,
+                      source: 'GOOGLE_PLACES',
+                    }));
+                    setIsPlacesDrawerOpen(false);
+                    setIsAddDrawerOpen(true);
+                  }}
+                >
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 truncate">
+                      {place.title || place.name || 'Unnamed Business'}
+                    </p>
+                    {place.address && (
+                      <p className="text-xs text-slate-500 truncate mt-0.5">{place.address}</p>
+                    )}
+                    {(place.rating || place.reviewCount) && (
+                      <p className="text-xs text-amber-600 font-semibold mt-0.5">
+                        {place.rating && `⭐ ${place.rating}`}
+                        {place.reviewCount && ` (${place.reviewCount} reviews)`}
+                      </p>
+                    )}
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-500 flex-shrink-0 mt-1 transition-colors" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
