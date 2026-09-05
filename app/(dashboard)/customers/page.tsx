@@ -209,6 +209,9 @@ export default function CustomersPage() {
       setDeletingCustomer(null);
       queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));

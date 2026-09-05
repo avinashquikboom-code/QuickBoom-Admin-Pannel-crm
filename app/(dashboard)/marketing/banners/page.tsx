@@ -249,7 +249,11 @@ export default function HomeBannersPage() {
     formData.append('title', formTitle.trim() || 'Home Banner');
     formData.append('subtitle', formSubtitle.trim());
     formData.append('description', formDescription.trim());
-    if (formImageFile) formData.append('image', formImageFile);
+    if (formImageFile) {
+      formData.append('image', formImageFile);
+    } else if (editingBanner?.imageUrl) {
+      formData.append('imageUrl', editingBanner.imageUrl);
+    }
     formData.append('ctaText', formCtaText.trim());
     formData.append('ctaUrl', formCtaUrl.trim());
     formData.append('priority', String(formPriority));

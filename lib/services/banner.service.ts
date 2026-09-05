@@ -108,7 +108,12 @@ export class BannerService {
   static async createBanner(
     payload: CreateBannerPayload | FormData,
   ): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
-    const response: any = await api.post('/admin/marketing/banners', payload);
+    const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
+    const response: any = await api.post(
+      '/admin/marketing/banners',
+      payload,
+      isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined,
+    );
     return response?.data || response;
   }
 
@@ -121,7 +126,12 @@ export class BannerService {
   ): Promise<{ success: boolean; data: MarketingBannerItem; message: string }> {
     console.log(`[HOME_BANNER_UPDATE_REQUEST]\nbannerId: ${id}\npayload:`, payload);
     try {
-      const response: any = await api.patch(`/admin/marketing/banners/${id}`, payload);
+      const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
+      const response: any = await api.patch(
+        `/admin/marketing/banners/${id}`,
+        payload,
+        isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined,
+      );
       console.log(`[HOME_BANNER_UPDATE_RESPONSE]\nstatus: 200\ndata:`, response);
       return response?.data || response;
     } catch (error) {
