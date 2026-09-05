@@ -2058,116 +2058,113 @@ export default function LeadsPage() {
         </form>
       </AdminFormDrawer>
 
-      {/* Google Places Discovery Drawer */}
-      {isPlacesDrawerOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center"
-          onClick={() => setIsPlacesDrawerOpen(false)}
-        >
-          <div
-            className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-              <div>
-                <p className="font-black text-base text-slate-900">Google Places Discovery</p>
-                <p className="text-xs text-slate-500 mt-0.5">Search businesses and import as leads</p>
-              </div>
-              <button
-                onClick={() => setIsPlacesDrawerOpen(false)}
-                className="p-2 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4 text-slate-500" />
-              </button>
-            </div>
-
-            {/* Search form */}
-            <form onSubmit={handleSearchGooglePlaces} className="p-4 bg-slate-50 border-b border-slate-100 space-y-2">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. Restaurants, IT companies..."
-                  value={googleQuery}
-                  onChange={(e) => setGoogleQuery(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-300"
-                />
-                <input
-                  type="text"
-                  placeholder="Location (e.g. Mumbai)"
-                  value={googleLocation}
-                  onChange={(e) => setGoogleLocation(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-300"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isSearchingPlaces || !googleQuery.trim()}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
-              >
-                {isSearchingPlaces ? 'Searching...' : 'Search Google Places'}
-              </button>
-            </form>
-
-            {/* Results */}
-            <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
-              {placesResults.length === 0 && !isSearchingPlaces && (
-                <div className="py-12 text-center text-slate-400">
-                  <Globe className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                  <p className="text-xs font-semibold">Enter a keyword and location to discover businesses</p>
-                </div>
-              )}
-              {placesResults.map((place: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors group"
-                  onClick={() => {
-                    setLeadForm((prev) => ({
-                      ...prev,
-                      title: place.title || place.name || prev.title,
-                      businessName: place.title || place.name || prev.businessName,
-                      phone: place.phone || prev.phone,
-                      email: place.email || prev.email,
-                      website: place.website || prev.website,
-                      address: place.address || prev.address,
-                      city: place.city || prev.city,
-                      state: place.state || prev.state,
-                      country: place.country || prev.country,
-                      latitude: place.latitude ? String(place.latitude) : prev.latitude,
-                      longitude: place.longitude ? String(place.longitude) : prev.longitude,
-                      googlePlaceId: place.googlePlaceId || place.placeId || prev.googlePlaceId,
-                      rating: place.rating ? String(place.rating) : prev.rating,
-                      reviewCount: place.reviewCount ? String(place.reviewCount) : prev.reviewCount,
-                      source: 'GOOGLE_PLACES',
-                    }));
-                    setIsPlacesDrawerOpen(false);
-                    setIsAddDrawerOpen(true);
-                  }}
-                >
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 truncate">
-                      {place.title || place.name || 'Unnamed Business'}
-                    </p>
-                    {place.address && (
-                      <p className="text-xs text-slate-500 truncate mt-0.5">{place.address}</p>
-                    )}
-                    {(place.rating || place.reviewCount) && (
-                      <p className="text-xs text-amber-600 font-semibold mt-0.5">
-                        {place.rating && `⭐ ${place.rating}`}
-                        {place.reviewCount && ` (${place.reviewCount} reviews)`}
-                      </p>
-                    )}
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-500 flex-shrink-0 mt-1 transition-colors" />
-                </div>
-              ))}
-            </div>
+      {/* Google Places Discovery Drawer — Right-Side Sheet */}
+      <AdminFormDrawer
+        isOpen={isPlacesDrawerOpen}
+        onClose={() => setIsPlacesDrawerOpen(false)}
+        title="Google Places Discovery"
+        description="Search businesses and import as leads"
+        icon={Globe}
+        size="md"
+        hideFooter
+      >
+        {/* Search form */}
+        <form onSubmit={handleSearchGooglePlaces} className="-mx-5 sm:-mx-6 px-5 sm:px-6 pb-4 border-b border-slate-100 space-y-2">
+          <div className="flex flex-col gap-2">
+            <input
+              type="text"
+              placeholder="e.g. Gym, Restaurants, IT companies..."
+              value={googleQuery}
+              onChange={(e) => setGoogleQuery(e.target.value)}
+              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
+            />
+            <input
+              type="text"
+              placeholder="Location (e.g. Mumbai)"
+              value={googleLocation}
+              onChange={(e) => setGoogleLocation(e.target.value)}
+              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
+            />
           </div>
+          <button
+            type="submit"
+            disabled={isSearchingPlaces || !googleQuery.trim()}
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
+          >
+            {isSearchingPlaces ? 'Searching...' : 'Search Google Places'}
+          </button>
+        </form>
+
+        {/* Results */}
+        <div className="-mx-5 sm:-mx-6 -mb-5 sm:-mb-6 divide-y divide-slate-100">
+          {placesResults.length === 0 && !isSearchingPlaces && (
+            <div className="py-16 text-center text-slate-400 px-5">
+              <Globe className="w-10 h-10 mx-auto mb-3 text-slate-200" />
+              <p className="text-sm font-bold text-slate-500">Discover Local Businesses</p>
+              <p className="text-xs text-slate-400 mt-1">Enter a keyword and location above to search</p>
+            </div>
+          )}
+          {isSearchingPlaces && (
+            <div className="py-16 text-center px-5">
+              <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-xs font-bold text-slate-400">Searching Google Places...</p>
+            </div>
+          )}
+          {!isSearchingPlaces && placesResults.map((place: any, i: number) => {
+            const displayName = place.businessName || place.title || place.name || null;
+            return (
+              <div
+                key={i}
+                className="flex items-start gap-3 px-5 sm:px-6 py-3.5 hover:bg-emerald-50/60 cursor-pointer transition-colors group"
+                onClick={() => {
+                  setLeadForm((prev) => ({
+                    ...prev,
+                    title: displayName || prev.title,
+                    businessName: displayName || prev.businessName,
+                    phone: place.phone || prev.phone,
+                    email: place.email || prev.email,
+                    website: place.website || prev.website,
+                    address: place.address || prev.address,
+                    city: place.city || prev.city,
+                    state: place.state || prev.state,
+                    country: place.country || prev.country,
+                    latitude: place.latitude ? String(place.latitude) : prev.latitude,
+                    longitude: place.longitude ? String(place.longitude) : prev.longitude,
+                    googlePlaceId: place.googlePlaceId || place.placeId || prev.googlePlaceId,
+                    rating: place.rating ? String(place.rating) : prev.rating,
+                    reviewCount: place.reviewCount ? String(place.reviewCount) : prev.reviewCount,
+                    source: 'GOOGLE_PLACES',
+                  }));
+                  setIsPlacesDrawerOpen(false);
+                  setIsAddDrawerOpen(true);
+                }}
+              >
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-xs text-slate-900 group-hover:text-emerald-700 truncate">
+                    {displayName ?? 'Business'}
+                  </p>
+                  {place.address && (
+                    <p className="text-xs text-slate-500 truncate mt-0.5">{place.address}</p>
+                  )}
+                  {(place.rating || place.reviewCount) && (
+                    <p className="text-xs text-amber-600 font-semibold mt-0.5">
+                      {place.rating && `⭐ ${place.rating}`}
+                      {place.reviewCount && ` (${place.reviewCount} reviews)`}
+                    </p>
+                  )}
+                  {place.category && (
+                    <p className="text-xs text-slate-400 mt-0.5">{place.category}</p>
+                  )}
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-500 flex-shrink-0 mt-1 transition-colors" />
+              </div>
+            );
+          })}
         </div>
-      )}
+      </AdminFormDrawer>
     </div>
   );
 }
