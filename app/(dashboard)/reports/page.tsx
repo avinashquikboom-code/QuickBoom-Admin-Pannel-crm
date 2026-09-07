@@ -28,6 +28,7 @@ import ReportsService, {
   ReportSummary,
   ExportReportPayload,
 } from '@/lib/services/reports.service';
+import { exportReportAsPdf } from '@/lib/utils/pdf-export';
 import { AdminDataTable, ColumnDef } from '@/components/admin/tables/AdminDataTable';
 import { AdminPagination } from '@/components/admin/tables/AdminPagination';
 import { AdminStatCard } from '@/components/admin/cards/AdminStatCard';
@@ -119,7 +120,7 @@ export default function ReportsPage() {
     staleTime: 30000,
   });
 
-  // Master Export Action
+  // Master CSV Export Action (backend)
   const handleExport = async (reportType: ReportModuleType, format: 'CSV' | 'PDF' = 'CSV') => {
     try {
       setDownloadingType(`${reportType}-${format}`);
@@ -136,12 +137,12 @@ export default function ReportsPage() {
 
       if (result?.data) {
         const blob = new Blob([result.data], {
-          type: format === 'CSV' ? 'text/csv;charset=utf-8;' : 'application/pdf',
+          type: 'text/csv;charset=utf-8;',
         });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', result.filename || `report_${reportType.toLowerCase()}.${format.toLowerCase()}`);
+        link.setAttribute('download', result.filename || `report_${reportType.toLowerCase()}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -152,6 +153,33 @@ export default function ReportsPage() {
       }
     } catch (err) {
       toast.error(getErrorMessage(err));
+    } finally {
+      setDownloadingType(null);
+    }
+  };
+
+  // PDF Export Action (client-side, uses current page data)
+  const handleExportPdf = async (reportType: ReportModuleType) => {
+    try {
+      const items = reportType === activeModule ? tableData : [];
+      if (items.length === 0) {
+        toast.error('No data to export. Apply filters or switch to this module first.');
+        return;
+      }
+      setDownloadingType(`${reportType}-PDF`);
+      toast.loading('Generating PDF...', { id: 'pdf-gen' });
+      await exportReportAsPdf({
+        module: reportType,
+        dateFrom,
+        dateTo,
+        statusFilter,
+        search: search.trim() || undefined,
+        items,
+        summaryData,
+      });
+      toast.success(`PDF exported successfully (${items.length} rows)`, { id: 'pdf-gen' });
+    } catch (err) {
+      toast.error(getErrorMessage(err), { id: 'pdf-gen' });
     } finally {
       setDownloadingType(null);
     }
@@ -443,9 +471,21 @@ export default function ReportsPage() {
               {downloadingType === `${activeModule}-CSV` ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
-                <Download className="w-4 h-4" />
+                <FileSpreadsheet className="w-4 h-4" />
               )}
-              <span>Export {tabs.find((t) => t.id === activeModule)?.label || 'Report'} (CSV)</span>
+              <span>Export CSV</span>
+            </button>
+            <button
+              onClick={() => handleExportPdf(activeModule)}
+              disabled={downloadingType !== null}
+              className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+            >
+              {downloadingType === `${activeModule}-PDF` ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
+              <span>Export PDF</span>
             </button>
             <button
               onClick={() => {
@@ -680,9 +720,21 @@ export default function ReportsPage() {
             {downloadingType === `${activeModule}-CSV` ? (
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
             ) : (
-              <Download className="w-3.5 h-3.5" />
+              <FileSpreadsheet className="w-3.5 h-3.5" />
             )}
-            <span>Export View</span>
+            <span>CSV</span>
+          </button>
+          <button
+            onClick={() => handleExportPdf(activeModule)}
+            disabled={downloadingType !== null}
+            className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+          >
+            {downloadingType === `${activeModule}-PDF` ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileText className="w-3.5 h-3.5" />
+            )}
+            <span>PDF</span>
           </button>
         </div>
       </div>
@@ -737,7 +789,14 @@ export default function ReportsPage() {
                 disabled={downloadingType !== null}
                 className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
               >
-                {downloadingType === 'ATTENDANCE-CSV' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} CSV Export
+                {downloadingType === 'ATTENDANCE-CSV' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} CSV
+              </button>
+              <button
+                onClick={() => handleExportPdf('ATTENDANCE')}
+                disabled={downloadingType !== null}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
+              >
+                {downloadingType === 'ATTENDANCE-PDF' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} PDF
               </button>
             </div>
           </div>
@@ -759,7 +818,14 @@ export default function ReportsPage() {
                 disabled={downloadingType !== null}
                 className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
               >
-                {downloadingType === 'PAYROLL-CSV' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} CSV Export
+                {downloadingType === 'PAYROLL-CSV' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} CSV
+              </button>
+              <button
+                onClick={() => handleExportPdf('PAYROLL')}
+                disabled={downloadingType !== null}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
+              >
+                {downloadingType === 'PAYROLL-PDF' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} PDF
               </button>
             </div>
           </div>
@@ -781,7 +847,14 @@ export default function ReportsPage() {
                 disabled={downloadingType !== null}
                 className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
               >
-                {downloadingType === 'LEAVES-CSV' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} CSV Export
+                {downloadingType === 'LEAVES-CSV' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} CSV
+              </button>
+              <button
+                onClick={() => handleExportPdf('LEAVES')}
+                disabled={downloadingType !== null}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
+              >
+                {downloadingType === 'LEAVES-PDF' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} PDF
               </button>
             </div>
           </div>
@@ -803,7 +876,14 @@ export default function ReportsPage() {
                 disabled={downloadingType !== null}
                 className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
               >
-                {downloadingType === 'EMPLOYEES-CSV' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} CSV Export
+                {downloadingType === 'EMPLOYEES-CSV' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} CSV
+              </button>
+              <button
+                onClick={() => handleExportPdf('EMPLOYEES')}
+                disabled={downloadingType !== null}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
+              >
+                {downloadingType === 'EMPLOYEES-PDF' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} PDF
               </button>
             </div>
           </div>
