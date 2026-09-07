@@ -17,6 +17,7 @@ import {
   Clock,
   XCircle,
   Play,
+  Trash2,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -31,6 +32,11 @@ export default function CustomerSubscriptionsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
+
+  // Selection & Delete States
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [deleteConfirmSub, setDeleteConfirmSub] = useState<any | null>(null);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
   // 1. Fetch Subscriptions from backend
   const { data: subResponse, isLoading, refetch } = useQuery({
@@ -49,8 +55,10 @@ export default function CustomerSubscriptionsPage() {
           total: Array.isArray(items) ? items.length : 0,
           totalPages: 1,
         };
+        const counts = res?.counts || res?.data?.counts || {};
         return {
           items: Array.isArray(items) ? items : [],
+          counts,
           pagination: {
             page: Number(pagination.page) || page,
             pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
@@ -59,13 +67,79 @@ export default function CustomerSubscriptionsPage() {
           },
         };
       } catch {
-        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
+        return { items: [], counts: {}, pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
   });
 
   const subscriptions: any[] = subResponse?.items || [];
   const pagination = subResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
+  const counts = subResponse?.counts || {};
+
+  // Single Delete Mutation
+  const singleDeleteMutation = useMutation({
+    mutationFn: async (id: number | string) => {
+      const res: any = await api.delete(`/admin/subscriptions/${id}`);
+      return res?.data || res;
+    },
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'Subscription deleted successfully');
+      setSelectedIds((prev) => prev.filter((id) => id !== deleteConfirmSub?.id));
+      setDeleteConfirmSub(null);
+      if (subscriptions.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin-subscriptions-list'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Bulk Delete Mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const res: any = await api.post('/admin/subscriptions/bulk-delete', { ids });
+      return res?.data || res;
+    },
+    onSuccess: (data: any) => {
+      const count = selectedIds.length;
+      toast.success(data?.message || `${count} ${count === 1 ? 'subscription' : 'subscriptions'} deleted successfully`);
+      setIsBulkDeleteModalOpen(false);
+      const remainingOnPage = subscriptions.filter((s: any) => !selectedIds.includes(s.id)).length;
+      if (remainingOnPage === 0 && page > 1) {
+        setPage((p) => p - 1);
+      }
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['admin-subscriptions-list'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Selection helpers
+  const visibleIds = subscriptions.map((s: any) => s.id);
+  const isAllSelected = visibleIds.length > 0 && visibleIds.every((id: any) => selectedIds.includes(id));
+  const isSomeSelected = visibleIds.some((id: any) => selectedIds.includes(id)) && !isAllSelected;
+
+  const handleToggleRow = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleAll = () => {
+    if (isAllSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
 
   // Manual Expiry Scan Mutation
   const scanMutation = useMutation({
@@ -84,10 +158,11 @@ export default function CustomerSubscriptionsPage() {
     },
   });
 
-  const expiring10Count = subscriptions.filter((s) => s.daysRemaining <= 10 && s.daysRemaining > 5).length;
-  const expiring5Count = subscriptions.filter((s) => s.daysRemaining <= 5 && s.daysRemaining > 0).length;
+  const totalActiveCount = counts.totalActive ?? pagination.total;
+  const expiring10Count = counts.expiring10 ?? subscriptions.filter((s) => s.daysRemaining <= 10 && s.daysRemaining > 5).length;
+  const expiring5Count = counts.expiring5 ?? subscriptions.filter((s) => s.daysRemaining <= 5 && s.daysRemaining > 0).length;
   const expiringTodayCount = subscriptions.filter((s) => s.daysRemaining === 0).length;
-  const expiredCount = subscriptions.filter((s) => s.daysRemaining < 0 || s.status === 'EXPIRED').length;
+  const expiredCount = counts.expired ?? subscriptions.filter((s) => s.daysRemaining < 0 || s.status === 'EXPIRED').length;
 
   const getStatusBadge = (status: string, daysRemaining: number) => {
     if (status === 'EXPIRED' || daysRemaining < 0) {
@@ -166,7 +241,7 @@ export default function CustomerSubscriptionsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <AdminStatCard
           title="Total Active"
-          value={pagination.total}
+          value={totalActiveCount}
           icon={CreditCard}
           iconBg="primary"
         />
@@ -189,6 +264,38 @@ export default function CustomerSubscriptionsPage() {
           iconBg="slate"
         />
       </div>
+
+      {/* BULK ACTIONS BAR (When records selected) */}
+      {selectedIds.length > 0 && (
+        <div className="bg-[#1B2533] text-white rounded-2xl px-5 py-3 shadow-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5 text-xs font-bold">
+            <span className="w-6 h-6 rounded-full bg-[#23C45E] text-slate-950 flex items-center justify-center font-black text-[11px]">
+              {selectedIds.length}
+            </span>
+            <span>{selectedIds.length === 1 ? 'subscription selected' : 'subscriptions selected'}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              disabled={bulkDeleteMutation.isPending}
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 3. TABLE CONTAINER */}
       <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
@@ -228,6 +335,18 @@ export default function CustomerSubscriptionsPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-400 font-black uppercase border-b border-slate-200">
               <tr>
+                <th className="px-5 py-3.5 w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleToggleAll}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                    title="Select All"
+                  />
+                </th>
                 <th className="px-5 py-3.5">Customer & Account</th>
                 <th className="px-5 py-3.5">Plan Tier</th>
                 <th className="px-5 py-3.5">Activation Date</th>
@@ -240,13 +359,21 @@ export default function CustomerSubscriptionsPage() {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {subscriptions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400 font-bold">
+                  <td colSpan={8} className="py-16 text-center text-slate-400 font-bold">
                     No subscriptions matching the selected criteria.
                   </td>
                 </tr>
               ) : (
                 subscriptions.map((s: any) => (
                   <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-5 py-4 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(s.id)}
+                        onChange={() => handleToggleRow(s.id)}
+                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-5 py-4">
                       <button
                         type="button"
@@ -273,13 +400,23 @@ export default function CustomerSubscriptionsPage() {
                     </td>
                     <td className="px-5 py-4">{getStatusBadge(s.status, s.daysRemaining)}</td>
                     <td className="px-5 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setViewingCustomerId(s.customerId)}
-                        className="inline-block px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-xs transition-all cursor-pointer"
-                      >
-                        Manage
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setViewingCustomerId(s.customerId)}
+                          className="inline-block px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-xs transition-all cursor-pointer"
+                        >
+                          Manage
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmSub(s)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                          title="Delete Subscription"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -308,6 +445,142 @@ export default function CustomerSubscriptionsPage() {
         isOpen={!!viewingCustomerId}
         onClose={() => setViewingCustomerId(null)}
       />
+
+      {/* Single Delete Confirmation Modal */}
+      {deleteConfirmSub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            onClick={() => !singleDeleteMutation.isPending && setDeleteConfirmSub(null)}
+          />
+          <div className="relative bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 z-10 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Delete Tenant Subscription?
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Customer: <strong className="text-slate-800 font-bold">{deleteConfirmSub.customerName}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Subscription Breakdown */}
+            <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-3.5 space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Customer:</span>
+                <span className="font-bold text-slate-900 text-right">{deleteConfirmSub.customerName}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Plan Tier:</span>
+                <span className="font-bold text-emerald-900">{deleteConfirmSub.planName}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Activation Date:</span>
+                <span className="font-medium text-slate-700">
+                  {deleteConfirmSub.startDate ? new Date(deleteConfirmSub.startDate).toLocaleDateString() : 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Anchor Expiry:</span>
+                <span className="font-medium text-slate-700">
+                  {deleteConfirmSub.expiryDate ? new Date(deleteConfirmSub.expiryDate).toLocaleDateString() : 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Lifecycle Status:</span>
+                <span>{getStatusBadge(deleteConfirmSub.status, deleteConfirmSub.daysRemaining)}</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 italic">
+              Note: The customer profile, account details, and global plan definitions will remain completely intact.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={singleDeleteMutation.isPending}
+                onClick={() => setDeleteConfirmSub(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={singleDeleteMutation.isPending}
+                onClick={() => singleDeleteMutation.mutate(deleteConfirmSub.id)}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {singleDeleteMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            onClick={() => !bulkDeleteMutation.isPending && setIsBulkDeleteModalOpen(false)}
+          />
+          <div className="relative bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 z-10 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Delete {selectedIds.length} {selectedIds.length === 1 ? 'Subscription' : 'Subscriptions'}?
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Selected: <strong className="text-slate-800 font-bold">{selectedIds.length} {selectedIds.length === 1 ? 'subscription' : 'subscriptions'}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50/50 border border-rose-100 rounded-2xl text-xs text-rose-800">
+              Are you sure you want to delete the selected <strong>{selectedIds.length} {selectedIds.length === 1 ? 'subscription' : 'subscriptions'}</strong>? This operation cannot be undone. Customer accounts and global plan definitions will remain safe.
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => setIsBulkDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => bulkDeleteMutation.mutate(selectedIds)}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {bulkDeleteMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Delete {selectedIds.length} Subscriptions</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

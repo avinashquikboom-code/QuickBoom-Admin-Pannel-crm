@@ -31,6 +31,11 @@ export default function InvoicesPage() {
   const [pageSize, setPageSize] = useState(20);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
+  // Selection & Delete States
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [deleteConfirmInvoice, setDeleteConfirmInvoice] = useState<any | null>(null);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+
   // Form states
   const [formInvoiceNo, setFormInvoiceNo] = useState(`INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
   const [formCustomerId, setFormCustomerId] = useState('');
@@ -143,14 +148,59 @@ export default function InvoicesPage() {
       const res: any = await api.delete(`/invoices/${id}`);
       return res?.data || res;
     },
-    onSuccess: () => {
-      toast.success('Invoice deleted');
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'Invoice deleted successfully');
+      setSelectedIds((prev) => prev.filter((id) => id !== deleteConfirmInvoice?.id));
+      setDeleteConfirmInvoice(null);
+      if (invoicesList.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      }
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const res: any = await api.post('/invoices/bulk-delete', { ids });
+      return res?.data || res;
+    },
+    onSuccess: (data: any) => {
+      const count = selectedIds.length;
+      toast.success(data?.message || `${count} ${count === 1 ? 'invoice' : 'invoices'} deleted successfully`);
+      setIsBulkDeleteModalOpen(false);
+      const remainingOnPage = invoicesList.filter((inv: any) => !selectedIds.includes(inv.id)).length;
+      if (remainingOnPage === 0 && page > 1) {
+        setPage((p) => p - 1);
+      }
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Selection helpers
+  const visibleIds = invoicesList.map((inv: any) => inv.id);
+  const isAllSelected = visibleIds.length > 0 && visibleIds.every((id: any) => selectedIds.includes(id));
+  const isSomeSelected = visibleIds.some((id: any) => selectedIds.includes(id)) && !isAllSelected;
+
+  const handleToggleRow = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleAll = () => {
+    if (isAllSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
 
   const resetForm = () => {
     setFormInvoiceNo(`INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -268,6 +318,38 @@ export default function InvoicesPage() {
         />
       </div>
 
+      {/* BULK ACTIONS BAR (When records selected) */}
+      {selectedIds.length > 0 && (
+        <div className="bg-[#1B2533] text-white rounded-2xl px-5 py-3 shadow-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5 text-xs font-bold">
+            <span className="w-6 h-6 rounded-full bg-[#23C45E] text-slate-950 flex items-center justify-center font-black text-[11px]">
+              {selectedIds.length}
+            </span>
+            <span>{selectedIds.length === 1 ? 'invoice selected' : 'invoices selected'}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              disabled={bulkDeleteMutation.isPending}
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filter and Table Card */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -309,6 +391,18 @@ export default function InvoicesPage() {
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 font-extrabold uppercase border-b border-slate-100 dark:border-slate-700">
               <tr>
+                <th className="p-3.5 w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isSomeSelected;
+                    }}
+                    onChange={handleToggleAll}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                    title="Select All"
+                  />
+                </th>
                 <th className="p-3.5">Invoice #</th>
                 <th className="p-3.5">Client / Contact</th>
                 <th className="p-3.5">Total Amount</th>
@@ -321,14 +415,14 @@ export default function InvoicesPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700 font-medium">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                  <td colSpan={8} className="p-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
                     Loading live invoices...
                   </td>
                 </tr>
               ) : filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                  <td colSpan={8} className="p-8 text-center text-slate-400">
                     <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     No invoices found. Click "Create New Invoice" to generate one.
                   </td>
@@ -336,6 +430,14 @@ export default function InvoicesPage() {
               ) : (
                 filteredInvoices.map((inv: any) => (
                   <tr key={inv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition">
+                    <td className="p-3.5 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(inv.id)}
+                        onChange={() => handleToggleRow(inv.id)}
+                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                      />
+                    </td>
                     <td className="p-3.5 font-bold text-slate-900 dark:text-white">
                       {inv.invoiceNumber || `INV-${inv.id}`}
                     </td>
@@ -358,18 +460,14 @@ export default function InvoicesPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleDownloadInvoice(inv)}
-                          className="p-1 text-slate-400 hover:text-emerald-600 transition"
+                          className="p-1 text-slate-400 hover:text-emerald-600 transition cursor-pointer"
                           title="Download PDF"
                         >
                           <Download className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm('Delete this invoice record?')) {
-                              deleteMutation.mutate(inv.id);
-                            }
-                          }}
-                          className="p-1 text-slate-400 hover:text-red-600 transition"
+                          onClick={() => setDeleteConfirmInvoice(inv)}
+                          className="p-1 text-slate-400 hover:text-red-600 transition cursor-pointer"
                           title="Delete Invoice"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -517,6 +615,144 @@ export default function InvoicesPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      {/* Single Delete Confirmation Modal */}
+      {deleteConfirmInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            onClick={() => !deleteMutation.isPending && setDeleteConfirmInvoice(null)}
+          />
+          <div className="relative bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl max-w-md w-full p-6 space-y-4 z-10 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Delete Invoice?
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Invoice: <strong className="text-slate-800 dark:text-slate-200 font-bold">{deleteConfirmInvoice.invoiceNumber || `INV-${deleteConfirmInvoice.id}`}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Invoice Breakdown */}
+            <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-700 rounded-2xl p-3.5 space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Client:</span>
+                <span className="font-bold text-slate-900 dark:text-white text-right">{deleteConfirmInvoice.clientName || 'General Client'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Total Amount:</span>
+                <span className="font-black text-slate-900 dark:text-white">
+                  {typeof deleteConfirmInvoice.amount === 'string' ? deleteConfirmInvoice.amount : `₹${Number(deleteConfirmInvoice.totalAmount || deleteConfirmInvoice.amount || 0).toLocaleString('en-IN')}`}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Issue Date:</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {deleteConfirmInvoice.issueDate ? new Date(deleteConfirmInvoice.issueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Due Date:</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {deleteConfirmInvoice.dueDate ? new Date(deleteConfirmInvoice.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Status:</span>
+                <span>{getStatusBadge(deleteConfirmInvoice.status)}</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 italic">
+              Note: The client profile and associated subscriptions will remain completely intact.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() => setDeleteConfirmInvoice(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(deleteConfirmInvoice.id)}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            onClick={() => !bulkDeleteMutation.isPending && setIsBulkDeleteModalOpen(false)}
+          />
+          <div className="relative bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl max-w-md w-full p-6 space-y-4 z-10 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Delete {selectedIds.length} {selectedIds.length === 1 ? 'Invoice' : 'Invoices'}?
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Selected: <strong className="text-slate-800 dark:text-slate-200 font-bold">{selectedIds.length} {selectedIds.length === 1 ? 'invoice' : 'invoices'}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50/50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900 rounded-2xl text-xs text-rose-800 dark:text-rose-300">
+              Are you sure you want to delete the selected <strong>{selectedIds.length} {selectedIds.length === 1 ? 'invoice' : 'invoices'}</strong>? This operation cannot be undone. Customer accounts and contracts will remain safe.
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => setIsBulkDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => bulkDeleteMutation.mutate(selectedIds)}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {bulkDeleteMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Delete {selectedIds.length} Invoices</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
