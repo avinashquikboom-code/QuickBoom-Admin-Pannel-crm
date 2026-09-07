@@ -203,6 +203,7 @@ export default function EmployeesPage() {
     employeeCode: '',
     joiningDate: new Date().toISOString().split('T')[0],
     employmentType: 'FULL_TIME',
+    employeeType: 'COMPANY' as 'COMPANY' | 'FREELANCER',
     status: 'ACTIVE',
     managerId: '',
 
@@ -482,6 +483,7 @@ export default function EmployeesPage() {
         address: formData.address || undefined,
         joiningDate: formData.joiningDate || undefined,
         employmentType: formData.employmentType,
+        employeeType: formData.employeeType || 'COMPANY',
         status: formData.status,
         mobileLoginEnabled: formData.mobileLoginEnabled,
         password: formData.password?.trim() || undefined,
@@ -699,6 +701,7 @@ export default function EmployeesPage() {
       employeeCode: '',  // cleared — backend will assign on save
       joiningDate: new Date().toISOString().split('T')[0],
       employmentType: 'FULL_TIME',
+      employeeType: 'COMPANY',
       status: 'ACTIVE',
       managerId: '',
       officeId: defaultOffice ? defaultOffice.id : '',
@@ -769,6 +772,7 @@ export default function EmployeesPage() {
       employeeCode: emp.employeeCode,
       joiningDate: emp.joiningDate || new Date().toISOString().split('T')[0],
       employmentType: emp.employmentType || 'FULL_TIME',
+      employeeType: (emp.employeeType as 'COMPANY' | 'FREELANCER') || 'COMPANY',
       status: emp.status,
       managerId: emp.managerId ? String(emp.managerId) : '',
       officeId: emp.officeId || (matchedOffice ? matchedOffice.id : ''),
@@ -2018,6 +2022,20 @@ export default function EmployeesPage() {
 
                     <div>
                       <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                        Employee Type *
+                      </label>
+                      <select
+                        value={formData.employeeType}
+                        onChange={(e) => setFormData({ ...formData, employeeType: e.target.value as 'COMPANY' | 'FREELANCER' })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                      >
+                        <option value="COMPANY">In-House Employee</option>
+                        <option value="FREELANCER">Freelancer</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
                         Employment Type
                       </label>
                       <select
@@ -2629,6 +2647,12 @@ export default function EmployeesPage() {
                       <div>
                         <span className="text-slate-400 font-bold block text-[10px]">JOINING DATE</span>
                         <span className="font-bold text-slate-800">{formData.joiningDate}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">EMPLOYEE TYPE</span>
+                        <span className="font-extrabold text-[#1AA14D]">
+                          {formData.employeeType === 'FREELANCER' ? 'Freelancer' : 'In-House Employee'}
+                        </span>
                       </div>
                       <div>
                         <span className="text-slate-400 font-bold block text-[10px]">EMPLOYMENT TYPE</span>
