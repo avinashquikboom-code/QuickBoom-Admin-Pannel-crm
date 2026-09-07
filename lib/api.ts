@@ -3,10 +3,13 @@ import { toast } from 'react-hot-toast';
 import { useAuthStore } from './store';
 import { getErrorMessage } from './utils';
 
+const apiBaseURL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://api.qbapp.online/api/v1';
+
 const api = axios.create({
-  baseURL:
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    'https://api.qbapp.online/api/v1',
+  baseURL: apiBaseURL,
   headers: {
     'Content-Type': 'application/json',
     'x-client-type': 'admin',
@@ -140,6 +143,7 @@ api.interceptors.request.use(
           config.headers.set('Authorization', `Bearer ${token}`);
         } else {
           config.headers = config.headers || {};
+          delete (config.headers as any)['authorization'];
           config.headers['Authorization'] = `Bearer ${token}`;
         }
       }
@@ -276,6 +280,7 @@ api.interceptors.response.use(
               originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
             } else {
               originalRequest.headers = originalRequest.headers || {};
+              delete (originalRequest.headers as any)['authorization'];
               originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
             }
             return api(originalRequest);
@@ -291,8 +296,7 @@ api.interceptors.response.use(
       try {
         const baseURL =
           api.defaults.baseURL ||
-          process.env.NEXT_PUBLIC_API_BASE_URL ||
-          'https://api.qbapp.online/api/v1';
+          apiBaseURL;
 
         // Isolated POST call to avoid interceptor loop
         const refreshRes = await axios.post(
@@ -301,6 +305,7 @@ api.interceptors.response.use(
           {
             headers: {
               'Content-Type': 'application/json',
+              'x-client-type': 'admin',
             },
           }
         );
@@ -326,6 +331,7 @@ api.interceptors.response.use(
           originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
         } else {
           originalRequest.headers = originalRequest.headers || {};
+          delete (originalRequest.headers as any)['authorization'];
           originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
         }
 

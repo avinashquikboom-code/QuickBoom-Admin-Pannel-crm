@@ -4,7 +4,12 @@ import { useAuthStore } from '../store';
 export class AdminAuthService {
   private api: AxiosInstance;
 
-  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || 'https://api.qbapp.online/api/v1') {
+  constructor(
+    baseURL: string =
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'https://api.qbapp.online/api/v1'
+  ) {
     this.api = axios.create({
       baseURL,
       headers: {
