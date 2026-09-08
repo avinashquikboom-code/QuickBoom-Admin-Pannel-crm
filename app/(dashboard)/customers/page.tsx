@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -35,6 +35,8 @@ import {
   Tag,
   ShieldCheck,
   RotateCcw,
+  Check,
+  User,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -79,13 +81,75 @@ export default function CustomersPage() {
     country: 'India',
     pincode: '',
     customerType: 'ENTERPRISE',
-    industry: 'Information Technology',
     source: 'DIRECT',
     status: 'ACTIVE',
-    assignedEmployee: 'Rahul Sharma',
-    department: 'Sales & BD',
+    assignedEmployeeId: '',
+    assignedEmployee: '',
+    department: '',
     notes: '',
   });
+
+  // Employee Dropdown & Search state
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
+  const employeeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close employee dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(event.target as Node)) {
+        setIsEmployeeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Fetch active assignable employees from backend
+  const {
+    data: employeesData,
+    isLoading: isLoadingEmployees,
+    isError: isErrorEmployees,
+    refetch: refetchEmployees,
+  } = useQuery({
+    queryKey: ['active-assignable-employees'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees', {
+          params: { limit: 100, status: 'ACTIVE' },
+        });
+        const items =
+          res?.data?.items ||
+          res?.data?.data ||
+          res?.data?.employees ||
+          (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const activeEmployees: any[] = employeesData || [];
+
+  // Filtered employees for dropdown search
+  const filteredEmployees = useMemo(() => {
+    if (!employeeSearch.trim()) return activeEmployees;
+    const q = employeeSearch.toLowerCase().trim();
+    return activeEmployees.filter((emp: any) => {
+      const name = (emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`).toLowerCase();
+      const code = (emp.employeeCode || `emp-${emp.id}`).toLowerCase();
+      const desig = (emp.designation || emp.designationName || '').toLowerCase();
+      const dept = (
+        emp.department?.name ||
+        emp.departmentName ||
+        (typeof emp.department === 'string' ? emp.department : '')
+      ).toLowerCase();
+      return name.includes(q) || code.includes(q) || desig.includes(q) || dept.includes(q);
+    });
+  }, [activeEmployees, employeeSearch]);
 
   // 1. Fetch KPI Metrics
   const { data: metrics } = useQuery({
@@ -233,17 +297,53 @@ export default function CustomersPage() {
       country: 'India',
       pincode: '',
       customerType: 'ENTERPRISE',
-      industry: 'Information Technology',
       source: 'DIRECT',
       status: 'ACTIVE',
-      assignedEmployee: 'Rahul Sharma',
-      department: 'Sales & BD',
+      assignedEmployeeId: '',
+      assignedEmployee: '',
+      department: '',
       notes: '',
     });
+    setEmployeeSearch('');
+    setIsEmployeeDropdownOpen(false);
   };
 
   const handleOpenEdit = (cust: any) => {
     setEditingCustomer(cust);
+
+    // Resolve assigned employee ID, name, and department
+    let matchedEmpId = cust.assignedEmployeeId ? String(cust.assignedEmployeeId) : '';
+    let matchedEmpName = cust.assignedEmployee && cust.assignedEmployee !== 'Unassigned' ? cust.assignedEmployee : '';
+    let matchedDept = cust.department && cust.department !== 'General' ? cust.department : '';
+
+    if (!matchedEmpId && matchedEmpName && activeEmployees.length > 0) {
+      const found = activeEmployees.find((e: any) => {
+        const fullName = (e.name || `${e.firstName || ''} ${e.lastName || ''}`).trim();
+        return fullName.toLowerCase() === matchedEmpName.toLowerCase();
+      });
+      if (found) {
+        matchedEmpId = String(found.id);
+        matchedEmpName = (found.name || `${found.firstName || ''} ${found.lastName || ''}`).trim();
+        if (!matchedDept) {
+          matchedDept =
+            found.department?.name ||
+            found.departmentName ||
+            (typeof found.department === 'string' ? found.department : '');
+        }
+      }
+    } else if (matchedEmpId && activeEmployees.length > 0) {
+      const found = activeEmployees.find((e: any) => String(e.id) === String(matchedEmpId));
+      if (found) {
+        matchedEmpName = (found.name || `${found.firstName || ''} ${found.lastName || ''}`).trim();
+        if (!matchedDept) {
+          matchedDept =
+            found.department?.name ||
+            found.departmentName ||
+            (typeof found.department === 'string' ? found.department : '');
+        }
+      }
+    }
+
     setCustomerForm({
       name: cust.name || '',
       companyName: cust.companyName || cust.company || '',
@@ -256,32 +356,62 @@ export default function CustomersPage() {
       country: cust.country || 'India',
       pincode: cust.pincode || '',
       customerType: cust.customerType || 'ENTERPRISE',
-      industry: cust.industry || 'Information Technology',
       source: cust.source || 'DIRECT',
       status: cust.status || (cust.isActive ? 'ACTIVE' : 'INACTIVE'),
-      assignedEmployee: cust.assignedEmployee !== 'Unassigned' ? cust.assignedEmployee : 'Rahul Sharma',
-      department: cust.department !== 'General' ? cust.department : 'Sales & BD',
+      assignedEmployeeId: matchedEmpId,
+      assignedEmployee: matchedEmpName,
+      department: matchedDept,
       notes: cust.notes || '',
     });
+    setEmployeeSearch('');
+    setIsEmployeeDropdownOpen(false);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleFormSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+    if (e && typeof (e as any).preventDefault === 'function') {
+      e.preventDefault();
+    }
+
     if (!customerForm.name.trim() || !customerForm.phone.trim()) {
       toast.error('Please enter Customer Name and Phone number');
       return;
     }
 
+    if (!customerForm.assignedEmployeeId) {
+      toast.error('Please select an employee.');
+      return;
+    }
+
+    const payload: any = {
+      name: customerForm.name.trim(),
+      companyName: customerForm.companyName.trim() || undefined,
+      email: customerForm.email.trim() || undefined,
+      phone: customerForm.phone.trim(),
+      alternatePhone: customerForm.alternatePhone.trim() || undefined,
+      address: customerForm.address.trim() || undefined,
+      city: customerForm.city.trim() || undefined,
+      state: customerForm.state.trim() || undefined,
+      country: customerForm.country || 'India',
+      pincode: customerForm.pincode.trim() || undefined,
+      customerType: customerForm.customerType,
+      source: customerForm.source,
+      status: customerForm.status,
+      assignedEmployeeId: Number(customerForm.assignedEmployeeId),
+      assignedEmployee: customerForm.assignedEmployee,
+      department: customerForm.department || undefined,
+      notes: customerForm.notes.trim() || undefined,
+    };
+
     if (editingCustomer) {
       updateMutation.mutate({
         id: editingCustomer.id,
         payload: {
-          ...customerForm,
+          ...payload,
           isActive: customerForm.status === 'ACTIVE',
         },
       });
     } else {
-      createMutation.mutate(customerForm);
+      createMutation.mutate(payload);
     }
   };
 
@@ -469,9 +599,14 @@ export default function CustomersPage() {
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
               >
                 <option value="ALL">All Employees</option>
-                <option value="Rahul Sharma">Rahul Sharma</option>
-                <option value="Pooja Verma">Pooja Verma</option>
-                <option value="Amit Shah">Amit Shah</option>
+                {activeEmployees.map((emp: any) => {
+                  const empName = emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || `EMP-${emp.id}`;
+                  return (
+                    <option key={emp.id} value={empName}>
+                      {empName}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -896,7 +1031,7 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-black uppercase text-slate-700 mb-1">Customer Type</label>
               <select
@@ -909,17 +1044,6 @@ export default function CustomersPage() {
                 <option value="STARTUP">Startup</option>
                 <option value="INDIVIDUAL">Individual</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Industry</label>
-              <input
-                type="text"
-                placeholder="IT, Real Estate, etc."
-                value={customerForm.industry}
-                onChange={(e) => setCustomerForm({ ...customerForm, industry: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-              />
             </div>
 
             <div>
@@ -951,26 +1075,175 @@ export default function CustomersPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Assigned Employee</label>
-              <input
-                type="text"
-                placeholder="Rahul Sharma"
-                value={customerForm.assignedEmployee}
-                onChange={(e) => setCustomerForm({ ...customerForm, assignedEmployee: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
-              />
+            {/* Real Searchable Employee Dropdown */}
+            <div className="relative" ref={employeeDropdownRef}>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">
+                Assigned Employee <span className="text-rose-500">*</span>
+              </label>
+
+              {/* Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsEmployeeDropdownOpen((prev) => !prev)}
+                className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-xs font-medium flex items-center justify-between text-left transition-all cursor-pointer ${
+                  isEmployeeDropdownOpen
+                    ? 'border-[#23C45E] ring-2 ring-[#23C45E]/20 bg-white'
+                    : customerForm.assignedEmployeeId
+                    ? 'border-slate-200 text-slate-900 bg-white'
+                    : 'border-slate-200 text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  {customerForm.assignedEmployee ? (
+                    <span className="font-bold text-slate-900 truncate">{customerForm.assignedEmployee}</span>
+                  ) : (
+                    <span className="text-slate-400">Select employee...</span>
+                  )}
+                </div>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                    isEmployeeDropdownOpen ? 'rotate-180 text-[#23C45E]' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isEmployeeDropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+                  {/* Search Input */}
+                  <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search employee name, code, designation..."
+                        value={employeeSearch}
+                        onChange={(e) => setEmployeeSearch(e.target.value)}
+                        autoFocus
+                        className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#23C45E]"
+                      />
+                      {employeeSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setEmployeeSearch('')}
+                          className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* List of Employees */}
+                  <div className="max-h-56 overflow-y-auto divide-y divide-slate-100/80">
+                    {isLoadingEmployees ? (
+                      <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                        <RefreshCw className="w-4 h-4 animate-spin text-[#23C45E]" />
+                        <span className="text-[11px] font-semibold">Loading active employees...</span>
+                      </div>
+                    ) : isErrorEmployees ? (
+                      <div className="p-4 text-center space-y-2">
+                        <p className="text-[11px] text-rose-500 font-semibold">Failed to load employees</p>
+                        <button
+                          type="button"
+                          onClick={() => refetchEmployees()}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-md cursor-pointer"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : filteredEmployees.length === 0 ? (
+                      <div className="py-6 text-center text-slate-400 text-xs font-medium">
+                        {employeeSearch ? 'No matching employees found' : 'No active employees available'}
+                      </div>
+                    ) : (
+                      filteredEmployees.map((emp: any) => {
+                        const empName =
+                          emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || `EMP-${emp.id}`;
+                        const isSelected = String(customerForm.assignedEmployeeId) === String(emp.id);
+                        const empDept =
+                          emp.department?.name ||
+                          emp.departmentName ||
+                          (typeof emp.department === 'string' ? emp.department : 'General');
+                        const empCode = emp.employeeCode || `EMP-${String(emp.id).padStart(3, '0')}`;
+                        const empDesig = emp.designation || emp.designationName || '';
+
+                        return (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => {
+                              setCustomerForm({
+                                ...customerForm,
+                                assignedEmployeeId: String(emp.id),
+                                assignedEmployee: empName,
+                                department: empDept,
+                              });
+                              setIsEmployeeDropdownOpen(false);
+                              setEmployeeSearch('');
+                            }}
+                            className={`w-full px-3 py-2.5 flex items-center justify-between text-left transition-colors cursor-pointer hover:bg-slate-50 ${
+                              isSelected ? 'bg-emerald-50/70' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
+                                  isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
+                                }`}
+                              >
+                                {empName.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span
+                                    className={`text-xs font-bold truncate ${
+                                      isSelected ? 'text-emerald-900' : 'text-slate-900'
+                                    }`}
+                                  >
+                                    {empName}
+                                  </span>
+                                  {empCode && (
+                                    <span className="text-[10px] font-mono font-medium text-slate-400">
+                                      {empCode}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                                  {empDesig && (
+                                    <span className="px-1.5 py-0.2 bg-slate-100 rounded text-slate-600 font-semibold">
+                                      {empDesig}
+                                    </span>
+                                  )}
+                                  {empDept && <span className="truncate text-slate-400">{empDept}</span>}
+                                </div>
+                              </div>
+                            </div>
+
+                            {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0 ml-2" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* Department (Auto-populated from employee) */}
             <div>
               <label className="block text-xs font-black uppercase text-slate-700 mb-1">Department</label>
               <input
                 type="text"
-                placeholder="Sales & Business Development"
+                readOnly
+                placeholder="Auto-populated from employee"
                 value={customerForm.department}
-                onChange={(e) => setCustomerForm({ ...customerForm, department: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+                className="w-full px-3.5 py-2.5 bg-slate-100/70 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed"
               />
+              <p className="text-[10px] text-slate-400 font-medium mt-1">
+                Auto-populated from selected employee's department
+              </p>
             </div>
           </div>
 

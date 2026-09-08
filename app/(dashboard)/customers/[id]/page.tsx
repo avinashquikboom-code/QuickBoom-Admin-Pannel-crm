@@ -1628,11 +1628,11 @@ export default function CustomerDetailPage() {
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-400 font-bold">Assigned Relationship Manager</span>
-                <span className="text-emerald-600 font-black">{customer?.assignedEmployee || 'Rahul Sharma'}</span>
+                <span className="text-emerald-600 font-black">{customer?.assignedEmployee || 'Unassigned'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-400 font-bold">Department</span>
-                <span className="text-slate-900 font-bold">{customer?.department || 'Sales & BD'}</span>
+                <span className="text-slate-900 font-bold">{customer?.department || 'General'}</span>
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-slate-400 font-bold">Account Created Date</span>
