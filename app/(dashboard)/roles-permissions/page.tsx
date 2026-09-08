@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   Plus,
@@ -103,10 +103,11 @@ export default function RolesPermissionsPage() {
     permissions: ['crm.read', 'hrm.attendance.view', 'reports.view'],
   });
 
-  // Selected Role for Work Permission Matrix
-  const [selectedWorkRoleName, setSelectedWorkRoleName] = useState<string>('Video Editor');
+  // Selected Role for Work Permission Matrix — empty until API data loads
+  const [selectedWorkRoleName, setSelectedWorkRoleName] = useState<string>('');
   const [localWorkPerms, setLocalWorkPerms] = useState<Record<string, Record<string, boolean>>>({});
   const [isSavingPerms, setIsSavingPerms] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Employee Overrides State
   const [employeeSearch, setEmployeeSearch] = useState('');
@@ -162,13 +163,23 @@ export default function RolesPermissionsPage() {
   });
 
   const roleWorkList: RoleWorkPermissionItem[] = workRolesData?.roles || [];
-  const availableModules: WorkModuleMeta[] = workRolesData?.availableModules || [
-    { key: 'leads', name: 'Leads & CRM', description: 'Leads pipeline, quotes, proposals & follow-ups', icon: 'team' },
-    { key: 'video_edit', name: 'Video Edit', description: 'Video editing and post-production', icon: 'video' },
-    { key: 'post_design', name: 'Post Design', description: 'Post graphic design and branding assets', icon: 'image' },
-    { key: 'story_design', name: 'Story Design', description: 'Social story designs and highlights', icon: 'layout' },
-    { key: 'reel_shoot', name: 'Reel Shoot', description: 'On-site video and reel shoot production', icon: 'camera' },
-  ];
+  // availableModules comes exclusively from the API — no hardcoded fallback
+  const availableModules: WorkModuleMeta[] = workRolesData?.availableModules || [];
+
+  // Auto-select first role on initial load; re-validate selection after every refresh
+  useEffect(() => {
+    if (roleWorkList.length === 0) return;
+    // If nothing is selected yet, pick the first role
+    if (!selectedWorkRoleName) {
+      setSelectedWorkRoleName(roleWorkList[0].roleName);
+      return;
+    }
+    // If the previously selected role no longer exists in the refreshed list, fall back to first
+    const stillExists = roleWorkList.some((r) => r.roleName === selectedWorkRoleName);
+    if (!stillExists) {
+      setSelectedWorkRoleName(roleWorkList[0].roleName);
+    }
+  }, [roleWorkList]); // intentionally omit selectedWorkRoleName — only run on data change
 
   // 3. Fetch Employees with Overrides
   const {
@@ -243,12 +254,38 @@ export default function RolesPermissionsPage() {
       });
 
       toast.success(`Role permissions saved for ${roleName}!`);
+      // Clear local optimistic state for this role so UI re-reads from server
+      setLocalWorkPerms((prev) => {
+        const next = { ...prev };
+        delete next[roleName];
+        return next;
+      });
       await refetchWorkRoles();
       await refetchEmployees();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to save permissions');
     } finally {
       setIsSavingPerms(false);
+    }
+  };
+
+  // Refresh handler — invalidates React Query cache and re-fetches all role data
+  const handleRefresh = async () => {
+    if (isRefreshing) return; // prevent double-click
+    setIsRefreshing(true);
+    try {
+      // Invalidate cache so React Query fetches fresh data from the server
+      await queryClient.invalidateQueries({ queryKey: ['role-work-permissions'] });
+      await queryClient.invalidateQueries({ queryKey: ['employee-module-overrides'] });
+      // Run all refetches in parallel
+      await Promise.all([refetchWorkRoles(), refetchEmployees()]);
+      // Clear any unsaved local permission toggles so the UI reflects server state
+      setLocalWorkPerms({});
+      toast.success('Roles and permissions refreshed successfully.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Unable to refresh roles. Please try again.');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -540,17 +577,34 @@ export default function RolesPermissionsPage() {
 
               <button
                 type="button"
-                onClick={() => refetchWorkRoles()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <RotateCw className="w-3.5 h-3.5" />
-                <span>Refresh</span>
+                <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
               </button>
             </div>
 
             {isWorkRolesLoading ? (
-              <div className="py-8 text-center text-xs font-bold text-slate-400">
-                Loading role permissions configuration...
+              <div className="py-8 text-center text-xs font-bold text-slate-400 animate-pulse">
+                Loading roles from database...
+              </div>
+            ) : roleWorkList.length === 0 ? (
+              <div className="py-8 flex flex-col items-center justify-center gap-3">
+                <p className="text-xs font-bold text-slate-400">No roles found in the database.</p>
+                <p className="text-[11px] text-slate-400 font-medium">
+                  Create designations or custom roles to manage module access.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-60"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshing ? 'Refreshing...' : 'Retry'}</span>
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -588,6 +642,12 @@ export default function RolesPermissionsPage() {
           </div>
 
           {/* Active Role Module Toggles & Save Section */}
+          {!selectedWorkRoleName ? (
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs flex flex-col items-center justify-center gap-2">
+              <ShieldCheck className="w-8 h-8 text-slate-300" />
+              <p className="text-xs font-bold text-slate-400">Select a role above to configure its module access.</p>
+            </div>
+          ) : (
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div>
@@ -678,6 +738,7 @@ export default function RolesPermissionsPage() {
               })}
             </div>
           </div>
+          )}
         </div>
       )}
 
