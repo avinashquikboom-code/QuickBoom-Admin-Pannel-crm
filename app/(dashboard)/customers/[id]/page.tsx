@@ -1627,9 +1627,22 @@ export default function CustomerDetailPage() {
                 <span className="text-slate-900 font-bold">{customer?.source || 'APP_REGISTRATION'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
-                <span className="text-slate-400 font-bold">Assigned Relationship Manager</span>
-                <span className="text-emerald-600 font-black">{customer?.assignedEmployee || 'Unassigned'}</span>
+                <span className="text-slate-400 font-bold">Assigned Team</span>
+                <span className="text-indigo-600 font-black">
+                  {customer?.team?.name || customer?.assignedTeam?.name || 'Unassigned'}
+                  {((customer?.team?.memberCount ?? customer?.assignedTeam?.memberCount) !== undefined) && (
+                    <span className="ml-2 text-xs font-semibold text-slate-500">
+                      ({customer?.team?.memberCount ?? customer?.assignedTeam?.memberCount} members)
+                    </span>
+                  )}
+                </span>
               </div>
+              {customer?.team?.leader && (
+                <div className="flex justify-between py-2 border-b border-slate-100">
+                  <span className="text-slate-400 font-bold">Team Leader</span>
+                  <span className="text-slate-900 font-bold">{customer.team.leader}</span>
+                </div>
+              )}
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-400 font-bold">Department</span>
                 <span className="text-slate-900 font-bold">{customer?.department || 'General'}</span>

@@ -51,7 +51,7 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sourceFilter, setSourceFilter] = useState('ALL');
-  const [assignedFilter, setAssignedFilter] = useState('ALL');
+  const [teamFilter, setTeamFilter] = useState('ALL');
   const [companyFilter, setCompanyFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -67,6 +67,8 @@ export default function CustomersPage() {
   const [deletingCustomer, setDeletingCustomer] = useState<any | null>(null);
   const [resettingCustomer, setResettingCustomer] = useState<any | null>(null);
   const [viewingCustomerId, setViewingCustomerId] = useState<number | string | null>(null);
+  const [assigningTeamCustomer, setAssigningTeamCustomer] = useState<any | null>(null);
+  const [quickAssignTeamId, setQuickAssignTeamId] = useState<string>('');
 
   // Form State for Add / Edit
   const [customerForm, setCustomerForm] = useState({
@@ -83,22 +85,22 @@ export default function CustomersPage() {
     customerType: 'ENTERPRISE',
     source: 'DIRECT',
     status: 'ACTIVE',
-    assignedEmployeeId: '',
-    assignedEmployee: '',
+    assignedTeamId: '',
+    assignedTeamName: '',
     department: '',
     notes: '',
   });
 
-  // Employee Dropdown & Search state
-  const [employeeSearch, setEmployeeSearch] = useState('');
-  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
-  const employeeDropdownRef = useRef<HTMLDivElement>(null);
+  // Team Dropdown & Search state
+  const [teamSearch, setTeamSearch] = useState('');
+  const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
+  const teamDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close employee dropdown when clicking outside
+  // Close team dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(event.target as Node)) {
-        setIsEmployeeDropdownOpen(false);
+      if (teamDropdownRef.current && !teamDropdownRef.current.contains(event.target as Node)) {
+        setIsTeamDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -107,23 +109,23 @@ export default function CustomersPage() {
     };
   }, []);
 
-  // Fetch active assignable employees from backend
+  // Fetch active teams from real backend API
   const {
-    data: employeesData,
-    isLoading: isLoadingEmployees,
-    isError: isErrorEmployees,
-    refetch: refetchEmployees,
+    data: teamsData,
+    isLoading: isLoadingTeams,
+    isError: isErrorTeams,
+    refetch: refetchTeams,
   } = useQuery({
-    queryKey: ['active-assignable-employees'],
+    queryKey: ['active-teams-for-customer'],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/employees', {
+        const res: any = await api.get('/teams', {
           params: { limit: 100, status: 'ACTIVE' },
         });
         const items =
           res?.data?.items ||
           res?.data?.data ||
-          res?.data?.employees ||
+          res?.data?.teams ||
           (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
         return Array.isArray(items) ? items : [];
       } catch {
@@ -132,24 +134,22 @@ export default function CustomersPage() {
     },
   });
 
-  const activeEmployees: any[] = employeesData || [];
+  const activeTeams: any[] = teamsData || [];
 
-  // Filtered employees for dropdown search
-  const filteredEmployees = useMemo(() => {
-    if (!employeeSearch.trim()) return activeEmployees;
-    const q = employeeSearch.toLowerCase().trim();
-    return activeEmployees.filter((emp: any) => {
-      const name = (emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`).toLowerCase();
-      const code = (emp.employeeCode || `emp-${emp.id}`).toLowerCase();
-      const desig = (emp.designation || emp.designationName || '').toLowerCase();
-      const dept = (
-        emp.department?.name ||
-        emp.departmentName ||
-        (typeof emp.department === 'string' ? emp.department : '')
+  // Filtered teams for dropdown search
+  const filteredTeams = useMemo(() => {
+    if (!teamSearch.trim()) return activeTeams;
+    const q = teamSearch.toLowerCase().trim();
+    return activeTeams.filter((team: any) => {
+      const name = (team.name || '').toLowerCase();
+      const desc = (team.description || '').toLowerCase();
+      const leaderName = (
+        team.leader?.name ||
+        `${team.leader?.firstName || ''} ${team.leader?.lastName || ''}`
       ).toLowerCase();
-      return name.includes(q) || code.includes(q) || desig.includes(q) || dept.includes(q);
+      return name.includes(q) || desc.includes(q) || leaderName.includes(q);
     });
-  }, [activeEmployees, employeeSearch]);
+  }, [activeTeams, teamSearch]);
 
   // 1. Fetch KPI Metrics
   const { data: metrics } = useQuery({
@@ -177,7 +177,7 @@ export default function CustomersPage() {
       searchTerm,
       statusFilter,
       sourceFilter,
-      assignedFilter,
+      teamFilter,
       companyFilter,
       dateFrom,
       dateTo,
@@ -193,7 +193,7 @@ export default function CustomersPage() {
             search: searchTerm || undefined,
             status: statusFilter !== 'ALL' ? statusFilter : undefined,
             source: sourceFilter !== 'ALL' ? sourceFilter : undefined,
-            assignedEmployee: assignedFilter !== 'ALL' ? assignedFilter : undefined,
+            teamId: teamFilter !== 'ALL' ? teamFilter : undefined,
             company: companyFilter || undefined,
             dateFrom: dateFrom || undefined,
             dateTo: dateTo || undefined,
@@ -265,6 +265,22 @@ export default function CustomersPage() {
     },
   });
 
+  // Quick Assign Team Mutation
+  const assignTeamMutation = useMutation({
+    mutationFn: async ({ id, teamId }: { id: number | string; teamId: number | null }) => {
+      return api.patch(`/customers/${id}/assign-team`, { teamId });
+    },
+    onSuccess: () => {
+      toast.success('Customer assigned to team successfully!', { icon: '👥' });
+      setAssigningTeamCustomer(null);
+      queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
   // Delete Customer Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number | string) => {
@@ -299,48 +315,26 @@ export default function CustomersPage() {
       customerType: 'ENTERPRISE',
       source: 'DIRECT',
       status: 'ACTIVE',
-      assignedEmployeeId: '',
-      assignedEmployee: '',
+      assignedTeamId: '',
+      assignedTeamName: '',
       department: '',
       notes: '',
     });
-    setEmployeeSearch('');
-    setIsEmployeeDropdownOpen(false);
+    setTeamSearch('');
+    setIsTeamDropdownOpen(false);
   };
 
   const handleOpenEdit = (cust: any) => {
     setEditingCustomer(cust);
 
-    // Resolve assigned employee ID, name, and department
-    let matchedEmpId = cust.assignedEmployeeId ? String(cust.assignedEmployeeId) : '';
-    let matchedEmpName = cust.assignedEmployee && cust.assignedEmployee !== 'Unassigned' ? cust.assignedEmployee : '';
-    let matchedDept = cust.department && cust.department !== 'General' ? cust.department : '';
+    // Resolve assigned team ID and name
+    const matchedTeamId = cust.teamId || cust.team?.id || cust.assignedTeamId ? String(cust.teamId || cust.team?.id || cust.assignedTeamId) : '';
+    let matchedTeamName = cust.team?.name || '';
 
-    if (!matchedEmpId && matchedEmpName && activeEmployees.length > 0) {
-      const found = activeEmployees.find((e: any) => {
-        const fullName = (e.name || `${e.firstName || ''} ${e.lastName || ''}`).trim();
-        return fullName.toLowerCase() === matchedEmpName.toLowerCase();
-      });
+    if (!matchedTeamName && matchedTeamId && activeTeams.length > 0) {
+      const found = activeTeams.find((t: any) => String(t.id) === String(matchedTeamId));
       if (found) {
-        matchedEmpId = String(found.id);
-        matchedEmpName = (found.name || `${found.firstName || ''} ${found.lastName || ''}`).trim();
-        if (!matchedDept) {
-          matchedDept =
-            found.department?.name ||
-            found.departmentName ||
-            (typeof found.department === 'string' ? found.department : '');
-        }
-      }
-    } else if (matchedEmpId && activeEmployees.length > 0) {
-      const found = activeEmployees.find((e: any) => String(e.id) === String(matchedEmpId));
-      if (found) {
-        matchedEmpName = (found.name || `${found.firstName || ''} ${found.lastName || ''}`).trim();
-        if (!matchedDept) {
-          matchedDept =
-            found.department?.name ||
-            found.departmentName ||
-            (typeof found.department === 'string' ? found.department : '');
-        }
+        matchedTeamName = found.name;
       }
     }
 
@@ -358,13 +352,13 @@ export default function CustomersPage() {
       customerType: cust.customerType || 'ENTERPRISE',
       source: cust.source || 'DIRECT',
       status: cust.status || (cust.isActive ? 'ACTIVE' : 'INACTIVE'),
-      assignedEmployeeId: matchedEmpId,
-      assignedEmployee: matchedEmpName,
-      department: matchedDept,
+      assignedTeamId: matchedTeamId,
+      assignedTeamName: matchedTeamName,
+      department: cust.department || '',
       notes: cust.notes || '',
     });
-    setEmployeeSearch('');
-    setIsEmployeeDropdownOpen(false);
+    setTeamSearch('');
+    setIsTeamDropdownOpen(false);
   };
 
   const handleFormSubmit = (e?: React.FormEvent | React.MouseEvent) => {
@@ -377,8 +371,8 @@ export default function CustomersPage() {
       return;
     }
 
-    if (!customerForm.assignedEmployeeId) {
-      toast.error('Please select an employee.');
+    if (!customerForm.assignedTeamId) {
+      toast.error('Please select an assigned team.');
       return;
     }
 
@@ -396,8 +390,8 @@ export default function CustomersPage() {
       customerType: customerForm.customerType,
       source: customerForm.source,
       status: customerForm.status,
-      assignedEmployeeId: Number(customerForm.assignedEmployeeId),
-      assignedEmployee: customerForm.assignedEmployee,
+      assignedTeamId: Number(customerForm.assignedTeamId),
+      teamId: Number(customerForm.assignedTeamId),
       department: customerForm.department || undefined,
       notes: customerForm.notes.trim() || undefined,
     };
@@ -589,24 +583,21 @@ export default function CustomersPage() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Assigned Employee</label>
+              <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Assigned Team</label>
               <select
-                value={assignedFilter}
+                value={teamFilter}
                 onChange={(e) => {
-                  setAssignedFilter(e.target.value);
+                  setTeamFilter(e.target.value);
                   setPage(1);
                 }}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer"
               >
-                <option value="ALL">All Employees</option>
-                {activeEmployees.map((emp: any) => {
-                  const empName = emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || `EMP-${emp.id}`;
-                  return (
-                    <option key={emp.id} value={empName}>
-                      {empName}
-                    </option>
-                  );
-                })}
+                <option value="ALL">All Teams</option>
+                {activeTeams.map((team: any) => (
+                  <option key={team.id} value={String(team.id)}>
+                    {team.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -691,7 +682,7 @@ export default function CustomersPage() {
                   <th className="px-4 py-3.5">Active Plan & Billing</th>
                   <th className="px-4 py-3.5">Validity Dates</th>
                   <th className="px-4 py-3.5">Contact Details</th>
-                  <th className="px-4 py-3.5">Assigned RM</th>
+                  <th className="px-4 py-3.5">Assigned Team</th>
                   <th className="px-4 py-3.5">Status</th>
                   <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
@@ -784,10 +775,23 @@ export default function CustomersPage() {
                       </td>
 
                       <td className="px-4 py-4">
-                        <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-[11px] inline-flex items-center gap-1">
-                          <UserCheck className="w-3 h-3" />
-                          {cust.assignedEmployee || 'Unassigned'}
-                        </span>
+                        {cust.team ? (
+                          <div className="space-y-0.5">
+                            <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[11px] inline-flex items-center gap-1.5 border border-indigo-200/60">
+                              <Users className="w-3 h-3 text-indigo-500" />
+                              <span>{cust.team.name}</span>
+                            </span>
+                            {cust.team.leader && (
+                              <p className="text-[10px] text-slate-400 font-medium pl-1">
+                                Leader: {cust.team.leader}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 font-bold text-[11px] inline-flex items-center gap-1">
+                            Unassigned
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-4 py-4">
@@ -815,6 +819,18 @@ export default function CustomersPage() {
 
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssigningTeamCustomer(cust);
+                              setQuickAssignTeamId(cust.teamId || cust.team?.id ? String(cust.teamId || cust.team?.id) : '');
+                            }}
+                            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                            title="Assign Team"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                          </button>
+
                           <button
                             onClick={() => handleOpenEdit(cust)}
                             className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
@@ -1075,41 +1091,41 @@ export default function CustomersPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Real Searchable Employee Dropdown */}
-            <div className="relative" ref={employeeDropdownRef}>
+            {/* Real Searchable Team Dropdown */}
+            <div className="relative" ref={teamDropdownRef}>
               <label className="block text-xs font-black uppercase text-slate-700 mb-1">
-                Assigned Employee <span className="text-rose-500">*</span>
+                Assign Team <span className="text-rose-500">*</span>
               </label>
 
               {/* Trigger Button */}
               <button
                 type="button"
-                onClick={() => setIsEmployeeDropdownOpen((prev) => !prev)}
+                onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
                 className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-xs font-medium flex items-center justify-between text-left transition-all cursor-pointer ${
-                  isEmployeeDropdownOpen
+                  isTeamDropdownOpen
                     ? 'border-[#23C45E] ring-2 ring-[#23C45E]/20 bg-white'
-                    : customerForm.assignedEmployeeId
+                    : customerForm.assignedTeamId
                     ? 'border-slate-200 text-slate-900 bg-white'
                     : 'border-slate-200 text-slate-400 hover:border-slate-300'
                 }`}
               >
                 <div className="flex items-center gap-2 truncate">
-                  <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  {customerForm.assignedEmployee ? (
-                    <span className="font-bold text-slate-900 truncate">{customerForm.assignedEmployee}</span>
+                  <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  {customerForm.assignedTeamName ? (
+                    <span className="font-bold text-slate-900 truncate">{customerForm.assignedTeamName}</span>
                   ) : (
-                    <span className="text-slate-400">Select employee...</span>
+                    <span className="text-slate-400">Select team...</span>
                   )}
                 </div>
                 <ChevronDown
                   className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
-                    isEmployeeDropdownOpen ? 'rotate-180 text-[#23C45E]' : ''
+                    isTeamDropdownOpen ? 'rotate-180 text-[#23C45E]' : ''
                   }`}
                 />
               </button>
 
               {/* Dropdown Menu */}
-              {isEmployeeDropdownOpen && (
+              {isTeamDropdownOpen && (
                 <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
                   {/* Search Input */}
                   <div className="p-2 border-b border-slate-100 bg-slate-50/70">
@@ -1117,16 +1133,16 @@ export default function CustomersPage() {
                       <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
                       <input
                         type="text"
-                        placeholder="Search employee name, code, designation..."
-                        value={employeeSearch}
-                        onChange={(e) => setEmployeeSearch(e.target.value)}
+                        placeholder="Search team name, leader, description..."
+                        value={teamSearch}
+                        onChange={(e) => setTeamSearch(e.target.value)}
                         autoFocus
                         className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#23C45E]"
                       />
-                      {employeeSearch && (
+                      {teamSearch && (
                         <button
                           type="button"
-                          onClick={() => setEmployeeSearch('')}
+                          onClick={() => setTeamSearch('')}
                           className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -1135,93 +1151,82 @@ export default function CustomersPage() {
                     </div>
                   </div>
 
-                  {/* List of Employees */}
+                  {/* List of Teams */}
                   <div className="max-h-56 overflow-y-auto divide-y divide-slate-100/80">
-                    {isLoadingEmployees ? (
+                    {isLoadingTeams ? (
                       <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-slate-400">
                         <RefreshCw className="w-4 h-4 animate-spin text-[#23C45E]" />
-                        <span className="text-[11px] font-semibold">Loading active employees...</span>
+                        <span className="text-[11px] font-semibold">Loading teams from backend...</span>
                       </div>
-                    ) : isErrorEmployees ? (
+                    ) : isErrorTeams ? (
                       <div className="p-4 text-center space-y-2">
-                        <p className="text-[11px] text-rose-500 font-semibold">Failed to load employees</p>
+                        <p className="text-[11px] text-rose-500 font-semibold">Failed to load teams</p>
                         <button
                           type="button"
-                          onClick={() => refetchEmployees()}
+                          onClick={() => refetchTeams()}
                           className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-md cursor-pointer"
                         >
                           Retry
                         </button>
                       </div>
-                    ) : filteredEmployees.length === 0 ? (
+                    ) : filteredTeams.length === 0 ? (
                       <div className="py-6 text-center text-slate-400 text-xs font-medium">
-                        {employeeSearch ? 'No matching employees found' : 'No active employees available'}
+                        {teamSearch ? 'No matching teams found' : 'No active teams available'}
                       </div>
                     ) : (
-                      filteredEmployees.map((emp: any) => {
-                        const empName =
-                          emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || `EMP-${emp.id}`;
-                        const isSelected = String(customerForm.assignedEmployeeId) === String(emp.id);
-                        const empDept =
-                          emp.department?.name ||
-                          emp.departmentName ||
-                          (typeof emp.department === 'string' ? emp.department : 'General');
-                        const empCode = emp.employeeCode || `EMP-${String(emp.id).padStart(3, '0')}`;
-                        const empDesig = emp.designation || emp.designationName || '';
+                      filteredTeams.map((team: any) => {
+                        const isSelected = String(customerForm.assignedTeamId) === String(team.id);
+                        const leaderName =
+                          team.leader?.name ||
+                          `${team.leader?.firstName || ''} ${team.leader?.lastName || ''}`.trim() ||
+                          'No Leader Assigned';
+                        const count = team.memberCount ?? team.members?.length ?? 0;
 
                         return (
                           <button
-                            key={emp.id}
+                            key={team.id}
                             type="button"
                             onClick={() => {
                               setCustomerForm({
                                 ...customerForm,
-                                assignedEmployeeId: String(emp.id),
-                                assignedEmployee: empName,
-                                department: empDept,
+                                assignedTeamId: String(team.id),
+                                assignedTeamName: team.name,
                               });
-                              setIsEmployeeDropdownOpen(false);
-                              setEmployeeSearch('');
+                              setIsTeamDropdownOpen(false);
+                              setTeamSearch('');
                             }}
                             className={`w-full px-3 py-2.5 flex items-center justify-between text-left transition-colors cursor-pointer hover:bg-slate-50 ${
-                              isSelected ? 'bg-emerald-50/70' : ''
+                              isSelected ? 'bg-indigo-50/70' : ''
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
                               <div
                                 className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
-                                  isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'
+                                  isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'
                                 }`}
                               >
-                                {empName.charAt(0).toUpperCase()}
+                                <Users className="w-3.5 h-3.5" />
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   <span
                                     className={`text-xs font-bold truncate ${
-                                      isSelected ? 'text-emerald-900' : 'text-slate-900'
+                                      isSelected ? 'text-indigo-900' : 'text-slate-900'
                                     }`}
                                   >
-                                    {empName}
+                                    {team.name}
                                   </span>
-                                  {empCode && (
-                                    <span className="text-[10px] font-mono font-medium text-slate-400">
-                                      {empCode}
-                                    </span>
-                                  )}
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">
+                                    {count} {count === 1 ? 'member' : 'members'}
+                                  </span>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium truncate mt-0.5">
-                                  {empDesig && (
-                                    <span className="px-1.5 py-0.2 bg-slate-100 rounded text-slate-600 font-semibold">
-                                      {empDesig}
-                                    </span>
-                                  )}
-                                  {empDept && <span className="truncate text-slate-400">{empDept}</span>}
-                                </div>
+                                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                  Leader: {leaderName}
+                                </p>
                               </div>
                             </div>
 
-                            {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0 ml-2" />}
+                            {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0 ml-2" />}
                           </button>
                         );
                       })
@@ -1231,19 +1236,31 @@ export default function CustomersPage() {
               )}
             </div>
 
-            {/* Department (Auto-populated from employee) */}
+            {/* Selected Team Info Card */}
             <div>
-              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Department</label>
-              <input
-                type="text"
-                readOnly
-                placeholder="Auto-populated from employee"
-                value={customerForm.department}
-                className="w-full px-3.5 py-2.5 bg-slate-100/70 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-not-allowed"
-              />
-              <p className="text-[10px] text-slate-400 font-medium mt-1">
-                Auto-populated from selected employee's department
-              </p>
+              <label className="block text-xs font-black uppercase text-slate-700 mb-1">Team Overview</label>
+              {customerForm.assignedTeamId ? (
+                (() => {
+                  const selTeam = activeTeams.find((t: any) => String(t.id) === String(customerForm.assignedTeamId));
+                  const leaderName = selTeam?.leader?.name || `${selTeam?.leader?.firstName || ''} ${selTeam?.leader?.lastName || ''}`.trim() || 'No Leader';
+                  const count = selTeam?.memberCount ?? selTeam?.members?.length ?? 0;
+                  return (
+                    <div className="p-2.5 bg-indigo-50/60 border border-indigo-100 rounded-xl flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-indigo-950">{customerForm.assignedTeamName || selTeam?.name}</p>
+                        <p className="text-[11px] text-indigo-600 font-medium">Lead: {leaderName}</p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-200/70 text-indigo-800 font-black text-[10px]">
+                        {count} {count === 1 ? 'Member' : 'Members'}
+                      </span>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium">
+                  Select a team on the left to view details
+                </div>
+              )}
             </div>
           </div>
 
@@ -1297,6 +1314,93 @@ export default function CustomersPage() {
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
               >
                 {deleteMutation.isPending ? 'Archiving...' : 'Yes, Archive'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Assign Team Modal */}
+      {assigningTeamCustomer && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in-50 duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200/80 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Assign Team</h3>
+                  <p className="text-xs text-slate-400 font-medium">Assign customer to an operating team</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssigningTeamCustomer(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-1 text-xs">
+              <span className="text-[10px] font-black uppercase text-slate-400">Target Customer</span>
+              <p className="font-bold text-slate-900 text-sm">{assigningTeamCustomer.name}</p>
+              <p className="text-slate-500 font-medium text-[11px]">
+                {assigningTeamCustomer.companyName || assigningTeamCustomer.company || 'Direct Client'} • Currently:{' '}
+                <span className="font-bold text-slate-800">
+                  {assigningTeamCustomer.team?.name || 'Unassigned'}
+                </span>
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black uppercase text-slate-700">
+                Select Team <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={quickAssignTeamId}
+                onChange={(e) => setQuickAssignTeamId(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="">-- Choose a Team --</option>
+                {activeTeams.map((team: any) => {
+                  const count = team.memberCount ?? team.members?.length ?? 0;
+                  const leader = team.leader?.name || `${team.leader?.firstName || ''} ${team.leader?.lastName || ''}`.trim();
+                  return (
+                    <option key={team.id} value={String(team.id)}>
+                      {team.name} ({count} {count === 1 ? 'member' : 'members'}{leader ? ` • Lead: ${leader}` : ''})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setAssigningTeamCustomer(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!quickAssignTeamId) {
+                    toast.error('Please select a team to assign.');
+                    return;
+                  }
+                  assignTeamMutation.mutate({
+                    id: assigningTeamCustomer.id,
+                    teamId: Number(quickAssignTeamId),
+                  });
+                }}
+                disabled={assignTeamMutation.isPending}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {assignTeamMutation.isPending && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>{assignTeamMutation.isPending ? 'Assigning...' : 'Assign Team'}</span>
               </button>
             </div>
           </div>

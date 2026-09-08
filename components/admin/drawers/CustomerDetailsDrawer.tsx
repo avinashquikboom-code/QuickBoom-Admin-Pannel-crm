@@ -277,8 +277,17 @@ export function CustomerDetailsDrawer({
                     <p className="font-bold text-slate-800 mt-0.5">{customer.source || 'DIRECT'}</p>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-400">Assigned RM</span>
-                    <p className="font-bold text-slate-800 mt-0.5">{customer.assignedEmployee || 'Unassigned'}</p>
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Assigned Team</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <p className="font-bold text-slate-800">
+                        {customer.team?.name || customer.assignedTeam?.name || 'Unassigned'}
+                      </p>
+                      {((customer.team?.memberCount ?? customer.assignedTeam?.memberCount) !== undefined) && (
+                        <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">
+                          {customer.team?.memberCount ?? customer.assignedTeam?.memberCount} members
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold uppercase text-slate-400">Department</span>
