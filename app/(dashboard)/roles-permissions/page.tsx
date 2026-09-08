@@ -48,7 +48,14 @@ interface WorkModuleMeta {
 }
 
 interface RoleWorkPermissionItem {
+  id?: string;
+  roleId?: string;
+  designationId?: number | null;
   roleName: string;
+  name?: string;
+  code?: string;
+  activeEmployeesCount?: number;
+  totalEmployeesCount?: number;
   modules: {
     module: string;
     name: string;
@@ -103,8 +110,8 @@ export default function RolesPermissionsPage() {
     permissions: ['crm.read', 'hrm.attendance.view', 'reports.view'],
   });
 
-  // Selected Role for Work Permission Matrix — empty until API data loads
-  const [selectedWorkRoleName, setSelectedWorkRoleName] = useState<string>('');
+  // Selected Role for Work Permission Matrix — tracked by unique backend ID
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [localWorkPerms, setLocalWorkPerms] = useState<Record<string, Record<string, boolean>>>({});
   const [isSavingPerms, setIsSavingPerms] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -144,21 +151,18 @@ export default function RolesPermissionsPage() {
       }))
     : [];
 
-  // 2. Fetch Role Work Permissions
+  // 2. Fetch Role Work Permissions from Database API
   const {
     data: workRolesData,
     isLoading: isWorkRolesLoading,
+    isError: isWorkRolesError,
+    error: workRolesError,
     refetch: refetchWorkRoles,
   } = useQuery({
     queryKey: ['role-work-permissions'],
     queryFn: async () => {
-      try {
-        const res: any = await api.get('/works/permissions/roles');
-        const data = res?.data || res;
-        return data;
-      } catch {
-        return { roles: [], availableModules: [] };
-      }
+      const res: any = await api.get('/works/permissions/roles');
+      return res?.data || res;
     },
   });
 
@@ -166,20 +170,38 @@ export default function RolesPermissionsPage() {
   // availableModules comes exclusively from the API — no hardcoded fallback
   const availableModules: WorkModuleMeta[] = workRolesData?.availableModules || [];
 
+  // Find currently selected role item by ID or name
+  const selectedRoleItem =
+    roleWorkList.find(
+      (r) =>
+        (r.roleId && r.roleId === selectedRoleId) ||
+        (r.id && r.id === selectedRoleId) ||
+        r.roleName === selectedRoleId,
+    ) || null;
+  const selectedWorkRoleName = selectedRoleItem?.roleName || '';
+
   // Auto-select first role on initial load; re-validate selection after every refresh
   useEffect(() => {
-    if (roleWorkList.length === 0) return;
-    // If nothing is selected yet, pick the first role
-    if (!selectedWorkRoleName) {
-      setSelectedWorkRoleName(roleWorkList[0].roleName);
+    if (roleWorkList.length === 0) {
+      if (selectedRoleId) setSelectedRoleId('');
+      return;
+    }
+    // If nothing is selected yet, pick the first role's unique ID
+    if (!selectedRoleId) {
+      setSelectedRoleId(roleWorkList[0].roleId || roleWorkList[0].id || roleWorkList[0].roleName);
       return;
     }
     // If the previously selected role no longer exists in the refreshed list, fall back to first
-    const stillExists = roleWorkList.some((r) => r.roleName === selectedWorkRoleName);
+    const stillExists = roleWorkList.some(
+      (r) =>
+        (r.roleId && r.roleId === selectedRoleId) ||
+        (r.id && r.id === selectedRoleId) ||
+        r.roleName === selectedRoleId,
+    );
     if (!stillExists) {
-      setSelectedWorkRoleName(roleWorkList[0].roleName);
+      setSelectedRoleId(roleWorkList[0].roleId || roleWorkList[0].id || roleWorkList[0].roleName);
     }
-  }, [roleWorkList]); // intentionally omit selectedWorkRoleName — only run on data change
+  }, [roleWorkList]); // intentionally omit selectedRoleId — only run on data change
 
   // 3. Fetch Employees with Overrides
   const {
@@ -241,7 +263,7 @@ export default function RolesPermissionsPage() {
     }));
   };
 
-  const handleSaveRoleWorkPermissions = async (roleName: string) => {
+  const handleSaveRoleWorkPermissions = async (roleIdentifier: string, roleName: string) => {
     setIsSavingPerms(true);
     try {
       const moduleMap: Record<string, boolean> = {};
@@ -249,7 +271,7 @@ export default function RolesPermissionsPage() {
         moduleMap[m.key] = getRoleModuleStatus(roleName, m.key);
       });
 
-      await api.put(`/works/permissions/roles/${encodeURIComponent(roleName)}`, {
+      await api.put(`/works/permissions/roles/${encodeURIComponent(roleIdentifier)}`, {
         permissions: moduleMap,
       });
 
@@ -590,6 +612,25 @@ export default function RolesPermissionsPage() {
               <div className="py-8 text-center text-xs font-bold text-slate-400 animate-pulse">
                 Loading roles from database...
               </div>
+            ) : isWorkRolesError ? (
+              <div className="py-8 flex flex-col items-center justify-center gap-3">
+                <AlertCircle className="w-8 h-8 text-rose-500" />
+                <p className="text-xs font-bold text-slate-700">Failed to load roles from database.</p>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  {(workRolesError as any)?.response?.data?.message ||
+                    (workRolesError as any)?.message ||
+                    'Please check your connection and try again.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-60"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshing ? 'Refreshing...' : 'Retry'}</span>
+                </button>
+              </div>
             ) : roleWorkList.length === 0 ? (
               <div className="py-8 flex flex-col items-center justify-center gap-3">
                 <p className="text-xs font-bold text-slate-400">No roles found in the database.</p>
@@ -609,16 +650,16 @@ export default function RolesPermissionsPage() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {roleWorkList.map((r) => {
-                  const isSelected = selectedWorkRoleName === r.roleName;
-                  const activeModulesCount = availableModules.filter((m) =>
-                    getRoleModuleStatus(r.roleName, m.key),
-                  ).length;
+                  const roleKey = String(r.roleId || r.id || r.roleName);
+                  const isSelected =
+                    selectedRoleId === roleKey || selectedWorkRoleName === r.roleName;
+                  const activeText = `${r.activeEmployeesCount ?? 0} of ${r.totalEmployeesCount ?? 0} Active`;
 
                   return (
                     <button
-                      key={r.roleName}
+                      key={roleKey}
                       type="button"
-                      onClick={() => setSelectedWorkRoleName(r.roleName)}
+                      onClick={() => setSelectedRoleId(roleKey)}
                       className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                         isSelected
                           ? 'border-[#23C45E] bg-[#E8F9EE]/60 shadow-sm'
@@ -632,7 +673,7 @@ export default function RolesPermissionsPage() {
                         {isSelected && <Check className="w-3.5 h-3.5 text-[#1AA14D]" />}
                       </div>
                       <span className="text-[11px] font-bold text-slate-500">
-                        {activeModulesCount} of {availableModules.length} Active
+                        {activeText}
                       </span>
                     </button>
                   );
@@ -642,7 +683,7 @@ export default function RolesPermissionsPage() {
           </div>
 
           {/* Active Role Module Toggles & Save Section */}
-          {!selectedWorkRoleName ? (
+          {!selectedRoleItem || !selectedWorkRoleName ? (
             <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs flex flex-col items-center justify-center gap-2">
               <ShieldCheck className="w-8 h-8 text-slate-300" />
               <p className="text-xs font-bold text-slate-400">Select a role above to configure its module access.</p>
@@ -667,7 +708,12 @@ export default function RolesPermissionsPage() {
               <button
                 type="button"
                 disabled={isSavingPerms}
-                onClick={() => handleSaveRoleWorkPermissions(selectedWorkRoleName)}
+                onClick={() =>
+                  handleSaveRoleWorkPermissions(
+                    selectedRoleItem.roleId || selectedRoleItem.id || selectedWorkRoleName,
+                    selectedWorkRoleName,
+                  )
+                }
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
               >
                 <Save className="w-4 h-4" />
