@@ -3,8 +3,8 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'QuikBoom CRM - Enterprise SaaS Platform',
-  description: 'Enterprise Multi-Customer SaaS CRM Platform for QuikBoom',
+  title: 'QB Suite - Enterprise SaaS Platform',
+  description: 'Enterprise Multi-Customer SaaS Platform for QB Suite',
   icons: {
     icon: '/app_logo.png',
     shortcut: '/app_logo.png',

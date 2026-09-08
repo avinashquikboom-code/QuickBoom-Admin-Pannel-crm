@@ -140,7 +140,7 @@ export async function exportReportAsPdf(options: PdfReportOptions): Promise<void
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(180, 220, 180);
-  doc.text('QuickBoom CRM - Reports and Data Export Center', 10, 16);
+  doc.text('QB Suite - Reports and Data Export Center', 10, 16);
   const now = new Date();
   const generatedAt = now.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   doc.setFontSize(7);
@@ -217,7 +217,7 @@ export async function exportReportAsPdf(options: PdfReportOptions): Promise<void
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(255, 255, 255);
-      doc.text('QuickBoom CRM - Confidential | For internal use only', 10, pageHeight - 2.5);
+      doc.text('QB Suite - Confidential | For internal use only', 10, pageHeight - 2.5);
       doc.text('Page ' + pageNum + ' of ' + totalPages, pageWidth - 10, pageHeight - 2.5, { align: 'right' });
     },
   });

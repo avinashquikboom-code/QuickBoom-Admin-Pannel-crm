@@ -81,7 +81,7 @@ export default function LoginPage() {
       };
 
       setAuth(mappedUser, accessToken, refreshToken || '');
-      toast.success('Welcome back to QUIKBOOM Super Admin Portal!');
+      toast.success('Welcome back to QB Suite Super Admin Portal!');
       router.push('/dashboard');
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || err?.message || 'Authentication failed. Please check credentials.';
@@ -113,7 +113,7 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">
-              QUIKBOOM
+              QB SUITE
             </h1>
             <span className="text-[11px] font-bold text-[#1AA14D] tracking-wider uppercase">
               Super Admin Console
@@ -158,7 +158,7 @@ export default function LoginPage() {
 
         {/* Footer info */}
         <div className="relative z-10 text-xs font-medium text-slate-400">
-          © {new Date().getFullYear()} QuikBoom Technologies Pvt Ltd. All rights reserved.
+          © {new Date().getFullYear()} QB Suite Technologies Pvt Ltd. All rights reserved.
         </div>
       </div>
 
@@ -175,7 +175,7 @@ export default function LoginPage() {
               className="object-contain"
             />
             <div>
-              <h1 className="text-lg font-black text-slate-900">QUIKBOOM</h1>
+              <h1 className="text-lg font-black text-slate-900">QB SUITE</h1>
               <span className="text-[10px] font-bold text-[#1AA14D] tracking-wider uppercase">
                 Super Admin Console
               </span>

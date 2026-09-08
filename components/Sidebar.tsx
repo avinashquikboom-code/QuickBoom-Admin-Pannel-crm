@@ -187,7 +187,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
         isCollapsed ? 'w-20' : 'w-64'
       } bg-white text-slate-700 flex flex-col h-screen sticky top-0 border-r border-slate-200 shadow-xs z-40 transition-all duration-300 ease-in-out select-none`}
     >
-      {/* QuikBoom Brand Header */}
+      {/* QB Suite Brand Header */}
       <div
         className={`h-16 flex items-center ${
           isCollapsed ? 'justify-center px-2' : 'justify-between px-4'
@@ -210,7 +210,7 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
               <div className="relative h-9 max-w-[130px] flex items-center">
                 <Image
                   src="/logo.png"
-                  alt="QuikBoom Logo"
+                  alt="QB Suite Logo"
                   width={130}
                   height={36}
                   className="h-8 w-auto object-contain"
