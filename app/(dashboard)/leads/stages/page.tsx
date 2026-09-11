@@ -372,8 +372,7 @@ export default function LeadStagesPage() {
       <AdminPageHeader
         title="Stage Management"
         description="Create and manage lead stages. These stages will be used in lead management and visible to authorized users."
-        badge="Leads Module"
-        icon={Layers}
+        badge={{ text: 'Leads Module', icon: Layers }}
         actions={
           <div className="flex items-center gap-2">
             <AdminButton
@@ -448,7 +447,7 @@ export default function LeadStagesPage() {
       >
         <form onSubmit={handleSaveStage} className="space-y-6">
           {/* Stage Name */}
-          <AdminFormField label="Stage Name *" required description="Descriptive label displayed across Admin Panel and Customer Mobile.">
+          <AdminFormField label="Stage Name *" required hint="Descriptive label displayed across Admin Panel and Customer Mobile.">
             <AdminInput
               type="text"
               required
@@ -525,7 +524,7 @@ export default function LeadStagesPage() {
           </div>
 
           {/* Sort Order */}
-          <AdminFormField label="Sort Order *" required description="Determines sequential position in dropdowns and pipeline views.">
+          <AdminFormField label="Sort Order *" required hint="Determines sequential position in dropdowns and pipeline views.">
             <AdminInput
               type="number"
               required

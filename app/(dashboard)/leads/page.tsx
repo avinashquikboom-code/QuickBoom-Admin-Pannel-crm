@@ -101,7 +101,16 @@ const LEAD_LIFECYCLE_STAGES = [
   { key: 'CONVERTED', label: 'Won / Converted' },
 ];
 
-function getLeadStatusConfig(status?: string | null, stage?: any) {
+interface LeadStatusConfigResult {
+  label: string;
+  bg: string;
+  text?: string;
+  color?: string;
+  border: string;
+  stageIndex: number;
+}
+
+function getLeadStatusConfig(status?: string | null, stage?: any): LeadStatusConfigResult {
   if (stage && (stage.name || stage.label)) {
     return {
       label: stage.name || stage.label,
