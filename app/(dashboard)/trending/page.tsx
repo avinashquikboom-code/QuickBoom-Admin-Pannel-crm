@@ -19,6 +19,8 @@ import {
   XCircle,
   Calendar,
   Instagram,
+  Youtube,
+  Star,
   RefreshCw,
   SlidersHorizontal,
   Upload,
@@ -74,6 +76,8 @@ export default function TrendingManagementPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<TrendingCategory | 'ALL'>('ALL');
+  const [platformFilter, setPlatformFilter] = useState<'ALL' | 'INSTAGRAM' | 'YOUTUBE'>('ALL');
+  const [featuredFilter, setFeaturedFilter] = useState<'ALL' | 'FEATURED'>('ALL');
   const [mediaFilter, setMediaFilter] = useState<'ALL' | 'IMAGE' | 'VIDEO'>('ALL');
   const [publishFilter, setPublishFilter] = useState<'ALL' | 'PUBLISHED' | 'UNPUBLISHED'>('ALL');
   const [page, setPage] = useState(1);
@@ -115,6 +119,13 @@ export default function TrendingManagementPage() {
   const [formPriority, setFormPriority] = useState(10);
   const [formIsPublished, setFormIsPublished] = useState(true);
   const [formIsActive, setFormIsActive] = useState(true);
+  const [formIsFeatured, setFormIsFeatured] = useState(false);
+  const [formViews, setFormViews] = useState(0);
+  const [formLikes, setFormLikes] = useState(0);
+  const [formShares, setFormShares] = useState(0);
+  const [formComments, setFormComments] = useState(0);
+  const [formDuration, setFormDuration] = useState('0:30');
+  const [formEngagementRate, setFormEngagementRate] = useState(0.0);
   const [formStartAt, setFormStartAt] = useState('');
   const [formEndAt, setFormEndAt] = useState('');
 
@@ -138,6 +149,13 @@ export default function TrendingManagementPage() {
     setFormPriority(10);
     setFormIsPublished(true);
     setFormIsActive(true);
+    setFormIsFeatured(false);
+    setFormViews(0);
+    setFormLikes(0);
+    setFormShares(0);
+    setFormComments(0);
+    setFormDuration('0:30');
+    setFormEngagementRate(0.0);
     setFormStartAt('');
     setFormEndAt('');
   };
@@ -233,6 +251,13 @@ export default function TrendingManagementPage() {
     setFormPriority(item.priority || 0);
     setFormIsPublished(item.isPublished);
     setFormIsActive(item.isActive);
+    setFormIsFeatured(item.isFeatured || false);
+    setFormViews(item.views || item.metadata?.views || 0);
+    setFormLikes(item.likes || item.metadata?.likes || 0);
+    setFormShares(item.shares || item.metadata?.shares || 0);
+    setFormComments(item.comments || item.metadata?.comments || 0);
+    setFormDuration(item.duration || item.metadata?.duration || '0:30');
+    setFormEngagementRate(item.engagementRate || item.metadata?.engagementRate || 0.0);
     setFormStartAt(item.startAt ? new Date(item.startAt).toISOString().slice(0, 16) : '');
     setFormEndAt(item.endAt ? new Date(item.endAt).toISOString().slice(0, 16) : '');
     setIsDrawerOpen(true);
@@ -248,10 +273,12 @@ export default function TrendingManagementPage() {
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ['admin-trending', selectedCategory, mediaFilter, publishFilter, search, page, pageSize],
+    queryKey: ['admin-trending', selectedCategory, platformFilter, featuredFilter, mediaFilter, publishFilter, search, page, pageSize],
     queryFn: async () => {
       const params: any = { page, limit: pageSize };
       if (selectedCategory !== 'ALL') params.category = selectedCategory;
+      if (platformFilter !== 'ALL') params.platform = platformFilter;
+      if (featuredFilter === 'FEATURED') params.isFeatured = true;
       if (publishFilter === 'PUBLISHED') params.isPublished = true;
       if (publishFilter === 'UNPUBLISHED') params.isPublished = false;
       if (search.trim()) params.search = search.trim();
@@ -335,11 +362,24 @@ export default function TrendingManagementPage() {
         priority: Number(formPriority) || 0,
         isPublished: formIsPublished,
         isActive: formIsActive,
+        isFeatured: formIsFeatured,
+        views: Number(formViews) || 0,
+        likes: Number(formLikes) || 0,
+        shares: Number(formShares) || 0,
+        comments: Number(formComments) || 0,
+        duration: formDuration.trim() || undefined,
+        engagementRate: Number(formEngagementRate) || 0.0,
         startAt: formStartAt ? new Date(formStartAt).toISOString() : null,
         endAt: formEndAt ? new Date(formEndAt).toISOString() : null,
         metadata: {
           mediaType,
           mediaSource,
+          views: Number(formViews) || 0,
+          likes: Number(formLikes) || 0,
+          shares: Number(formShares) || 0,
+          comments: Number(formComments) || 0,
+          duration: formDuration.trim() || '0:30',
+          engagementRate: Number(formEngagementRate) || 0.0,
         },
       };
 
@@ -382,6 +422,19 @@ export default function TrendingManagementPage() {
     },
     onSuccess: (_, variables) => {
       toast.success(variables.isActive ? 'Content marked active' : 'Content disabled');
+      queryClient.invalidateQueries({ queryKey: ['admin-trending'] });
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  const toggleFeaturedMutation = useMutation({
+    mutationFn: async ({ id, isFeatured }: { id: number; isFeatured: boolean }) => {
+      return TrendingService.setFeatured(id, isFeatured);
+    },
+    onSuccess: (_, variables) => {
+      toast.success(variables.isFeatured ? 'Campaign marked as Featured Hero' : 'Featured status removed');
       queryClient.invalidateQueries({ queryKey: ['admin-trending'] });
     },
     onError: (err: any) => {
@@ -539,6 +592,62 @@ export default function TrendingManagementPage() {
                 : '🚀 High ROI'}
             </button>
           ))}
+        </div>
+
+        {/* Platform Filter Tabs (All / Instagram / YouTube) */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl">
+          {(['ALL', 'INSTAGRAM', 'YOUTUBE'] as const).map((plat) => (
+            <button
+              key={plat}
+              onClick={() => {
+                setPlatformFilter(plat);
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                platformFilter === plat
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-950'
+              }`}
+            >
+              {plat === 'INSTAGRAM' ? (
+                <Instagram className="w-3.5 h-3.5 text-pink-500" />
+              ) : plat === 'YOUTUBE' ? (
+                <Youtube className="w-3.5 h-3.5 text-red-500" />
+              ) : null}
+              <span>{plat === 'ALL' ? 'All Platforms' : plat === 'INSTAGRAM' ? 'Instagram' : 'YouTube'}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Featured Hero Filter */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl">
+          <button
+            onClick={() => {
+              setFeaturedFilter('ALL');
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+              featuredFilter === 'ALL'
+                ? 'bg-white text-slate-950 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-950'
+            }`}
+          >
+            All Feeds
+          </button>
+          <button
+            onClick={() => {
+              setFeaturedFilter('FEATURED');
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+              featuredFilter === 'FEATURED'
+                ? 'bg-amber-500 text-white shadow-2xs'
+                : 'text-amber-700 hover:text-amber-900'
+            }`}
+          >
+            <Star className="w-3 h-3 fill-current" />
+            <span>Featured Hero</span>
+          </button>
         </div>
 
         {/* Media Format Filter Tabs (All / Images / Videos) */}
@@ -732,10 +841,22 @@ export default function TrendingManagementPage() {
                     {/* Top Floating Badges */}
                     <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
                       {getCategoryBadge(item.category)}
-                      <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-xs">
-                        <Instagram className="w-3 h-3 text-[#23C45E]" />
-                        {item.platform || 'INSTAGRAM'}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {item.isFeatured && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-xs">
+                            <Star className="w-2.5 h-2.5 fill-white text-white" />
+                            Featured
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-xs">
+                          {item.platform === 'YOUTUBE' ? (
+                            <Youtube className="w-3 h-3 text-red-500" />
+                          ) : (
+                            <Instagram className="w-3 h-3 text-[#23C45E]" />
+                          )}
+                          {item.platform || 'INSTAGRAM'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Bottom Floating Info Pill */}
@@ -759,6 +880,25 @@ export default function TrendingManagementPage() {
                         <p className="text-xs text-slate-500 line-clamp-2 mt-1 font-medium leading-relaxed">
                           {item.description}
                         </p>
+                      )}
+                    </div>
+
+                    {/* Metrics Row */}
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                      <span>👁️ {(item.views || 0).toLocaleString()}</span>
+                      <span>•</span>
+                      <span>❤️ {(item.likes || 0).toLocaleString()}</span>
+                      {item.duration && (
+                        <>
+                          <span>•</span>
+                          <span className="text-slate-500">⏱️ {item.duration}</span>
+                        </>
+                      )}
+                      {(item.engagementRate !== undefined && item.engagementRate !== null && item.engagementRate > 0) && (
+                        <>
+                          <span>•</span>
+                          <span className="text-emerald-700 font-extrabold">{item.engagementRate}%</span>
+                        </>
                       )}
                     </div>
 
@@ -827,6 +967,18 @@ export default function TrendingManagementPage() {
                       >
                         {item.isActive ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                       </button>
+
+                      {/* Featured Hero Star Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={() => toggleFeaturedMutation.mutate({ id: item.id, isFeatured: !item.isFeatured })}
+                        className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+                          item.isFeatured ? 'text-amber-500 bg-amber-50 hover:bg-amber-100 border border-amber-200' : 'text-slate-400 hover:text-amber-500 hover:bg-slate-200'
+                        }`}
+                        title={item.isFeatured ? 'Featured Hero (Click to remove)' : 'Mark as Featured Hero'}
+                      >
+                        <Star className={`w-4 h-4 ${item.isFeatured ? 'fill-amber-400 text-amber-500' : ''}`} />
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -863,6 +1015,8 @@ export default function TrendingManagementPage() {
                     <th className="py-3.5 px-4">Creative / Media</th>
                     <th className="py-3.5 px-4">Category</th>
                     <th className="py-3.5 px-4">Platform & Format</th>
+                    <th className="py-3.5 px-4 text-center">Featured Hero</th>
+                    <th className="py-3.5 px-4">Metrics</th>
                     <th className="py-3.5 px-4">Priority</th>
                     <th className="py-3.5 px-4">Schedule</th>
                     <th className="py-3.5 px-4">Customer App Status</th>
@@ -954,6 +1108,11 @@ export default function TrendingManagementPage() {
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md uppercase">
+                                {item.platform === 'YOUTUBE' ? (
+                                  <Youtube className="w-3 h-3 text-red-500" />
+                                ) : (
+                                  <Instagram className="w-3 h-3 text-pink-500" />
+                                )}
                                 {item.platform || 'INSTAGRAM'}
                               </span>
                               <span
@@ -971,6 +1130,32 @@ export default function TrendingManagementPage() {
                                 {item.objective || 'ENGAGEMENT'}
                               </span>
                             </div>
+                          </div>
+                        </td>
+
+                        {/* Featured Hero Toggle */}
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleFeaturedMutation.mutate({ id: item.id, isFeatured: !item.isFeatured })}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                              item.isFeatured
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs hover:bg-amber-200'
+                                : 'bg-slate-100 text-slate-400 border border-slate-200 hover:text-amber-600 hover:bg-amber-50'
+                            }`}
+                            title={item.isFeatured ? 'Featured Hero (Click to remove)' : 'Mark as Featured Hero'}
+                          >
+                            <Star className={`w-3.5 h-3.5 ${item.isFeatured ? 'fill-amber-500 text-amber-500' : ''}`} />
+                            <span>{item.isFeatured ? 'Featured' : 'Standard'}</span>
+                          </button>
+                        </td>
+
+                        {/* Metrics */}
+                        <td className="py-3 px-4">
+                          <div className="text-[11px] font-bold text-slate-700 space-y-0.5">
+                            <p>👁️ {(item.views || 0).toLocaleString()} views</p>
+                            <p className="text-slate-500">❤️ {(item.likes || 0).toLocaleString()} likes</p>
+                            {item.duration && <p className="text-slate-400 text-[10px]">⏱️ {item.duration}</p>}
                           </div>
                         </td>
 
@@ -1521,6 +1706,99 @@ export default function TrendingManagementPage() {
                 onChange={(e) => setFormEndAt(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
               />
+            </div>
+          </div>
+
+          {/* Featured Hero Banner Selection */}
+          <div className="p-3 bg-amber-50/90 border border-amber-200/90 rounded-2xl">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formIsFeatured}
+                onChange={(e) => setFormIsFeatured(e.target.checked)}
+                className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500"
+              />
+              <div>
+                <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  Mark as Featured Hero Campaign
+                </span>
+                <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                  Display this campaign in the mobile &quot;Get Inspired. Create. Grow.&quot; Hero Card.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Campaign Metrics Section */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-800">
+              📊 Campaign Metrics (Real Database Values)
+            </label>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Views</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formViews}
+                  onChange={(e) => setFormViews(parseInt(e.target.value, 10) || 0)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Likes</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formLikes}
+                  onChange={(e) => setFormLikes(parseInt(e.target.value, 10) || 0)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Shares</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formShares}
+                  onChange={(e) => setFormShares(parseInt(e.target.value, 10) || 0)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Comments</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formComments}
+                  onChange={(e) => setFormComments(parseInt(e.target.value, 10) || 0)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Duration</label>
+                <input
+                  type="text"
+                  placeholder="0:30"
+                  value={formDuration}
+                  onChange={(e) => setFormDuration(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Engagement Rate %</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  value={formEngagementRate}
+                  onChange={(e) => setFormEngagementRate(parseFloat(e.target.value) || 0)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                />
+              </div>
             </div>
           </div>
 

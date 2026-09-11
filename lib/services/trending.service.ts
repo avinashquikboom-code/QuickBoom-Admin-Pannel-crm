@@ -17,6 +17,13 @@ export interface TrendingContentItem {
   priority: number;
   isPublished: boolean;
   isActive: boolean;
+  isFeatured?: boolean;
+  views?: number | null;
+  likes?: number | null;
+  shares?: number | null;
+  comments?: number | null;
+  duration?: string | null;
+  engagementRate?: number | null;
   startAt?: string | null;
   endAt?: string | null;
   createdBy?: number | null;
@@ -55,6 +62,13 @@ export interface CreateTrendingPayload {
   priority?: number;
   isPublished?: boolean;
   isActive?: boolean;
+  isFeatured?: boolean;
+  views?: number;
+  likes?: number;
+  shares?: number;
+  comments?: number;
+  duration?: string;
+  engagementRate?: number;
   startAt?: string | null;
   endAt?: string | null;
   customerId?: number | string;
@@ -80,6 +94,13 @@ export interface UpdateTrendingPayload {
   priority?: number;
   isPublished?: boolean;
   isActive?: boolean;
+  isFeatured?: boolean;
+  views?: number;
+  likes?: number;
+  shares?: number;
+  comments?: number;
+  duration?: string;
+  engagementRate?: number;
   startAt?: string | null;
   endAt?: string | null;
   metadata?: any;
@@ -87,6 +108,9 @@ export interface UpdateTrendingPayload {
 
 export interface QueryTrendingParams {
   category?: TrendingCategory;
+  platform?: string;
+  isFeatured?: boolean | string;
+  sort?: string;
   mediaType?: 'IMAGE' | 'VIDEO' | 'ALL';
   search?: string;
   isPublished?: boolean | string;
@@ -231,6 +255,14 @@ export class TrendingService {
    */
   static async setActiveStatus(id: number | string, isActive: boolean): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
     const response: any = await api.patch(`/admin/trending/${id}/status`, { isActive });
+    return response;
+  }
+
+  /**
+   * Toggle or update featured status
+   */
+  static async setFeatured(id: number | string, isFeatured: boolean): Promise<{ success: boolean; data: TrendingContentItem; message: string }> {
+    const response: any = await api.patch(`/admin/trending/${id}/featured`, { isFeatured });
     return response;
   }
 }
