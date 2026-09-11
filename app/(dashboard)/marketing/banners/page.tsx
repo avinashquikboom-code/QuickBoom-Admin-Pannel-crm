@@ -62,6 +62,7 @@ export default function HomeBannersPage() {
   const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
   const [formCtaText, setFormCtaText] = useState('View Offer');
   const [formCtaUrl, setFormCtaUrl] = useState('');
+  const [formActionType, setFormActionType] = useState('OPEN_PLAN');
   const [formPriority, setFormPriority] = useState<number>(0);
   const [formStartAt, setFormStartAt] = useState('');
   const [formEndAt, setFormEndAt] = useState('');
@@ -197,6 +198,7 @@ export default function HomeBannersPage() {
     setFormImagePreview(null);
     setFormCtaText('Claim Offer');
     setFormCtaUrl('');
+    setFormActionType('OPEN_PLAN');
     setFormPriority(0);
     setFormStartAt('');
     setFormEndAt('');
@@ -218,6 +220,7 @@ export default function HomeBannersPage() {
     setFormImagePreview(banner.imageUrl || null);
     setFormCtaText(banner.ctaText || '');
     setFormCtaUrl(banner.ctaUrl || '');
+    setFormActionType(banner.actionType || (banner.ctaUrl?.startsWith('http') ? 'OPEN_URL' : 'OPEN_PLAN'));
     setFormPriority(banner.priority || 0);
     setFormStartAt(
       banner.startAt ? new Date(banner.startAt).toISOString().slice(0, 16) : '',
@@ -239,6 +242,7 @@ export default function HomeBannersPage() {
     setEditingBanner(null);
     setFormImageFile(null);
     setFormImagePreview(null);
+    setFormActionType('OPEN_PLAN');
     setFormCouponCode('');
     setFormDiscount('');
     setFormBrand('');
@@ -272,6 +276,7 @@ export default function HomeBannersPage() {
     }
     formData.append('ctaText', formCtaText.trim());
     formData.append('ctaUrl', formCtaUrl.trim());
+    formData.append('actionType', formActionType);
     formData.append('priority', String(formPriority));
     formData.append('startAt', formStartAt ? new Date(formStartAt).toISOString() : '');
     formData.append('endAt', formEndAt ? new Date(formEndAt).toISOString() : '');
@@ -813,29 +818,55 @@ export default function HomeBannersPage() {
             )}
           </div>
 
-          {/* CTA Text & URL */}
+          {/* CTA Action Type & Destination */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">CTA Button Text</label>
+              <label className="block text-xs font-semibold text-foreground mb-1">
+                CTA Action Destination
+              </label>
+              <select
+                value={formActionType}
+                onChange={(e) => setFormActionType(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="OPEN_PLAN">Subscription Plans (Customer Plans)</option>
+                <option value="OPEN_URL">External Website Link (Browser URL)</option>
+                <option value="OPEN_COUPON">Apply / Copy Coupon Code</option>
+                <option value="OPEN_DETAILS">Offer & Coupon Details Sheet</option>
+                <option value="OPEN_ORDERS">Orders & Invoices Tab</option>
+                <option value="OPEN_CALENDAR">Customer Calendar</option>
+                <option value="NONE">None (No Action / Hide Button)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">
+                CTA Button Text
+              </label>
               <input
                 type="text"
-                placeholder="e.g., Claim Offer, View Plan"
+                placeholder="e.g., Claim Offer, Claim Now, View Plan"
                 value={formCtaText}
                 onChange={(e) => setFormCtaText(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
+          </div>
+
+          {formActionType === 'OPEN_URL' && (
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">CTA Action Link / URL</label>
+              <label className="block text-xs font-semibold text-foreground mb-1">
+                External Action URL / Link <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
-                placeholder="e.g., https://quickboom.com/offer"
+                placeholder="e.g., https://quickboom.online/offers"
                 value={formCtaUrl}
                 onChange={(e) => setFormCtaUrl(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
-          </div>
+          )}
 
           {/* Coupon / Promo Details */}
           <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/5 space-y-3">

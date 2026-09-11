@@ -10,6 +10,7 @@ export interface MarketingBannerItem {
   mobileImageUrl?: string | null;
   ctaText?: string | null;
   ctaUrl?: string | null;
+  actionType?: string | null;
   priority: number;
   isActive: boolean;
   isPublished: boolean;
@@ -39,6 +40,7 @@ export interface CreateBannerPayload {
   imageUrl?: string;
   ctaText?: string;
   ctaUrl?: string;
+  actionType?: string;
   priority?: number;
   isActive?: boolean;
   isPublished?: boolean;
@@ -59,6 +61,7 @@ export interface UpdateBannerPayload {
   imageUrl?: string;
   ctaText?: string;
   ctaUrl?: string;
+  actionType?: string;
   priority?: number;
   isActive?: boolean;
   isPublished?: boolean;
