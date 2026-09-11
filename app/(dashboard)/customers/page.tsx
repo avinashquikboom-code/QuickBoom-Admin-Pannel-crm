@@ -675,16 +675,16 @@ export default function CustomersPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-400 font-black uppercase border-b border-slate-200">
+            <table className="w-full text-left text-xs min-w-[1150px]">
+              <thead className="bg-slate-50 text-slate-400 font-black uppercase border-b border-slate-200 whitespace-nowrap">
                 <tr>
-                  <th className="px-4 py-3.5">Customer</th>
-                  <th className="px-4 py-3.5">Active Plan & Billing</th>
-                  <th className="px-4 py-3.5">Validity Dates</th>
-                  <th className="px-4 py-3.5">Contact Details</th>
-                  <th className="px-4 py-3.5">Assigned Team</th>
-                  <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5 text-right">Actions</th>
+                  <th className="px-4 py-3.5 min-w-[280px]">Customer</th>
+                  <th className="px-4 py-3.5 min-w-[180px]">Active Plan & Billing</th>
+                  <th className="px-4 py-3.5 min-w-[170px]">Validity Dates</th>
+                  <th className="px-4 py-3.5 min-w-[180px]">Contact Details</th>
+                  <th className="px-4 py-3.5 min-w-[150px]">Assigned Team</th>
+                  <th className="px-4 py-3.5 min-w-[110px]">Status</th>
+                  <th className="px-4 py-3.5 min-w-[120px] text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -692,29 +692,33 @@ export default function CustomersPage() {
                   const planName = cust.plan || 'No Active Plan';
                   const hasActiveSub = cust.subscriptionStatus === 'ACTIVE';
                   const isExpiredSub = cust.subscriptionStatus === 'EXPIRED';
+                  const displayName = cust.name || cust.companyName || cust.company || 'Unnamed Customer';
+                  const companyIdentifier = cust.companyName || cust.company || cust.name || 'Direct Client';
+                  const customerIdentifier = cust.customerId || (cust.id ? `CUST-${String(cust.id).padStart(4, '0')}` : '');
 
                   return (
                     <tr key={cust.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 min-w-[280px]">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-800 font-black text-xs flex items-center justify-center border border-slate-200 shrink-0">
-                            {cust.name?.charAt(0) || 'C'}
+                          <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 font-black text-sm flex items-center justify-center border border-slate-200 shrink-0">
+                            {(displayName.charAt(0) || 'C').toUpperCase()}
                           </div>
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <button
                               type="button"
                               onClick={() => setViewingCustomerId(cust.id)}
-                              className="font-black text-slate-900 text-sm hover:text-[#1AA14D] transition-colors block text-left cursor-pointer"
+                              className="font-black text-slate-900 text-sm hover:text-[#1AA14D] transition-colors block text-left cursor-pointer truncate"
+                              title={displayName}
                             >
-                              {cust.name}
+                              {displayName}
                             </button>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-slate-400 font-medium text-[11px]">
-                                {cust.companyName || cust.company || 'Direct Client'}
+                            <div className="flex items-center gap-1.5 mt-0.5 text-slate-400 font-medium text-[11px]">
+                              <span className="truncate" title={companyIdentifier}>
+                                {companyIdentifier}
                               </span>
-                              <span className="text-slate-300">•</span>
-                              <span className="font-mono text-[10px] font-bold text-slate-400">
-                                {cust.customerId || `CUST-${String(cust.id).padStart(4, '0')}`}
+                              <span className="text-slate-300 shrink-0">•</span>
+                              <span className="font-mono text-[10px] font-bold text-slate-400 shrink-0">
+                                {customerIdentifier}
                               </span>
                             </div>
                           </div>
