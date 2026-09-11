@@ -70,25 +70,41 @@ type LeadTab =
   | 'CONVERTED'
   | 'LOST';
 
-const LEAD_STATUS_CONFIG: Record<
-  string,
-  { label: string; bg: string; text: string; border: string; stageIndex: number }
-> = {
-  NEW: { label: 'New', bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', stageIndex: 0 },
-  FOLLOW_UP: { label: 'Follow-up', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', stageIndex: 1 },
-  CONTACTED: { label: 'Contacted', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', stageIndex: 1 },
-  VISIT: { label: 'Visit', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', stageIndex: 2 },
-  QUALIFIED: { label: 'Qualified', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', stageIndex: 3 },
-  PROPOSAL: { label: 'Proposal', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', stageIndex: 4 },
-  PROPOSAL_SENT: { label: 'Proposal Sent', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', stageIndex: 4 },
-  FINAL_CALL: { label: 'Final Call', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', stageIndex: 5 },
-  NEGOTIATION: { label: 'Negotiation', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', stageIndex: 5 },
-  PAYMENT: { label: 'Payment', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', stageIndex: 6 },
-  WORK_STARTED: { label: 'Work Started', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', stageIndex: 7 },
-  WON: { label: 'Won', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', stageIndex: 7 },
-  CONVERTED: { label: 'Converted', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', stageIndex: 7 },
-  LOST: { label: 'Lost', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', stageIndex: -1 },
-  CANCELLED: { label: 'Cancelled', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', stageIndex: -1 },
+export interface StageConfig {
+  label: string;
+  bg: string;
+  text: string;
+  border: string;
+  color?: string;
+  stageIndex: number;
+}
+
+export interface LeadStage {
+  id?: number | string;
+  name?: string;
+  label?: string;
+  color?: string;
+  bgColor?: string;
+  borderColor?: string;
+  sortOrder?: number;
+}
+
+const LEAD_STATUS_CONFIG: Record<string, StageConfig> = {
+  NEW: { label: 'New', bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', color: undefined, stageIndex: 0 },
+  FOLLOW_UP: { label: 'Follow-up', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', color: undefined, stageIndex: 1 },
+  CONTACTED: { label: 'Contacted', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', color: undefined, stageIndex: 1 },
+  VISIT: { label: 'Visit', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', color: undefined, stageIndex: 2 },
+  QUALIFIED: { label: 'Qualified', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', color: undefined, stageIndex: 3 },
+  PROPOSAL: { label: 'Proposal', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', color: undefined, stageIndex: 4 },
+  PROPOSAL_SENT: { label: 'Proposal Sent', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', color: undefined, stageIndex: 4 },
+  FINAL_CALL: { label: 'Final Call', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', color: undefined, stageIndex: 5 },
+  NEGOTIATION: { label: 'Negotiation', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', color: undefined, stageIndex: 5 },
+  PAYMENT: { label: 'Payment', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', color: undefined, stageIndex: 6 },
+  WORK_STARTED: { label: 'Work Started', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', color: undefined, stageIndex: 7 },
+  WON: { label: 'Won', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', color: undefined, stageIndex: 7 },
+  CONVERTED: { label: 'Converted', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', color: undefined, stageIndex: 7 },
+  LOST: { label: 'Lost', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', color: undefined, stageIndex: -1 },
+  CANCELLED: { label: 'Cancelled', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', color: undefined, stageIndex: -1 },
 };
 
 const LEAD_LIFECYCLE_STAGES = [
@@ -101,36 +117,27 @@ const LEAD_LIFECYCLE_STAGES = [
   { key: 'CONVERTED', label: 'Won / Converted' },
 ];
 
-interface LeadStatusConfigResult {
-  label: string;
-  bg: string;
-  text?: string;
-  color?: string;
-  border: string;
-  stageIndex: number;
-}
-
-function getLeadStatusConfig(status?: string | null, stage?: any): LeadStatusConfigResult {
+function getLeadStatusConfig(status?: string | null, stage?: LeadStage | null): StageConfig {
   if (stage && (stage.name || stage.label)) {
     return {
-      label: stage.name || stage.label,
+      label: stage.name || stage.label || '',
       bg: stage.bgColor || 'bg-slate-100',
-      text: stage.color ? undefined : 'text-slate-700',
-      color: stage.color,
+      text: stage.color ? '' : 'text-slate-700',
+      color: stage.color || undefined,
       border: stage.borderColor || 'border-slate-200',
       stageIndex: stage.sortOrder ?? 0,
     };
   }
   const s = (status || 'NEW').toUpperCase();
-  return (
-    LEAD_STATUS_CONFIG[s] || {
-      label: status || 'Unknown',
-      bg: 'bg-slate-100',
-      text: 'text-slate-700',
-      border: 'border-slate-200',
-      stageIndex: 0,
-    }
-  );
+  const fallback: StageConfig = {
+    label: status || 'Unknown',
+    bg: 'bg-slate-100',
+    text: 'text-slate-700',
+    border: 'border-slate-200',
+    color: undefined,
+    stageIndex: 0,
+  };
+  return LEAD_STATUS_CONFIG[s] || fallback;
 }
 
 interface LeadItem {
@@ -150,7 +157,7 @@ interface LeadItem {
   source: string;
   status: string;
   stageId?: number | null;
-  stage?: any;
+  stage?: LeadStage | null;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   value: number;
   assignedToId?: number | null;
