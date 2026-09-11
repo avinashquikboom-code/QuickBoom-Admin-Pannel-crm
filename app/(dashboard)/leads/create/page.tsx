@@ -36,6 +36,7 @@ export default function CreateLeadPage() {
     country: 'India',
     source: 'WEBSITE',
     status: 'NEW',
+    stageId: '',
     priority: 'MEDIUM',
     leadValue: '50000',
     assignedToId: '',
@@ -57,6 +58,21 @@ export default function CreateLeadPage() {
 
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
+  // Fetch dynamic lead stages from backend API
+  const { data: stagesData } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/leads/stages?includeInactive=false');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const stages: any[] = Array.isArray(stagesData) ? stagesData : [];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -76,6 +92,7 @@ export default function CreateLeadPage() {
         country: formData.country.trim() || 'India',
         source: formData.source,
         status: formData.status,
+        stageId: formData.stageId ? Number(formData.stageId) : undefined,
         priority: formData.priority,
         value: formData.leadValue ? Number(formData.leadValue) : 0,
         assignedToId: formData.assignedToId || undefined,
@@ -234,14 +251,29 @@ export default function CreateLeadPage() {
           <AdminFormField label="Pipeline Status">
             <AdminSelect
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              options={[
-                { label: 'NEW', value: 'NEW' },
-                { label: 'CONTACTED', value: 'CONTACTED' },
-                { label: 'FOLLOW_UP', value: 'FOLLOW_UP' },
-                { label: 'QUALIFIED', value: 'QUALIFIED' },
-                { label: 'PROPOSAL', value: 'PROPOSAL' },
-              ]}
+              onChange={(e) => {
+                const selectedKey = e.target.value;
+                const matchedStage = stages.find((s: any) => s.key === selectedKey);
+                setFormData({
+                  ...formData,
+                  status: selectedKey,
+                  stageId: matchedStage ? matchedStage.id : formData.stageId,
+                });
+              }}
+              options={
+                stages.length > 0
+                  ? stages.map((s: any) => ({
+                      label: s.name || s.label || s.key,
+                      value: s.key,
+                    }))
+                  : [
+                      { label: 'NEW', value: 'NEW' },
+                      { label: 'CONTACTED', value: 'CONTACTED' },
+                      { label: 'FOLLOW_UP', value: 'FOLLOW_UP' },
+                      { label: 'QUALIFIED', value: 'QUALIFIED' },
+                      { label: 'PROPOSAL', value: 'PROPOSAL' },
+                    ]
+              }
             />
           </AdminFormField>
 

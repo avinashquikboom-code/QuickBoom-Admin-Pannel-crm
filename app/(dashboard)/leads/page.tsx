@@ -101,7 +101,17 @@ const LEAD_LIFECYCLE_STAGES = [
   { key: 'CONVERTED', label: 'Won / Converted' },
 ];
 
-function getLeadStatusConfig(status?: string | null) {
+function getLeadStatusConfig(status?: string | null, stage?: any) {
+  if (stage && (stage.name || stage.label)) {
+    return {
+      label: stage.name || stage.label,
+      bg: stage.bgColor || 'bg-slate-100',
+      text: stage.color ? undefined : 'text-slate-700',
+      color: stage.color,
+      border: stage.borderColor || 'border-slate-200',
+      stageIndex: stage.sortOrder ?? 0,
+    };
+  }
   const s = (status || 'NEW').toUpperCase();
   return (
     LEAD_STATUS_CONFIG[s] || {
@@ -130,6 +140,8 @@ interface LeadItem {
   category?: string | null;
   source: string;
   status: string;
+  stageId?: number | null;
+  stage?: any;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   value: number;
   assignedToId?: number | null;
@@ -304,6 +316,21 @@ export default function LeadsPage() {
 
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
+  // Fetch dynamic stages from backend
+  const { data: stagesData } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/leads/stages?includeInactive=false');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const dynamicStages: any[] = Array.isArray(stagesData) ? stagesData : [];
+
   // Filtered Leads
   const filteredLeads = useMemo(() => {
     return rawLeads.filter((l) => {
@@ -476,15 +503,16 @@ export default function LeadsPage() {
 
   // Status Change Mutation
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ status, notes }: { status: string; notes?: string }) => {
+    mutationFn: async ({ status, stageId, notes }: { status: string; stageId?: number; notes?: string }) => {
       if (!selectedLeadId) return;
-      return api.patch(`/leads/${selectedLeadId}/status`, { status, notes });
+      return api.patch(`/leads/${selectedLeadId}/status`, { status, stageId, notes });
     },
     onSuccess: () => {
       toast.success('Lead status updated!');
       queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-lead-stages'] });
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -912,10 +940,11 @@ export default function LeadsPage() {
                       {/* Stage Status */}
                       <td className="py-4 px-4">
                         {(() => {
-                          const conf = getLeadStatusConfig(lead.status);
+                          const conf = getLeadStatusConfig(lead.status, lead.stage);
                           return (
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${conf.bg} ${conf.text} ${conf.border}`}
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${conf.bg} ${conf.text || ''} ${conf.border}`}
+                              style={conf.color ? { color: conf.color, backgroundColor: conf.bg, borderColor: conf.border } : undefined}
                             >
                               {conf.label}
                             </span>
@@ -1223,25 +1252,40 @@ export default function LeadsPage() {
                       <div className="flex items-center gap-2">
                         <select
                           value={leadDetail.status}
-                          onChange={(e) => updateStatusMutation.mutate({ status: e.target.value })}
+                          onChange={(e) => {
+                            const newStatus = e.target.value;
+                            const matchedStage = dynamicStages.find((st: any) => st.key === newStatus);
+                            updateStatusMutation.mutate({
+                              status: newStatus,
+                              stageId: matchedStage ? matchedStage.id : undefined,
+                            });
+                          }}
                           disabled={updateStatusMutation.isPending}
                           className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50"
                         >
-                          <option value="NEW">New (NEW)</option>
-                          <option value="CONTACTED">Contacted (CONTACTED)</option>
-                          <option value="FOLLOW_UP">Follow-up (FOLLOW_UP)</option>
-                          <option value="VISIT">Visit Scheduled (VISIT)</option>
-                          <option value="QUALIFIED">Qualified (QUALIFIED)</option>
-                          <option value="PROPOSAL">Proposal (PROPOSAL)</option>
-                          <option value="PROPOSAL_SENT">Proposal Sent (PROPOSAL_SENT)</option>
-                          <option value="NEGOTIATION">Negotiation (NEGOTIATION)</option>
-                          <option value="FINAL_CALL">Final Call (FINAL_CALL)</option>
-                          <option value="PAYMENT">Payment Pending (PAYMENT)</option>
-                          <option value="WORK_STARTED">Work Started (WORK_STARTED)</option>
-                          <option value="WON">Won (WON)</option>
-                          <option value="CONVERTED">Won / Converted (CONVERTED)</option>
-                          <option value="LOST">Lost (LOST)</option>
-                          <option value="CANCELLED">Cancelled (CANCELLED)</option>
+                          {dynamicStages.length > 0
+                            ? dynamicStages.map((st: any) => (
+                                <option key={st.id || st.key} value={st.key}>
+                                  {st.name || st.label || st.key} ({st.key})
+                                </option>
+                              ))
+                            : [
+                                <option key="NEW" value="NEW">New (NEW)</option>,
+                                <option key="CONTACTED" value="CONTACTED">Contacted (CONTACTED)</option>,
+                                <option key="FOLLOW_UP" value="FOLLOW_UP">Follow-up (FOLLOW_UP)</option>,
+                                <option key="VISIT" value="VISIT">Visit Scheduled (VISIT)</option>,
+                                <option key="QUALIFIED" value="QUALIFIED">Qualified (QUALIFIED)</option>,
+                                <option key="PROPOSAL" value="PROPOSAL">Proposal (PROPOSAL)</option>,
+                                <option key="PROPOSAL_SENT" value="PROPOSAL_SENT">Proposal Sent (PROPOSAL_SENT)</option>,
+                                <option key="NEGOTIATION" value="NEGOTIATION">Negotiation (NEGOTIATION)</option>,
+                                <option key="FINAL_CALL" value="FINAL_CALL">Final Call (FINAL_CALL)</option>,
+                                <option key="PAYMENT" value="PAYMENT">Payment Pending (PAYMENT)</option>,
+                                <option key="WORK_STARTED" value="WORK_STARTED">Work Started (WORK_STARTED)</option>,
+                                <option key="WON" value="WON">Won (WON)</option>,
+                                <option key="CONVERTED" value="CONVERTED">Won / Converted (CONVERTED)</option>,
+                                <option key="LOST" value="LOST">Lost (LOST)</option>,
+                                <option key="CANCELLED" value="CANCELLED">Cancelled (CANCELLED)</option>,
+                              ]}
                         </select>
 
                         {leadDetail.status !== 'CONVERTED' && leadDetail.status !== 'WON' && (

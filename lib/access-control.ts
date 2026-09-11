@@ -215,6 +215,16 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ],
 };
 
+export interface NavSubItemConfig {
+  name: string;
+  href: string;
+  icon?: any;
+  permission?: string | string[];
+  roles?: string[];
+  hideForRoles?: string[];
+  badge?: string;
+}
+
 export interface NavItemConfig {
   name: string;
   href: string;
@@ -224,6 +234,7 @@ export interface NavItemConfig {
   roles?: string[];
   hideForRoles?: string[];
   badge?: string;
+  children?: NavSubItemConfig[];
 }
 
 export interface NavSectionConfig {
@@ -285,7 +296,17 @@ export const adminNavigation: {
       feature: 'crm',
       roles: ['Super Admin'],
       items: [
-        { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
+        {
+          name: 'Leads',
+          href: '/leads',
+          icon: UserCheck,
+          permission: 'leads.view',
+          children: [
+            { name: 'All Leads', href: '/leads' },
+            { name: 'Add Lead', href: '/leads/create' },
+            { name: 'Stage Management', href: '/leads/stages' },
+          ],
+        },
         { name: 'Lead Limits', href: '/leads/limits', icon: ShieldCheck, permission: 'leads.view' },
         { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
         { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
@@ -700,6 +721,8 @@ export function filterNavigation(
 export const SUPER_ADMIN_ONLY_ROUTES: string[] = [
   '/crm',
   '/leads',
+  '/leads/create',
+  '/leads/stages',
   '/leads/limits',
   '/contacts',
   '/companies',

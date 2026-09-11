@@ -44,63 +44,66 @@ export function getActiveNavHref(
 
   for (const section of sections) {
     for (const item of section.items) {
-      if (!item.href) continue;
+      const candidates = [item, ...(item.children || [])];
+      for (const candidate of candidates) {
+        if (!candidate.href) continue;
 
-      const [rawItemPath, rawItemQuery] = item.href.split('?');
-      const itemPath = rawItemPath.replace(/\/+$/, '') || '/';
-      const itemQuery = rawItemQuery || '';
+        const [rawItemPath, rawItemQuery] = candidate.href.split('?');
+        const itemPath = rawItemPath.replace(/\/+$/, '') || '/';
+        const itemQuery = rawItemQuery || '';
 
-      let score = -1;
+        let score = -1;
 
-      // 1. Match item with explicit query param (e.g. ?tab=modules)
-      if (itemQuery) {
-        if (currentPath === itemPath && currentSearch.includes(itemQuery)) {
-          score = 1000;
-        } else if (currentPath === itemPath) {
-          score = 50; // fallback if query param not present
+        // 1. Match item with explicit query param (e.g. ?tab=modules)
+        if (itemQuery) {
+          if (currentPath === itemPath && currentSearch.includes(itemQuery)) {
+            score = 1000;
+          } else if (currentPath === itemPath) {
+            score = 50; // fallback if query param not present
+          }
+        } else {
+          // 2. Exact pathname match without query param
+          if (currentPath === itemPath) {
+            score = 500;
+          }
+          // 3. Route alias compatibility (Deals/CRM, Offices, Live Dashboard)
+          else if (
+            (itemPath === '/deals' || itemPath === '/crm') &&
+            (currentPath === '/deals' || currentPath === '/crm')
+          ) {
+            score = 400;
+          } else if (
+            (itemPath === '/hrms/offices' || itemPath === '/offices' || itemPath === '/hrm/offices') &&
+            (currentPath === '/hrms/offices' || currentPath === '/offices' || currentPath === '/hrm/offices')
+          ) {
+            score = 400;
+          } else if (
+            (itemPath === '/hrm/live-dashboard' || itemPath === '/live-dashboard') &&
+            (currentPath === '/hrm/live-dashboard' || currentPath === '/live-dashboard')
+          ) {
+            score = 400;
+          } else if (
+            (itemPath === '/teams' || itemPath === '/team-management') &&
+            (currentPath === '/teams' || currentPath === '/team-management')
+          ) {
+            score = 450;
+          }
+          // 4. Strict nested route prefix match (e.g. /customers/123 -> /customers)
+          // Root and single top-level endpoints should not prefix-match other paths
+          else if (
+            itemPath !== '/' &&
+            itemPath !== '/dashboard' &&
+            itemPath !== '/super-admin' &&
+            currentPath.startsWith(`${itemPath}/`)
+          ) {
+            score = 100 + itemPath.length; // More specific prefix gets higher score
+          }
         }
-      } else {
-        // 2. Exact pathname match without query param
-        if (currentPath === itemPath) {
-          score = 500;
-        }
-        // 3. Route alias compatibility (Deals/CRM, Offices, Live Dashboard)
-        else if (
-          (itemPath === '/deals' || itemPath === '/crm') &&
-          (currentPath === '/deals' || currentPath === '/crm')
-        ) {
-          score = 400;
-        } else if (
-          (itemPath === '/hrms/offices' || itemPath === '/offices' || itemPath === '/hrm/offices') &&
-          (currentPath === '/hrms/offices' || currentPath === '/offices' || currentPath === '/hrm/offices')
-        ) {
-          score = 400;
-        } else if (
-          (itemPath === '/hrm/live-dashboard' || itemPath === '/live-dashboard') &&
-          (currentPath === '/hrm/live-dashboard' || currentPath === '/live-dashboard')
-        ) {
-          score = 400;
-        } else if (
-          (itemPath === '/teams' || itemPath === '/team-management') &&
-          (currentPath === '/teams' || currentPath === '/team-management')
-        ) {
-          score = 450;
-        }
-        // 4. Strict nested route prefix match (e.g. /customers/123 -> /customers)
-        // Root and single top-level endpoints should not prefix-match other paths
-        else if (
-          itemPath !== '/' &&
-          itemPath !== '/dashboard' &&
-          itemPath !== '/super-admin' &&
-          currentPath.startsWith(`${itemPath}/`)
-        ) {
-          score = 100 + itemPath.length; // More specific prefix gets higher score
-        }
-      }
 
-      if (score > highestScore) {
-        highestScore = score;
-        bestHref = item.href;
+        if (score > highestScore) {
+          highestScore = score;
+          bestHref = candidate.href;
+        }
       }
     }
   }
@@ -167,7 +170,9 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
 
     // Find the section that contains the single active route
     const matchingSection = accessibleSections.find((section) =>
-      section.items.some((item) => item.href === activeHref)
+      section.items.some(
+        (item) => item.href === activeHref || item.children?.some((child) => child.href === activeHref)
+      )
     );
 
     if (matchingSection) {
@@ -175,6 +180,17 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
       setOpenSection(matchingSection.id);
     }
   }, [pathname, activeHref]);
+
+  // Submenu expansion state (Leads expanded by default or when on lead route)
+  const [expandedSubmenus, setExpandedSubmenus] = useState<Record<string, boolean>>({
+    Leads: true,
+  });
+
+  useEffect(() => {
+    if (pathname && (pathname.startsWith('/leads') || pathname === '/leads')) {
+      setExpandedSubmenus((prev) => ({ ...prev, Leads: true }));
+    }
+  }, [pathname]);
 
   // Handle accordion toggle: click closed -> open it; click open -> close it; click another -> switch to it
   const handleToggleSection = (sectionId: string) => {
@@ -370,8 +386,73 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
                   className="px-2 pb-2.5 pt-1 space-y-1 border-t border-slate-100/80 animate-in fade-in-50 duration-150"
                 >
                   {section.items.map((item) => {
-                    const isActive = item.href === activeHref;
+                    const hasChildren = Boolean(item.children && item.children.length > 0);
+                    const isSubmenuOpen = expandedSubmenus[item.name] ?? false;
+                    const isChildActive = hasChildren && item.children!.some((c) => c.href === activeHref);
+                    const isDirectActive = item.href === activeHref;
+                    const isItemOrChildActive = isDirectActive || isChildActive || (pathname ? pathname.startsWith(item.href) : false);
                     const Icon = item.icon;
+
+                    if (hasChildren) {
+                      return (
+                        <div key={item.name + item.href} className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedSubmenus((prev) => ({
+                                ...prev,
+                                [item.name]: !prev[item.name],
+                              }))
+                            }
+                            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all duration-150 cursor-pointer ${
+                              isItemOrChildActive
+                                ? 'bg-[#E8F9EE] text-[#1AA14D] font-bold border border-[#23C45E]/30'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-white hover:shadow-2xs'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <Icon className={`w-4 h-4 ${isItemOrChildActive ? 'text-[#1AA14D]' : 'text-slate-400'}`} />
+                              <span className="truncate">{item.name}</span>
+                            </div>
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                isSubmenuOpen ? 'rotate-180 text-emerald-600' : 'text-slate-400'
+                              }`}
+                            />
+                          </button>
+
+                          {isSubmenuOpen && (
+                            <div className="ml-4 pl-2.5 border-l-2 border-emerald-200/60 space-y-1 py-0.5 animate-in fade-in-50 duration-150">
+                              {item.children!.map((subItem) => {
+                                const isSubActive = subItem.href === activeHref;
+                                return (
+                                  <Link
+                                    key={subItem.name + subItem.href}
+                                    href={subItem.href}
+                                    onClick={onNavigate}
+                                    aria-current={isSubActive ? 'page' : undefined}
+                                    className={`flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 ${
+                                      isSubActive
+                                        ? 'bg-[#23C45E] text-white shadow-xs font-bold translate-x-0.5'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full ${
+                                        isSubActive ? 'bg-white' : 'bg-slate-300'
+                                      }`}
+                                    />
+                                    <span className="truncate">{subItem.name}</span>
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    const isActive = item.href === activeHref;
 
                     return (
                       <Link
