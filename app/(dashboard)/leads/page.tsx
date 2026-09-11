@@ -70,7 +70,7 @@ type LeadTab =
   | 'CONVERTED'
   | 'LOST';
 
-export interface StageConfig {
+export interface StageStatusConfig {
   label: string;
   bg: string;
   text: string;
@@ -78,6 +78,8 @@ export interface StageConfig {
   color?: string;
   stageIndex: number;
 }
+
+export type StageConfig = StageStatusConfig;
 
 export interface LeadStage {
   id?: number | string;
@@ -89,7 +91,7 @@ export interface LeadStage {
   sortOrder?: number;
 }
 
-const LEAD_STATUS_CONFIG: Record<string, StageConfig> = {
+const LEAD_STATUS_CONFIG: Record<string, StageStatusConfig> = {
   NEW: { label: 'New', bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', color: undefined, stageIndex: 0 },
   FOLLOW_UP: { label: 'Follow-up', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', color: undefined, stageIndex: 1 },
   CONTACTED: { label: 'Contacted', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', color: undefined, stageIndex: 1 },
@@ -117,7 +119,7 @@ const LEAD_LIFECYCLE_STAGES = [
   { key: 'CONVERTED', label: 'Won / Converted' },
 ];
 
-function getLeadStatusConfig(status?: string | null, stage?: LeadStage | null): StageConfig {
+function getLeadStatusConfig(status?: string | null, stage?: LeadStage | null): StageStatusConfig {
   if (stage && (stage.name || stage.label)) {
     return {
       label: stage.name || stage.label || '',
@@ -129,7 +131,7 @@ function getLeadStatusConfig(status?: string | null, stage?: LeadStage | null): 
     };
   }
   const s = (status || 'NEW').toUpperCase();
-  const fallback: StageConfig = {
+  const fallback: StageStatusConfig = {
     label: status || 'Unknown',
     bg: 'bg-slate-100',
     text: 'text-slate-700',
@@ -957,10 +959,18 @@ export default function LeadsPage() {
                       <td className="py-4 px-4">
                         {(() => {
                           const conf = getLeadStatusConfig(lead.status, lead.stage);
+                          const isCustomBg = conf.bg?.startsWith('#') || conf.bg?.startsWith('rgb');
+                          const isCustomBorder = conf.border?.startsWith('#') || conf.border?.startsWith('rgb');
                           return (
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${conf.bg} ${conf.text || ''} ${conf.border}`}
-                              style={conf.color ? { color: conf.color, backgroundColor: conf.bg, borderColor: conf.border } : undefined}
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                                isCustomBg ? '' : conf.bg
+                              } ${conf.text || ''} ${isCustomBorder ? '' : conf.border}`}
+                              style={{
+                                ...(conf.color ? { color: conf.color } : {}),
+                                ...(isCustomBg ? { backgroundColor: conf.bg } : {}),
+                                ...(isCustomBorder ? { borderColor: conf.border } : {}),
+                              }}
                             >
                               {conf.label}
                             </span>
@@ -1251,11 +1261,20 @@ export default function LeadsPage() {
                           Current Stage Status
                         </p>
                         {(() => {
-                          const conf = getLeadStatusConfig(leadDetail.status);
+                          const conf = getLeadStatusConfig(leadDetail.status, leadDetail.stage);
+                          const isCustomBg = conf.bg?.startsWith('#') || conf.bg?.startsWith('rgb');
+                          const isCustomBorder = conf.border?.startsWith('#') || conf.border?.startsWith('rgb');
                           return (
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span
-                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${conf.bg} ${conf.text} ${conf.border}`}
+                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${
+                                  isCustomBg ? '' : conf.bg
+                                } ${conf.text || ''} ${isCustomBorder ? '' : conf.border}`}
+                                style={{
+                                  ...(conf.color ? { color: conf.color } : {}),
+                                  ...(isCustomBg ? { backgroundColor: conf.bg } : {}),
+                                  ...(isCustomBorder ? { borderColor: conf.border } : {}),
+                                }}
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 <span>{conf.label}</span>
