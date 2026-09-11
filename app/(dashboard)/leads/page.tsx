@@ -1224,17 +1224,21 @@ export default function LeadsPage() {
                         <select
                           value={leadDetail.status}
                           onChange={(e) => updateStatusMutation.mutate({ status: e.target.value })}
-                          disabled={updateStatusMutation.isPending || leadDetail.status === 'CONVERTED'}
+                          disabled={updateStatusMutation.isPending}
                           className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50"
                         >
                           <option value="NEW">New (NEW)</option>
-                          <option value="FOLLOW_UP">Follow-up (FOLLOW_UP)</option>
                           <option value="CONTACTED">Contacted (CONTACTED)</option>
+                          <option value="FOLLOW_UP">Follow-up (FOLLOW_UP)</option>
                           <option value="VISIT">Visit Scheduled (VISIT)</option>
                           <option value="QUALIFIED">Qualified (QUALIFIED)</option>
+                          <option value="PROPOSAL">Proposal (PROPOSAL)</option>
                           <option value="PROPOSAL_SENT">Proposal Sent (PROPOSAL_SENT)</option>
                           <option value="NEGOTIATION">Negotiation (NEGOTIATION)</option>
+                          <option value="FINAL_CALL">Final Call (FINAL_CALL)</option>
                           <option value="PAYMENT">Payment Pending (PAYMENT)</option>
+                          <option value="WORK_STARTED">Work Started (WORK_STARTED)</option>
+                          <option value="WON">Won (WON)</option>
                           <option value="CONVERTED">Won / Converted (CONVERTED)</option>
                           <option value="LOST">Lost (LOST)</option>
                           <option value="CANCELLED">Cancelled (CANCELLED)</option>
