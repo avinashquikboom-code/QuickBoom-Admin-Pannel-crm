@@ -67,6 +67,10 @@ export default function HomeBannersPage() {
   const [formEndAt, setFormEndAt] = useState('');
   const [formIsActive, setFormIsActive] = useState(true);
   const [formIsPublished, setFormIsPublished] = useState(true);
+  const [formCouponCode, setFormCouponCode] = useState('');
+  const [formDiscount, setFormDiscount] = useState('');
+  const [formBrand, setFormBrand] = useState('');
+  const [formTerms, setFormTerms] = useState('');
   const [isDragging, setIsDragging] = useState(false);
 
   // Query Banners list
@@ -198,6 +202,10 @@ export default function HomeBannersPage() {
     setFormEndAt('');
     setFormIsActive(true);
     setFormIsPublished(true);
+    setFormCouponCode('');
+    setFormDiscount('');
+    setFormBrand('');
+    setFormTerms('');
     setIsDrawerOpen(true);
   };
 
@@ -219,6 +227,10 @@ export default function HomeBannersPage() {
     );
     setFormIsActive(banner.isActive);
     setFormIsPublished(banner.isPublished);
+    setFormCouponCode(banner.couponCode || banner.metadata?.couponCode || '');
+    setFormDiscount(banner.discount || banner.metadata?.discount || '');
+    setFormBrand(banner.brand || banner.metadata?.brand || '');
+    setFormTerms(banner.terms || banner.metadata?.terms || '');
     setIsDrawerOpen(true);
   };
 
@@ -227,6 +239,10 @@ export default function HomeBannersPage() {
     setEditingBanner(null);
     setFormImageFile(null);
     setFormImagePreview(null);
+    setFormCouponCode('');
+    setFormDiscount('');
+    setFormBrand('');
+    setFormTerms('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -261,6 +277,10 @@ export default function HomeBannersPage() {
     formData.append('endAt', formEndAt ? new Date(formEndAt).toISOString() : '');
     formData.append('isActive', String(formIsActive));
     formData.append('isPublished', String(formIsPublished));
+    if (formCouponCode.trim()) formData.append('couponCode', formCouponCode.trim());
+    if (formDiscount.trim()) formData.append('discount', formDiscount.trim());
+    if (formBrand.trim()) formData.append('brand', formBrand.trim());
+    if (formTerms.trim()) formData.append('terms', formTerms.trim());
 
     if (editingBanner) {
       updateMutation.mutate({ id: editingBanner.id, formData });
@@ -462,7 +482,14 @@ export default function HomeBannersPage() {
 
                     {/* Title & Subtitle */}
                     <td className="py-3 px-4 max-w-xs">
-                      <div className="font-semibold text-foreground line-clamp-1">{banner.title}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold text-foreground line-clamp-1">{banner.title}</div>
+                        {(banner.couponCode || banner.metadata?.couponCode) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shrink-0">
+                            {banner.couponCode || banner.metadata?.couponCode}
+                          </span>
+                        )}
+                      </div>
                       {banner.subtitle && (
                         <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                           {banner.subtitle}
@@ -807,6 +834,70 @@ export default function HomeBannersPage() {
                 onChange={(e) => setFormCtaUrl(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
+            </div>
+          </div>
+
+          {/* Coupon / Promo Details */}
+          <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Coupon & Offers Configuration (Optional)</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  Coupon Code
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., QBSUITE50"
+                  value={formCouponCode}
+                  onChange={(e) => setFormCouponCode(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  Discount Value
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., 50–80% OFF or ₹200 OFF"
+                  value={formDiscount}
+                  onChange={(e) => setFormDiscount(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  Brand Name / Logo
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., fwD, QB Suite"
+                  value={formBrand}
+                  onChange={(e) => setFormBrand(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  Terms / Conditions
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., On software & digital tools"
+                  value={formTerms}
+                  onChange={(e) => setFormTerms(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
             </div>
           </div>
 

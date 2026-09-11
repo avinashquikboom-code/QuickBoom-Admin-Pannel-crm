@@ -23,6 +23,11 @@ export interface MarketingBannerItem {
     email: string;
   } | null;
   metadata?: any;
+  couponCode?: string | null;
+  discount?: string | null;
+  brand?: string | null;
+  terms?: string | null;
+  minOrder?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,6 +45,11 @@ export interface CreateBannerPayload {
   startAt?: string | null;
   endAt?: string | null;
   customerId?: number | string;
+  couponCode?: string;
+  discount?: string;
+  brand?: string;
+  terms?: string;
+  minOrder?: string;
 }
 
 export interface UpdateBannerPayload {
@@ -54,6 +64,11 @@ export interface UpdateBannerPayload {
   isPublished?: boolean;
   startAt?: string | null;
   endAt?: string | null;
+  couponCode?: string;
+  discount?: string;
+  brand?: string;
+  terms?: string;
+  minOrder?: string;
 }
 
 export interface QueryBannerParams {
