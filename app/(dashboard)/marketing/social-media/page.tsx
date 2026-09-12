@@ -654,6 +654,48 @@ export default function SocialMediaHandlersPage() {
             />
           </div>
 
+          {/* Social Media ID & Password */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">
+                Social Media ID
+              </label>
+              <input
+                type="text"
+                value={formSocialMediaId}
+                onChange={(e) => setFormSocialMediaId(e.target.value)}
+                placeholder="e.g. carefitness_official"
+                className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
+                  placeholder="Enter account password"
+                  className="w-full px-3 py-2 pr-10 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Handler Executive Details */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
