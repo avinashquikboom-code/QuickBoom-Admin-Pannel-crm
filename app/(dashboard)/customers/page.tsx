@@ -373,6 +373,34 @@ export default function CustomersPage() {
     });
     setTeamSearch('');
     setIsTeamDropdownOpen(false);
+
+    // Fetch fresh assigned team from backend API to ensure 100% up-to-date data
+    if (cust.id) {
+      api
+        .get(`/customers/${cust.id}/assign-team`)
+        .then((res: any) => {
+          const teamData = res?.data?.team || res?.team || res?.data;
+          const apiTeamId = res?.data?.teamId ?? res?.teamId ?? teamData?.id;
+          const apiTeamName = teamData?.name;
+          if (apiTeamId) {
+            const strId = String(apiTeamId);
+            setCustomerForm((prev) => {
+              const resolvedName =
+                apiTeamName ||
+                activeTeams.find((t: any) => String(t.id) === strId)?.name ||
+                prev.assignedTeamName;
+              return {
+                ...prev,
+                assignedTeamId: strId,
+                assignedTeamName: resolvedName,
+              };
+            });
+          }
+        })
+        .catch(() => {
+          // Silently retain matched state from cust row
+        });
+    }
   };
 
   useEffect(() => {
