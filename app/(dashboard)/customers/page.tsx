@@ -747,14 +747,26 @@ export default function CustomersPage() {
                   const planName = cust.plan || 'No Active Plan';
                   const hasActiveSub = cust.subscriptionStatus === 'ACTIVE';
                   const isExpiredSub = cust.subscriptionStatus === 'EXPIRED';
+
+                  // ── Contact person full name (actual person, not workspace) ──
+                  const contactName = (
+                    cust.contactFullName ||
+                    (
+                      (cust.contactFirstName || cust.contactLastName)
+                        ? `${cust.contactFirstName || ''} ${cust.contactLastName || ''}`.trim()
+                        : ''
+                    )
+                  ).trim();
+
+                  // Primary display: contact person name → workspace name fallback
                   const customerName = (
+                    contactName ||
                     cust.name ||
                     cust.customerName ||
-                    cust.companyName ||
-                    cust.workspaceName ||
-                    cust.company ||
                     'Customer'
                   ).trim();
+
+                  // Secondary line: always show workspace/business name
                   const companyOrWorkspaceName = (
                     cust.companyName ||
                     cust.workspaceName ||
@@ -762,6 +774,7 @@ export default function CustomersPage() {
                     cust.name ||
                     'Direct Client'
                   ).trim();
+
                   const customerIdentifier = cust.customerId || (cust.id ? `CUST-${String(cust.id).padStart(4, '0')}` : '');
 
                   return (
@@ -775,7 +788,7 @@ export default function CustomersPage() {
                             <button
                               type="button"
                               onClick={() => setViewingCustomerId(cust.id)}
-                              className="font-bold text-slate-900 text-sm hover:text-[#1AA14D] transition-colors block text-left cursor-pointer truncate max-w-full leading-snug tracking-normal"
+                              className="font-bold text-slate-900 text-sm hover:text-[#1AA14D] transition-colors block text-left cursor-pointer max-w-full leading-snug tracking-normal break-words"
                               title={customerName}
                             >
                               {customerName}
