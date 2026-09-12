@@ -303,7 +303,6 @@ export const adminNavigation: {
           permission: 'leads.view',
           children: [
             { name: 'All Leads', href: '/leads' },
-            { name: 'Add Lead', href: '/leads/create' },
             { name: 'Stage Management', href: '/leads/stages' },
           ],
         },
@@ -721,7 +720,6 @@ export function filterNavigation(
 export const SUPER_ADMIN_ONLY_ROUTES: string[] = [
   '/crm',
   '/leads',
-  '/leads/create',
   '/leads/stages',
   '/leads/limits',
   '/contacts',
