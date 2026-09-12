@@ -86,6 +86,9 @@ export default function SocialMediaHandlersPage() {
   const [formPlatform, setFormPlatform] = useState<string>('INSTAGRAM');
   const [formAccountName, setFormAccountName] = useState<string>('');
   const [formAccountUrl, setFormAccountUrl] = useState<string>('');
+  const [formSocialMediaId, setFormSocialMediaId] = useState<string>('');
+  const [formPassword, setFormPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [formHandlerName, setFormHandlerName] = useState<string>('');
   const [formHandlerPhone, setFormHandlerPhone] = useState<string>('');
   const [formHandlerEmail, setFormHandlerEmail] = useState<string>('');
@@ -176,6 +179,9 @@ export default function SocialMediaHandlersPage() {
     setFormPlatform('INSTAGRAM');
     setFormAccountName('');
     setFormAccountUrl('');
+    setFormSocialMediaId('');
+    setFormPassword('');
+    setShowPassword(false);
     setFormHandlerName('');
     setFormHandlerPhone('');
     setFormHandlerEmail('');
@@ -198,6 +204,9 @@ export default function SocialMediaHandlersPage() {
     setFormPlatform(item.platform);
     setFormAccountName(item.accountName);
     setFormAccountUrl(item.accountUrl || '');
+    setFormSocialMediaId(item.socialMediaId || item.accountName || '');
+    setFormPassword(item.password || '');
+    setShowPassword(false);
     setFormHandlerName(item.handlerName || '');
     setFormHandlerPhone(item.handlerPhone || '');
     setFormHandlerEmail(item.handlerEmail || '');
@@ -226,6 +235,8 @@ export default function SocialMediaHandlersPage() {
       platform: formPlatform,
       accountName: formAccountName.trim(),
       accountUrl: formAccountUrl.trim() || undefined,
+      socialMediaId: formSocialMediaId.trim() || undefined,
+      password: formPassword.trim() || undefined,
       handlerName: formHandlerName.trim() || undefined,
       handlerPhone: formHandlerPhone.trim() || undefined,
       handlerEmail: formHandlerEmail.trim() || undefined,
