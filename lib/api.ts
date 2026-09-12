@@ -366,7 +366,7 @@ api.interceptors.response.use(
       status !== 404 &&
       !isNoSubscriptionOrEmpty
     ) {
-      toast.error(message);
+      toast.error(message, { id: message });
     }
 
     return Promise.reject(error);

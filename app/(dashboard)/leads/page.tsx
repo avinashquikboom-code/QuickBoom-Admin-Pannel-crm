@@ -119,6 +119,56 @@ const LEAD_LIFECYCLE_STAGES = [
   { key: 'CONVERTED', label: 'Won / Converted' },
 ];
 
+const CANONICAL_LEAD_STAGES = [
+  { key: 'NEW', label: 'New' },
+  { key: 'FOLLOW_UP', label: 'Follow-up' },
+  { key: 'CONTACTED', label: 'Contacted' },
+  { key: 'VISIT', label: 'Visit Scheduled' },
+  { key: 'QUALIFIED', label: 'Qualified' },
+  { key: 'PROPOSAL', label: 'Proposal' },
+  { key: 'PROPOSAL_SENT', label: 'Proposal Sent' },
+  { key: 'NEGOTIATION', label: 'Negotiation' },
+  { key: 'FINAL_CALL', label: 'Final Call' },
+  { key: 'PAYMENT', label: 'Payment Pending' },
+  { key: 'WORK_STARTED', label: 'Work Started' },
+  { key: 'WON', label: 'Won' },
+  { key: 'CONVERTED', label: 'Won / Converted' },
+  { key: 'LOST', label: 'Lost' },
+  { key: 'CANCELLED', label: 'Cancelled' },
+];
+
+function toCanonicalLeadStatus(val?: string | null): string {
+  if (!val || typeof val !== 'string') return 'NEW';
+  let str = val.trim();
+  const parenMatch = str.match(/\(([^)]+)\)$/);
+  if (parenMatch && parenMatch[1]) {
+    str = parenMatch[1].trim();
+  }
+  const normalized = str.toUpperCase().replace(/[\s-]+/g, '_');
+  const mapping: Record<string, string> = {
+    FOLLOWUP: 'FOLLOW_UP',
+    FOLLOW_UP: 'FOLLOW_UP',
+    VISIT_SCHEDULED: 'VISIT',
+    VISITSCHEDULED: 'VISIT',
+    VISIT: 'VISIT',
+    FINALCALL: 'FINAL_CALL',
+    FINAL_CALL: 'FINAL_CALL',
+    PROPOSALSENT: 'PROPOSAL_SENT',
+    PROPOSAL_SENT: 'PROPOSAL_SENT',
+    PAYMENT_PENDING: 'PAYMENT',
+    PAYMENTPENDING: 'PAYMENT',
+    PAYMENT: 'PAYMENT',
+    WORKSTARTED: 'WORK_STARTED',
+    WORK_STARTED: 'WORK_STARTED',
+    WONCONVERTED: 'CONVERTED',
+    WON_CONVERTED: 'CONVERTED',
+    CONVERT: 'CONVERTED',
+  };
+  if (mapping[normalized]) return mapping[normalized];
+  if (LEAD_STATUS_CONFIG[normalized]) return normalized;
+  return normalized;
+}
+
 function getLeadStatusConfig(status?: string | null, stage?: LeadStage | null): StageStatusConfig {
   if (stage && (stage.name || stage.label)) {
     return {
@@ -130,7 +180,7 @@ function getLeadStatusConfig(status?: string | null, stage?: LeadStage | null): 
       stageIndex: stage.sortOrder ?? 0,
     };
   }
-  const s = (status || 'NEW').toUpperCase();
+  const s = toCanonicalLeadStatus(status);
   const fallback: StageStatusConfig = {
     label: status || 'Unknown',
     bg: 'bg-slate-100',
@@ -422,7 +472,7 @@ export default function LeadsPage() {
         rating: leadForm.rating ? parseFloat(leadForm.rating) : undefined,
         reviewCount: leadForm.reviewCount ? parseInt(leadForm.reviewCount, 10) : undefined,
         assignedToId: leadForm.assignedToId ? leadForm.assignedToId : undefined,
-        status: leadForm.status,
+        status: toCanonicalLeadStatus(leadForm.status),
         priority: leadForm.priority,
         value: leadForm.value ? parseFloat(leadForm.value) : 0,
         nextFollowUpDate: leadForm.nextFollowUpDate ? new Date(leadForm.nextFollowUpDate) : undefined,
@@ -436,7 +486,9 @@ export default function LeadsPage() {
       }
     },
     onSuccess: () => {
-      toast.success(leadForm.id ? 'Lead details updated successfully!' : 'New Lead created successfully!');
+      toast.success(leadForm.id ? 'Lead details updated successfully!' : 'New Lead created successfully!', {
+        id: 'lead-save-success',
+      });
       setIsAddDrawerOpen(false);
       resetLeadForm();
       if (selectedLeadId) {
@@ -446,7 +498,8 @@ export default function LeadsPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      if (msg) toast.error(msg, { id: msg });
     },
   });
 
@@ -523,17 +576,23 @@ export default function LeadsPage() {
   const updateStatusMutation = useMutation({
     mutationFn: async ({ status, stageId, notes }: { status: string; stageId?: number; notes?: string }) => {
       if (!selectedLeadId) return;
-      return api.patch(`/leads/${selectedLeadId}/status`, { status, stageId, notes });
+      const canonicalStatus = toCanonicalLeadStatus(status);
+      return api.patch(`/leads/${selectedLeadId}/status`, { status: canonicalStatus, stageId, notes });
     },
-    onSuccess: () => {
-      toast.success('Lead status updated!');
+    onSuccess: (res: any) => {
+      toast.success('Lead status updated!', { id: 'lead-status-update' });
+      const updatedLead = res?.data || res;
+      if (updatedLead && updatedLead.id) {
+        queryClient.setQueryData(['admin-lead-detail', selectedLeadId], updatedLead);
+      }
       queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['admin-lead-stages'] });
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      if (msg) toast.error(msg, { id: msg });
     },
   });
 
@@ -614,7 +673,7 @@ export default function LeadsPage() {
       rating: lead.rating ? String(lead.rating) : '',
       reviewCount: lead.reviewCount ? String(lead.reviewCount) : '',
       assignedToId: lead.assignedToId ? String(lead.assignedToId) : '',
-      status: lead.status || 'NEW',
+      status: lead.status ? toCanonicalLeadStatus(lead.status) : 'NEW',
       priority: lead.priority || 'MEDIUM',
       value: String(lead.value || 0),
       nextFollowUpDate: lead.nextFollowUpDate ? lead.nextFollowUpDate.split('T')[0] : '',
@@ -1286,41 +1345,29 @@ export default function LeadsPage() {
 
                       <div className="flex items-center gap-2">
                         <select
-                          value={leadDetail.status}
+                          value={toCanonicalLeadStatus(leadDetail.status)}
                           onChange={(e) => {
-                            const newStatus = e.target.value;
-                            const matchedStage = dynamicStages.find((st: any) => st.key === newStatus);
+                            const newStatus = toCanonicalLeadStatus(e.target.value);
+                            const matchedStage = dynamicStages.find((st: any) => toCanonicalLeadStatus(st.key) === newStatus);
                             updateStatusMutation.mutate({
                               status: newStatus,
                               stageId: matchedStage ? matchedStage.id : undefined,
                             });
                           }}
                           disabled={updateStatusMutation.isPending}
-                          className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50"
+                          className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50 cursor-pointer"
                         >
-                          {dynamicStages.length > 0
-                            ? dynamicStages.map((st: any) => (
-                                <option key={st.id || st.key} value={st.key}>
-                                  {st.name || st.label || st.key} ({st.key})
-                                </option>
-                              ))
-                            : [
-                                <option key="NEW" value="NEW">New (NEW)</option>,
-                                <option key="CONTACTED" value="CONTACTED">Contacted (CONTACTED)</option>,
-                                <option key="FOLLOW_UP" value="FOLLOW_UP">Follow-up (FOLLOW_UP)</option>,
-                                <option key="VISIT" value="VISIT">Visit Scheduled (VISIT)</option>,
-                                <option key="QUALIFIED" value="QUALIFIED">Qualified (QUALIFIED)</option>,
-                                <option key="PROPOSAL" value="PROPOSAL">Proposal (PROPOSAL)</option>,
-                                <option key="PROPOSAL_SENT" value="PROPOSAL_SENT">Proposal Sent (PROPOSAL_SENT)</option>,
-                                <option key="NEGOTIATION" value="NEGOTIATION">Negotiation (NEGOTIATION)</option>,
-                                <option key="FINAL_CALL" value="FINAL_CALL">Final Call (FINAL_CALL)</option>,
-                                <option key="PAYMENT" value="PAYMENT">Payment Pending (PAYMENT)</option>,
-                                <option key="WORK_STARTED" value="WORK_STARTED">Work Started (WORK_STARTED)</option>,
-                                <option key="WON" value="WON">Won (WON)</option>,
-                                <option key="CONVERTED" value="CONVERTED">Won / Converted (CONVERTED)</option>,
-                                <option key="LOST" value="LOST">Lost (LOST)</option>,
-                                <option key="CANCELLED" value="CANCELLED">Cancelled (CANCELLED)</option>,
-                              ]}
+                          {CANONICAL_LEAD_STAGES.map((st) => {
+                            const matchedDynamic = dynamicStages.find(
+                              (d: any) => toCanonicalLeadStatus(d.key) === st.key
+                            );
+                            const displayLabel = matchedDynamic?.name || matchedDynamic?.label || st.label;
+                            return (
+                              <option key={st.key} value={st.key}>
+                                {displayLabel} ({st.key})
+                              </option>
+                            );
+                          })}
                         </select>
 
                         {leadDetail.status !== 'CONVERTED' && leadDetail.status !== 'WON' && (
@@ -1873,15 +1920,15 @@ export default function LeadsPage() {
                 Stage Status
               </label>
               <select
-                value={leadForm.status}
-                onChange={(e) => setLeadForm({ ...leadForm, status: e.target.value })}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+                value={toCanonicalLeadStatus(leadForm.status)}
+                onChange={(e) => setLeadForm({ ...leadForm, status: toCanonicalLeadStatus(e.target.value) })}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 cursor-pointer"
               >
-                <option value="NEW">NEW</option>
-                <option value="CONTACTED">CONTACTED</option>
-                <option value="QUALIFIED">QUALIFIED</option>
-                <option value="CONVERTED">CONVERTED</option>
-                <option value="LOST">LOST</option>
+                {CANONICAL_LEAD_STAGES.map((st) => (
+                  <option key={st.key} value={st.key}>
+                    {st.label} ({st.key})
+                  </option>
+                ))}
               </select>
             </div>
 
