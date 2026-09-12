@@ -73,8 +73,8 @@ export function CustomerDetailsDrawer({
     <AdminFormDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title={customer?.name || 'Customer Details'}
-      description={customer ? `${customer.companyName || customer.company || 'Direct Client'} • ${customer.customerId || `CUST-${String(customerId).padStart(4, '0')}`}` : 'Loading customer account...'}
+      title={customer?.name || customer?.customerName || customer?.companyName || 'Customer Details'}
+      description={customer ? `${customer.companyName || customer.workspaceName || customer.company || 'Direct Client'} • ${customer.customerId || `CUST-${String(customerId).padStart(4, '0')}`}` : 'Loading customer account...'}
       icon={Building2}
       maxWidth="sm:max-w-[620px]"
       footer={

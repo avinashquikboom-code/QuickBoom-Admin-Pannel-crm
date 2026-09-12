@@ -143,7 +143,15 @@ export default function AttendancePage() {
     currentlyWorking: 0,
   };
 
-  const officeBreakdown = Array.isArray(liveData?.offices) ? liveData.offices : [];
+  const rawOfficeBreakdown = Array.isArray(liveData?.offices) ? liveData.offices : [];
+  const excludedDistributionOffices = new Set([
+    'test location',
+    'quikboom digital marketing agency',
+  ]);
+  const officeBreakdown = rawOfficeBreakdown.filter((off: any) => {
+    const name = (off?.officeName || off?.name || '').trim().toLowerCase();
+    return !excludedDistributionOffices.has(name);
+  });
 
   const records: AttendanceRecord[] = Array.isArray(attendanceData)
     ? attendanceData.map((a: any) => {
