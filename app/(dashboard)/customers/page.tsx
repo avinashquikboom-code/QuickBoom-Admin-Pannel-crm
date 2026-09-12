@@ -259,6 +259,8 @@ export default function CustomersPage() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer'] });
+      refetch();
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
@@ -328,13 +330,25 @@ export default function CustomersPage() {
     setEditingCustomer(cust);
 
     // Resolve assigned team ID and name
-    const matchedTeamId = cust.teamId || cust.team?.id || cust.assignedTeamId ? String(cust.teamId || cust.team?.id || cust.assignedTeamId) : '';
-    let matchedTeamName = cust.team?.name || '';
+    let matchedTeamId =
+      cust.assignedTeamId || cust.teamId || cust.team?.id || cust.assignedTeam?.id
+        ? String(cust.assignedTeamId || cust.teamId || cust.team?.id || cust.assignedTeam?.id)
+        : '';
+    let matchedTeamName =
+      (typeof cust.team === 'object' && cust.team?.name) ||
+      (typeof cust.assignedTeam === 'object' && cust.assignedTeam?.name) ||
+      (typeof cust.team === 'string' ? cust.team : '') ||
+      '';
 
     if (!matchedTeamName && matchedTeamId && activeTeams.length > 0) {
       const found = activeTeams.find((t: any) => String(t.id) === String(matchedTeamId));
       if (found) {
         matchedTeamName = found.name;
+      }
+    } else if (!matchedTeamId && matchedTeamName && activeTeams.length > 0) {
+      const found = activeTeams.find((t: any) => t.name?.toLowerCase() === matchedTeamName.toLowerCase());
+      if (found) {
+        matchedTeamId = String(found.id);
       }
     }
 
@@ -361,9 +375,22 @@ export default function CustomersPage() {
     setIsTeamDropdownOpen(false);
   };
 
+  useEffect(() => {
+    if (customerForm.assignedTeamId && !customerForm.assignedTeamName && activeTeams.length > 0) {
+      const found = activeTeams.find((t: any) => String(t.id) === String(customerForm.assignedTeamId));
+      if (found) {
+        setCustomerForm((prev) => ({ ...prev, assignedTeamName: found.name }));
+      }
+    }
+  }, [customerForm.assignedTeamId, customerForm.assignedTeamName, activeTeams]);
+
   const handleFormSubmit = (e?: React.FormEvent | React.MouseEvent) => {
     if (e && typeof (e as any).preventDefault === 'function') {
       e.preventDefault();
+    }
+
+    if (createMutation.isPending || updateMutation.isPending) {
+      return;
     }
 
     if (!customerForm.name.trim() || !customerForm.phone.trim()) {
@@ -792,23 +819,36 @@ export default function CustomersPage() {
                       </td>
 
                       <td className="px-4 py-4">
-                        {cust.team ? (
-                          <div className="space-y-0.5">
-                            <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[11px] inline-flex items-center gap-1.5 border border-indigo-200/60">
-                              <Users className="w-3 h-3 text-indigo-500" />
-                              <span>{cust.team.name}</span>
+                        {(() => {
+                          const resolvedTeamName =
+                            cust.team?.name ||
+                            cust.assignedTeam?.name ||
+                            activeTeams.find((t: any) => String(t.id) === String(cust.assignedTeamId || cust.teamId))?.name;
+                          const resolvedLeader =
+                            cust.team?.leader ||
+                            cust.assignedTeam?.leader?.name ||
+                            (cust.assignedTeam?.leader
+                              ? `${cust.assignedTeam.leader.firstName || ''} ${cust.assignedTeam.leader.lastName || ''}`.trim()
+                              : null);
+
+                          return resolvedTeamName ? (
+                            <div className="space-y-0.5">
+                              <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[11px] inline-flex items-center gap-1.5 border border-indigo-200/60">
+                                <Users className="w-3 h-3 text-indigo-500" />
+                                <span>{resolvedTeamName}</span>
+                              </span>
+                              {resolvedLeader && (
+                                <p className="text-[10px] text-slate-400 font-medium pl-1">
+                                  Leader: {resolvedLeader}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 font-bold text-[11px] inline-flex items-center gap-1">
+                              Unassigned
                             </span>
-                            {cust.team.leader && (
-                              <p className="text-[10px] text-slate-400 font-medium pl-1">
-                                Leader: {cust.team.leader}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 font-bold text-[11px] inline-flex items-center gap-1">
-                            Unassigned
-                          </span>
-                        )}
+                          );
+                        })()}
                       </td>
 
                       <td className="px-4 py-4">
@@ -1115,31 +1155,39 @@ export default function CustomersPage() {
               </label>
 
               {/* Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
-                className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-xs font-medium flex items-center justify-between text-left transition-all cursor-pointer ${
-                  isTeamDropdownOpen
-                    ? 'border-[#23C45E] ring-2 ring-[#23C45E]/20 bg-white'
-                    : customerForm.assignedTeamId
-                    ? 'border-slate-200 text-slate-900 bg-white'
-                    : 'border-slate-200 text-slate-400 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  {customerForm.assignedTeamName ? (
-                    <span className="font-bold text-slate-900 truncate">{customerForm.assignedTeamName}</span>
-                  ) : (
-                    <span className="text-slate-400">Select team...</span>
-                  )}
-                </div>
-                <ChevronDown
-                  className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
-                    isTeamDropdownOpen ? 'rotate-180 text-[#23C45E]' : ''
-                  }`}
-                />
-              </button>
+              {(() => {
+                const effectiveTeamName =
+                  customerForm.assignedTeamName ||
+                  activeTeams.find((t: any) => String(t.id) === String(customerForm.assignedTeamId))?.name ||
+                  '';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
+                    className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-xs font-medium flex items-center justify-between text-left transition-all cursor-pointer ${
+                      isTeamDropdownOpen
+                        ? 'border-[#23C45E] ring-2 ring-[#23C45E]/20 bg-white'
+                        : customerForm.assignedTeamId
+                        ? 'border-slate-200 text-slate-900 bg-white'
+                        : 'border-slate-200 text-slate-400 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      {effectiveTeamName ? (
+                        <span className="font-bold text-slate-900 truncate">{effectiveTeamName}</span>
+                      ) : (
+                        <span className="text-slate-400">Select team...</span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                        isTeamDropdownOpen ? 'rotate-180 text-[#23C45E]' : ''
+                      }`}
+                    />
+                  </button>
+                );
+              })()}
 
               {/* Dropdown Menu */}
               {isTeamDropdownOpen && (
@@ -1204,11 +1252,11 @@ export default function CustomersPage() {
                             key={team.id}
                             type="button"
                             onClick={() => {
-                              setCustomerForm({
-                                ...customerForm,
+                              setCustomerForm((prev) => ({
+                                ...prev,
                                 assignedTeamId: String(team.id),
                                 assignedTeamName: team.name,
-                              });
+                              }));
                               setIsTeamDropdownOpen(false);
                               setTeamSearch('');
                             }}
