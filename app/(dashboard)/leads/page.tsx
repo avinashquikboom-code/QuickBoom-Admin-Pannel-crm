@@ -1492,17 +1492,19 @@ export default function LeadsPage() {
                       </div>
 
                       <select
-                        value={leadDetail.assignedToId || ''}
+                        value={String(leadDetail.assignedToId || '')}
                         onChange={(e) => assignEmployeeMutation.mutate(e.target.value || null)}
                         disabled={assignEmployeeMutation.isPending}
                         className="px-3 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 shadow-2xs"
                       >
                         <option value="">-- Assign Employee --</option>
-                        {employees.map((emp) => (
-                          <option key={emp.id} value={String(emp.id)}>
-                            {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`}
-                          </option>
-                        ))}
+                        {employees
+                          .filter((emp) => emp.userId)
+                          .map((emp) => (
+                            <option key={emp.id} value={String(emp.userId)}>
+                              {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`}
+                            </option>
+                          ))}
                       </select>
                     </div>
 
@@ -2005,11 +2007,13 @@ export default function LeadsPage() {
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
               >
                 <option value="">-- Select Employee --</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={String(emp.id)}>
-                    {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
-                  </option>
-                ))}
+                {employees
+                  .filter((emp) => emp.userId)
+                  .map((emp) => (
+                    <option key={emp.id} value={String(emp.userId)}>
+                      {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
+                    </option>
+                  ))}
               </select>
             </div>
 
