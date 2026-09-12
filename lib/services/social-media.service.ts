@@ -13,6 +13,8 @@ export interface SocialMediaHandlerItem {
   platform: string;
   accountName: string;
   accountUrl?: string | null;
+  socialMediaId?: string | null;
+  password?: string | null;
   handlerName?: string | null;
   handlerPhone?: string | null;
   handlerEmail?: string | null;
@@ -31,6 +33,8 @@ export interface CreateSocialMediaHandlerPayload {
   platform: string;
   accountName: string;
   accountUrl?: string;
+  socialMediaId?: string;
+  password?: string;
   handlerName?: string;
   handlerPhone?: string;
   handlerEmail?: string;

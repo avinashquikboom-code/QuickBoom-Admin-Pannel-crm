@@ -24,6 +24,8 @@ import {
   Twitter,
   Globe,
   Briefcase,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
