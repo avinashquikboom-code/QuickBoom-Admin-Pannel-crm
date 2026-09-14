@@ -154,7 +154,19 @@ function getStageConfigFromApi(
       borderColor: lead.stage.borderColor || '#E2E8F0',
     };
   }
-  // 3. Generic fallback — do NOT use hardcoded stage-name color maps
+  // 3. Try to match by status key in apiStages
+  if (lead.status && apiStages.length > 0) {
+    const foundByKey = apiStages.find((s: any) => s.key === lead.status);
+    if (foundByKey) {
+      return {
+        label: foundByKey.name || foundByKey.label || foundByKey.key,
+        color: foundByKey.color,
+        bgColor: foundByKey.bgColor || '#F1F5F9',
+        borderColor: foundByKey.borderColor || '#E2E8F0',
+      };
+    }
+  }
+  // 4. Generic fallback — do NOT use hardcoded stage-name color maps
   return {
     label: lead.status || 'Unknown',
     bgColor: '#F1F5F9',
@@ -360,6 +372,7 @@ export default function LeadsPage() {
     data: stagesData,
     isLoading: isLoadingStages,
     isError: isStagesError,
+    refetch: refetchStages,
   } = useQuery({
     queryKey: ['lead-stages'],
     queryFn: async () => {
@@ -1263,57 +1276,140 @@ export default function LeadsPage() {
                       </div>
                     </div>
 
-                    {/* Dynamic Lifecycle Pipeline Progress Bar — from Stage Management API */}
-                    <div className="p-4 bg-slate-50/90 rounded-3xl border border-slate-200/80 space-y-2.5">
+                    {/* Dynamic Lifecycle Pipeline Progress Bar — 100% from Stage Management API */}
+                    <div className="p-4 bg-slate-50/90 rounded-3xl border border-slate-200/80 space-y-3">
                       <div className="flex items-center justify-between text-xs font-black text-slate-800">
                         <span>Lifecycle Pipeline Stage</span>
                         <span className="text-[11px] font-bold text-slate-500">
                           {(() => {
-                            if (!allStagesForDropdown.length) return '';
-                            const idx = allStagesForDropdown.findIndex((s: any) => String(s.id) === String(leadDetail.stageId));
-                            return idx >= 0
-                              ? `Stage ${idx + 1} of ${allStagesForDropdown.length}`
+                            if (isLoadingStages) return 'Loading stages...';
+                            if (isStagesError) return 'Error loading stages';
+                            if (!allStagesForDropdown.length) return '—';
+                            const currentIdx = allStagesForDropdown.findIndex((s: any) =>
+                              (leadDetail.stageId && String(s.id) === String(leadDetail.stageId)) ||
+                              (!leadDetail.stageId && s.key === leadDetail.status)
+                            );
+                            return currentIdx >= 0
+                              ? `Stage ${currentIdx + 1} of ${allStagesForDropdown.length}`
                               : `— of ${allStagesForDropdown.length}`;
                           })()}
                         </span>
                       </div>
-                      {allStagesForDropdown.length === 0 ? (
-                        <p className="text-[10px] text-slate-400 text-center py-1">No stages configured</p>
-                      ) : (
-                        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${allStagesForDropdown.length}, minmax(0, 1fr))` }}>
-                          {allStagesForDropdown.map((st: any, idx: number) => {
-                            const currentIdx = allStagesForDropdown.findIndex((s: any) => String(s.id) === String(leadDetail.stageId));
-                            const isCompleted = currentIdx >= 0 && idx < currentIdx;
-                            const isCurrent = currentIdx >= 0 && idx === currentIdx;
-                            return (
-                              <div key={st.id} className="space-y-1">
-                                <div
-                                  className={`h-1.5 rounded-full transition-all ${
-                                    isCurrent
-                                      ? 'ring-2 ring-offset-1'
-                                      : isCompleted
-                                      ? 'opacity-80'
-                                      : 'bg-slate-200'
-                                  }`}
-                                  style={{
-                                    backgroundColor: isCurrent || isCompleted ? (st.color || '#23C45E') : undefined,
-                                    ringColor: isCurrent ? (st.color || '#23C45E') : undefined,
-                                  }}
-                                />
-                                <p
-                                  className={`text-[9px] font-bold text-center truncate`}
-                                  style={{ color: isCurrent ? (st.color || '#1AA14D') : '#94A3B8' }}
-                                >
-                                  {st.name || st.label}
-                                </p>
-                              </div>
-                            );
-                          })}
+
+                      {/* Loading State Skeleton */}
+                      {isLoadingStages && (
+                        <div className="flex items-center gap-2 py-3 overflow-hidden">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="flex-1 space-y-1.5 animate-pulse">
+                              <div className="h-2 bg-slate-200 rounded-full" />
+                              <div className="h-2.5 w-12 bg-slate-200 rounded mx-auto" />
+                            </div>
+                          ))}
                         </div>
                       )}
+
+                      {/* Error State with Retry Button */}
+                      {isStagesError && (
+                        <div className="flex items-center justify-between p-3 bg-rose-50 rounded-2xl border border-rose-200 text-xs">
+                          <span className="text-rose-700 font-bold">Failed to load stages from Stage Management.</span>
+                          <button
+                            type="button"
+                            onClick={() => refetchStages()}
+                            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Empty State */}
+                      {!isLoadingStages && !isStagesError && allStagesForDropdown.length === 0 && (
+                        <div className="text-center py-3 text-xs text-slate-400 font-medium">
+                          No active pipeline stages configured in Stage Management.
+                        </div>
+                      )}
+
+                      {/* Dynamic Responsive Pipeline Display */}
+                      {!isLoadingStages && !isStagesError && allStagesForDropdown.length > 0 && (() => {
+                        const currentIdx = allStagesForDropdown.findIndex((s: any) =>
+                          (leadDetail.stageId && String(s.id) === String(leadDetail.stageId)) ||
+                          (!leadDetail.stageId && s.key === leadDetail.status)
+                        );
+
+                        return (
+                          <div className="overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+                            <div className="flex items-start min-w-max gap-2 sm:gap-3 py-1">
+                              {allStagesForDropdown.map((st: any, idx: number) => {
+                                const isCompleted = currentIdx >= 0 && idx < currentIdx;
+                                const isCurrent = currentIdx >= 0 && idx === currentIdx;
+                                const stageColor = st.color || '#23C45E';
+
+                                return (
+                                  <div
+                                    key={st.id}
+                                    className="flex flex-col items-center min-w-[76px] sm:min-w-[84px] max-w-[100px] space-y-1.5"
+                                  >
+                                    {/* Progress Segment Bar */}
+                                    <div className="w-full flex items-center">
+                                      <div
+                                        className={`w-full h-2 rounded-full transition-all ${
+                                          isCurrent
+                                            ? 'ring-2 ring-offset-1'
+                                            : isCompleted
+                                            ? 'opacity-90'
+                                            : 'bg-slate-200'
+                                        }`}
+                                        style={{
+                                          backgroundColor: isCurrent || isCompleted ? stageColor : undefined,
+                                          boxShadow: isCurrent ? `0 0 0 2px ${stageColor}` : undefined,
+                                        }}
+                                      />
+                                    </div>
+
+                                    {/* Step Circle with Number or Check */}
+                                    <div
+                                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-all border ${
+                                        isCurrent
+                                          ? 'text-white'
+                                          : isCompleted
+                                          ? 'border-transparent'
+                                          : 'bg-white border-slate-200 text-slate-400'
+                                      }`}
+                                      style={{
+                                        backgroundColor: isCurrent ? stageColor : isCompleted ? (st.bgColor || '#DCFCE7') : undefined,
+                                        borderColor: isCurrent ? stageColor : isCompleted ? (st.borderColor || stageColor) : undefined,
+                                        color: isCurrent ? '#FFFFFF' : isCompleted ? stageColor : undefined,
+                                      }}
+                                    >
+                                      {isCompleted ? (
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                      ) : (
+                                        <span>{idx + 1}</span>
+                                      )}
+                                    </div>
+
+                                    {/* Stage Name — Readable with 2-line wrap */}
+                                    <span
+                                      className={`text-[10px] text-center leading-tight line-clamp-2 ${
+                                        isCurrent ? 'font-black' : isCompleted ? 'font-bold' : 'font-medium'
+                                      }`}
+                                      style={{
+                                        color: isCurrent ? stageColor : isCompleted ? '#334155' : '#94A3B8',
+                                      }}
+                                      title={st.name || st.label}
+                                    >
+                                      {st.name || st.label}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
-                    {/* Stage Status Switcher Banner */}
+                    {/* Stage Status Switcher Banner — 100% Single Source of Truth */}
                     <div className="p-4 bg-emerald-50/60 rounded-3xl border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
@@ -1341,17 +1437,25 @@ export default function LeadsPage() {
 
                       <div className="flex items-center gap-2">
                         <select
-                          value={leadDetail.stageId
-                            ? (allStagesForDropdown.find((s: any) => s.id === leadDetail.stageId)?.key || leadDetail.status || '')
-                            : (leadDetail.status || '')
-                          }
+                          value={(() => {
+                            if (leadDetail.stageId) {
+                              const found = allStagesForDropdown.find((s: any) => String(s.id) === String(leadDetail.stageId));
+                              if (found) return String(found.id);
+                              // If inactive stage on lead, return its ID
+                              if (leadDetail.stage?.id) return String(leadDetail.stage.id);
+                            }
+                            const foundByKey = allStagesForDropdown.find((s: any) => s.key === leadDetail.status);
+                            return foundByKey ? String(foundByKey.id) : '';
+                          })()}
                           onChange={(e) => {
-                            const selectedKey = e.target.value;
-                            const matchedStage = allStagesForDropdown.find((s: any) => s.key === selectedKey);
-                            updateStatusMutation.mutate({
-                              status: selectedKey,
-                              stageId: matchedStage?.id ? Number(matchedStage.id) : undefined,
-                            });
+                            const selectedId = e.target.value;
+                            const matchedStage = allStagesForDropdown.find((s: any) => String(s.id) === String(selectedId));
+                            if (matchedStage) {
+                              updateStatusMutation.mutate({
+                                stageId: Number(matchedStage.id),
+                                status: matchedStage.key,
+                              });
+                            }
                           }}
                           disabled={updateStatusMutation.isPending || isLoadingStages}
                           className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50 cursor-pointer"
@@ -1360,14 +1464,21 @@ export default function LeadsPage() {
                             <option value="" disabled>Loading stages...</option>
                           )}
                           {isStagesError && (
-                            <option value="" disabled>Failed to load stages — retry</option>
+                            <option value="" disabled>Failed to load stages</option>
                           )}
                           {!isLoadingStages && !isStagesError && allStagesForDropdown.length === 0 && (
                             <option value="" disabled>No stages configured</option>
                           )}
+                          {/* If current lead has an inactive stage not in active list, preserve it */}
+                          {leadDetail.stageId &&
+                            !allStagesForDropdown.some((s: any) => String(s.id) === String(leadDetail.stageId)) && (
+                              <option value={String(leadDetail.stageId)} disabled>
+                                {leadDetail.stage?.name || leadDetail.status || 'Current Stage'} (Inactive)
+                              </option>
+                            )}
                           {allStagesForDropdown.map((st: any) => (
-                            <option key={st.id ?? st.key} value={st.key}>
-                              {st.name || st.label || st.key}
+                            <option key={st.id} value={String(st.id)}>
+                              {st.name || st.label}
                             </option>
                           ))}
                         </select>
@@ -1574,7 +1685,12 @@ export default function LeadsPage() {
                                           {fromConf ? (
                                             <>
                                               <span
-                                                className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${fromConf.bg} ${fromConf.text} ${fromConf.border}`}
+                                                className="inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border"
+                                                style={{
+                                                  backgroundColor: fromConf.bgColor,
+                                                  borderColor: fromConf.borderColor,
+                                                  color: fromConf.color || '#334155',
+                                                }}
                                               >
                                                 {fromConf.label}
                                               </span>
@@ -1584,7 +1700,12 @@ export default function LeadsPage() {
                                             <span className="text-[10px] text-slate-400 font-bold">Initial:</span>
                                           )}
                                           <span
-                                            className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${toConf.bg} ${toConf.text} ${toConf.border}`}
+                                            className="inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border"
+                                            style={{
+                                              backgroundColor: toConf.bgColor,
+                                              borderColor: toConf.borderColor,
+                                              color: toConf.color || '#334155',
+                                            }}
                                           >
                                             {toConf.label}
                                           </span>
