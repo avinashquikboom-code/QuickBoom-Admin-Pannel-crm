@@ -379,6 +379,7 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'Influencer Hub', href: '/influencers', icon: Award, permission: 'customers.manage' },
+        { name: 'Influencer Applications', href: '/influencers/applications', icon: UserCheck, permission: 'customers.manage' },
         { name: 'Influencer Bookings', href: '/influencers/bookings', icon: CheckSquare, permission: 'customers.manage' },
         { name: 'AI Studio & Social', href: '/marketing/ai-studio', icon: Sparkles, permission: 'customers.manage' },
         { name: 'Trending Content', href: '/trending', icon: TrendingUp, permission: 'customers.manage' },

@@ -33,9 +33,27 @@ export interface InfluencerItem {
   rating?: number | null;
   sortOrder: number;
   createdAt: string;
+  email?: string | null;
+  phone?: string | null;
+  rejectionReason?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  suspendedAt?: string | null;
+  socialLinks?: Record<string, string> | null;
   category?: { id: number; name: string; slug: string };
   packages?: InfluencerPackageItem[];
   _count?: { bookings: number; packages: number };
+}
+
+export interface InfluencerApplicationsResponse {
+  items: InfluencerItem[];
+  counts: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    suspended: number;
+  };
 }
 
 export interface InfluencerCategoryItem {
@@ -133,6 +151,35 @@ export class InfluencerAdminService {
 
   static async deleteInfluencer(id: number): Promise<void> {
     await api.delete(`/admin/influencers/${id}`);
+  }
+
+  // Applications & Verification
+  static async getApplications(params?: { search?: string; category?: string; status?: string }): Promise<InfluencerApplicationsResponse> {
+    const res = await api.get('/admin/influencers/applications', { params });
+    return {
+      items: res.data?.data || [],
+      counts: res.data?.counts || { total: 0, pending: 0, approved: 0, rejected: 0, suspended: 0 },
+    };
+  }
+
+  static async getApplicationById(id: number): Promise<InfluencerItem> {
+    const res = await api.get(`/admin/influencers/applications/${id}`);
+    return res.data?.data;
+  }
+
+  static async approveInfluencer(id: number): Promise<InfluencerItem> {
+    const res = await api.patch(`/admin/influencers/${id}/approve`);
+    return res.data?.data;
+  }
+
+  static async rejectInfluencer(id: number, reason: string): Promise<InfluencerItem> {
+    const res = await api.patch(`/admin/influencers/${id}/reject`, { reason });
+    return res.data?.data;
+  }
+
+  static async suspendInfluencer(id: number): Promise<InfluencerItem> {
+    const res = await api.patch(`/admin/influencers/${id}/suspend`);
+    return res.data?.data;
   }
 
   // Categories

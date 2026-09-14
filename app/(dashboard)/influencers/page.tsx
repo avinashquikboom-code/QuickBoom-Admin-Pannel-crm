@@ -321,6 +321,10 @@ export default function InfluencersPage() {
             className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium"
           >
             <option value="ALL">All Statuses</option>
+            <option value="APPROVED">Approved</option>
+            <option value="PENDING">Pending Review</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="SUSPENDED">Suspended</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
@@ -409,21 +413,19 @@ export default function InfluencersPage() {
                       ₹{(item.startingPrice || 5000).toLocaleString()}
                     </td>
                     <td className="py-3 px-4">
-                      <button
-                        onClick={() =>
-                          toggleStatusMutation.mutate({
-                            id: item.id,
-                            status: item.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
-                          })
-                        }
-                        className={`px-2.5 py-1 text-xs font-bold rounded-full transition-all ${
-                          item.status === 'ACTIVE'
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full ${
+                          item.status === 'APPROVED' || item.status === 'ACTIVE'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : item.status === 'PENDING'
+                            ? 'bg-amber-100 text-amber-800'
+                            : item.status === 'REJECTED'
+                            ? 'bg-rose-100 text-rose-800'
+                            : 'bg-slate-100 text-slate-700'
                         }`}
                       >
-                        {item.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-                      </button>
+                        {item.status}
+                      </span>
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
