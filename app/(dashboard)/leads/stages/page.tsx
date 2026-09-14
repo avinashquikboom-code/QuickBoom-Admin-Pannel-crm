@@ -552,7 +552,11 @@ export default function LeadStagesPage() {
       <AdminConfirmDialog
         isOpen={Boolean(deletingStage)}
         onClose={() => setDeletingStage(null)}
-        onConfirm={() => deletingStage && deleteMutation.mutate(deletingStage.id)}
+        onConfirm={() => {
+          if (deletingStage) {
+            deleteMutation.mutate(deletingStage.id);
+          }
+        }}
         title="Delete Lead Stage"
         description={`Are you sure you want to delete "${deletingStage?.name || deletingStage?.label}"? This action cannot be undone.`}
         confirmLabel="Delete Stage"
