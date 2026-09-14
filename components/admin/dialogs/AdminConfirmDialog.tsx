@@ -7,7 +7,7 @@ import { AdminButton } from '../buttons/AdminButton';
 export interface AdminConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void | Promise<void>;
+  onConfirm: () => void | Promise<void> | null | undefined;
   title: string;
   description?: string;
   message?: string;

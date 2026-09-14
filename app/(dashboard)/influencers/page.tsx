@@ -674,7 +674,9 @@ export default function InfluencersPage() {
         isOpen={!!deleteTarget}
         title="Deactivate Creator"
         description={`Are you sure you want to deactivate ${deleteTarget?.name}? They will no longer appear in the customer mobile app.`}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
         onClose={() => setDeleteTarget(null)}
         loading={deleteMutation.isPending}
       />
