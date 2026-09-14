@@ -109,6 +109,7 @@ const LEAD_STATUS_CONFIG: Record<string, StageStatusConfig> = {
   CANCELLED: { label: 'Cancelled', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', color: undefined, stageIndex: -1 },
 };
 
+// LEAD_LIFECYCLE_STAGES is kept for tab-based pipeline filtering (not for dropdown options)
 const LEAD_LIFECYCLE_STAGES = [
   { key: 'NEW', label: 'New' },
   { key: 'FOLLOW_UP', label: 'Follow-up' },
@@ -119,30 +120,8 @@ const LEAD_LIFECYCLE_STAGES = [
   { key: 'CONVERTED', label: 'Won / Converted' },
 ];
 
-const CANONICAL_LEAD_STAGES = [
-  { key: 'NEW', label: 'New' },
-  { key: 'FOLLOW_UP', label: 'Follow-up' },
-  { key: 'CONTACTED', label: 'Contacted' },
-  { key: 'VISIT', label: 'Visit Scheduled' },
-  { key: 'QUALIFIED', label: 'Qualified' },
-  { key: 'PROPOSAL', label: 'Proposal' },
-  { key: 'PROPOSAL_SENT', label: 'Proposal Sent' },
-  { key: 'NEGOTIATION', label: 'Negotiation' },
-  { key: 'FINAL_CALL', label: 'Final Call' },
-  { key: 'PAYMENT', label: 'Payment Pending' },
-  { key: 'WORK_STARTED', label: 'Work Started' },
-  { key: 'WON', label: 'Won' },
-  { key: 'CONVERTED', label: 'Won / Converted' },
-  { key: 'LOST', label: 'Lost' },
-  { key: 'CANCELLED', label: 'Cancelled' },
-];
-
-// All valid backend LeadStatus enum values
-const VALID_LEAD_STATUS_KEYS = new Set([
-  'NEW', 'FOLLOW_UP', 'CONTACTED', 'VISIT', 'QUALIFIED', 'PROPOSAL',
-  'PROPOSAL_SENT', 'FINAL_CALL', 'NEGOTIATION', 'PAYMENT',
-  'WORK_STARTED', 'WON', 'LOST', 'CANCELLED', 'CONVERTED',
-]);
+// NOTE: CANONICAL_LEAD_STAGES removed — Stage Management is the single source of truth.
+// NOTE: VALID_LEAD_STATUS_KEYS removed — status is derived from the selected dynamic stage key.
 
 function toCanonicalLeadStatus(val?: string | null): string {
   if (!val || typeof val !== 'string') return 'NEW';
@@ -392,37 +371,27 @@ export default function LeadsPage() {
 
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
-  // Fetch dynamic stages from backend
-  const { data: stagesData } = useQuery({
+  // Fetch active stages from Stage Management — single source of truth for the dropdown
+  const {
+    data: stagesData,
+    isLoading: isLoadingStages,
+    isError: isStagesError,
+  } = useQuery({
     queryKey: ['lead-stages'],
     queryFn: async () => {
-      try {
-        const res: any = await api.get('/leads/stages?includeInactive=false');
-        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      } catch {
-        return [];
-      }
+      const res: any = await api.get('/leads/stages?includeInactive=false');
+      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
     },
+    // Do NOT use a try/catch fallback — let errors surface so the UI can show an error state
+    retry: 1,
   });
 
-  const dynamicStages: any[] = Array.isArray(stagesData) ? stagesData : [];
-
-  // Build merged dropdown list: canonical system stages (in order) + any custom stages from DB
+  // Stage dropdown source: ONLY what Stage Management returns, sorted by sortOrder.
+  // No merge with hardcoded lists. No canonical fallback.
   const allStagesForDropdown = useMemo(() => {
-    if (dynamicStages.length === 0) {
-      return CANONICAL_LEAD_STAGES.map(s => ({ key: s.key, label: s.label, id: null }));
-    }
-    // System stages: use canonical order; override label from dynamic when key matches
-    const systemMerged = CANONICAL_LEAD_STAGES.map(cs => {
-      const dyn = dynamicStages.find((d: any) => d.key === cs.key);
-      return { key: cs.key, label: dyn ? (dyn.name || dyn.label || cs.label) : cs.label, id: dyn ? dyn.id : null };
-    });
-    // Custom stages: dynamic stages whose key is NOT in canonical list
-    const customExtras = dynamicStages
-      .filter((d: any) => !CANONICAL_LEAD_STAGES.some(cs => cs.key === d.key))
-      .map((d: any) => ({ key: d.key, label: d.name || d.label || d.key, id: d.id }));
-    return [...systemMerged, ...customExtras];
-  }, [dynamicStages]);
+    if (!Array.isArray(stagesData)) return [];
+    return [...stagesData].sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  }, [stagesData]);
 
   // Filtered Leads
   const filteredLeads = useMemo(() => {
@@ -477,9 +446,14 @@ export default function LeadsPage() {
   // Save Lead Mutation (Create or Update)
   const saveLeadMutation = useMutation({
     mutationFn: async () => {
-      const canonicalStatus = toCanonicalLeadStatus(leadForm.status);
-      // Only send status to backend if it is a valid LeadStatus enum value
-      const validStatus = VALID_LEAD_STATUS_KEYS.has(canonicalStatus) ? canonicalStatus : 'NEW';
+      // Derive status from the selected dynamic stage key (if stageId is set).
+      // Stage Management is the single source of truth — do NOT fall back to a hardcoded enum list.
+      const selectedStage = leadForm.stageId
+        ? allStagesForDropdown.find((s: any) => String(s.id) === leadForm.stageId)
+        : null;
+      // The stage key is sent as status to the backend (backend normalizes it via LeadStatus enum).
+      // If no stageId is set, use leadForm.status as-is (e.g., default 'NEW').
+      const resolvedStatus = selectedStage?.key || leadForm.status || 'NEW';
       const payload: any = {
         title: leadForm.title.trim() || leadForm.businessName.trim() || `${leadForm.firstName} ${leadForm.lastName}`.trim() || 'Direct Lead',
         companyName: leadForm.businessName.trim() || leadForm.title.trim() || undefined,
@@ -500,7 +474,7 @@ export default function LeadsPage() {
         rating: leadForm.rating ? parseFloat(leadForm.rating) : undefined,
         reviewCount: leadForm.reviewCount ? parseInt(leadForm.reviewCount, 10) : undefined,
         assignedToId: leadForm.assignedToId ? leadForm.assignedToId : undefined,
-        status: validStatus,
+        status: resolvedStatus,
         stageId: leadForm.stageId ? Number(leadForm.stageId) : undefined,
         priority: leadForm.priority,
         value: leadForm.value ? parseFloat(leadForm.value) : 0,
@@ -606,10 +580,8 @@ export default function LeadsPage() {
     mutationFn: async ({ status, stageId, notes }: { status: string; stageId?: number; notes?: string }) => {
       if (!selectedLeadId) return;
       const canonicalStatus = toCanonicalLeadStatus(status);
-      // Only send status when it is a valid backend enum value (custom stages just send stageId)
-      const isValidStatus = VALID_LEAD_STATUS_KEYS.has(canonicalStatus);
       return api.patch(`/leads/${selectedLeadId}/status`, {
-        status: isValidStatus ? canonicalStatus : undefined,
+        status: canonicalStatus || undefined,
         stageId,
         notes,
       });
@@ -1383,24 +1355,32 @@ export default function LeadsPage() {
                       <div className="flex items-center gap-2">
                         <select
                           value={leadDetail.stageId
-                            ? (allStagesForDropdown.find(s => s.id === leadDetail.stageId)?.key || toCanonicalLeadStatus(leadDetail.status))
-                            : toCanonicalLeadStatus(leadDetail.status)
+                            ? (allStagesForDropdown.find((s: any) => s.id === leadDetail.stageId)?.key || leadDetail.status || '')
+                            : (leadDetail.status || '')
                           }
                           onChange={(e) => {
                             const selectedKey = e.target.value;
-                            const matchedStage = allStagesForDropdown.find(s => s.key === selectedKey);
-                            const isValid = VALID_LEAD_STATUS_KEYS.has(selectedKey);
+                            const matchedStage = allStagesForDropdown.find((s: any) => s.key === selectedKey);
                             updateStatusMutation.mutate({
-                              status: isValid ? selectedKey : (leadDetail.status || 'NEW'),
+                              status: selectedKey,
                               stageId: matchedStage?.id ? Number(matchedStage.id) : undefined,
                             });
                           }}
-                          disabled={updateStatusMutation.isPending}
+                          disabled={updateStatusMutation.isPending || isLoadingStages}
                           className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50 cursor-pointer"
                         >
-                          {allStagesForDropdown.map((st) => (
-                            <option key={st.key} value={st.key}>
-                              {st.label} ({st.key})
+                          {isLoadingStages && (
+                            <option value="" disabled>Loading stages...</option>
+                          )}
+                          {isStagesError && (
+                            <option value="" disabled>Failed to load stages — retry</option>
+                          )}
+                          {!isLoadingStages && !isStagesError && allStagesForDropdown.length === 0 && (
+                            <option value="" disabled>No stages configured</option>
+                          )}
+                          {allStagesForDropdown.map((st: any) => (
+                            <option key={st.id ?? st.key} value={st.key}>
+                              {st.name || st.label || st.key}
                             </option>
                           ))}
                         </select>
@@ -1958,24 +1938,33 @@ export default function LeadsPage() {
               </label>
               <select
                 value={leadForm.stageId
-                  ? (allStagesForDropdown.find(s => s.id !== null && String(s.id) === leadForm.stageId)?.key || leadForm.status)
+                  ? (allStagesForDropdown.find((s: any) => s.id !== null && String(s.id) === leadForm.stageId)?.key || leadForm.status)
                   : leadForm.status
                 }
                 onChange={(e) => {
                   const selectedKey = e.target.value;
-                  const matchedStage = allStagesForDropdown.find(s => s.key === selectedKey);
-                  const isValid = VALID_LEAD_STATUS_KEYS.has(selectedKey);
+                  const matchedStage = allStagesForDropdown.find((s: any) => s.key === selectedKey);
                   setLeadForm({
                     ...leadForm,
-                    status: isValid ? selectedKey : leadForm.status || 'NEW',
+                    status: selectedKey,
                     stageId: matchedStage?.id ? String(matchedStage.id) : '',
                   });
                 }}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 cursor-pointer"
+                disabled={isLoadingStages}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 cursor-pointer disabled:opacity-60"
               >
-                {allStagesForDropdown.map((st) => (
-                  <option key={st.key} value={st.key}>
-                    {st.label} ({st.key})
+                {isLoadingStages && (
+                  <option value="" disabled>Loading stages...</option>
+                )}
+                {isStagesError && (
+                  <option value="" disabled>Failed to load stages — retry</option>
+                )}
+                {!isLoadingStages && !isStagesError && allStagesForDropdown.length === 0 && (
+                  <option value="" disabled>No stages configured in Stage Management</option>
+                )}
+                {allStagesForDropdown.map((st: any) => (
+                  <option key={st.id ?? st.key} value={st.key}>
+                    {st.name || st.label || st.key}
                   </option>
                 ))}
               </select>
