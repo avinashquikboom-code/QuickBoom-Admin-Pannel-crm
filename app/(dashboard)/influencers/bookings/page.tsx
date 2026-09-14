@@ -196,7 +196,7 @@ export default function InfluencerBookingsPage() {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <AdminPageHero
         title="Influencer Bookings"
-        subtitle="Manage end-to-end campaign bookings, approve requests, and verify payment settlements."
+        description="Manage end-to-end campaign bookings, approve requests, and verify payment settlements."
       />
 
       {/* KPI Cards */}
@@ -204,17 +204,20 @@ export default function InfluencerBookingsPage() {
         <AdminStatCard
           title="Total Bookings"
           value={loadingStats ? '...' : (stats?.totalBookings || 0).toString()}
-          icon={<Calendar className="w-5 h-5 text-primary" />}
+          icon={Calendar}
+          iconBg="primary"
         />
         <AdminStatCard
           title="Pending Approval"
           value={loadingStats ? '...' : (stats?.pendingApproval || 0).toString()}
-          icon={<Clock className="w-5 h-5 text-amber-500" />}
+          icon={Clock}
+          iconBg="amber"
         />
         <AdminStatCard
           title="Total Campaign Revenue"
           value={loadingStats ? '...' : `₹${(stats?.totalRevenue || 0).toLocaleString()}`}
-          icon={<DollarSign className="w-5 h-5 text-emerald-500" />}
+          icon={DollarSign}
+          iconBg="primary"
         />
       </div>
 
@@ -533,53 +536,101 @@ export default function InfluencerBookingsPage() {
         )}
       </AdminFormDrawer>
 
-      {/* Reject Modal */}
-      <AdminConfirmDialog
+      {/* Reject Drawer */}
+      <AdminFormDrawer
         isOpen={!!rejectTarget}
         onClose={() => setRejectTarget(null)}
-        onConfirm={() =>
-          rejectTarget &&
-          rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason || 'Declined by administrator' })
-        }
         title="Reject Campaign Booking"
-        message={`Provide a reason for rejecting booking ${rejectTarget?.bookingId}:`}
-        confirmLabel="Confirm Rejection"
-        variant="danger"
+        subtitle={`Booking ID: ${rejectTarget?.bookingId}`}
       >
-        <div className="mt-3">
-          <textarea
-            rows={2}
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Reason for rejection (e.g. creator schedule conflict)..."
-            className="textarea textarea-bordered w-full text-xs"
-          />
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Provide a clear reason for rejecting this campaign request.
+          </p>
+          <div>
+            <label className="block text-xs font-semibold mb-1">Rejection Reason *</label>
+            <textarea
+              rows={3}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Creator schedule conflict, inappropriate content requirements..."
+              className="textarea textarea-bordered w-full text-xs"
+            />
+          </div>
+          <div className="pt-4 flex justify-end gap-2 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setRejectTarget(null)}
+              className="btn btn-ghost btn-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={rejectMutation.isPending}
+              onClick={() => {
+                if (rejectTarget) {
+                  rejectMutation.mutate({
+                    id: rejectTarget.id,
+                    reason: rejectReason || 'Declined by administrator',
+                  });
+                }
+              }}
+              className="btn btn-error btn-sm"
+            >
+              {rejectMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
+            </button>
+          </div>
         </div>
-      </AdminConfirmDialog>
+      </AdminFormDrawer>
 
-      {/* Cancel Modal */}
-      <AdminConfirmDialog
+      {/* Cancel Drawer */}
+      <AdminFormDrawer
         isOpen={!!cancelTarget}
         onClose={() => setCancelTarget(null)}
-        onConfirm={() =>
-          cancelTarget &&
-          cancelMutation.mutate({ id: cancelTarget.id, reason: cancelReason || 'Cancelled by admin' })
-        }
-        title="Cancel Campaign Booking"
-        message={`Are you sure you want to cancel confirmed booking ${cancelTarget?.bookingId}?`}
-        confirmLabel="Cancel Booking"
-        variant="danger"
+        title="Cancel Confirmed Booking"
+        subtitle={`Booking ID: ${cancelTarget?.bookingId}`}
       >
-        <div className="mt-3">
-          <textarea
-            rows={2}
-            value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
-            placeholder="Reason for cancellation..."
-            className="textarea textarea-bordered w-full text-xs"
-          />
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Are you sure you want to cancel this confirmed booking?
+          </p>
+          <div>
+            <label className="block text-xs font-semibold mb-1">Cancellation Reason *</label>
+            <textarea
+              rows={3}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Reason for cancellation..."
+              className="textarea textarea-bordered w-full text-xs"
+            />
+          </div>
+          <div className="pt-4 flex justify-end gap-2 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setCancelTarget(null)}
+              className="btn btn-ghost btn-sm"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              disabled={cancelMutation.isPending}
+              onClick={() => {
+                if (cancelTarget) {
+                  cancelMutation.mutate({
+                    id: cancelTarget.id,
+                    reason: cancelReason || 'Cancelled by admin',
+                  });
+                }
+              }}
+              className="btn btn-error btn-sm"
+            >
+              {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Booking'}
+            </button>
+          </div>
         </div>
-      </AdminConfirmDialog>
+      </AdminFormDrawer>
     </div>
   );
 }

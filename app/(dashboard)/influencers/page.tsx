@@ -158,7 +158,7 @@ export default function InfluencersPage() {
     setFormFollowers(item.followers || 0);
     setFormFollowersCount(item.followersCount || `${item.followers || 0}`);
     setFormEngagementRate(item.engagementRate || 0);
-    setFormStartingPrice(item.startingPrice || item.pricing || 5000);
+    setFormStartingPrice(item.startingPrice || 5000);
     setFormBio(item.bio || '');
     setFormLanguages((item.languages || ['English', 'Hindi']).join(', '));
     setFormInstagramHandle(item.instagramHandle || '');
@@ -220,7 +220,6 @@ export default function InfluencersPage() {
       followersCount: formFollowersCount.trim() || `${formFollowers}`,
       engagementRate: Number(formEngagementRate),
       startingPrice: Number(formStartingPrice),
-      pricing: Number(formStartingPrice),
       bio: formBio.trim() || undefined,
       languages: langs,
       instagramHandle: formInstagramHandle.trim() || undefined,
@@ -238,7 +237,7 @@ export default function InfluencersPage() {
       {/* Hero Header */}
       <AdminPageHero
         title="Influencer Hub Management"
-        subtitle="Manage verified creators, tier pricing packages, booking availabilities and collaborations."
+        description="Manage verified creators, tier pricing packages, booking availabilities and collaborations."
         actions={
           <div className="flex items-center gap-3">
             <Link
@@ -262,28 +261,28 @@ export default function InfluencersPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <AdminStatCard
-          label="Total Influencers"
+          title="Total Influencers"
           value={influencers.length}
           icon={Users}
-          color="emerald"
+          iconBg="primary"
         />
         <AdminStatCard
-          label="Active Bookings"
+          title="Active Bookings"
           value={stats?.totalBookings ?? 0}
           icon={Package}
-          color="blue"
+          iconBg="blue"
         />
         <AdminStatCard
-          label="Pending Approvals"
+          title="Pending Approvals"
           value={stats?.pendingApproval ?? 0}
           icon={Award}
-          color="amber"
+          iconBg="amber"
         />
         <AdminStatCard
-          label="Campaign Revenue"
+          title="Campaign Revenue"
           value={`₹${(stats?.totalRevenue ?? 0).toLocaleString()}`}
           icon={Sparkles}
-          color="purple"
+          iconBg="primary"
         />
       </div>
 
@@ -407,7 +406,7 @@ export default function InfluencersPage() {
                       {item.engagementRate}%
                     </td>
                     <td className="py-3 px-4 font-black text-slate-800">
-                      ₹{(item.startingPrice || item.pricing || 5000).toLocaleString()}
+                      ₹{(item.startingPrice || 5000).toLocaleString()}
                     </td>
                     <td className="py-3 px-4">
                       <button
@@ -674,10 +673,10 @@ export default function InfluencersPage() {
       <AdminConfirmDialog
         isOpen={!!deleteTarget}
         title="Deactivate Creator"
-        message={`Are you sure you want to deactivate ${deleteTarget?.name}? They will no longer appear in the customer mobile app.`}
+        description={`Are you sure you want to deactivate ${deleteTarget?.name}? They will no longer appear in the customer mobile app.`}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-        onCancel={() => setDeleteTarget(null)}
-        isLoading={deleteMutation.isPending}
+        onClose={() => setDeleteTarget(null)}
+        loading={deleteMutation.isPending}
       />
     </div>
   );

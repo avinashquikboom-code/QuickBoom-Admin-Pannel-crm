@@ -115,7 +115,7 @@ export default function AiStudioAdminPage() {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <AdminPageHero
         title="AI Content Creation & Social Publishing"
-        subtitle="Manage QB Marketplace AI studio services, credit wallet pricing, generation logs, and automated social publishing."
+        description="Manage QB Marketplace AI studio services, credit wallet pricing, generation logs, and automated social publishing."
       />
 
       {/* Quick Stats */}
@@ -123,22 +123,26 @@ export default function AiStudioAdminPage() {
         <AdminStatCard
           title="Active AI Services"
           value={loadingServices ? '...' : services.filter((s) => s.isActive).length.toString()}
-          icon={<Sparkles className="w-5 h-5 text-primary" />}
+          icon={Sparkles}
+          iconBg="primary"
         />
         <AdminStatCard
           title="Avg Credit Price"
           value="₹10 / credit"
-          icon={<CreditCard className="w-5 h-5 text-emerald-500" />}
+          icon={CreditCard}
+          iconBg="primary"
         />
         <AdminStatCard
           title="Social Channels"
           value="5 Platforms"
-          icon={<Share2 className="w-5 h-5 text-sky-500" />}
+          icon={Share2}
+          iconBg="blue"
         />
         <AdminStatCard
           title="Publishing Engine"
           value="Auto-Cron Active"
-          icon={<Clock className="w-5 h-5 text-amber-500" />}
+          icon={Clock}
+          iconBg="amber"
         />
       </div>
 

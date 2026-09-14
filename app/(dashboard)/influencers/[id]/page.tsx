@@ -735,9 +735,11 @@ export default function InfluencerDetailPage() {
       <AdminConfirmDialog
         isOpen={!!pkgDeleteTarget}
         onClose={() => setPkgDeleteTarget(null)}
-        onConfirm={() => pkgDeleteTarget && deletePkgMutation.mutate(pkgDeleteTarget.id)}
+        onConfirm={() => {
+          if (pkgDeleteTarget) deletePkgMutation.mutate(pkgDeleteTarget.id);
+        }}
         title="Delete Package"
-        message={`Are you sure you want to delete the package "${pkgDeleteTarget?.name}"?`}
+        description={`Are you sure you want to delete the package "${pkgDeleteTarget?.name}"?`}
         confirmLabel="Delete"
         variant="danger"
       />
@@ -746,9 +748,11 @@ export default function InfluencerDetailPage() {
       <AdminConfirmDialog
         isOpen={!!availDeleteTarget}
         onClose={() => setAvailDeleteTarget(null)}
-        onConfirm={() => availDeleteTarget && deleteAvailMutation.mutate(availDeleteTarget.id)}
+        onConfirm={() => {
+          if (availDeleteTarget) deleteAvailMutation.mutate(availDeleteTarget.id);
+        }}
         title="Remove Availability Rule"
-        message={`Are you sure you want to remove this date rule?`}
+        description="Are you sure you want to remove this date rule?"
         confirmLabel="Remove"
         variant="danger"
       />
