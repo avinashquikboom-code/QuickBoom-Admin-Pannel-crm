@@ -7,9 +7,10 @@ import { AdminButton } from '../buttons/AdminButton';
 export interface AdminConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   title: string;
-  description: string;
+  description?: string;
+  message?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'danger' | 'primary' | 'warning';
@@ -22,12 +23,15 @@ export function AdminConfirmDialog({
   onConfirm,
   title,
   description,
+  message,
   confirmLabel = 'Confirm Action',
   cancelLabel = 'Cancel',
   variant = 'danger',
   loading = false,
 }: AdminConfirmDialogProps) {
   if (!isOpen) return null;
+
+  const displayMessage = message || description || '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -50,7 +54,7 @@ export function AdminConfirmDialog({
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900">{title}</h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">{description}</p>
+              {displayMessage && <p className="text-xs text-slate-500 font-medium mt-0.5">{displayMessage}</p>}
             </div>
           </div>
           <button
