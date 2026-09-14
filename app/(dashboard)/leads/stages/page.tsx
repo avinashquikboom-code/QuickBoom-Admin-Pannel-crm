@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Plus,
   Edit2,
@@ -8,9 +8,8 @@ import {
   Layers,
   AlertCircle,
   RefreshCw,
-  Check,
-  CheckCircle2,
-  XCircle,
+  GripVertical,
+  ArrowUpDown,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -18,8 +17,6 @@ import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
 import {
   AdminPageHeader,
-  AdminDataTable,
-  ColumnDef,
   AdminButton,
   AdminFormDrawer,
   AdminConfirmDialog,
@@ -71,7 +68,14 @@ export default function LeadStagesPage() {
     isActive: true,
   });
 
-  // 1. Fetch Stages Query (No static mock data fallback!)
+  // Drag-and-drop state
+  const [localStages, setLocalStages] = useState<LeadStageItem[] | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
+  // ── Fetch Stages ────────────────────────────────────────────────────
   const {
     data: stagesData,
     isLoading,
@@ -86,55 +90,48 @@ export default function LeadStagesPage() {
       const items = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       return items as LeadStageItem[];
     },
+    staleTime: 0,
   });
 
+  // Sorted list — prefer local optimistic state during drag
   const stages: LeadStageItem[] = React.useMemo(() => {
-    if (!stagesData) return [];
-    return [...stagesData].sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [stagesData]);
+    const source = localStages ?? stagesData ?? [];
+    return [...source].sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [localStages, stagesData]);
 
-  // 2. Create Stage Mutation
+  // ── Create Stage ─────────────────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: async (payload: typeof formData) => {
-      const res = await api.post('/leads/stages', payload);
-      return res;
-    },
+    mutationFn: async (payload: typeof formData) => api.post('/leads/stages', payload),
     onSuccess: () => {
-      toast.success('Lead stage created successfully!');
+      toast.success('Lead stage created!');
+      setLocalStages(null);
       queryClient.invalidateQueries({ queryKey: ['admin-lead-stages'] });
       queryClient.invalidateQueries({ queryKey: ['lead-stages'] });
       closeDrawer();
     },
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
-    },
+    onError: (err: any) => toast.error(getErrorMessage(err)),
   });
 
-  // 3. Update Stage Mutation
+  // ── Update Stage ─────────────────────────────────────────────────────
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<typeof formData> }) => {
-      const res = await api.patch(`/leads/stages/${id}`, data);
-      return res;
-    },
+    mutationFn: async ({ id, data }: { id: number; data: Partial<typeof formData> }) =>
+      api.patch(`/leads/stages/${id}`, data),
     onSuccess: () => {
-      toast.success('Lead stage updated successfully!');
+      toast.success('Lead stage updated!');
+      setLocalStages(null);
       queryClient.invalidateQueries({ queryKey: ['admin-lead-stages'] });
       queryClient.invalidateQueries({ queryKey: ['lead-stages'] });
       closeDrawer();
     },
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
-    },
+    onError: (err: any) => toast.error(getErrorMessage(err)),
   });
 
-  // 4. Delete Stage Mutation
+  // ── Delete Stage ─────────────────────────────────────────────────────
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await api.delete(`/leads/stages/${id}`);
-      return res;
-    },
+    mutationFn: async (id: number) => api.delete(`/leads/stages/${id}`),
     onSuccess: () => {
-      toast.success('Lead stage deleted successfully!');
+      toast.success('Lead stage deleted!');
+      setLocalStages(null);
       queryClient.invalidateQueries({ queryKey: ['admin-lead-stages'] });
       queryClient.invalidateQueries({ queryKey: ['lead-stages'] });
       setDeletingStage(null);
@@ -145,22 +142,72 @@ export default function LeadStagesPage() {
     },
   });
 
-  // Open Drawer for Create
+  // ── Reorder Stages (Bulk PATCH) ───────────────────────────────────────
+  const reorderMutation = useMutation({
+    mutationFn: async (reordered: LeadStageItem[]) => {
+      const payload = reordered.map((s, idx) => ({ id: s.id, sortOrder: idx + 1 }));
+      return api.patch('/leads/stages/reorder', { stages: payload });
+    },
+    onSuccess: () => {
+      toast.success('Stage order saved!', { id: 'stage-reorder' });
+      queryClient.invalidateQueries({ queryKey: ['admin-lead-stages'] });
+      queryClient.invalidateQueries({ queryKey: ['lead-stages'] });
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err) || 'Failed to save order. Reverting.');
+      setLocalStages(null);
+      queryClient.invalidateQueries({ queryKey: ['admin-lead-stages'] });
+    },
+  });
+
+  // ── Drag-and-Drop ─────────────────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    dragItem.current = index;
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    (e.currentTarget as HTMLElement).style.opacity = '0.4';
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.currentTarget as HTMLElement).style.opacity = '1';
+    setIsDragging(false);
+    setDragOverId(null);
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number, stageId: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    dragOverItem.current = index;
+    setDragOverId(stageId);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (dragItem.current === null || dragItem.current === dropIndex) {
+      setIsDragging(false);
+      setDragOverId(null);
+      return;
+    }
+    const reordered = [...stages];
+    const [dragged] = reordered.splice(dragItem.current, 1);
+    reordered.splice(dropIndex, 0, dragged);
+    const withNewOrder = reordered.map((s, idx) => ({ ...s, sortOrder: idx + 1 }));
+    setLocalStages(withNewOrder);
+    setIsDragging(false);
+    setDragOverId(null);
+    reorderMutation.mutate(reordered);
+  };
+
+  // ── Form Helpers ───────────────────────────────────────────────────────
   const handleOpenCreate = () => {
     setEditingStage(null);
     const nextOrder = stages.length > 0 ? Math.max(...stages.map((s) => s.sortOrder)) + 1 : 1;
-    setFormData({
-      name: '',
-      color: '#0284C7',
-      bgColor: '#E0F2FE',
-      borderColor: '#BAE6FD',
-      sortOrder: nextOrder,
-      isActive: true,
-    });
+    setFormData({ name: '', color: '#0284C7', bgColor: '#E0F2FE', borderColor: '#BAE6FD', sortOrder: nextOrder, isActive: true });
     setDrawerOpen(true);
   };
 
-  // Open Drawer for Edit
   const handleOpenEdit = (stage: LeadStageItem) => {
     setEditingStage(stage);
     setFormData({
@@ -174,222 +221,51 @@ export default function LeadStagesPage() {
     setDrawerOpen(true);
   };
 
-  const closeDrawer = () => {
-    setDrawerOpen(false);
-    setEditingStage(null);
-  };
+  const closeDrawer = () => { setDrawerOpen(false); setEditingStage(null); };
 
-  // Save Form Handler
   const handleSaveStage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!formData.name.trim()) {
-      toast.error('Please enter a stage name.');
-      return;
-    }
-
+    if (!formData.name.trim()) { toast.error('Please enter a stage name.'); return; }
     if (editingStage) {
-      updateMutation.mutate({
-        id: editingStage.id,
-        data: formData,
-      });
+      updateMutation.mutate({ id: editingStage.id, data: formData });
     } else {
       createMutation.mutate(formData);
     }
   };
 
-  // Toggle Active/Inactive directly from table
   const handleToggleActive = (stage: LeadStageItem) => {
-    const nextState = !stage.isActive;
-    updateMutation.mutate({
-      id: stage.id,
-      data: { isActive: nextState },
-    });
+    updateMutation.mutate({ id: stage.id, data: { isActive: !stage.isActive } });
   };
 
-  // Handle Delete Click with Safety Guard
   const handleDeleteClick = (stage: LeadStageItem) => {
-    if (stage.leadsCount > 0) {
-      toast.error(
-        `Cannot delete stage "${stage.name}" because it is assigned to ${stage.leadsCount} lead(s). Please reassign existing leads or deactivate the stage instead.`
-      );
+    if ((stage.leadsCount ?? 0) > 0) {
+      toast.error(`Cannot delete "${stage.name}" — it has ${stage.leadsCount} lead(s). Deactivate it instead.`);
       return;
     }
     setDeletingStage(stage);
   };
 
-  // Preset color selector helper
-  const handleSelectPresetColor = (preset: typeof PRESET_COLORS[0]) => {
-    setFormData((prev) => ({
-      ...prev,
-      color: preset.hex,
-      bgColor: preset.bg,
-      borderColor: preset.border,
-    }));
+  const handleSelectPresetColor = (preset: (typeof PRESET_COLORS)[0]) => {
+    setFormData((prev) => ({ ...prev, color: preset.hex, bgColor: preset.bg, borderColor: preset.border }));
   };
-
-  // Table Columns Definition matching reference design
-  const columns: ColumnDef<LeadStageItem>[] = [
-    {
-      key: 'index',
-      header: '#',
-      headerClassName: 'w-14 text-center',
-      className: 'w-14 text-center font-bold text-slate-500',
-      render: (_item, index) => index + 1,
-    },
-    {
-      key: 'name',
-      header: 'Stage Name',
-      render: (stage) => {
-        const bg = stage.bgColor || '#F1F5F9';
-        const color = stage.color || '#334155';
-        const border = stage.borderColor || '#E2E8F0';
-
-        return (
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider shadow-2xs"
-              style={{
-                backgroundColor: bg,
-                color: color,
-                borderColor: border,
-              }}
-            >
-              {stage.name || stage.label || stage.key}
-            </span>
-            {stage.isSystem && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold uppercase">
-                System
-              </span>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (stage) => {
-        const active = stage.isActive;
-        return (
-          <button
-            type="button"
-            onClick={() => handleToggleActive(stage)}
-            title={active ? 'Click to deactivate stage' : 'Click to activate stage'}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
-              active
-                ? 'bg-emerald-50 text-[#1AA14D] border-emerald-200/80 hover:bg-emerald-100/60'
-                : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200/60'
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                active ? 'bg-[#23C45E] shadow-xs' : 'bg-slate-400'
-              }`}
-            />
-            {active ? 'Active' : 'Inactive'}
-          </button>
-        );
-      },
-    },
-    {
-      key: 'color',
-      header: 'Color',
-      render: (stage) => {
-        const hex = stage.color || '#0284C7';
-        return (
-          <div className="flex items-center gap-2 font-mono text-xs font-semibold text-slate-700">
-            <span
-              className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0"
-              style={{ backgroundColor: hex }}
-            />
-            <span>{hex}</span>
-          </div>
-        );
-      },
-    },
-    {
-      key: 'sortOrder',
-      header: 'Sort Order',
-      headerClassName: 'text-center',
-      className: 'text-center',
-      render: (stage) => (
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs">
-          {stage.sortOrder}
-        </span>
-      ),
-    },
-    {
-      key: 'leadsCount',
-      header: 'Leads Count',
-      headerClassName: 'text-center',
-      className: 'text-center',
-      render: (stage) => {
-        const count = stage.leadsCount ?? 0;
-        return (
-          <span
-            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-              count > 0
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-slate-100 text-slate-500'
-            }`}
-          >
-            {count} {count === 1 ? 'lead' : 'leads'}
-          </span>
-        );
-      },
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      headerClassName: 'text-right',
-      className: 'text-right',
-      render: (stage) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            type="button"
-            onClick={() => handleOpenEdit(stage)}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Edit stage"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDeleteClick(stage)}
-            className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
-            title="Delete stage"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      ),
-    },
-  ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
       <AdminPageHeader
         title="Stage Management"
-        description="Create and manage lead stages. These stages will be used in lead management and visible to authorized users."
+        description="Drag rows to reorder stages. Reordering instantly updates Admin Panel, Pipeline, and Mobile App — no code change required."
         badge={{ text: 'Leads Module', icon: Layers }}
         actions={
           <div className="flex items-center gap-2">
             <AdminButton
-              variant="outline"
-              size="sm"
-              icon={RefreshCw}
-              onClick={() => refetch()}
+              variant="outline" size="sm" icon={RefreshCw}
+              onClick={() => { setLocalStages(null); refetch(); }}
               loading={isFetching}
             >
               Refresh
             </AdminButton>
-            <AdminButton
-              variant="primary"
-              size="sm"
-              icon={Plus}
-              onClick={handleOpenCreate}
-            >
+            <AdminButton variant="primary" size="sm" icon={Plus} onClick={handleOpenCreate}>
               Add Stage
             </AdminButton>
           </div>
@@ -405,35 +281,173 @@ export default function LeadStagesPage() {
             </div>
             <div>
               <h4 className="text-sm font-bold">Failed to load lead stages</h4>
-              <p className="text-xs text-rose-600">
-                {getErrorMessage(error) || 'An unexpected error occurred while loading stages.'}
-              </p>
+              <p className="text-xs text-rose-600">{getErrorMessage(error) || 'An unexpected error occurred.'}</p>
             </div>
           </div>
-          <AdminButton
-            variant="outline"
-            size="sm"
-            icon={RefreshCw}
-            onClick={() => refetch()}
-          >
-            Retry Loading
-          </AdminButton>
+          <AdminButton variant="outline" size="sm" icon={RefreshCw} onClick={() => refetch()}>Retry</AdminButton>
+        </div>
+      )}
+
+      {/* Reorder Hint */}
+      {!isError && stages.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 border border-sky-200 rounded-2xl text-xs font-semibold text-sky-700">
+          <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            Drag the <GripVertical className="inline w-3.5 h-3.5 text-sky-500" /> handle to reorder.
+            Order syncs to backend instantly — Flutter and Admin Panel update automatically.
+          </span>
         </div>
       )}
 
       {/* Stages Table */}
       {!isError && (
-        <AdminDataTable
-          columns={columns}
-          data={stages}
-          loading={isLoading}
-          emptyTitle="No lead stages found."
-          emptyDescription="Configure stages above to guide sales pipelines and mobile lead progress tracking."
-          keyExtractor={(item) => String(item.id)}
-        />
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+          {isLoading ? (
+            <div className="py-20 text-center text-slate-400 font-bold animate-pulse text-sm">Loading stages...</div>
+          ) : stages.length === 0 ? (
+            <div className="py-20 text-center space-y-2">
+              <Layers className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-500">No lead stages found.</p>
+              <p className="text-xs text-slate-400">Add your first stage to get started.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    <th className="py-4 px-3 w-10"></th>
+                    <th className="py-4 px-3 w-10 text-center">#</th>
+                    <th className="py-4 px-4">Stage Name</th>
+                    <th className="py-4 px-4">Status</th>
+                    <th className="py-4 px-4">Color</th>
+                    <th className="py-4 px-4 text-center">Leads</th>
+                    <th className="py-4 px-5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {stages.map((stage, index) => {
+                    const isDragTarget = dragOverId === stage.id && isDragging;
+                    return (
+                      <tr
+                        key={stage.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={(e) => handleDragOver(e, index, stage.id)}
+                        onDrop={(e) => handleDrop(e, index)}
+                        className={`transition-all group ${
+                          isDragTarget
+                            ? 'bg-sky-50 border-t-2 border-sky-400 shadow-inner'
+                            : 'hover:bg-slate-50/80'
+                        }`}
+                        style={{ cursor: isDragging ? 'grabbing' : 'default' }}
+                      >
+                        {/* Drag Handle */}
+                        <td className="py-4 px-3">
+                          <div className="flex items-center justify-center text-slate-300 hover:text-slate-600 transition-colors cursor-grab active:cursor-grabbing" title="Drag to reorder">
+                            <GripVertical className="w-4 h-4" />
+                          </div>
+                        </td>
+
+                        {/* Position */}
+                        <td className="py-4 px-3 text-center">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-100 text-slate-600 font-black text-[11px]">
+                            {index + 1}
+                          </span>
+                        </td>
+
+                        {/* Stage Name Badge */}
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider shadow-2xs"
+                              style={{
+                                backgroundColor: stage.bgColor || '#F1F5F9',
+                                color: stage.color || '#334155',
+                                borderColor: stage.borderColor || '#E2E8F0',
+                              }}
+                            >
+                              {stage.name || stage.label || stage.key}
+                            </span>
+                            {stage.isSystem && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold uppercase">
+                                System
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Active Toggle */}
+                        <td className="py-4 px-4">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActive(stage)}
+                            title={stage.isActive ? 'Click to deactivate' : 'Click to activate'}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                              stage.isActive
+                                ? 'bg-emerald-50 text-[#1AA14D] border-emerald-200/80 hover:bg-emerald-100/60'
+                                : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200/60'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${stage.isActive ? 'bg-[#23C45E] shadow-xs' : 'bg-slate-400'}`} />
+                            {stage.isActive ? 'Active' : 'Inactive'}
+                          </button>
+                        </td>
+
+                        {/* Color */}
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2 font-mono text-xs font-semibold text-slate-700">
+                            <span
+                              className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0"
+                              style={{ backgroundColor: stage.color || '#0284C7' }}
+                            />
+                            <span>{stage.color || '#0284C7'}</span>
+                          </div>
+                        </td>
+
+                        {/* Leads Count */}
+                        <td className="py-4 px-4 text-center">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                            (stage.leadsCount ?? 0) > 0
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {stage.leadsCount ?? 0} {stage.leadsCount === 1 ? 'lead' : 'leads'}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-4 px-5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(stage)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                              title="Edit stage"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteClick(stage)}
+                              className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="Delete stage"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Add / Edit Stage Drawer */}
+      {/* Add / Edit Drawer */}
       <AdminFormDrawer
         isOpen={drawerOpen}
         onClose={closeDrawer}
@@ -447,25 +461,20 @@ export default function LeadStagesPage() {
       >
         <form onSubmit={handleSaveStage} className="space-y-6">
           {/* Stage Name */}
-          <AdminFormField label="Stage Name *" required hint="Descriptive label displayed across Admin Panel and Customer Mobile.">
+          <AdminFormField label="Stage Name *" required hint="Label shown across Admin Panel, Mobile App, and pipeline views.">
             <AdminInput
               type="text"
               required
-              placeholder="e.g. Interested, Proposal Sent, Follow-up"
+              placeholder="e.g. Call Back, Details Sent, Negotiation"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
           </AdminFormField>
 
-          {/* Color Palette & Custom Hex */}
+          {/* Color Palette */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 block">
-              Stage Theme Color *
-            </label>
-            <p className="text-[11px] text-slate-500">
-              Select a coordinated preset color or enter a custom hex value.
-            </p>
-
+            <label className="text-xs font-bold text-slate-700 block">Stage Theme Color *</label>
+            <p className="text-[11px] text-slate-500">Select a preset or enter a custom hex value.</p>
             <div className="grid grid-cols-3 gap-2 pt-1">
               {PRESET_COLORS.map((preset) => {
                 const isSelected = formData.color.toLowerCase() === preset.hex.toLowerCase();
@@ -480,28 +489,18 @@ export default function LeadStagesPage() {
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
-                    <span
-                      className="w-3.5 h-3.5 rounded-full shrink-0 border border-slate-300"
-                      style={{ backgroundColor: preset.hex }}
-                    />
+                    <span className="w-3.5 h-3.5 rounded-full shrink-0 border border-slate-300" style={{ backgroundColor: preset.hex }} />
                     <span className="truncate text-slate-700 text-[11px]">{preset.name}</span>
                   </button>
                 );
               })}
             </div>
-
-            {/* Custom Hex Picker Row */}
             <div className="flex items-center gap-3 pt-2">
               <input
                 type="color"
                 value={formData.color}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    color: e.target.value,
-                    bgColor: `${e.target.value}1A`,
-                    borderColor: `${e.target.value}4D`,
-                  })
+                  setFormData({ ...formData, color: e.target.value, bgColor: `${e.target.value}1A`, borderColor: `${e.target.value}4D` })
                 }
                 className="w-10 h-10 rounded-xl cursor-pointer border border-slate-300 p-0.5 bg-white"
               />
@@ -511,12 +510,7 @@ export default function LeadStagesPage() {
                   placeholder="#0284C7"
                   value={formData.color}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      color: e.target.value,
-                      bgColor: `${e.target.value}1A`,
-                      borderColor: `${e.target.value}4D`,
-                    })
+                    setFormData({ ...formData, color: e.target.value, bgColor: `${e.target.value}1A`, borderColor: `${e.target.value}4D` })
                   }
                 />
               </div>
@@ -524,52 +518,43 @@ export default function LeadStagesPage() {
           </div>
 
           {/* Sort Order */}
-          <AdminFormField label="Sort Order *" required hint="Determines sequential position in dropdowns and pipeline views.">
+          <AdminFormField label="Sort Order" hint="Position in dropdowns and pipeline. Drag rows in the table for visual reordering.">
             <AdminInput
               type="number"
-              required
               min={0}
-              max={100}
+              max={999}
               value={formData.sortOrder}
               onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
             />
           </AdminFormField>
 
-          {/* Active Status Switch */}
+          {/* Active Status */}
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
             <div>
               <span className="text-xs font-bold text-slate-800 block">Stage Availability</span>
-              <span className="text-[11px] text-slate-500 block">
-                Active stages appear in lead creation and assignment dropdowns.
-              </span>
+              <span className="text-[11px] text-slate-500 block">Active stages appear in lead creation dropdowns.</span>
             </div>
             <button
               type="button"
               onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${
-                formData.isActive
-                  ? 'bg-emerald-50 text-[#1AA14D] border-emerald-200'
-                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                formData.isActive ? 'bg-emerald-50 text-[#1AA14D] border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
               }`}
             >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  formData.isActive ? 'bg-[#23C45E]' : 'bg-slate-400'
-                }`}
-              />
+              <span className={`w-2 h-2 rounded-full ${formData.isActive ? 'bg-[#23C45E]' : 'bg-slate-400'}`} />
               {formData.isActive ? 'Active' : 'Inactive'}
             </button>
           </div>
         </form>
       </AdminFormDrawer>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation */}
       <AdminConfirmDialog
         isOpen={Boolean(deletingStage)}
         onClose={() => setDeletingStage(null)}
         onConfirm={() => deletingStage && deleteMutation.mutate(deletingStage.id)}
         title="Delete Lead Stage"
-        description={`Are you sure you want to delete stage "${deletingStage?.name || deletingStage?.label}"? This action cannot be undone.`}
+        description={`Are you sure you want to delete "${deletingStage?.name || deletingStage?.label}"? This action cannot be undone.`}
         confirmLabel="Delete Stage"
         variant="danger"
         loading={deleteMutation.isPending}

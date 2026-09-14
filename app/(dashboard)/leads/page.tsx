@@ -91,38 +91,13 @@ export interface LeadStage {
   sortOrder?: number;
 }
 
-const LEAD_STATUS_CONFIG: Record<string, StageStatusConfig> = {
-  NEW: { label: 'New', bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200', color: undefined, stageIndex: 0 },
-  FOLLOW_UP: { label: 'Follow-up', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', color: undefined, stageIndex: 1 },
-  CONTACTED: { label: 'Contacted', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', color: undefined, stageIndex: 1 },
-  VISIT: { label: 'Visit', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', color: undefined, stageIndex: 2 },
-  QUALIFIED: { label: 'Qualified', bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', color: undefined, stageIndex: 3 },
-  PROPOSAL: { label: 'Proposal', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', color: undefined, stageIndex: 4 },
-  PROPOSAL_SENT: { label: 'Proposal Sent', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', color: undefined, stageIndex: 4 },
-  FINAL_CALL: { label: 'Final Call', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', color: undefined, stageIndex: 5 },
-  NEGOTIATION: { label: 'Negotiation', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', color: undefined, stageIndex: 5 },
-  PAYMENT: { label: 'Payment', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', color: undefined, stageIndex: 6 },
-  WORK_STARTED: { label: 'Work Started', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', color: undefined, stageIndex: 7 },
-  WON: { label: 'Won', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', color: undefined, stageIndex: 7 },
-  CONVERTED: { label: 'Converted', bg: 'bg-emerald-100', text: 'text-[#1AA14D]', border: 'border-emerald-300', color: undefined, stageIndex: 7 },
-  LOST: { label: 'Lost', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', color: undefined, stageIndex: -1 },
-  CANCELLED: { label: 'Cancelled', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', color: undefined, stageIndex: -1 },
-};
+// LEAD_STATUS_CONFIG REMOVED — stage colors, labels, and order come from Stage Management API.
+// LEAD_LIFECYCLE_STAGES REMOVED — stage tabs come from Stage Management API.
+// Stage Management is the SINGLE SOURCE OF TRUTH.
 
-// LEAD_LIFECYCLE_STAGES is kept for tab-based pipeline filtering (not for dropdown options)
-const LEAD_LIFECYCLE_STAGES = [
-  { key: 'NEW', label: 'New' },
-  { key: 'FOLLOW_UP', label: 'Follow-up' },
-  { key: 'VISIT', label: 'Visit' },
-  { key: 'PROPOSAL', label: 'Proposal' },
-  { key: 'NEGOTIATION', label: 'Negotiation' },
-  { key: 'PAYMENT', label: 'Payment' },
-  { key: 'CONVERTED', label: 'Won / Converted' },
-];
-
-// NOTE: CANONICAL_LEAD_STAGES removed — Stage Management is the single source of truth.
-// NOTE: VALID_LEAD_STATUS_KEYS removed — status is derived from the selected dynamic stage key.
-
+/** Normalizes a raw status string to an uppercase underscore key.
+ *  Used only for legacy API compatibility when sending status changes to the backend.
+ *  NOT used for UI display — UI resolves from Stage Management API. */
 function toCanonicalLeadStatus(val?: string | null): string {
   if (!val || typeof val !== 'string') return 'NEW';
   let str = val.trim();
@@ -134,48 +109,57 @@ function toCanonicalLeadStatus(val?: string | null): string {
   const mapping: Record<string, string> = {
     FOLLOWUP: 'FOLLOW_UP',
     FOLLOW_UP: 'FOLLOW_UP',
-    VISIT_SCHEDULED: 'VISIT',
-    VISITSCHEDULED: 'VISIT',
-    VISIT: 'VISIT',
+    VISIT_SCHEDULED: 'VISIT_SCHEDULED',
+    VISITSCHEDULED: 'VISIT_SCHEDULED',
     FINALCALL: 'FINAL_CALL',
     FINAL_CALL: 'FINAL_CALL',
     PROPOSALSENT: 'PROPOSAL_SENT',
     PROPOSAL_SENT: 'PROPOSAL_SENT',
     PAYMENT_PENDING: 'PAYMENT',
     PAYMENTPENDING: 'PAYMENT',
-    PAYMENT: 'PAYMENT',
     WORKSTARTED: 'WORK_STARTED',
     WORK_STARTED: 'WORK_STARTED',
     WONCONVERTED: 'CONVERTED',
     WON_CONVERTED: 'CONVERTED',
     CONVERT: 'CONVERTED',
   };
-  if (mapping[normalized]) return mapping[normalized];
-  if (LEAD_STATUS_CONFIG[normalized]) return normalized;
-  return normalized;
+  return mapping[normalized] || normalized;
 }
 
-function getLeadStatusConfig(status?: string | null, stage?: LeadStage | null): StageStatusConfig {
-  if (stage && (stage.name || stage.label)) {
+/** Resolves stage display config from the Stage Management API list.
+ *  This replaces the old hardcoded LEAD_STATUS_CONFIG completely.
+ *  Priority: stage relation (stageId match) → status key match in API list → generic fallback. */
+function getStageConfigFromApi(
+  lead: { stageId?: number | string | null; status?: string | null; stage?: any | null },
+  apiStages: any[]
+): { label: string; color?: string; bgColor: string; borderColor: string } {
+  // 1. Try to match by stageId
+  if (lead.stageId && apiStages.length > 0) {
+    const found = apiStages.find((s: any) => String(s.id) === String(lead.stageId));
+    if (found) {
+      return {
+        label: found.name || found.label || 'Stage',
+        color: found.color,
+        bgColor: found.bgColor || '#F1F5F9',
+        borderColor: found.borderColor || '#E2E8F0',
+      };
+    }
+  }
+  // 2. Try to match by nested stage relation
+  if (lead.stage && (lead.stage.name || lead.stage.label)) {
     return {
-      label: stage.name || stage.label || '',
-      bg: stage.bgColor || 'bg-slate-100',
-      text: stage.color ? '' : 'text-slate-700',
-      color: stage.color || undefined,
-      border: stage.borderColor || 'border-slate-200',
-      stageIndex: stage.sortOrder ?? 0,
+      label: lead.stage.name || lead.stage.label || 'Stage',
+      color: lead.stage.color,
+      bgColor: lead.stage.bgColor || '#F1F5F9',
+      borderColor: lead.stage.borderColor || '#E2E8F0',
     };
   }
-  const s = toCanonicalLeadStatus(status);
-  const fallback: StageStatusConfig = {
-    label: status || 'Unknown',
-    bg: 'bg-slate-100',
-    text: 'text-slate-700',
-    border: 'border-slate-200',
-    color: undefined,
-    stageIndex: 0,
+  // 3. Generic fallback — do NOT use hardcoded stage-name color maps
+  return {
+    label: lead.status || 'Unknown',
+    bgColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
   };
-  return LEAD_STATUS_CONFIG[s] || fallback;
 }
 
 interface LeadItem {
@@ -393,19 +377,15 @@ export default function LeadsPage() {
     return [...stagesData].sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   }, [stagesData]);
 
-  // Filtered Leads
+  // Filtered Leads — filter by stageId (Stage Management API) not hardcoded status strings.
+  // activeTab is 'ALL' or a stage ID string from allStagesForDropdown.
   const filteredLeads = useMemo(() => {
     return rawLeads.filter((l) => {
-      const s = (l.status || '').toUpperCase();
-      if (activeTab === 'NEW' && s !== 'NEW') return false;
-      if (activeTab === 'FOLLOW_UP' && s !== 'FOLLOW_UP' && s !== 'CONTACTED') return false;
-      if (activeTab === 'VISIT' && s !== 'VISIT') return false;
-      if (activeTab === 'QUALIFIED' && s !== 'QUALIFIED') return false;
-      if (activeTab === 'PROPOSAL' && s !== 'PROPOSAL' && s !== 'PROPOSAL_SENT') return false;
-      if (activeTab === 'NEGOTIATION' && s !== 'NEGOTIATION' && s !== 'FINAL_CALL') return false;
-      if (activeTab === 'PAYMENT' && s !== 'PAYMENT') return false;
-      if (activeTab === 'CONVERTED' && s !== 'CONVERTED' && s !== 'WON' && s !== 'WORK_STARTED') return false;
-      if (activeTab === 'LOST' && s !== 'LOST' && s !== 'CANCELLED') return false;
+      // Stage filter: match by stageId if a specific tab is selected
+      if (activeTab !== 'ALL') {
+        const leadStageId = l.stageId ? String(l.stageId) : null;
+        if (leadStageId !== activeTab) return false;
+      }
 
       if (sourceFilter !== 'ALL' && l.source !== sourceFilter) return false;
       if (priorityFilter !== 'ALL' && l.priority !== priorityFilter) return false;
@@ -1023,21 +1003,17 @@ export default function LeadsPage() {
                         </div>
                       </td>
 
-                      {/* Stage Status */}
+                      {/* Stage Status Badge — resolved from Stage Management API */}
                       <td className="py-4 px-4">
                         {(() => {
-                          const conf = getLeadStatusConfig(lead.status, lead.stage);
-                          const isCustomBg = conf.bg?.startsWith('#') || conf.bg?.startsWith('rgb');
-                          const isCustomBorder = conf.border?.startsWith('#') || conf.border?.startsWith('rgb');
+                          const conf = getStageConfigFromApi(lead, allStagesForDropdown);
                           return (
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                                isCustomBg ? '' : conf.bg
-                              } ${conf.text || ''} ${isCustomBorder ? '' : conf.border}`}
+                              className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border"
                               style={{
-                                ...(conf.color ? { color: conf.color } : {}),
-                                ...(isCustomBg ? { backgroundColor: conf.bg } : {}),
-                                ...(isCustomBorder ? { borderColor: conf.border } : {}),
+                                backgroundColor: conf.bgColor,
+                                borderColor: conf.borderColor,
+                                color: conf.color || '#334155',
                               }}
                             >
                               {conf.label}
@@ -1287,39 +1263,54 @@ export default function LeadsPage() {
                       </div>
                     </div>
 
-                    {/* Lifecycle Stage Progress Bar (Matching Mobile App) */}
+                    {/* Dynamic Lifecycle Pipeline Progress Bar — from Stage Management API */}
                     <div className="p-4 bg-slate-50/90 rounded-3xl border border-slate-200/80 space-y-2.5">
                       <div className="flex items-center justify-between text-xs font-black text-slate-800">
                         <span>Lifecycle Pipeline Stage</span>
                         <span className="text-[11px] font-bold text-slate-500">
-                          {leadDetail.status === 'LOST' || leadDetail.status === 'CANCELLED'
-                            ? 'Lead Closed / Lost'
-                            : `Stage ${Math.min(7, getLeadStatusConfig(leadDetail.status).stageIndex + 1)} of 7`}
+                          {(() => {
+                            if (!allStagesForDropdown.length) return '';
+                            const idx = allStagesForDropdown.findIndex((s: any) => String(s.id) === String(leadDetail.stageId));
+                            return idx >= 0
+                              ? `Stage ${idx + 1} of ${allStagesForDropdown.length}`
+                              : `— of ${allStagesForDropdown.length}`;
+                          })()}
                         </span>
                       </div>
-                      <div className="grid grid-cols-7 gap-1">
-                        {LEAD_LIFECYCLE_STAGES.map((st, idx) => {
-                          const currentStageIdx = getLeadStatusConfig(leadDetail.status).stageIndex;
-                          const isCompleted = currentStageIdx >= idx && currentStageIdx >= 0;
-                          const isCurrent = currentStageIdx === idx;
-                          return (
-                            <div key={st.key} className="space-y-1">
-                              <div
-                                className={`h-1.5 rounded-full transition-all ${
-                                  isCurrent
-                                    ? 'bg-[#23C45E] ring-2 ring-[#23C45E]/30'
-                                    : isCompleted
-                                    ? 'bg-emerald-300'
-                                    : 'bg-slate-200'
-                                }`}
-                              />
-                              <p className={`text-[9px] font-bold text-center truncate ${isCurrent ? 'text-[#1AA14D]' : 'text-slate-400'}`}>
-                                {st.label}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {allStagesForDropdown.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 text-center py-1">No stages configured</p>
+                      ) : (
+                        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${allStagesForDropdown.length}, minmax(0, 1fr))` }}>
+                          {allStagesForDropdown.map((st: any, idx: number) => {
+                            const currentIdx = allStagesForDropdown.findIndex((s: any) => String(s.id) === String(leadDetail.stageId));
+                            const isCompleted = currentIdx >= 0 && idx < currentIdx;
+                            const isCurrent = currentIdx >= 0 && idx === currentIdx;
+                            return (
+                              <div key={st.id} className="space-y-1">
+                                <div
+                                  className={`h-1.5 rounded-full transition-all ${
+                                    isCurrent
+                                      ? 'ring-2 ring-offset-1'
+                                      : isCompleted
+                                      ? 'opacity-80'
+                                      : 'bg-slate-200'
+                                  }`}
+                                  style={{
+                                    backgroundColor: isCurrent || isCompleted ? (st.color || '#23C45E') : undefined,
+                                    ringColor: isCurrent ? (st.color || '#23C45E') : undefined,
+                                  }}
+                                />
+                                <p
+                                  className={`text-[9px] font-bold text-center truncate`}
+                                  style={{ color: isCurrent ? (st.color || '#1AA14D') : '#94A3B8' }}
+                                >
+                                  {st.name || st.label}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Stage Status Switcher Banner */}
@@ -1329,19 +1320,15 @@ export default function LeadsPage() {
                           Current Stage Status
                         </p>
                         {(() => {
-                          const conf = getLeadStatusConfig(leadDetail.status, leadDetail.stage);
-                          const isCustomBg = conf.bg?.startsWith('#') || conf.bg?.startsWith('rgb');
-                          const isCustomBorder = conf.border?.startsWith('#') || conf.border?.startsWith('rgb');
+                          const conf = getStageConfigFromApi(leadDetail, allStagesForDropdown);
                           return (
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span
-                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${
-                                  isCustomBg ? '' : conf.bg
-                                } ${conf.text || ''} ${isCustomBorder ? '' : conf.border}`}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border"
                                 style={{
-                                  ...(conf.color ? { color: conf.color } : {}),
-                                  ...(isCustomBg ? { backgroundColor: conf.bg } : {}),
-                                  ...(isCustomBorder ? { borderColor: conf.border } : {}),
+                                  backgroundColor: conf.bgColor,
+                                  borderColor: conf.borderColor,
+                                  color: conf.color || '#334155',
                                 }}
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1573,8 +1560,10 @@ export default function LeadsPage() {
                               </h5>
                               <div className="space-y-2">
                                 {leadDetail.statusHistory.map((hist: any) => {
-                                  const fromConf = hist.fromStatus ? getLeadStatusConfig(hist.fromStatus) : null;
-                                  const toConf = getLeadStatusConfig(hist.toStatus);
+                                  const fromConf = hist.fromStatus
+                                    ? getStageConfigFromApi({ stageId: hist.fromStageId, status: hist.fromStatus, stage: null }, allStagesForDropdown)
+                                    : null;
+                                  const toConf = getStageConfigFromApi({ stageId: hist.toStageId, status: hist.toStatus, stage: null }, allStagesForDropdown);
                                   return (
                                     <div
                                       key={hist.id}
