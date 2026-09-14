@@ -23,6 +23,8 @@ import {
   MessageSquare,
   Cloud,
   Smartphone,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -98,6 +100,22 @@ export default function SettingsPage() {
   const [showMsg91Key, setShowMsg91Key] = useState(false);
   const [isSavingMsg91, setIsSavingMsg91] = useState(false);
   const [isTestingMsg91, setIsTestingMsg91] = useState(false);
+
+  // OpenAI Integration State
+  const [openAiApiKey, setOpenAiApiKey] = useState('');
+  const [openAiConnected, setOpenAiConnected] = useState(false);
+  const [openAiSource, setOpenAiSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
+  const [showOpenAiKey, setShowOpenAiKey] = useState(false);
+  const [isSavingOpenAi, setIsSavingOpenAi] = useState(false);
+  const [isTestingOpenAi, setIsTestingOpenAi] = useState(false);
+
+  // Google Gemini Integration State
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [geminiConnected, setGeminiConnected] = useState(false);
+  const [geminiSource, setGeminiSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [isSavingGemini, setIsSavingGemini] = useState(false);
+  const [isTestingGemini, setIsTestingGemini] = useState(false);
 
   // Workforce & Attendance Rules State
   const [workHoursPerDay, setWorkHoursPerDay] = useState(8);
@@ -179,6 +197,16 @@ export default function SettingsPage() {
             setMsg91TemplateId(creds.templateId || creds.template_id || '');
             setMsg91SenderId(creds.senderId || creds.sender_id || 'QUIKBM');
             setMsg91OtpExpiry(cfg.otpExpiry || 300);
+          } else if (provider === 'OPENAI') {
+            setOpenAiConnected(item.isEnabled ?? false);
+            setOpenAiSource(item.source || 'ENV_FALLBACK');
+            const creds = item.credentials || {};
+            setOpenAiApiKey(creds.apiKey || creds.api_key || '');
+          } else if (provider === 'GEMINI') {
+            setGeminiConnected(item.isEnabled ?? false);
+            setGeminiSource(item.source || 'ENV_FALLBACK');
+            const creds = item.credentials || {};
+            setGeminiApiKey(creds.apiKey || creds.api_key || '');
           }
         }
       } catch (err: any) {
@@ -505,6 +533,118 @@ export default function SettingsPage() {
       toast.error(err?.response?.data?.message || err?.message || 'MSG91 connection test failed');
     } finally {
       setIsTestingMsg91(false);
+    }
+  };
+
+  const handleSaveOpenAi = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!openAiApiKey.trim()) {
+      toast.error('Please enter a valid OpenAI API Key');
+      return;
+    }
+    setIsSavingOpenAi(true);
+    try {
+      const res: any = await api.put('/admin/settings/integrations/OPENAI', {
+        isEnabled: openAiConnected,
+        environment: 'LIVE',
+        credentials: {
+          apiKey: openAiApiKey.trim(),
+        },
+      });
+
+      setOpenAiSource('DATABASE');
+      const creds = res?.credentials || res?.data?.credentials;
+      if (creds?.apiKey) {
+        setOpenAiApiKey(creds.apiKey);
+      }
+      setOpenAiConnected(res?.isEnabled ?? true);
+      toast.success('OpenAI API key saved & active immediately!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save OpenAI settings');
+    } finally {
+      setIsSavingOpenAi(false);
+    }
+  };
+
+  const handleTestOpenAi = async () => {
+    if (!openAiApiKey.trim()) {
+      toast.error('Enter an OpenAI API Key to test connection');
+      return;
+    }
+    setIsTestingOpenAi(true);
+    try {
+      const res: any = await api.post('/admin/settings/integrations/OPENAI/test', {
+        credentials: {
+          apiKey: openAiApiKey.trim(),
+        },
+      });
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success(data?.message || 'OpenAI connection verified successfully!');
+        setOpenAiConnected(true);
+      } else {
+        toast.error(data?.message || 'OpenAI connection test failed');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'OpenAI connection test failed');
+    } finally {
+      setIsTestingOpenAi(false);
+    }
+  };
+
+  const handleSaveGemini = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!geminiApiKey.trim()) {
+      toast.error('Please enter a valid Google Gemini API Key');
+      return;
+    }
+    setIsSavingGemini(true);
+    try {
+      const res: any = await api.put('/admin/settings/integrations/GEMINI', {
+        isEnabled: geminiConnected,
+        environment: 'LIVE',
+        credentials: {
+          apiKey: geminiApiKey.trim(),
+        },
+      });
+
+      setGeminiSource('DATABASE');
+      const creds = res?.credentials || res?.data?.credentials;
+      if (creds?.apiKey) {
+        setGeminiApiKey(creds.apiKey);
+      }
+      setGeminiConnected(res?.isEnabled ?? true);
+      toast.success('Google Gemini API key saved & active immediately!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save Google Gemini settings');
+    } finally {
+      setIsSavingGemini(false);
+    }
+  };
+
+  const handleTestGemini = async () => {
+    if (!geminiApiKey.trim()) {
+      toast.error('Enter a Google Gemini API Key to test connection');
+      return;
+    }
+    setIsTestingGemini(true);
+    try {
+      const res: any = await api.post('/admin/settings/integrations/GEMINI/test', {
+        credentials: {
+          apiKey: geminiApiKey.trim(),
+        },
+      });
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success(data?.message || 'Google Gemini connection verified successfully!');
+        setGeminiConnected(true);
+      } else {
+        toast.error(data?.message || 'Google Gemini connection test failed');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Google Gemini connection test failed');
+    } finally {
+      setIsTestingGemini(false);
     }
   };
 
