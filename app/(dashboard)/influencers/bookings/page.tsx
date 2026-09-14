@@ -120,6 +120,31 @@ export default function InfluencerBookingsPage() {
     },
   });
 
+  const verifyPaymentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await InfluencerAdminService.updatePaymentStatus(id, 'PAID');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-influencer-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-influencer-booking-stats'] });
+      toast.success('Payment verified and marked as PAID');
+      if (selectedBooking) {
+        setSelectedBooking((prev) =>
+          prev
+            ? {
+                ...prev,
+                paymentStatus: 'PAID',
+                bookingStatus: prev.bookingStatus === 'PENDING' ? 'CONFIRMED' : prev.bookingStatus,
+              }
+            : null,
+        );
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to verify payment');
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'CONFIRMED':
@@ -501,7 +526,16 @@ export default function InfluencerBookingsPage() {
             </div>
 
             {/* Quick Actions inside drawer */}
-            <div className="pt-2 flex justify-end gap-2">
+            <div className="pt-2 flex flex-wrap justify-end gap-2">
+              {selectedBooking.paymentStatus === 'PENDING' && (
+                <button
+                  onClick={() => verifyPaymentMutation.mutate(selectedBooking.id)}
+                  disabled={verifyPaymentMutation.isPending}
+                  className="btn btn-outline btn-success btn-sm"
+                >
+                  {verifyPaymentMutation.isPending ? 'Verifying...' : 'Verify Payment (Mark Paid)'}
+                </button>
+              )}
               {selectedBooking.bookingStatus === 'PENDING' && (
                 <>
                   <button
