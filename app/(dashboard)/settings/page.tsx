@@ -1492,6 +1492,196 @@ export default function SettingsPage() {
               </div>
             </form>
           </div>
+
+          {/* OPENAI API KEY CARD */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center font-bold">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-black text-slate-900">OpenAI</h2>
+                    {openAiConnected ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
+                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> CONNECTED
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" /> NOT CONFIGURED
+                      </span>
+                    )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
+                      Source: {openAiSource}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Powers QB Marketplace AI image and content generation. Stored encrypted and accessed exclusively by the backend.
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={openAiConnected}
+                  onChange={(e) => setOpenAiConnected(e.target.checked)}
+                  className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
+                />
+                Active
+              </label>
+            </div>
+
+            <form onSubmit={handleSaveOpenAi} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
+              <div>
+                <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5 text-emerald-500" /> OpenAI API Key *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showOpenAiKey ? 'text' : 'password'}
+                    required
+                    value={openAiApiKey}
+                    onChange={(e) => setOpenAiApiKey(e.target.value)}
+                    placeholder="sk-proj-..."
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-emerald-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOpenAiKey(!showOpenAiKey)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                    title={showOpenAiKey ? 'Hide key' : 'Show key'}
+                  >
+                    {showOpenAiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Credentials are encrypted with AES-256-GCM. Stored keys are masked and never exposed in full.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestOpenAi}
+                  disabled={isTestingOpenAi || !openAiApiKey.trim()}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                >
+                  {isTestingOpenAi ? (
+                    <><Loader2 className="w-4 h-4 animate-spin text-emerald-500" /> Testing Connection...</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4 text-slate-600" /> Test Connection</>
+                  )}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingOpenAi}
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingOpenAi ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                  ) : (
+                    <><Save className="w-4 h-4" /> Save OpenAI Key</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* GOOGLE GEMINI API KEY CARD */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200/60 flex items-center justify-center font-bold">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-black text-slate-900">Google Gemini</h2>
+                    {geminiConnected ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
+                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> CONNECTED
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" /> NOT CONFIGURED
+                      </span>
+                    )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
+                      Source: {geminiSource}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Powers QB Marketplace AI text, captions, vision, and video generation. Stored encrypted and accessed exclusively by the backend.
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={geminiConnected}
+                  onChange={(e) => setGeminiConnected(e.target.checked)}
+                  className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
+                />
+                Active
+              </label>
+            </div>
+
+            <form onSubmit={handleSaveGemini} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
+              <div>
+                <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5 text-indigo-500" /> Gemini API Key *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showGeminiKey ? 'text' : 'password'}
+                    required
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-indigo-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                    title={showGeminiKey ? 'Hide key' : 'Show key'}
+                  >
+                    {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Credentials are encrypted with AES-256-GCM. Stored keys are masked and never exposed in full.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestGemini}
+                  disabled={isTestingGemini || !geminiApiKey.trim()}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                >
+                  {isTestingGemini ? (
+                    <><Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> Testing Connection...</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4 text-slate-600" /> Test Connection</>
+                  )}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingGemini}
+                  className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingGemini ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                  ) : (
+                    <><Save className="w-4 h-4" /> Save Gemini Key</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
