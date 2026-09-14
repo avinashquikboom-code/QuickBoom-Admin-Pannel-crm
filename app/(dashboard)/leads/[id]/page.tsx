@@ -34,6 +34,51 @@ import { toast } from 'react-hot-toast';
 import { AdminFormDrawer } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
+function getStageConfigFromApi(
+  lead: { stageId?: number | string | null; status?: string | null; stage?: any | null },
+  apiStages: any[]
+): { label: string; color?: string; bgColor: string; borderColor: string } {
+  // 1. Try to match by stageId
+  if (lead.stageId && apiStages.length > 0) {
+    const found = apiStages.find((s: any) => String(s.id) === String(lead.stageId));
+    if (found) {
+      return {
+        label: found.name || found.label || 'Stage',
+        color: found.color,
+        bgColor: found.bgColor || '#F1F5F9',
+        borderColor: found.borderColor || '#E2E8F0',
+      };
+    }
+  }
+  // 2. Try to match by nested stage relation
+  if (lead.stage && (lead.stage.name || lead.stage.label)) {
+    return {
+      label: lead.stage.name || lead.stage.label || 'Stage',
+      color: lead.stage.color,
+      bgColor: lead.stage.bgColor || '#F1F5F9',
+      borderColor: lead.stage.borderColor || '#E2E8F0',
+    };
+  }
+  // 3. Match by status key in apiStages
+  if (lead.status && apiStages.length > 0) {
+    const foundByKey = apiStages.find((s: any) => s.key === lead.status);
+    if (foundByKey) {
+      return {
+        label: foundByKey.name || foundByKey.label || foundByKey.key,
+        color: foundByKey.color,
+        bgColor: foundByKey.bgColor || '#F1F5F9',
+        borderColor: foundByKey.borderColor || '#E2E8F0',
+      };
+    }
+  }
+  // 4. Generic fallback
+  return {
+    label: lead.status || 'Unknown',
+    bgColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+  };
+}
+
 export default function LeadDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -65,6 +110,40 @@ export default function LeadDetailPage() {
       return res?.data || res;
     },
     enabled: Boolean(id),
+  });
+
+  // Fetch active stages from Stage Management API
+  const {
+    data: stagesData,
+    isLoading: isLoadingStages,
+    isError: isStagesError,
+    refetch: refetchStages,
+  } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: async () => {
+      const res: any = await api.get('/leads/stages?includeInactive=false');
+      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+    },
+    retry: 1,
+  });
+
+  const allStages = React.useMemo(() => {
+    if (!Array.isArray(stagesData)) return [];
+    return [...stagesData].sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  }, [stagesData]);
+
+  // Update Status / Stage Mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ status, stageId }: { status: string; stageId?: number }) => {
+      return api.patch(`/leads/${id}/status`, { status, stageId });
+    },
+    onSuccess: () => {
+      toast.success('Lead status updated!');
+      queryClient.invalidateQueries({ queryKey: ['lead-detail', id] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
   });
 
   // Add Note Mutation
@@ -270,6 +349,212 @@ export default function LeadDetailPage() {
           <p className="text-sm font-black text-slate-900 truncate">
             {lead.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : 'Unassigned'}
           </p>
+        </div>
+      </div>
+
+      {/* Dynamic Lifecycle Pipeline Progress Bar — 100% from Stage Management API */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex items-center justify-between text-xs font-black text-slate-800">
+          <span className="text-sm font-black">Lifecycle Pipeline Stage</span>
+          <span className="text-xs font-bold text-slate-500">
+            {(() => {
+              if (isLoadingStages) return 'Loading stages...';
+              if (isStagesError) return 'Error loading stages';
+              if (!allStages.length) return '—';
+              const currentIdx = allStages.findIndex((s: any) =>
+                (lead.stageId && String(s.id) === String(lead.stageId)) ||
+                (!lead.stageId && s.key === lead.status)
+              );
+              return currentIdx >= 0
+                ? `Stage ${currentIdx + 1} of ${allStages.length}`
+                : `— of ${allStages.length}`;
+            })()}
+          </span>
+        </div>
+
+        {/* Loading State Skeleton */}
+        {isLoadingStages && (
+          <div className="flex items-center gap-2 py-3 overflow-hidden">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex-1 space-y-1.5 animate-pulse">
+                <div className="h-2 bg-slate-200 rounded-full" />
+                <div className="h-2.5 w-12 bg-slate-200 rounded mx-auto" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Error State with Retry */}
+        {isStagesError && (
+          <div className="flex items-center justify-between p-3 bg-rose-50 rounded-2xl border border-rose-200 text-xs">
+            <span className="text-rose-700 font-bold">Failed to load stages from Stage Management.</span>
+            <button
+              type="button"
+              onClick={() => refetchStages()}
+              className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoadingStages && !isStagesError && allStages.length === 0 && (
+          <div className="text-center py-3 text-xs text-slate-400 font-medium">
+            No active pipeline stages configured in Stage Management.
+          </div>
+        )}
+
+        {/* Dynamic Responsive Pipeline Display */}
+        {!isLoadingStages && !isStagesError && allStages.length > 0 && (() => {
+          const currentIdx = allStages.findIndex((s: any) =>
+            (lead.stageId && String(s.id) === String(lead.stageId)) ||
+            (!lead.stageId && s.key === lead.status)
+          );
+
+          return (
+            <div className="overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
+              <div className="flex items-start min-w-max gap-3 py-1">
+                {allStages.map((st: any, idx: number) => {
+                  const isCompleted = currentIdx >= 0 && idx < currentIdx;
+                  const isCurrent = currentIdx >= 0 && idx === currentIdx;
+                  const stageColor = st.color || '#23C45E';
+
+                  return (
+                    <div
+                      key={st.id}
+                      className="flex flex-col items-center min-w-[80px] sm:min-w-[92px] max-w-[110px] space-y-2"
+                    >
+                      {/* Progress Segment Bar */}
+                      <div className="w-full flex items-center">
+                        <div
+                          className={`w-full h-2 rounded-full transition-all ${
+                            isCurrent
+                              ? 'ring-2 ring-offset-1'
+                              : isCompleted
+                              ? 'opacity-90'
+                              : 'bg-slate-200'
+                          }`}
+                          style={{
+                            backgroundColor: isCurrent || isCompleted ? stageColor : undefined,
+                            boxShadow: isCurrent ? `0 0 0 2px ${stageColor}` : undefined,
+                          }}
+                        />
+                      </div>
+
+                      {/* Step Circle with Number or Check */}
+                      <div
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black transition-all border ${
+                          isCurrent
+                            ? 'text-white'
+                            : isCompleted
+                            ? 'border-transparent'
+                            : 'bg-white border-slate-200 text-slate-400'
+                        }`}
+                        style={{
+                          backgroundColor: isCurrent ? stageColor : isCompleted ? (st.bgColor || '#DCFCE7') : undefined,
+                          borderColor: isCurrent ? stageColor : isCompleted ? (st.borderColor || stageColor) : undefined,
+                          color: isCurrent ? '#FFFFFF' : isCompleted ? stageColor : undefined,
+                        }}
+                      >
+                        {isCompleted ? (
+                          <CheckCircle2 className="w-4 h-4" />
+                        ) : (
+                          <span>{idx + 1}</span>
+                        )}
+                      </div>
+
+                      {/* Stage Name — Legible with 2-line wrap */}
+                      <span
+                        className={`text-[11px] text-center leading-tight line-clamp-2 ${
+                          isCurrent ? 'font-black' : isCompleted ? 'font-bold' : 'font-medium'
+                        }`}
+                        style={{
+                          color: isCurrent ? stageColor : isCompleted ? '#334155' : '#94A3B8',
+                        }}
+                        title={st.name || st.label}
+                      >
+                        {st.name || st.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Stage Status Switcher Banner */}
+        <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3 mt-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+              Current Stage Status
+            </p>
+            {(() => {
+              const conf = getStageConfigFromApi(lead, allStages);
+              return (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border"
+                    style={{
+                      backgroundColor: conf.bgColor,
+                      borderColor: conf.borderColor,
+                      color: conf.color || '#334155',
+                    }}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{conf.label}</span>
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={(() => {
+                if (lead.stageId) {
+                  const found = allStages.find((s: any) => String(s.id) === String(lead.stageId));
+                  if (found) return String(found.id);
+                  if (lead.stage?.id) return String(lead.stage.id);
+                }
+                const foundByKey = allStages.find((s: any) => s.key === lead.status);
+                return foundByKey ? String(foundByKey.id) : '';
+              })()}
+              onChange={(e) => {
+                const selectedId = e.target.value;
+                const matchedStage = allStages.find((s: any) => String(s.id) === String(selectedId));
+                if (matchedStage) {
+                  updateStatusMutation.mutate({
+                    stageId: Number(matchedStage.id),
+                    status: matchedStage.key,
+                  });
+                }
+              }}
+              disabled={updateStatusMutation.isPending || isLoadingStages}
+              className="px-3 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-900 shadow-xs focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50 cursor-pointer"
+            >
+              {isLoadingStages && (
+                <option value="" disabled>Loading stages...</option>
+              )}
+              {isStagesError && (
+                <option value="" disabled>Failed to load stages</option>
+              )}
+              {!isLoadingStages && !isStagesError && allStages.length === 0 && (
+                <option value="" disabled>No stages configured</option>
+              )}
+              {lead.stageId && !allStages.some((s: any) => String(s.id) === String(lead.stageId)) && (
+                <option value={String(lead.stageId)} disabled>
+                  {lead.stage?.name || lead.status || 'Current Stage'} (Inactive)
+                </option>
+              )}
+              {allStages.map((st: any) => (
+                <option key={st.id} value={String(st.id)}>
+                  {st.name || st.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
