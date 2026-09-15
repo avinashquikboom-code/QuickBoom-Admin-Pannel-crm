@@ -32,6 +32,8 @@ import {
   AlertTriangle,
   Users,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   FileText,
   UserPlus,
   Check,
@@ -210,7 +212,75 @@ interface LeadItem {
   createdAt: string;
 }
 
+/**
+ * LeadNoteCard Component
+ * Responsive, well-contained note card with robust text wrapping,
+ * unbroken string/URL break support, and collapsible preview for long metadata notes.
+ */
+function LeadNoteCard({ note }: { note: any }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const content = typeof note?.content === 'string' ? note.content : String(note?.content || '');
+  // Consider note long if it exceeds ~180 characters or has more than 3 line breaks
+  const isLong = content.length > 180 || content.split('\n').length > 3;
 
+  return (
+    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1.5 w-full min-w-0 overflow-hidden">
+      {/* Note Header: User / Admin name and Date/Time */}
+      <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold gap-2 min-w-0">
+        <span className="truncate text-slate-500">
+          {note.user ? `${note.user.firstName || ''} ${note.user.lastName || ''}`.trim() || 'Admin' : 'Admin'}
+        </span>
+        <span className="shrink-0 text-slate-400">
+          {note.createdAt && !isNaN(new Date(note.createdAt).getTime())
+            ? new Date(note.createdAt).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : 'Recent'}
+        </span>
+      </div>
+
+      {/* Note Body with robust wrap & controlled height */}
+      <div className="relative min-w-0">
+        <div
+          className={`text-slate-800 font-semibold leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] ${
+            isLong && !isExpanded
+              ? 'max-h-24 overflow-hidden'
+              : isLong && isExpanded
+              ? 'max-h-72 overflow-y-auto pr-1'
+              : ''
+          }`}
+          style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+        >
+          {content}
+        </div>
+        {isLong && !isExpanded && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-slate-50 to-transparent" />
+        )}
+      </div>
+
+      {/* Expand / Collapse toggle for long notes */}
+      {isLong && (
+        <div className="pt-0.5">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#1AA14D] hover:text-[#15803D] hover:underline cursor-pointer transition-colors"
+          >
+            <span>{isExpanded ? 'Show less' : 'Show full note'}</span>
+            {isExpanded ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function LeadsPage() {
   const queryClient = useQueryClient();
