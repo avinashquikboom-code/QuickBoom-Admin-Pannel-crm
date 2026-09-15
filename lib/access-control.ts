@@ -38,6 +38,7 @@ import {
   Share2,
   Sparkles,
   Video,
+  Coins,
 } from 'lucide-react';
 import { User as UserType } from './store';
 
@@ -383,6 +384,7 @@ export const adminNavigation: {
         { name: 'Influencer Applications', href: '/influencers/applications', icon: UserCheck, permission: 'customers.manage' },
         { name: 'Influencer Bookings', href: '/influencers/bookings', icon: CheckSquare, permission: 'customers.manage' },
         { name: 'AI Studio & Social', href: '/marketing/ai-studio', icon: Sparkles, permission: 'customers.manage' },
+        { name: 'AI Credits Management', href: '/marketing/ai-credits', icon: Coins, permission: 'customers.manage' },
         { name: 'Trending Content', href: '/trending', icon: TrendingUp, permission: 'customers.manage' },
         { name: 'Home Banners', href: '/marketing/banners', icon: ImageIcon, permission: 'customers.manage' },
         { name: 'Marketing Videos', href: '/marketing/videos', icon: Video, permission: 'customers.manage' },
