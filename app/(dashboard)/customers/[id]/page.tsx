@@ -76,7 +76,7 @@ export default function CustomerDetailPage() {
   const customerId = params.id as string;
 
   const [activeTab, setActiveTab] = useState<
-    'OVERVIEW' | 'SUBSCRIPTIONS' | 'INVOICES' | 'ACTIVITIES' | 'TASKS' | 'VISITS' | 'DEALS' | 'NOTES' | 'HISTORY' | 'SOCIAL_MEDIA'
+    'OVERVIEW' | 'SUBSCRIPTIONS' | 'INVOICES' | 'ACTIVITIES' | 'TASKS' | 'VISITS' | 'DEALS' | 'NOTES' | 'HISTORY' | 'SOCIAL_MEDIA' | 'AI_CREDITS'
   >('OVERVIEW');
 
   // Confirmation Modal State
@@ -89,6 +89,33 @@ export default function CustomerDetailPage() {
 
   // Customer-Scoped Data Reset Modal State
   const [isResetDataModalOpen, setIsResetDataModalOpen] = useState(false);
+
+  // AI Credits Management State
+  const [addCreditsAmount, setAddCreditsAmount] = useState('');
+  const [addCreditsReason, setAddCreditsReason] = useState('');
+  const [isAddingCredits, setIsAddingCredits] = useState(false);
+
+  const [reduceCreditsAmount, setReduceCreditsAmount] = useState('');
+  const [reduceCreditsReason, setReduceCreditsReason] = useState('');
+  const [isReducingCredits, setIsReducingCredits] = useState(false);
+
+  // Fetch Customer AI Credits Wallet & Ledger
+  const {
+    data: aiCreditsData,
+    isLoading: isAiCreditsLoading,
+    refetch: refetchAiCredits,
+  } = useQuery({
+    queryKey: ['customer-ai-credits', customerId],
+    enabled: !!customerId,
+    queryFn: async () => {
+      try {
+        const res: any = await api.get(`/customers/${customerId}/ai-credits`);
+        return res?.data?.data || res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+  });
 
   // 1. Fetch Customer Profile Details
   const { data: customer, isLoading: isCustomerLoading, refetch: refetchCustomer } = useQuery({
@@ -439,7 +466,91 @@ export default function CustomerDetailPage() {
     refetchSubscriptions();
     refetchInvoices();
     refetchInstallments();
+    refetchAiCredits();
     toast.success('Data refreshed from server');
+  };
+
+  const handleAddCredits = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountNum = Math.floor(Number(addCreditsAmount));
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Credit amount must be greater than 0');
+      return;
+    }
+    if (!addCreditsReason.trim()) {
+      toast.error('Reason / description is required');
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to add ${amountNum} AI credits to ${getCustomerDisplayName(customer)}?`,
+      )
+    ) {
+      return;
+    }
+
+    setIsAddingCredits(true);
+    try {
+      const res: any = await api.post(`/customers/${customerId}/ai-credits/add`, {
+        amount: amountNum,
+        reason: addCreditsReason.trim(),
+      });
+      toast.success(res?.data?.message || res?.message || `Successfully added ${amountNum} credits!`);
+      setAddCreditsAmount('');
+      setAddCreditsReason('');
+      refetchAiCredits();
+      queryClient.invalidateQueries({ queryKey: ['customer-ai-credits', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-ai-transactions'] });
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsAddingCredits(false);
+    }
+  };
+
+  const handleReduceCredits = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const currentBalance = aiCreditsData?.balance ?? aiCreditsData?.wallet?.balance ?? 0;
+    const amountNum = Math.floor(Number(reduceCreditsAmount));
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Credit amount must be greater than 0');
+      return;
+    }
+    if (amountNum > currentBalance) {
+      toast.error(`Cannot reduce ${amountNum} credits. Current balance is only ${currentBalance}.`);
+      return;
+    }
+    if (!reduceCreditsReason.trim()) {
+      toast.error('Reason / description is required');
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to reduce ${amountNum} AI credits from ${getCustomerDisplayName(customer)}? New balance will be ${currentBalance - amountNum}.`,
+      )
+    ) {
+      return;
+    }
+
+    setIsReducingCredits(true);
+    try {
+      const res: any = await api.post(`/customers/${customerId}/ai-credits/reduce`, {
+        amount: amountNum,
+        reason: reduceCreditsReason.trim(),
+      });
+      toast.success(res?.data?.message || res?.message || `Successfully reduced ${amountNum} credits!`);
+      setReduceCreditsAmount('');
+      setReduceCreditsReason('');
+      refetchAiCredits();
+      queryClient.invalidateQueries({ queryKey: ['customer-ai-credits', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-ai-transactions'] });
+    } catch (err: any) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsReducingCredits(false);
+    }
   };
 
   const handleDownloadInvoice = async (inv: any) => {
@@ -630,6 +741,7 @@ export default function CustomerDetailPage() {
         {[
           { id: 'OVERVIEW', label: 'Overview', icon: Building2 },
           { id: 'SUBSCRIPTIONS', label: `Subscriptions (${historySubs.length})`, icon: CreditCard },
+          { id: 'AI_CREDITS', label: `AI Credits (${aiCreditsData?.balance ?? aiCreditsData?.wallet?.balance ?? 0})`, icon: Sparkles },
           { id: 'SOCIAL_MEDIA', label: `Social Media (${socialMediaHandlers.length})`, icon: Share2 },
           { id: 'INVOICES', label: `Billing & Invoices (${invoices.length})`, icon: FileText },
           { id: 'ACTIVITIES', label: `Activities (${activities.length})`, icon: Activity },
@@ -657,6 +769,314 @@ export default function CustomerDetailPage() {
           );
         })}
       </div>
+
+      {/* 3c. AI CREDITS MANAGEMENT TAB */}
+      {activeTab === 'AI_CREDITS' && (
+        <div className="space-y-6">
+          {/* Current Balance & Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Balance</p>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-3xl font-black text-slate-900">
+                    {isAiCreditsLoading ? '...' : (aiCreditsData?.balance ?? aiCreditsData?.wallet?.balance ?? 0)}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-600">Credits</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center font-bold">
+                <Plus className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Earned / Granted</p>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-3xl font-black text-slate-900">
+                    {isAiCreditsLoading ? '...' : (aiCreditsData?.wallet?.totalEarned ?? 0)}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500">Credits</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold">
+                <CreditCard className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Spent / Deducted</p>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-3xl font-black text-slate-900">
+                    {isAiCreditsLoading ? '...' : (aiCreditsData?.wallet?.totalSpent ?? 0)}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500">Credits</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Two Action Panels: Add Credits & Reduce Credits */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ADD CREDITS FORM */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-emerald-100 shadow-xs space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <Plus className="w-5 h-5 font-bold" />
+                </div>
+                <div>
+                  <h4 className="text-base font-black text-slate-900">Add AI Credits</h4>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Grant or top up credits for this customer.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleAddCredits} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Amount of Credits *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    placeholder="e.g. 50"
+                    value={addCreditsAmount}
+                    onChange={(e) => setAddCreditsAmount(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Reason / Description *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Promotional onboarding grant, bonus credits"
+                    value={addCreditsReason}
+                    onChange={(e) => setAddCreditsReason(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={
+                    isAddingCredits ||
+                    !addCreditsAmount ||
+                    Number(addCreditsAmount) <= 0 ||
+                    !addCreditsReason.trim()
+                  }
+                  className="w-full py-3 bg-[#23C45E] hover:bg-[#1AA14D] disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isAddingCredits ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Adding Credits...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Credits</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* REDUCE CREDITS FORM */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-rose-100 shadow-xs space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 font-bold" />
+                </div>
+                <div>
+                  <h4 className="text-base font-black text-slate-900">Reduce AI Credits</h4>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Deduct credits manually (cannot exceed current balance).
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleReduceCredits} className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Amount of Credits to Deduct *
+                    </label>
+                    <span className="text-[11px] font-bold text-slate-400">
+                      Max: {aiCreditsData?.balance ?? aiCreditsData?.wallet?.balance ?? 0}
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max={aiCreditsData?.balance ?? aiCreditsData?.wallet?.balance ?? 0}
+                    step="1"
+                    required
+                    placeholder="e.g. 20"
+                    value={reduceCreditsAmount}
+                    onChange={(e) => setReduceCreditsAmount(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-rose-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Reason / Description *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Adjustment for cancelled campaign, manual correction"
+                    value={reduceCreditsReason}
+                    onChange={(e) => setReduceCreditsReason(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-rose-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={
+                    isReducingCredits ||
+                    !reduceCreditsAmount ||
+                    Number(reduceCreditsAmount) <= 0 ||
+                    Number(reduceCreditsAmount) > (aiCreditsData?.balance ?? aiCreditsData?.wallet?.balance ?? 0) ||
+                    !reduceCreditsReason.trim()
+                  }
+                  className="w-full py-3 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isReducingCredits ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Reducing Credits...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Reduce Credits</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* CREDIT TRANSACTION HISTORY TABLE */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <History className="w-5 h-5 text-indigo-600" />
+                <h4 className="text-base font-black text-slate-900">Credit Transaction History</h4>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+                  {(aiCreditsData?.transactions || []).length} Records
+                </span>
+              </div>
+              <button
+                onClick={() => refetchAiCredits()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all cursor-pointer self-start sm:self-auto"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isAiCreditsLoading ? 'animate-spin' : ''}`} />
+                <span>Refresh Ledger</span>
+              </button>
+            </div>
+
+            {isAiCreditsLoading ? (
+              <div className="py-12 text-center text-slate-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-emerald-500" />
+                <span className="text-xs font-bold">Loading transaction ledger...</span>
+              </div>
+            ) : (aiCreditsData?.transactions || []).length === 0 ? (
+              <div className="py-12 text-center text-slate-400 space-y-2">
+                <History className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="text-sm font-black text-slate-800">No credit transactions yet</p>
+                <p className="text-xs text-slate-500">
+                  Transactions will appear here when credits are added, reduced, or used for AI generations.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[11px] font-black uppercase text-slate-400">
+                      <th className="pb-3 pl-2">#ID</th>
+                      <th className="pb-3">Type</th>
+                      <th className="pb-3">Amount</th>
+                      <th className="pb-3">Before</th>
+                      <th className="pb-3">After</th>
+                      <th className="pb-3">Reason / Details</th>
+                      <th className="pb-3">Admin</th>
+                      <th className="pb-3 pr-2">Date & Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(aiCreditsData?.transactions || []).map((tx: any) => {
+                      const isPositive = tx.amount > 0;
+                      const typeBadgeColors: Record<string, string> = {
+                        CREDIT_GRANT: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        ADMIN_ADJUSTMENT: 'bg-amber-50 text-amber-700 border-amber-200',
+                        GRANT: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        PURCHASE: 'bg-blue-50 text-blue-700 border-blue-200',
+                        USAGE: 'bg-rose-50 text-rose-700 border-rose-200',
+                        REFUND: 'bg-purple-50 text-purple-700 border-purple-200',
+                      };
+                      return (
+                        <tr key={tx.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 pl-2 font-mono font-bold text-slate-400">#{tx.id}</td>
+                          <td className="py-3">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                                typeBadgeColors[tx.type] || 'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}
+                            >
+                              {tx.type}
+                            </span>
+                          </td>
+                          <td className="py-3 font-mono font-black">
+                            <span className={isPositive ? 'text-emerald-600' : 'text-rose-600'}>
+                              {isPositive ? `+${tx.amount}` : tx.amount}
+                            </span>
+                          </td>
+                          <td className="py-3 font-mono text-slate-600">
+                            {tx.balanceBefore !== undefined ? tx.balanceBefore : '-'}
+                          </td>
+                          <td className="py-3 font-mono font-bold text-slate-900">
+                            {tx.balanceAfter}
+                          </td>
+                          <td className="py-3 max-w-xs text-slate-700 truncate" title={tx.reason || tx.notes}>
+                            {tx.reason || tx.notes || '-'}
+                          </td>
+                          <td className="py-3 text-slate-500 font-medium">
+                            {tx.adminId ? (
+                              <span className="px-2 py-0.5 rounded bg-slate-100 font-bold text-[10px] text-slate-600">
+                                Admin #{tx.adminId}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[10px]">System</span>
+                            )}
+                          </td>
+                          <td className="py-3 pr-2 text-slate-400 whitespace-nowrap">
+                            {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 3b. SOCIAL MEDIA HANDLERS TAB */}
       {activeTab === 'SOCIAL_MEDIA' && (
