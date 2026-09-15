@@ -527,7 +527,6 @@ export default function LeadDetailPage() {
                 if (matchedStage) {
                   updateStatusMutation.mutate({
                     stageId: Number(matchedStage.id),
-                    status: matchedStage.key,
                   });
                 }
               }}
