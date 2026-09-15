@@ -510,13 +510,28 @@ export default function LeadsPage() {
   const saveLeadMutation = useMutation({
     mutationFn: async () => {
       // Derive status from the selected dynamic stage key (if stageId is set).
-      // Stage Management is the single source of truth — do NOT fall back to a hardcoded enum list.
+      // Stage Management is the single source of truth — do NOT fall back to a       // Find selected stage
       const selectedStage = leadForm.stageId
         ? allStagesForDropdown.find((s: any) => String(s.id) === leadForm.stageId)
         : null;
-      // The stage key is sent as status to the backend (backend normalizes it via LeadStatus enum).
-      // If no stageId is set, use leadForm.status as-is (e.g., default 'NEW').
-      const resolvedStatus = selectedStage?.key || leadForm.status || 'NEW';
+
+      const CANONICAL_STATUS_LIST = [
+        'NEW', 'CONTACTED', 'CALL_BACK', 'DETAILS_SENT', 'FOLLOW_UP',
+        'VISIT_SCHEDULED', 'VISIT_DONE', 'PROPOSAL_SENT', 'NEGOTIATION',
+        'FINAL_CALL', 'WON', 'LOST', 'CANCELLED', 'VISIT', 'QUALIFIED',
+        'PROPOSAL', 'PAYMENT', 'WORK_STARTED', 'CONVERTED'
+      ];
+
+      // Only supply status if it matches a valid canonical LeadStatus
+      let resolvedStatus: string | undefined = undefined;
+      if (selectedStage && CANONICAL_STATUS_LIST.includes(selectedStage.key)) {
+        resolvedStatus = selectedStage.key;
+      } else if (!selectedStage && leadForm.status && CANONICAL_STATUS_LIST.includes(leadForm.status)) {
+        resolvedStatus = leadForm.status;
+      } else if (!leadForm.id) {
+        resolvedStatus = 'NEW';
+      }
+
       const payload: any = {
         title: leadForm.title.trim() || leadForm.businessName.trim() || `${leadForm.firstName} ${leadForm.lastName}`.trim() || 'Direct Lead',
         companyName: leadForm.businessName.trim() || leadForm.title.trim() || undefined,
@@ -537,7 +552,7 @@ export default function LeadsPage() {
         rating: leadForm.rating ? parseFloat(leadForm.rating) : undefined,
         reviewCount: leadForm.reviewCount ? parseInt(leadForm.reviewCount, 10) : undefined,
         assignedToId: leadForm.assignedToId ? leadForm.assignedToId : undefined,
-        status: resolvedStatus,
+        ...(resolvedStatus ? { status: resolvedStatus } : {}),
         stageId: leadForm.stageId ? Number(leadForm.stageId) : undefined,
         priority: leadForm.priority,
         value: leadForm.value ? parseFloat(leadForm.value) : 0,
@@ -640,12 +655,11 @@ export default function LeadsPage() {
 
   // Status Change Mutation
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ status, stageId, notes }: { status: string; stageId?: number; notes?: string }) => {
+    mutationFn: async ({ stageId, status, notes }: { stageId?: number; status?: string; notes?: string }) => {
       if (!selectedLeadId) return;
-      const canonicalStatus = toCanonicalLeadStatus(status);
       return api.patch(`/leads/${selectedLeadId}/status`, {
-        status: canonicalStatus || undefined,
         stageId,
+        status,
         notes,
       });
     },
@@ -1523,7 +1537,6 @@ export default function LeadsPage() {
                             if (matchedStage) {
                               updateStatusMutation.mutate({
                                 stageId: Number(matchedStage.id),
-                                status: matchedStage.key,
                               });
                             }
                           }}
@@ -2106,17 +2119,14 @@ export default function LeadsPage() {
                 Stage Status
               </label>
               <select
-                value={leadForm.stageId
-                  ? (allStagesForDropdown.find((s: any) => s.id !== null && String(s.id) === leadForm.stageId)?.key || leadForm.status)
-                  : leadForm.status
-                }
+                value={leadForm.stageId ? String(leadForm.stageId) : ''}
                 onChange={(e) => {
-                  const selectedKey = e.target.value;
-                  const matchedStage = allStagesForDropdown.find((s: any) => s.key === selectedKey);
+                  const selectedStageId = e.target.value;
+                  const matchedStage = allStagesForDropdown.find((s: any) => String(s.id) === String(selectedStageId));
                   setLeadForm({
                     ...leadForm,
-                    status: selectedKey,
-                    stageId: matchedStage?.id ? String(matchedStage.id) : '',
+                    stageId: selectedStageId,
+                    status: matchedStage?.key || leadForm.status,
                   });
                 }}
                 disabled={isLoadingStages}
@@ -2132,7 +2142,7 @@ export default function LeadsPage() {
                   <option value="" disabled>No stages configured in Stage Management</option>
                 )}
                 {allStagesForDropdown.map((st: any) => (
-                  <option key={st.id ?? st.key} value={st.key}>
+                  <option key={st.id} value={String(st.id)}>
                     {st.name || st.label || st.key}
                   </option>
                 ))}

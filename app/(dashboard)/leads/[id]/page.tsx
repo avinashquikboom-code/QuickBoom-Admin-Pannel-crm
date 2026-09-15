@@ -134,8 +134,8 @@ export default function LeadDetailPage() {
 
   // Update Status / Stage Mutation
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ status, stageId }: { status: string; stageId?: number }) => {
-      return api.patch(`/leads/${id}/status`, { status, stageId });
+    mutationFn: async ({ stageId, status }: { stageId?: number; status?: string }) => {
+      return api.patch(`/leads/${id}/status`, { stageId, status });
     },
     onSuccess: () => {
       toast.success('Lead status updated!');
