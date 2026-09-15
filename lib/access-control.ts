@@ -37,6 +37,7 @@ import {
   Zap,
   Share2,
   Sparkles,
+  Video,
 } from 'lucide-react';
 import { User as UserType } from './store';
 
@@ -384,6 +385,7 @@ export const adminNavigation: {
         { name: 'AI Studio & Social', href: '/marketing/ai-studio', icon: Sparkles, permission: 'customers.manage' },
         { name: 'Trending Content', href: '/trending', icon: TrendingUp, permission: 'customers.manage' },
         { name: 'Home Banners', href: '/marketing/banners', icon: ImageIcon, permission: 'customers.manage' },
+        { name: 'Marketing Videos', href: '/marketing/videos', icon: Video, permission: 'customers.manage' },
         { name: 'Social Media Handlers', href: '/marketing/social-media', icon: Share2, permission: 'customers.manage' },
       ],
     },
