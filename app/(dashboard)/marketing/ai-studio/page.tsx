@@ -147,49 +147,49 @@ export default function AiStudioAdminPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border overflow-x-auto">
+      <div className="flex border-b border-slate-200 overflow-x-auto">
         <button
           onClick={() => setActiveTab('services')}
-          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
             activeTab === 'services'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'border-[#23C45E] text-[#1AA14D] font-semibold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className={`w-4 h-4 ${activeTab === 'services' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
           AI Services & Credit Pricing
         </button>
         <button
           onClick={() => setActiveTab('generations')}
-          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
             activeTab === 'generations'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'border-[#23C45E] text-[#1AA14D] font-semibold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <History className="w-4 h-4" />
+          <History className={`w-4 h-4 ${activeTab === 'generations' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
           Generation History
         </button>
         <button
           onClick={() => setActiveTab('transactions')}
-          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
             activeTab === 'transactions'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'border-[#23C45E] text-[#1AA14D] font-semibold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <CreditCard className="w-4 h-4" />
+          <CreditCard className={`w-4 h-4 ${activeTab === 'transactions' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
           Credit Wallet Ledger
         </button>
         <button
           onClick={() => setActiveTab('social')}
-          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
             activeTab === 'social'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'border-[#23C45E] text-[#1AA14D] font-semibold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Share2 className="w-4 h-4" />
+          <Share2 className={`w-4 h-4 ${activeTab === 'social' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
           Social Publishing Queue
         </button>
       </div>
