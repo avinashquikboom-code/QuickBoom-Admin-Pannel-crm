@@ -193,4 +193,15 @@ export class MarketingVideoService {
     const response: any = await api.post(`/admin/marketing/videos/${id}/reset-views`);
     return response?.data || response;
   }
+
+  /**
+   * Get a fresh 7-day presigned playback URL for a video.
+   * Use this before opening the video preview modal to ensure the URL is valid.
+   */
+  static async getPlaybackUrl(
+    id: number | string,
+  ): Promise<{ id: number; videoUrl: string | null; thumbnailUrl: string | null }> {
+    const response: any = await api.get(`/admin/marketing/videos/${id}/playback-url`);
+    return response?.data || response;
+  }
 }

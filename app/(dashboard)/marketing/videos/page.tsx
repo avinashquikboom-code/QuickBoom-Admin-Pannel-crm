@@ -56,6 +56,7 @@ export default function MarketingVideosPage() {
   const [deleteTarget, setDeleteTarget] = useState<MarketingVideoItem | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [previewVideo, setPreviewVideo] = useState<MarketingVideoItem | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<number | null>(null); // holds the loading video id
 
   // Form states
   const [formTitle, setFormTitle] = useState('');
@@ -169,6 +170,24 @@ export default function MarketingVideosPage() {
       toast.error(getErrorMessage(err) || 'Failed to reset views');
     },
   });
+
+  // Fetch a fresh presigned playback URL before opening the preview modal
+  const openPreview = async (video: MarketingVideoItem) => {
+    setPreviewLoading(video.id);
+    try {
+      const fresh = await MarketingVideoService.getPlaybackUrl(video.id);
+      setPreviewVideo({
+        ...video,
+        videoUrl: fresh.videoUrl ?? video.videoUrl,
+        thumbnailUrl: fresh.thumbnailUrl ?? video.thumbnailUrl,
+      });
+    } catch {
+      // Fallback to cached list URL if endpoint fails
+      setPreviewVideo(video);
+    } finally {
+      setPreviewLoading(null);
+    }
+  };
 
   // Drawer handlers
   const openCreateDrawer = () => {
@@ -477,7 +496,7 @@ export default function MarketingVideosPage() {
                     {/* Thumbnail & Video Preview Trigger */}
                     <td className="py-3 px-4">
                       <div
-                        onClick={() => setPreviewVideo(video)}
+                        onClick={() => openPreview(video)}
                         className="relative w-28 h-16 rounded-lg overflow-hidden bg-muted border border-border cursor-pointer group shrink-0 flex items-center justify-center"
                       >
                         {video.thumbnailUrl ? (
@@ -491,9 +510,15 @@ export default function MarketingVideosPage() {
                             <Video className="w-6 h-6" />
                           </div>
                         )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                          <Play className="w-5 h-5 fill-white" />
-                        </div>
+                        {previewLoading === video.id ? (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          </div>
+                        ) : (
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                            <Play className="w-5 h-5 fill-white" />
+                          </div>
+                        )}
                         <div className="absolute bottom-1 right-1 px-1 py-0.5 rounded bg-black/70 text-[9px] font-mono text-white flex items-center gap-0.5">
                           <Play className="w-2.5 h-2.5 fill-white" />
                           Video
@@ -628,11 +653,16 @@ export default function MarketingVideosPage() {
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => setPreviewVideo(video)}
+                          onClick={() => openPreview(video)}
                           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                           title="Watch video"
+                          disabled={previewLoading === video.id}
                         >
-                          <Play className="w-4 h-4 fill-current" />
+                          {previewLoading === video.id ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Play className="w-4 h-4 fill-current" />
+                          )}
                         </button>
                         {video.showInIntroduction && (
                           <button
