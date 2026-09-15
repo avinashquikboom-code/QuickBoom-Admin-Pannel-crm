@@ -437,6 +437,40 @@ export default function LeadsPage() {
 
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
+  // 4b. Fetch Active BPO Employees specifically for Lead Details Assign dropdown
+  const {
+    data: bpoEmployeesData,
+    isLoading: isLoadingBpoEmployees,
+    isError: isBpoEmployeesError,
+  } = useQuery({
+    queryKey: ['admin-active-bpo-employees'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees', {
+          params: {
+            department: 'BPO',
+            status: 'ACTIVE',
+            limit: 100,
+          },
+        });
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const bpoEmployees: any[] = useMemo(() => {
+    if (!Array.isArray(bpoEmployeesData)) return [];
+    return bpoEmployeesData.filter((emp) => {
+      if (emp.status && emp.status !== 'ACTIVE') return false;
+      const deptStr = `${emp.departmentName || ''} ${emp.department || ''} ${emp.departmentObj?.name || ''} ${emp.departmentObj?.code || ''}`.toLowerCase();
+      const desigStr = `${emp.designationName || ''} ${emp.designation || ''}`.toLowerCase();
+      const teamStr = `${emp.teamName || ''} ${emp.team?.name || ''}`.toLowerCase();
+      return deptStr.includes('bpo') || desigStr.includes('bpo') || teamStr.includes('bpo');
+    });
+  }, [bpoEmployeesData]);
+
   // Fetch active stages from Stage Management — single source of truth for the dropdown
   const {
     data: stagesData,
@@ -685,7 +719,7 @@ export default function LeadsPage() {
     mutationFn: async (assignedToId: number | string | null) => {
       if (!selectedLeadId) return;
       return api.patch(`/leads/${selectedLeadId}`, {
-        assignedToId: assignedToId ? String(assignedToId) : undefined,
+        assignedToId: assignedToId ? String(assignedToId) : null,
       });
     },
     onSuccess: () => {
@@ -1655,14 +1689,34 @@ export default function LeadsPage() {
                       <select
                         value={String(leadDetail.assignedToId || '')}
                         onChange={(e) => assignEmployeeMutation.mutate(e.target.value || null)}
-                        disabled={assignEmployeeMutation.isPending}
+                        disabled={assignEmployeeMutation.isPending || isLoadingBpoEmployees}
                         className="px-3 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 shadow-2xs"
                       >
                         <option value="">-- Assign Employee --</option>
-                        {employees
-                          .filter((emp) => emp.userId)
+                        {isLoadingBpoEmployees && (
+                          <option value="" disabled>Loading BPO employees...</option>
+                        )}
+                        {isBpoEmployeesError && (
+                          <option value="" disabled>Failed to load BPO employees</option>
+                        )}
+                        {/* If current assigned employee is not in BPO list (legacy assignment), preserve it as an option */}
+                        {leadDetail.assignedToId &&
+                          !bpoEmployees.some(
+                            (emp) => String(emp.userId || emp.id) === String(leadDetail.assignedToId)
+                          ) && (
+                            <option value={String(leadDetail.assignedToId)}>
+                              {leadDetail.assignedTo
+                                ? `${leadDetail.assignedTo.firstName} ${leadDetail.assignedTo.lastName} (Current)`
+                                : `Current Representative (#${leadDetail.assignedToId})`}
+                            </option>
+                          )}
+                        {!isLoadingBpoEmployees && !isBpoEmployeesError && bpoEmployees.length === 0 && (
+                          <option value="" disabled>No BPO employees available</option>
+                        )}
+                        {bpoEmployees
+                          .filter((emp) => emp.userId || emp.id)
                           .map((emp) => (
-                            <option key={emp.id} value={String(emp.userId)}>
+                            <option key={emp.id} value={String(emp.userId || emp.id)}>
                               {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`}
                             </option>
                           ))}
