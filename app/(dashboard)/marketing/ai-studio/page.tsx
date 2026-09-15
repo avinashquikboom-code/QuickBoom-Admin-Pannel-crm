@@ -149,47 +149,51 @@ export default function AiStudioAdminPage() {
       {/* Tabs */}
       <div className="flex border-b border-slate-200 overflow-x-auto">
         <button
+          type="button"
           onClick={() => setActiveTab('services')}
-          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+          className={`px-5 py-3 text-sm flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer border-b-2 -mb-px relative z-10 ${
             activeTab === 'services'
-              ? 'border-[#23C45E] text-[#1AA14D] font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[#23C45E] text-[#1AA14D] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800 font-medium'
           }`}
         >
-          <Sparkles className={`w-4 h-4 ${activeTab === 'services' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
+          <Sparkles className={`w-4 h-4 shrink-0 ${activeTab === 'services' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
           AI Services & Credit Pricing
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('generations')}
-          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+          className={`px-5 py-3 text-sm flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer border-b-2 -mb-px relative z-10 ${
             activeTab === 'generations'
-              ? 'border-[#23C45E] text-[#1AA14D] font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[#23C45E] text-[#1AA14D] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800 font-medium'
           }`}
         >
-          <History className={`w-4 h-4 ${activeTab === 'generations' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
+          <History className={`w-4 h-4 shrink-0 ${activeTab === 'generations' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
           Generation History
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('transactions')}
-          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+          className={`px-5 py-3 text-sm flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer border-b-2 -mb-px relative z-10 ${
             activeTab === 'transactions'
-              ? 'border-[#23C45E] text-[#1AA14D] font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[#23C45E] text-[#1AA14D] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800 font-medium'
           }`}
         >
-          <CreditCard className={`w-4 h-4 ${activeTab === 'transactions' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
+          <CreditCard className={`w-4 h-4 shrink-0 ${activeTab === 'transactions' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
           Credit Wallet Ledger
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('social')}
-          className={`px-5 py-3 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer ${
+          className={`px-5 py-3 text-sm flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer border-b-2 -mb-px relative z-10 ${
             activeTab === 'social'
-              ? 'border-[#23C45E] text-[#1AA14D] font-semibold'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[#23C45E] text-[#1AA14D] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800 font-medium'
           }`}
         >
-          <Share2 className={`w-4 h-4 ${activeTab === 'social' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
+          <Share2 className={`w-4 h-4 shrink-0 ${activeTab === 'social' ? 'text-[#23C45E]' : 'text-slate-400'}`} />
           Social Publishing Queue
         </button>
       </div>
