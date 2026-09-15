@@ -219,7 +219,7 @@ export default function TeamsPage() {
       return res.data;
     },
     onSuccess: (data) => {
-      toast.success(data?.message || 'Team updated successfully');
+      toast.success(data?.message || 'Team deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['teams-list'] });
     },
     onError: (err) => {
@@ -558,14 +558,14 @@ export default function TeamsPage() {
                           onClick={() => {
                             if (
                               confirm(
-                                `Are you sure you want to deactivate team "${team.name}"?`
+                                `Are you sure you want to delete team "${team.name}"? This action cannot be undone.`
                               )
                             ) {
-                              deleteTeamMutation.mutate({ id: team.id, permanent: false });
+                              deleteTeamMutation.mutate({ id: team.id, permanent: true });
                             }
                           }}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Deactivate Team"
+                          title="Delete Team"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
