@@ -21,7 +21,9 @@ import {
   Facebook,
   Youtube,
   Linkedin,
+  Coins,
 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import {
   AiSocialAdminService,
@@ -113,10 +115,19 @@ export default function AiStudioAdminPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <AdminPageHero
-        title="AI Content Creation & Social Publishing"
-        description="Manage QB Marketplace AI studio services, credit wallet pricing, generation logs, and automated social publishing."
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <AdminPageHero
+          title="AI Content Creation & Social Publishing"
+          description="Manage QB Marketplace AI studio services, credit wallet pricing, generation logs, and automated social publishing."
+        />
+        <Link
+          href="/marketing/ai-credits"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-600 hover:to-emerald-600 text-white font-semibold text-sm shadow-md shadow-emerald-500/20 hover:shadow-lg transition-all shrink-0 self-start sm:self-center"
+        >
+          <Coins className="w-4 h-4" />
+          Manage Customer Credits
+        </Link>
+      </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
