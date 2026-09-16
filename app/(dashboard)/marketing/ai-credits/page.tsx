@@ -231,17 +231,41 @@ function AiCreditsManagementContent() {
   // Add Credits Mutation
   const addCreditsMutation = useMutation({
     mutationFn: async (payload: { amount: number; reason: string }) => {
-      if (!selectedCustomerId) throw new Error('No customer selected');
-      const res: any = await api.post(`/customers/${selectedCustomerId}/ai-credits/add`, payload);
+      const targetId = Number(selectedCustomerId);
+      if (!targetId || isNaN(targetId)) throw new Error('No customer selected');
+      const res: any = await api.post(`/customers/${targetId}/ai-credits/add`, {
+        amount: Math.floor(Number(payload.amount)),
+        reason: payload.reason.trim(),
+      });
       return res?.data || res;
     },
-    onSuccess: (data) => {
-      toast.success(data?.message || `Successfully added ${creditsAmount} AI credits!`);
+    onSuccess: async (data, variables) => {
+      const successMsg = data?.message || `Successfully added ${variables.amount} AI credits!`;
+      toast.success(successMsg);
       setIsAddModalOpen(false);
       setCreditsAmount(10);
       setReason('');
-      queryClient.invalidateQueries({ queryKey: ['admin-customer-ai-credits', selectedCustomerId] });
-      queryClient.invalidateQueries({ queryKey: ['admin-customers-credit-list'] });
+
+      // Instantly synchronize React Query cache with returned authoritative balance
+      const newBalance = data?.wallet?.balance ?? data?.balanceAfter;
+      if (newBalance !== undefined) {
+        queryClient.setQueryData(['admin-customer-ai-credits', selectedCustomerId], (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            balance: newBalance,
+            wallet: data?.wallet ? { ...old.wallet, ...data.wallet } : { ...old.wallet, balance: newBalance },
+            transactions: data?.transaction ? [data.transaction, ...(old.transactions || [])] : old.transactions,
+          };
+        });
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-customer-ai-credits', selectedCustomerId] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-customers-credit-list'] }),
+        refetchDetails(),
+        refetchCustomers(),
+      ]);
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || err?.message || 'Failed to add credits';
@@ -252,17 +276,40 @@ function AiCreditsManagementContent() {
   // Reduce Credits Mutation
   const reduceCreditsMutation = useMutation({
     mutationFn: async (payload: { amount: number; reason: string }) => {
-      if (!selectedCustomerId) throw new Error('No customer selected');
-      const res: any = await api.post(`/customers/${selectedCustomerId}/ai-credits/reduce`, payload);
+      const targetId = Number(selectedCustomerId);
+      if (!targetId || isNaN(targetId)) throw new Error('No customer selected');
+      const res: any = await api.post(`/customers/${targetId}/ai-credits/reduce`, {
+        amount: Math.floor(Number(payload.amount)),
+        reason: payload.reason.trim(),
+      });
       return res?.data || res;
     },
-    onSuccess: (data) => {
-      toast.success(data?.message || `Successfully reduced ${creditsAmount} AI credits!`);
+    onSuccess: async (data, variables) => {
+      const successMsg = data?.message || `Successfully reduced ${variables.amount} AI credits!`;
+      toast.success(successMsg);
       setIsReduceModalOpen(false);
       setCreditsAmount(5);
       setReason('');
-      queryClient.invalidateQueries({ queryKey: ['admin-customer-ai-credits', selectedCustomerId] });
-      queryClient.invalidateQueries({ queryKey: ['admin-customers-credit-list'] });
+
+      const newBalance = data?.wallet?.balance ?? data?.balanceAfter;
+      if (newBalance !== undefined) {
+        queryClient.setQueryData(['admin-customer-ai-credits', selectedCustomerId], (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            balance: newBalance,
+            wallet: data?.wallet ? { ...old.wallet, ...data.wallet } : { ...old.wallet, balance: newBalance },
+            transactions: data?.transaction ? [data.transaction, ...(old.transactions || [])] : old.transactions,
+          };
+        });
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-customer-ai-credits', selectedCustomerId] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-customers-credit-list'] }),
+        refetchDetails(),
+        refetchCustomers(),
+      ]);
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || err?.message || 'Failed to reduce credits';
