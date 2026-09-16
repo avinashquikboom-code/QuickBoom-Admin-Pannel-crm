@@ -289,7 +289,7 @@ export default function CustomersPage() {
       return api.delete(`/customers/${id}`);
     },
     onSuccess: () => {
-      toast.success('Customer archived successfully.', { icon: '🗑️' });
+      toast.success('Customer permanently deleted successfully.', { icon: '🗑️' });
       setDeletingCustomer(null);
       queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
@@ -543,7 +543,7 @@ export default function CustomersPage() {
             </div>
           </div>
           <p className="text-2xl font-black text-rose-600 mt-2">{metrics?.inactiveCustomers || 0}</p>
-          <p className="text-[10px] text-rose-700 font-bold mt-0.5">Paused / Archived</p>
+          <p className="text-[10px] text-rose-700 font-bold mt-0.5">Paused / Inactive</p>
         </div>
 
         <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs col-span-2 sm:col-span-1">
@@ -940,7 +940,7 @@ export default function CustomersPage() {
                           <button
                             onClick={() => setDeletingCustomer(cust)}
                             className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                            title="Archive Customer"
+                            title="Delete Customer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1400,9 +1400,9 @@ export default function CustomersPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-slate-900">Move Customer to Bin?</h3>
+              <h3 className="text-lg font-black text-slate-900">Delete Customer</h3>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Are you sure you want to move <strong>{deletingCustomer.name}</strong> to the Bin? All customer data will be safely preserved and can be restored or permanently deleted from the Bin.
+                Are you sure you want to permanently delete <strong>{deletingCustomer.name}</strong>? All customer data will be permanently deleted and cannot be recovered.
               </p>
             </div>
 
@@ -1419,7 +1419,7 @@ export default function CustomersPage() {
                 disabled={deleteMutation.isPending}
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
               >
-                {deleteMutation.isPending ? 'Moving to Bin...' : 'Yes, Move to Bin'}
+                {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
               </button>
             </div>
           </div>

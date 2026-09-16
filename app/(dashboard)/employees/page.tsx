@@ -2857,14 +2857,14 @@ export default function EmployeesPage() {
 
             <div>
               <h3 className="text-base font-black text-slate-900">
-                Move Employee to Bin?
+                Delete Employee?
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Are you sure you want to move{' '}
+                Are you sure you want to permanently delete{' '}
                 <strong className="text-slate-800 font-bold">
                   {deleteConfirmEmp.name} ({deleteConfirmEmp.employeeCode})
-                </strong>{' '}
-                to the Bin? All employee data will be safely preserved and can be restored or permanently deleted from the Bin.
+                </strong>
+                ? All employee records and assignments will be permanently deleted and cannot be recovered.
               </p>
             </div>
 
@@ -2889,7 +2889,7 @@ export default function EmployeesPage() {
                 ) : (
                   <Trash2 className="w-4 h-4" />
                 )}
-                <span>Move to Bin</span>
+                <span>Delete Permanently</span>
               </button>
             </div>
           </div>
