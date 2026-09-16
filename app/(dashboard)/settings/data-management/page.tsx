@@ -97,13 +97,13 @@ export default function DataManagementPage() {
   const searchParams = useSearchParams();
 
   // Valid tab values — includes 'employee' alias for sidebar backward-compat
-  type TabValue = 'summary' | 'modules' | 'employees' | 'employee' | 'reset-all' | 'history';
+  type TabValue = 'summary' | 'modules' | 'employees' | 'employee' | 'reset-all' | 'history' | 'bin';
 
   const getTabFromUrl = (): TabValue => {
     const raw = searchParams.get('tab') || 'summary';
     // Normalize aliases
     if (raw === 'employee') return 'employees';
-    const valid: TabValue[] = ['summary', 'modules', 'employees', 'reset-all', 'history'];
+    const valid: TabValue[] = ['summary', 'modules', 'employees', 'reset-all', 'history', 'bin'];
     return valid.includes(raw as TabValue) ? (raw as TabValue) : 'summary';
   };
 
@@ -127,6 +127,16 @@ export default function DataManagementPage() {
   };
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
+
+  // Bin state
+  const [binItems, setBinItems] = useState<{ customers: any[]; employees: any[]; totalCount: number } | null>(null);
+  const [isLoadingBin, setIsLoadingBin] = useState(false);
+  const [binFilter, setBinFilter] = useState<'ALL' | 'CUSTOMER' | 'EMPLOYEE'>('ALL');
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<{ id: string; type: 'CUSTOMER' | 'EMPLOYEE'; name: string } | null>(null);
+  const [isPermaDeleting, setIsPermaDeleting] = useState(false);
+  const [permaDeleteConfirmText, setPermaDeleteConfirmText] = useState('');
+  const [restoreTarget, setRestoreTarget] = useState<{ id: string; type: 'CUSTOMER' | 'EMPLOYEE'; name: string } | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Summary state – starts at zeros; filled by API on mount
   const [summary, setSummary] = useState<SummaryData>({
@@ -262,9 +272,28 @@ export default function DataManagementPage() {
     }
   };
 
+  const loadBinItems = async () => {
+    setIsLoadingBin(true);
+    try {
+      const res: any = await api.get('/admin/data-management/bin');
+      const data = res?.data || res;
+      setBinItems(data);
+    } catch (e) {
+      toast.error('Failed to load Bin items');
+    } finally {
+      setIsLoadingBin(false);
+    }
+  };
+
   useEffect(() => {
     loadSummaryAndHistory();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'bin') {
+      loadBinItems();
+    }
+  }, [activeTab]);
 
   const openConfirmModal = (
     title: string,
@@ -533,6 +562,23 @@ export default function DataManagementPage() {
           }`}
         >
           Employee-wise Reset
+        </button>
+
+        <button
+          onClick={() => goToTab('bin')}
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === 'bin'
+              ? 'bg-amber-600 text-white shadow-md'
+              : 'text-amber-700 hover:bg-amber-50'
+          }`}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Bin
+          {binItems && binItems.totalCount > 0 && (
+            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${activeTab === 'bin' ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800'}`}>
+              {binItems.totalCount}
+            </span>
+          )}
         </button>
 
         <button
