@@ -478,6 +478,9 @@ export default function HomeBannersPage() {
                           src={resolveMediaUrl(banner.imageUrl)}
                           alt={banner.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          onError={(e) => {
+                            (e.target as any).src = 'https://placehold.co/400x200?text=Banner+Image';
+                          }}
                         />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                           <Eye className="w-4 h-4" />
@@ -1053,6 +1056,9 @@ export default function HomeBannersPage() {
                 src={resolveMediaUrl(previewBanner.imageUrl)}
                 alt={previewBanner.title}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as any).src = 'https://placehold.co/800x400?text=Banner+Preview';
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-4 text-white">
                 <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
