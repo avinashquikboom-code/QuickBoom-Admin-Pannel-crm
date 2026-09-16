@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import {
   LogOut,
@@ -37,7 +37,10 @@ export function getActiveNavHref(
 
   // Normalize: remove trailing slashes
   const currentPath = currentPathname.split('?')[0].replace(/\/+$/, '') || '/';
-  const currentSearch = searchString ? searchString.replace(/^\?/, '') : '';
+  const rawSearch = (searchString || (currentPathname.includes('?') ? currentPathname.split('?')[1] : '')).replace(/^\?/, '');
+  const currentParams = new URLSearchParams(rawSearch);
+  const rawCurrentTab = currentParams.get('tab');
+  const currentTab = rawCurrentTab === 'employee' ? 'employees' : rawCurrentTab;
 
   let bestHref: string | null = null;
   let highestScore = -1;
@@ -50,16 +53,84 @@ export function getActiveNavHref(
 
         const [rawItemPath, rawItemQuery] = candidate.href.split('?');
         const itemPath = rawItemPath.replace(/\/+$/, '') || '/';
-        const itemQuery = rawItemQuery || '';
+        const itemParams = new URLSearchParams(rawItemQuery || '');
+        const rawItemTab = itemParams.get('tab');
+        const itemTab = rawItemTab === 'employee' ? 'employees' : rawItemTab;
 
         let score = -1;
 
-        // 1. Match item with explicit query param (e.g. ?tab=modules)
-        if (itemQuery) {
-          if (currentPath === itemPath && currentSearch.includes(itemQuery)) {
+        // Check if item or current path is Data Management
+        const isCurrentDataManagement =
+          currentPath === '/settings/data-management' ||
+          currentPath === '/data-management' ||
+          currentPath.startsWith('/data-management/');
+
+        const isItemDataManagement =
+          itemPath === '/settings/data-management' ||
+          itemPath === '/data-management' ||
+          itemPath.startsWith('/data-management/');
+
+        if (isCurrentDataManagement && isItemDataManagement) {
+          // Special precision matching for Data Management:
+          // Support route path aliases e.g. /data-management/overview, /data-management/module-reset, etc.
+          let resolvedCurrentTab = currentTab;
+          if (!resolvedCurrentTab) {
+            if (
+              currentPath === '/data-management/overview' ||
+              currentPath === '/settings/data-management' ||
+              currentPath === '/data-management'
+            ) {
+              resolvedCurrentTab = 'summary';
+            } else if (currentPath === '/data-management/module-reset') {
+              resolvedCurrentTab = 'modules';
+            } else if (currentPath === '/data-management/employee-reset') {
+              resolvedCurrentTab = 'employees';
+            } else if (currentPath === '/data-management/bin') {
+              resolvedCurrentTab = 'bin';
+            } else if (currentPath === '/data-management/reset-history') {
+              resolvedCurrentTab = 'history';
+            }
+          }
+
+          let resolvedItemTab = itemTab;
+          if (!resolvedItemTab) {
+            if (
+              itemPath === '/data-management/overview' ||
+              itemPath === '/settings/data-management' ||
+              itemPath === '/data-management'
+            ) {
+              resolvedItemTab = 'summary';
+            } else if (itemPath === '/data-management/module-reset') {
+              resolvedItemTab = 'modules';
+            } else if (itemPath === '/data-management/employee-reset') {
+              resolvedItemTab = 'employees';
+            } else if (itemPath === '/data-management/bin') {
+              resolvedItemTab = 'bin';
+            } else if (itemPath === '/data-management/reset-history') {
+              resolvedItemTab = 'history';
+            }
+          }
+
+          if (resolvedCurrentTab && resolvedItemTab && resolvedCurrentTab === resolvedItemTab) {
+            score = 1000;
+          } else if ((!resolvedCurrentTab || resolvedCurrentTab === 'summary') && resolvedItemTab === 'summary') {
+            score = 1000;
+          } else {
+            score = -1;
+          }
+        } else if (itemTab) {
+          // General query param match
+          if (currentPath === itemPath && currentTab === itemTab) {
             score = 1000;
           } else if (currentPath === itemPath) {
-            score = 50; // fallback if query param not present
+            score = 50;
+          }
+        } else if (rawItemQuery) {
+          // Generic query param match
+          if (currentPath === itemPath && rawSearch.includes(rawItemQuery)) {
+            score = 1000;
+          } else if (currentPath === itemPath) {
+            score = 50;
           }
         } else {
           // 2. Exact pathname match without query param
@@ -114,16 +185,18 @@ export function getActiveNavHref(
 export function isItemActive(
   itemHref: string,
   currentPathname: string | null,
-  sections?: NavSectionConfig[]
+  sections?: NavSectionConfig[],
+  searchString: string = ''
 ): boolean {
   if (!currentPathname || !itemHref) return false;
   const navSections = sections || CENTRAL_NAVIGATION;
-  const activeHref = getActiveNavHref(navSections, currentPathname);
+  const activeHref = getActiveNavHref(navSections, currentPathname, searchString);
   return activeHref === itemHref;
 }
 
-export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, onNavigate }: SidebarProps) {
+function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNavigate }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
   const role = getUserRole(user);
@@ -131,19 +204,8 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
 
-  const [searchString, setSearchString] = useState('');
-
-  useEffect(() => {
-    const updateSearch = () => {
-      if (typeof window !== 'undefined') {
-        setSearchString(window.location.search);
-      }
-    };
-
-    updateSearch();
-    window.addEventListener('popstate', updateSearch);
-    return () => window.removeEventListener('popstate', updateSearch);
-  }, [pathname]);
+  // Next.js searchParams reactive query string
+  const searchString = searchParams?.toString() ? `?${searchParams.toString()}` : '';
 
   const toggleSidebar = () => {
     if (onToggleCollapse) {
@@ -538,3 +600,20 @@ export function Sidebar({ isCollapsed: controlledCollapsed, onToggleCollapse, on
     </aside>
   );
 }
+
+export function Sidebar(props: SidebarProps) {
+  return (
+    <Suspense
+      fallback={
+        <aside
+          className={`${
+            props.isCollapsed ? 'w-20' : 'w-64'
+          } bg-white text-slate-700 flex flex-col h-screen sticky top-0 border-r border-slate-200 shadow-xs z-40 transition-all duration-300 ease-in-out select-none`}
+        />
+      }
+    >
+      <SidebarInner {...props} />
+    </Suspense>
+  );
+}
+
