@@ -325,12 +325,12 @@ export default function DataManagementPage() {
     }
   };
 
-  const handleCustomerSearchChange = (val: string) => {
-    setCustomerSearch(val);
-    if (!val) {
+  const handleCustomerSearchChange = (value: string) => {
+    setCustomerSearch(value);
+    if (!value) {
       setSelectedCustomer(null);
     }
-    searchCustomers(val);
+    searchCustomers(value);
   };
 
   const handleExecuteCustomerReset = async () => {

@@ -400,7 +400,6 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'Data Overview', href: '/settings/data-management', icon: Database, permission: 'data_reset.view' },
-        { name: 'Customer-wise Reset', href: '/settings/data-management?tab=customers', icon: Users, permission: 'data_reset.view' },
         { name: 'Module-wise Reset', href: '/settings/data-management?tab=modules', icon: RefreshCw, permission: 'data_reset.module' },
         { name: 'Employee-wise Reset', href: '/settings/data-management?tab=employees', icon: User, permission: 'data_reset.employee' },
         { name: 'Bin', href: '/settings/data-management?tab=bin', icon: Trash2, permission: 'data_reset.view' },
