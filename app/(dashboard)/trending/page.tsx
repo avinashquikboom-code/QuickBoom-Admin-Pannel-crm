@@ -48,7 +48,7 @@ import {
   UpdateTrendingPayload,
 } from '@/lib/services/trending.service';
 import { toast } from 'react-hot-toast';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage, resolveMediaUrl } from '@/lib/utils';
 
 function extractYouTubeVideoId(url?: string | null): string | null {
   if (!url) return null;
@@ -771,7 +771,7 @@ export default function TrendingManagementPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {displayedItems.map((item) => {
               const isVideo = resolveIsVideo(item);
-              const mediaDisplayUrl = item.mediaUrl || item.thumbnailUrl || '';
+              const mediaDisplayUrl = resolveMediaUrl(item.mediaUrl || item.thumbnailUrl || '');
               const youtubeId = extractYouTubeVideoId(item.mediaUrl);
 
               return (
@@ -797,7 +797,7 @@ export default function TrendingManagementPage() {
                       <div className="w-full h-full relative flex items-center justify-center bg-slate-950">
                         {item.thumbnailUrl ? (
                           <img
-                            src={item.thumbnailUrl}
+                            src={resolveMediaUrl(item.thumbnailUrl)}
                             alt={item.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85"
                           />
@@ -1026,7 +1026,7 @@ export default function TrendingManagementPage() {
                 <tbody className="divide-y divide-slate-100">
                   {displayedItems.map((item) => {
                     const isVideo = resolveIsVideo(item);
-                    const mediaDisplayUrl = item.mediaUrl || item.thumbnailUrl || '';
+                    const mediaDisplayUrl = resolveMediaUrl(item.mediaUrl || item.thumbnailUrl || '');
 
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
@@ -1049,7 +1049,7 @@ export default function TrendingManagementPage() {
                                 <div className="w-full h-full flex items-center justify-center bg-slate-950 text-white relative">
                                   {item.thumbnailUrl ? (
                                     <img
-                                      src={item.thumbnailUrl}
+                                      src={resolveMediaUrl(item.thumbnailUrl)}
                                       alt={item.title}
                                       className="w-full h-full object-cover opacity-80"
                                     />
@@ -1469,13 +1469,13 @@ export default function TrendingManagementPage() {
                       <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 p-2 flex items-center justify-center max-h-56 group">
                         {mediaType === 'IMAGE' ? (
                           <img
-                            src={filePreview || editingItem?.mediaUrl || ''}
+                            src={filePreview || resolveMediaUrl(editingItem?.mediaUrl) || ''}
                             alt="Preview"
                             className="max-h-48 object-contain rounded-xl"
                           />
                         ) : (
                           <video
-                            src={filePreview || editingItem?.mediaUrl || ''}
+                            src={filePreview || resolveMediaUrl(editingItem?.mediaUrl) || ''}
                             controls
                             className="max-h-48 rounded-xl"
                           />
@@ -1844,7 +1844,7 @@ export default function TrendingManagementPage() {
             >
               {previewMedia.type === 'IMAGE' ? (
                 <img
-                  src={previewMedia.url}
+                  src={resolveMediaUrl(previewMedia.url)}
                   alt={previewMedia.title || 'Creative Media'}
                   className="max-w-full max-h-[82vh] object-contain rounded-2xl"
                 />
@@ -1860,7 +1860,7 @@ export default function TrendingManagementPage() {
                 </div>
               ) : (
                 <video
-                  src={previewMedia.url}
+                  src={resolveMediaUrl(previewMedia.url)}
                   controls
                   autoPlay
                   playsInline

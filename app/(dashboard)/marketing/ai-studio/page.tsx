@@ -29,9 +29,13 @@ import {
   ShieldCheck,
   ChevronRight,
   RefreshCw,
+  Play,
+  Maximize2,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import { resolveMediaUrl } from '@/lib/utils';
 import {
   AiSocialAdminService,
   AiServiceConfigItem,
@@ -50,6 +54,13 @@ export default function AiStudioAdminPage() {
   const [editCreditCost, setEditCreditCost] = useState(1);
   const [editPricePerCredit, setEditPricePerCredit] = useState(10);
   const [editIsActive, setEditIsActive] = useState(true);
+
+  // Lightbox Media Preview State
+  const [previewMedia, setPreviewMedia] = useState<{
+    url: string;
+    type: 'IMAGE' | 'VIDEO';
+    title?: string;
+  } | null>(null);
 
   // Queries
   const { data: services = [], isLoading: loadingServices, refetch: refetchServices, isRefetching: isRefetchingServices } = useQuery<AiServiceConfigItem[]>({
@@ -586,6 +597,7 @@ export default function AiStudioAdminPage() {
               <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="py-3 px-3.5">Generation ID</th>
+                  <th className="py-3 px-3.5">Creative</th>
                   <th className="py-3 px-3.5">Customer</th>
                   <th className="py-3 px-3.5">Tool</th>
                   <th className="py-3 px-3.5">Product / Objective</th>
@@ -597,14 +609,14 @@ export default function AiStudioAdminPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {loadingGenerations ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={8} className="py-12 text-center text-slate-400">
                       <RefreshCw className="w-6 h-6 animate-spin mx-auto text-emerald-500 mb-2" />
                       Loading generation records...
                     </td>
                   </tr>
                 ) : (generationsData?.items || []).length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <td colSpan={8} className="py-12 text-center text-slate-400">
                       <History className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700 mb-2" />
                       No AI generations logged yet.
                     </td>
@@ -614,6 +626,48 @@ export default function AiStudioAdminPage() {
                     <tr key={gen.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="py-3 px-3.5 font-mono text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
                         {gen.generationId}
+                      </td>
+                      <td className="py-3 px-3.5 whitespace-nowrap">
+                        {gen.mediaUrl ? (
+                          <div
+                            onClick={() => {
+                              const resolved = resolveMediaUrl(gen.mediaUrl);
+                              if (resolved) {
+                                setPreviewMedia({
+                                  url: resolved,
+                                  type: gen.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+                                  title: gen.product || gen.generationId,
+                                });
+                              }
+                            }}
+                            className="relative w-12 h-12 rounded-xl bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer group shrink-0"
+                          >
+                            {gen.mediaType === 'VIDEO' ? (
+                              <div className="w-full h-full flex items-center justify-center bg-slate-950 text-white relative">
+                                <Video className="w-5 h-5 text-purple-400" />
+                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/50 transition-colors">
+                                  <Play className="w-4 h-4 text-white fill-white" />
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={resolveMediaUrl(gen.mediaUrl) || ''}
+                                alt={gen.product || 'AI Creative'}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                onError={(e) => {
+                                  (e.target as any).src = 'https://placehold.co/100x100?text=AI+Media';
+                                }}
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400">
+                            <ImageIcon className="w-4 h-4" />
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-3.5 whitespace-nowrap">
                         <span className="font-semibold text-slate-900 dark:text-white block">
@@ -978,6 +1032,44 @@ export default function AiStudioAdminPage() {
           </div>
         </form>
       </AdminFormDrawer>
+      {/* ── LIGHTBOX MEDIA PREVIEW MODAL ───────────────────────── */}
+      {previewMedia && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setPreviewMedia(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[92vh] bg-slate-950 rounded-3xl overflow-hidden border border-white/20 p-2.5 shadow-2xl flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {previewMedia.type === 'IMAGE' ? (
+              <img
+                src={previewMedia.url}
+                alt={previewMedia.title || 'AI Creative'}
+                className="max-w-full max-h-[82vh] object-contain rounded-2xl"
+              />
+            ) : (
+              <video
+                src={previewMedia.url}
+                controls
+                autoPlay
+                playsInline
+                className="max-w-full max-h-[82vh] object-contain rounded-2xl"
+              />
+            )}
+            <div className="w-full flex items-center justify-between px-3 py-2 text-white/80">
+              <span className="text-xs font-semibold truncate max-w-[80%]">{previewMedia.title}</span>
+              <button
+                type="button"
+                onClick={() => setPreviewMedia(null)}
+                className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

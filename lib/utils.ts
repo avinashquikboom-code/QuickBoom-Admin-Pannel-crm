@@ -122,3 +122,26 @@ export function formatDurationHoursMinutes(minutes: number | string | null | und
   const mins = totalMins % 60;
   return `${hours}h ${mins}m`;
 }
+
+/**
+ * Resolves full accessible media/image URL for Admin Panel.
+ * Handles S3 presigned/public URLs, data URIs, and relative /uploads/ paths.
+ */
+export function resolveMediaUrl(url?: string | null): string {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'https://api.qbapp.online';
+  const cleanBase = apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+  if (trimmed.startsWith('/')) {
+    return `${cleanBase}${trimmed}`;
+  }
+  return `${cleanBase}/${trimmed}`;
+}
+

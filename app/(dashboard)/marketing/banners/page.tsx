@@ -36,7 +36,7 @@ import {
   MarketingBannerItem,
 } from '@/lib/services/banner.service';
 import { toast } from 'react-hot-toast';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage, resolveMediaUrl } from '@/lib/utils';
 
 export default function HomeBannersPage() {
   const queryClient = useQueryClient();
@@ -475,7 +475,7 @@ export default function HomeBannersPage() {
                         className="relative w-28 h-16 rounded-lg overflow-hidden bg-muted border border-border cursor-pointer group shrink-0"
                       >
                         <img
-                          src={banner.imageUrl}
+                          src={resolveMediaUrl(banner.imageUrl)}
                           alt={banner.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
@@ -1050,7 +1050,7 @@ export default function HomeBannersPage() {
           <div className="space-y-4 text-xs">
             <div className="relative rounded-2xl overflow-hidden bg-muted aspect-video border border-border shadow-sm">
               <img
-                src={previewBanner.imageUrl}
+                src={resolveMediaUrl(previewBanner.imageUrl)}
                 alt={previewBanner.title}
                 className="w-full h-full object-cover"
               />
