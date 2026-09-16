@@ -1156,6 +1156,290 @@ export default function DataManagementPage() {
         </AdminCard>
       )}
 
+      {/* TAB: BIN / TRASH */}
+      {activeTab === 'bin' && (
+        <div className="space-y-5">
+          {/* Header with filter and refresh */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-amber-600" />
+                Bin
+                {binItems && (
+                  <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                    {binItems.totalCount} item{binItems.totalCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Items in Bin can be restored or permanently deleted from the database.
+              </p>
+            </div>
+            <button
+              onClick={loadBinItems}
+              disabled={isLoadingBin}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingBin ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+
+          {/* Type Filter */}
+          <div className="flex items-center gap-2">
+            {(['ALL', 'CUSTOMER', 'EMPLOYEE'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setBinFilter(f)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  binFilter === f
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {f === 'ALL' ? 'All' : f === 'CUSTOMER' ? 'Customers' : 'Employees'}
+                {binItems && (
+                  <span className="ml-1 opacity-70">
+                    ({f === 'ALL' ? binItems.totalCount : f === 'CUSTOMER' ? binItems.customers.length : binItems.employees.length})
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Loading state */}
+          {isLoadingBin && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-slate-100 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!isLoadingBin && binItems && binItems.totalCount === 0 && (
+            <div className="text-center py-16 space-y-3">
+              <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6 text-slate-400" />
+              </div>
+              <h3 className="text-sm font-black text-slate-700">Bin is Empty</h3>
+              <p className="text-xs text-slate-400 font-medium">
+                No customers or employees have been moved to the Bin.
+              </p>
+            </div>
+          )}
+
+          {/* Bin Records */}
+          {!isLoadingBin && binItems && binItems.totalCount > 0 && (() => {
+            const allItems = [
+              ...binItems.customers.map((c) => ({ ...c, type: 'CUSTOMER' as const })),
+              ...binItems.employees.map((e) => ({ ...e, type: 'EMPLOYEE' as const })),
+            ].filter((item) => binFilter === 'ALL' || item.type === binFilter);
+
+            return (
+              <div className="space-y-3">
+                {allItems.map((item) => (
+                  <div
+                    key={`${item.type}-${item.id}`}
+                    className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      {/* Left: Identity */}
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          item.type === 'CUSTOMER' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'
+                        }`}>
+                          {item.type === 'CUSTOMER' ? <Building2 className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-black text-slate-900 truncate">{item.name}</span>
+                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                              item.type === 'CUSTOMER' ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'
+                            }`}>
+                              {item.type === 'CUSTOMER' ? 'Customer' : 'Employee'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">{item.email}</p>
+                          {item.type === 'EMPLOYEE' && (item as any).department && (
+                            <p className="text-[11px] text-slate-400 font-medium">
+                              {(item as any).department} {(item as any).designation ? `· ${(item as any).designation}` : ''}
+                              {(item as any).employeeCode ? ` · ${(item as any).employeeCode}` : ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Middle: Stats */}
+                      <div className="flex items-center gap-3 flex-wrap sm:shrink-0">
+                        <div className="text-center">
+                          <p className="text-xs font-black text-slate-700">{item.dataCounts.total}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">Records</p>
+                        </div>
+                        {item.deletedAt && (
+                          <div className="text-center">
+                            <p className="text-xs font-black text-slate-700">
+                              {new Date(item.deletedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-medium">Deleted</p>
+                          </div>
+                        )}
+                        <span className="text-[10px] font-black px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                          In Bin
+                        </span>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => setRestoreTarget({ id: item.id, type: item.type, name: item.name })}
+                          disabled={isRestoring}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Restore
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPermanentDeleteTarget({ id: item.id, type: item.type, name: item.name });
+                            setPermaDeleteConfirmText('');
+                          }}
+                          disabled={isPermaDeleting}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete Permanently
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* RESTORE CONFIRMATION MODAL */}
+      {restoreTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
+              <RefreshCw className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">Restore from Bin?</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                This will restore <strong className="text-slate-800">{restoreTarget.name}</strong> and reactivate all associated data and user accounts.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isRestoring}
+                onClick={() => setRestoreTarget(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isRestoring}
+                onClick={async () => {
+                  if (!restoreTarget) return;
+                  setIsRestoring(true);
+                  try {
+                    const endpoint = restoreTarget.type === 'CUSTOMER'
+                      ? `/admin/data-management/bin/customer/${restoreTarget.id}/restore`
+                      : `/admin/data-management/bin/employee/${restoreTarget.id}/restore`;
+                    await api.post(endpoint);
+                    toast.success(`${restoreTarget.name} restored successfully`);
+                    setRestoreTarget(null);
+                    await loadBinItems();
+                    await loadSummaryAndHistory();
+                  } catch (err: any) {
+                    toast.error(err?.response?.data?.message || 'Failed to restore');
+                  } finally {
+                    setIsRestoring(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isRestoring ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                <span>Yes, Restore</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PERMANENT DELETE MODAL */}
+      {permanentDeleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+          <div className="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-rose-200 z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">Permanently Delete?</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                This will permanently delete <strong className="text-slate-800">{permanentDeleteTarget.name}</strong> and all associated data from the database. <span className="text-rose-600 font-bold">This cannot be undone.</span>
+              </p>
+            </div>
+            <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 space-y-2">
+              <label className="block text-[11px] font-black uppercase text-slate-500">
+                Type <span className="text-rose-600 font-mono font-black">PERMANENTLY DELETE</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={permaDeleteConfirmText}
+                onChange={(e) => setPermaDeleteConfirmText(e.target.value)}
+                placeholder="PERMANENTLY DELETE"
+                className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono uppercase"
+                autoFocus
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isPermaDeleting}
+                onClick={() => { setPermanentDeleteTarget(null); setPermaDeleteConfirmText(''); }}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPermaDeleting || permaDeleteConfirmText.trim().toUpperCase() !== 'PERMANENTLY DELETE'}
+                onClick={async () => {
+                  if (!permanentDeleteTarget) return;
+                  setIsPermaDeleting(true);
+                  try {
+                    const endpoint = permanentDeleteTarget.type === 'CUSTOMER'
+                      ? `/admin/data-management/bin/customer/${permanentDeleteTarget.id}`
+                      : `/admin/data-management/bin/employee/${permanentDeleteTarget.id}`;
+                    await api.delete(endpoint);
+                    toast.success(`${permanentDeleteTarget.name} permanently deleted from database`);
+                    setPermanentDeleteTarget(null);
+                    setPermaDeleteConfirmText('');
+                    await loadBinItems();
+                    await loadSummaryAndHistory();
+                  } catch (err: any) {
+                    toast.error(err?.response?.data?.message || 'Failed to permanently delete');
+                  } finally {
+                    setIsPermaDeleting(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPermaDeleting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>Delete Permanently</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {modalState.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

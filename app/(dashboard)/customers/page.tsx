@@ -1400,9 +1400,9 @@ export default function CustomersPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-slate-900">Archive Customer?</h3>
+              <h3 className="text-lg font-black text-slate-900">Move Customer to Bin?</h3>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Are you sure you want to archive <strong>{deletingCustomer.name}</strong>? Customer records and historical deals will be preserved.
+                Are you sure you want to move <strong>{deletingCustomer.name}</strong> to the Bin? All customer data will be safely preserved and can be restored or permanently deleted from the Bin.
               </p>
             </div>
 
@@ -1419,7 +1419,7 @@ export default function CustomersPage() {
                 disabled={deleteMutation.isPending}
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
               >
-                {deleteMutation.isPending ? 'Archiving...' : 'Yes, Archive'}
+                {deleteMutation.isPending ? 'Moving to Bin...' : 'Yes, Move to Bin'}
               </button>
             </div>
           </div>

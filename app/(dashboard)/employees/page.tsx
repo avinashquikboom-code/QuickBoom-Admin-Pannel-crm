@@ -2857,14 +2857,14 @@ export default function EmployeesPage() {
 
             <div>
               <h3 className="text-base font-black text-slate-900">
-                Delete Employee Profile?
+                Move Employee to Bin?
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-1">
-                Are you sure you want to delete{' '}
+                Are you sure you want to move{' '}
                 <strong className="text-slate-800 font-bold">
                   {deleteConfirmEmp.name} ({deleteConfirmEmp.employeeCode})
-                </strong>
-                ? This will remove the employee profile and unassign linked active directories.
+                </strong>{' '}
+                to the Bin? All employee data will be safely preserved and can be restored or permanently deleted from the Bin.
               </p>
             </div>
 
@@ -2889,7 +2889,7 @@ export default function EmployeesPage() {
                 ) : (
                   <Trash2 className="w-4 h-4" />
                 )}
-                <span>Confirm Delete</span>
+                <span>Move to Bin</span>
               </button>
             </div>
           </div>
