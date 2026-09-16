@@ -316,8 +316,7 @@ export default function DataManagementPage() {
     }
   };
 
-  const handleCustomerSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
+  const handleCustomerSearchChange = (val: string) => {
     setCustomerSearch(val);
     if (!val) {
       setSelectedCustomer(null);
@@ -1324,7 +1323,7 @@ export default function DataManagementPage() {
                   value={(selectedCustomer.transactional?.attendance?.total ?? 0).toLocaleString()}
                   description={`${selectedCustomer.transactional?.attendance?.attendances ?? 0} Shifts • ${selectedCustomer.transactional?.attendance?.breaks ?? 0} Breaks`}
                   icon={Clock}
-                  iconBg="green"
+                  iconBg="primary"
                 />
                 <AdminStatCard
                   title="Billing & Payroll"
