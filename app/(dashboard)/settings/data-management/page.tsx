@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Database,
@@ -133,9 +133,10 @@ export default function DataManagementPage() {
   const [binItems, setBinItems] = useState<{ customers: any[]; employees: any[]; totalCount: number; items?: any[] } | null>(null);
   const [isLoadingBin, setIsLoadingBin] = useState(false);
   const [binFilter, setBinFilter] = useState<'ALL' | 'CUSTOMER' | 'EMPLOYEE'>('ALL');
+  const [selectedBinKeys, setSelectedBinKeys] = useState<Set<string>>(new Set());
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<{ id: string; type: 'CUSTOMER' | 'EMPLOYEE'; name: string } | null>(null);
+  const [bulkPermanentDeleteTargets, setBulkPermanentDeleteTargets] = useState<Array<{ id: string; type: 'CUSTOMER' | 'EMPLOYEE'; name: string }> | null>(null);
   const [isPermaDeleting, setIsPermaDeleting] = useState(false);
-  const [permaDeleteConfirmText, setPermaDeleteConfirmText] = useState('');
   const [restoreTarget, setRestoreTarget] = useState<{ id: string; type: 'CUSTOMER' | 'EMPLOYEE'; name: string } | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -379,11 +380,65 @@ export default function DataManagementPage() {
         : itemsList.length;
 
       setBinItems({ customers, employees, totalCount, items: itemsList });
+
+      // Synchronize selection: keep only keys that still exist in the fresh items list
+      const freshKeys = new Set(itemsList.map((it: any) => `${it.type}-${it.id}`));
+      setSelectedBinKeys((prev) => {
+        const next = new Set<string>();
+        for (const k of prev) {
+          if (freshKeys.has(k)) next.add(k);
+        }
+        return next;
+      });
     } catch {
       toast.error('Failed to load Bin items');
     } finally {
       setIsLoadingBin(false);
     }
+  };
+
+  // Derived currently displayed Bin items based on active filter
+  const displayedBinItems = useMemo(() => {
+    if (!binItems) return [];
+    return [
+      ...(binItems.customers || []).map((c: any) => ({ ...c, type: 'CUSTOMER' as const })),
+      ...(binItems.employees || []).map((e: any) => ({ ...e, type: 'EMPLOYEE' as const })),
+    ].filter((item) => binFilter === 'ALL' || item.type === binFilter);
+  }, [binItems, binFilter]);
+
+  const isAllSelected = displayedBinItems.length > 0 && displayedBinItems.every((item) => selectedBinKeys.has(`${item.type}-${item.id}`));
+  const isSomeSelected = displayedBinItems.some((item) => selectedBinKeys.has(`${item.type}-${item.id}`)) && !isAllSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedBinKeys((prev) => {
+        const next = new Set(prev);
+        for (const it of displayedBinItems) {
+          next.delete(`${it.type}-${it.id}`);
+        }
+        return next;
+      });
+    } else {
+      setSelectedBinKeys((prev) => {
+        const next = new Set(prev);
+        for (const it of displayedBinItems) {
+          next.add(`${it.type}-${it.id}`);
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleToggleSelectItem = (key: string) => {
+    setSelectedBinKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -1447,27 +1502,94 @@ export default function DataManagementPage() {
             </button>
           </div>
 
-          {/* Type Filter */}
-          <div className="flex items-center gap-2">
-            {(['ALL', 'CUSTOMER', 'EMPLOYEE'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setBinFilter(f)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  binFilter === f
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {f === 'ALL' ? 'All' : f === 'CUSTOMER' ? 'Customers' : 'Employees'}
-                {binItems && (
-                  <span className="ml-1 opacity-70">
-                    ({f === 'ALL' ? binItems.totalCount : f === 'CUSTOMER' ? (binItems.customers?.length || 0) : (binItems.employees?.length || 0)})
-                  </span>
-                )}
-              </button>
-            ))}
+          {/* Controls Bar: Type Filter + Select All Checkbox */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            {/* Type Filter */}
+            <div className="flex items-center gap-2">
+              {(['ALL', 'CUSTOMER', 'EMPLOYEE'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setBinFilter(f)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    binFilter === f
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {f === 'ALL' ? 'All' : f === 'CUSTOMER' ? 'Customers' : 'Employees'}
+                  {binItems && (
+                    <span className="ml-1 opacity-70">
+                      ({f === 'ALL' ? binItems.totalCount : f === 'CUSTOMER' ? (binItems.customers?.length || 0) : (binItems.employees?.length || 0)})
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Select All Checkbox */}
+            {displayedBinItems.length > 0 && (
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none px-2.5 py-1.5 hover:bg-slate-100 rounded-xl transition-colors">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = isSomeSelected;
+                  }}
+                  onChange={handleToggleSelectAll}
+                  className="w-4 h-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer accent-rose-600"
+                />
+                <span>Select All ({displayedBinItems.length})</span>
+              </label>
+            )}
           </div>
+
+          {/* Bulk Action Bar when items selected */}
+          {selectedBinKeys.size > 0 && (
+            <div className="flex items-center justify-between p-3.5 bg-rose-50/80 border border-rose-200/80 rounded-2xl animate-in fade-in-50 duration-150 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-black text-rose-800 bg-rose-100/90 px-2.5 py-1 rounded-xl">
+                  {selectedBinKeys.size} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedBinKeys(new Set())}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                  Deselect all
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const selectedList = displayedBinItems.filter((it) =>
+                    selectedBinKeys.has(`${it.type}-${it.id}`)
+                  );
+                  if (selectedList.length === 1) {
+                    setPermanentDeleteTarget({
+                      id: String(selectedList[0].id),
+                      type: selectedList[0].type,
+                      name: selectedList[0].name,
+                    });
+                    setBulkPermanentDeleteTargets(null);
+                  } else if (selectedList.length > 1) {
+                    setBulkPermanentDeleteTargets(
+                      selectedList.map((it) => ({
+                        id: String(it.id),
+                        type: it.type,
+                        name: it.name,
+                      }))
+                    );
+                    setPermanentDeleteTarget(null);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Permanently</span>
+              </button>
+            </div>
+          )}
 
           {/* Loading state */}
           {isLoadingBin && (
@@ -1492,22 +1614,32 @@ export default function DataManagementPage() {
           )}
 
           {/* Bin Records */}
-          {!isLoadingBin && binItems && binItems.totalCount > 0 && (() => {
-            const allItems = [
-              ...(binItems.customers || []).map((c: any) => ({ ...c, type: 'CUSTOMER' as const })),
-              ...(binItems.employees || []).map((e: any) => ({ ...e, type: 'EMPLOYEE' as const })),
-            ].filter((item) => binFilter === 'ALL' || item.type === binFilter);
+          {!isLoadingBin && displayedBinItems.length > 0 && (
+            <div className="space-y-3">
+              {displayedBinItems.map((item) => {
+                const itemKey = `${item.type}-${item.id}`;
+                const isSelected = selectedBinKeys.has(itemKey);
 
-            return (
-              <div className="space-y-3">
-                {allItems.map((item) => (
+                return (
                   <div
-                    key={`${item.type}-${item.id}`}
-                    className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-shadow"
+                    key={itemKey}
+                    className={`border rounded-2xl p-4 transition-all ${
+                      isSelected
+                        ? 'bg-rose-50/25 border-rose-300 shadow-2xs'
+                        : 'bg-white border-slate-200 hover:shadow-md'
+                    }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      {/* Left: Identity */}
+                      {/* Left: Checkbox + Identity */}
                       <div className="flex items-start gap-3 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectItem(itemKey)}
+                          aria-label={`Select ${item.name}`}
+                          className="mt-2.5 w-4 h-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer accent-rose-600 shrink-0"
+                        />
+
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                           item.type === 'CUSTOMER' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'
                         }`}>
@@ -1563,8 +1695,8 @@ export default function DataManagementPage() {
                         </button>
                         <button
                           onClick={() => {
-                            setPermanentDeleteTarget({ id: item.id, type: item.type, name: item.name });
-                            setPermaDeleteConfirmText('');
+                            setPermanentDeleteTarget({ id: String(item.id), type: item.type, name: item.name });
+                            setBulkPermanentDeleteTargets(null);
                           }}
                           disabled={isPermaDeleting}
                           className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50"
@@ -1575,10 +1707,10 @@ export default function DataManagementPage() {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            );
-          })()}
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1635,7 +1767,84 @@ export default function DataManagementPage() {
         </div>
       )}
 
-      {/* PERMANENT DELETE MODAL */}
+      {/* BULK PERMANENT DELETE MODAL */}
+      {bulkPermanentDeleteTargets && bulkPermanentDeleteTargets.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+          <div className="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-rose-200 z-10 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">Permanently Delete Selected Records?</h3>
+              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+                Are you sure you want to permanently delete these <strong className="text-rose-600 font-bold">{bulkPermanentDeleteTargets.length} selected records</strong>? This action cannot be undone.
+              </p>
+              <p className="text-xs text-rose-600 font-bold mt-1.5">
+                This data will be permanently deleted from the database and cannot be recovered.
+              </p>
+            </div>
+
+            <div className="max-h-36 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200 text-left text-xs space-y-1.5 divide-y divide-slate-100">
+              {bulkPermanentDeleteTargets.map((item) => (
+                <div key={`${item.type}-${item.id}`} className="flex items-center justify-between gap-2 pt-1.5 first:pt-0 text-slate-700">
+                  <span className="font-bold truncate">{item.name}</span>
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${
+                    item.type === 'CUSTOMER' ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'
+                  }`}>
+                    {item.type === 'CUSTOMER' ? 'Customer' : 'Employee'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isPermaDeleting}
+                onClick={() => setBulkPermanentDeleteTargets(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPermaDeleting}
+                onClick={async () => {
+                  setIsPermaDeleting(true);
+                  try {
+                    await api.post('/admin/data-management/bin/bulk-delete', {
+                      items: bulkPermanentDeleteTargets.map((it) => ({
+                        id: it.id,
+                        type: it.type,
+                      })),
+                    });
+                    toast.success(`${bulkPermanentDeleteTargets.length} records permanently deleted from database.`);
+                    const deletedKeys = new Set(bulkPermanentDeleteTargets.map((it) => `${it.type}-${it.id}`));
+                    setSelectedBinKeys((prev) => {
+                      const next = new Set(prev);
+                      for (const k of deletedKeys) next.delete(k);
+                      return next;
+                    });
+                    setBulkPermanentDeleteTargets(null);
+                    await loadBinItems();
+                    await loadSummaryAndHistory();
+                  } catch (err: any) {
+                    toast.error(err?.response?.data?.message || 'Failed to permanently delete');
+                  } finally {
+                    setIsPermaDeleting(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isPermaDeleting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>Delete Permanently</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SINGLE PERMANENT DELETE MODAL */}
       {permanentDeleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
           <div className="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-rose-200 z-10 space-y-4 animate-in zoom-in-95 duration-150">
@@ -1644,37 +1853,26 @@ export default function DataManagementPage() {
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900">Permanently Delete?</h3>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                This will permanently delete <strong className="text-slate-800">{permanentDeleteTarget.name}</strong> and all associated data from the database. <span className="text-rose-600 font-bold">This cannot be undone.</span>
+              <p className="text-xs text-slate-500 font-medium mt-1 leading-relaxed">
+                This will permanently delete <strong className="text-slate-800">{permanentDeleteTarget.name}</strong> ({permanentDeleteTarget.type === 'CUSTOMER' ? 'Customer' : 'Employee'}).
+              </p>
+              <p className="text-xs text-rose-600 font-bold mt-1.5">
+                This data will be permanently deleted from the database and cannot be recovered.
               </p>
             </div>
-            <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 space-y-2">
-              <label className="block text-[11px] font-black uppercase text-slate-500">
-                Type <span className="text-rose-600 font-mono font-black">PERMANENTLY DELETE</span> to confirm
-              </label>
-              <input
-                type="text"
-                value={permaDeleteConfirmText}
-                onChange={(e) => setPermaDeleteConfirmText(e.target.value)}
-                placeholder="PERMANENTLY DELETE"
-                className="w-full px-3 py-2 bg-white border border-rose-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono uppercase"
-              />
-            </div>
+
             <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 disabled={isPermaDeleting}
-                onClick={() => {
-                  setPermanentDeleteTarget(null);
-                  setPermaDeleteConfirmText('');
-                }}
+                onClick={() => setPermanentDeleteTarget(null)}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                disabled={isPermaDeleting || permaDeleteConfirmText.trim() !== 'PERMANENTLY DELETE'}
+                disabled={isPermaDeleting}
                 onClick={async () => {
                   setIsPermaDeleting(true);
                   try {
@@ -1684,8 +1882,12 @@ export default function DataManagementPage() {
                       await api.delete(`/admin/data-management/bin/employee/${permanentDeleteTarget.id}`);
                     }
                     toast.success(`${permanentDeleteTarget.name} permanently deleted from database.`);
+                    setSelectedBinKeys((prev) => {
+                      const next = new Set(prev);
+                      next.delete(`${permanentDeleteTarget.type}-${permanentDeleteTarget.id}`);
+                      return next;
+                    });
                     setPermanentDeleteTarget(null);
-                    setPermaDeleteConfirmText('');
                     await loadBinItems();
                     await loadSummaryAndHistory();
                   } catch (err: any) {
@@ -1694,7 +1896,7 @@ export default function DataManagementPage() {
                     setIsPermaDeleting(false);
                   }
                 }}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isPermaDeleting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Trash2 className="w-4 h-4" />}
                 <span>Delete Permanently</span>
