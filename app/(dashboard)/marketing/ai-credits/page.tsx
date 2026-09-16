@@ -196,15 +196,37 @@ function AiCreditsManagementContent() {
     return Math.round(total / services.length);
   }, [services]);
 
-  const currentBalance = creditDetails?.balance ?? 0;
-  const totalEarned = creditDetails?.wallet?.totalEarned ?? 0;
-  const totalSpent = creditDetails?.wallet?.totalSpent ?? 0;
+  const selectedCustomerFromList = useMemo(() => {
+    return customers.find((c) => c.id === selectedCustomerId) || null;
+  }, [customers, selectedCustomerId]);
+
+  const currentBalance =
+    creditDetails?.balance ??
+    selectedCustomerFromList?.aiCredits ??
+    selectedCustomerFromList?.aiWallet?.balance ??
+    0;
+  const totalEarned =
+    creditDetails?.wallet?.totalEarned ??
+    selectedCustomerFromList?.aiWallet?.totalEarned ??
+    currentBalance;
+  const totalSpent =
+    creditDetails?.wallet?.totalSpent ??
+    selectedCustomerFromList?.aiWallet?.totalSpent ??
+    0;
   const transactions = creditDetails?.transactions || [];
 
   const selectedCustomerInfo = useMemo(() => {
-    if (creditDetails?.customer) return creditDetails.customer;
-    return customers.find((c) => c.id === selectedCustomerId) || null;
-  }, [creditDetails, customers, selectedCustomerId]);
+    if (creditDetails?.customer) {
+      return {
+        ...selectedCustomerFromList,
+        ...creditDetails.customer,
+        customerId:
+          selectedCustomerFromList?.customerId ||
+          (selectedCustomerId ? `CUST-${String(selectedCustomerId).padStart(4, '0')}` : undefined),
+      };
+    }
+    return selectedCustomerFromList;
+  }, [creditDetails, selectedCustomerFromList, selectedCustomerId]);
 
   // Add Credits Mutation
   const addCreditsMutation = useMutation({
@@ -345,6 +367,7 @@ function AiCreditsManagementContent() {
             onClick={() => {
               refetchCustomers();
               if (selectedCustomerId) refetchDetails();
+              toast.success('Synchronized AI credit wallets with server');
             }}
             disabled={isRefetchingCustomers || isRefetchingDetails}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-xs disabled:opacity-50"
@@ -523,21 +546,25 @@ function AiCreditsManagementContent() {
               ) : (
                 customers.map((c) => {
                   const isSelected = c.id === selectedCustomerId;
-                  const balance = c.aiCredits ?? c.aiWallet?.balance ?? 20;
+                  const balance =
+                    isSelected && creditDetails?.balance !== undefined
+                      ? creditDetails.balance
+                      : (c.aiCredits ?? c.aiWallet?.balance ?? 0);
+                  const custCode = c.customerId || `CUST-${String(c.id).padStart(4, '0')}`;
 
                   return (
                     <div
                       key={c.id}
                       onClick={() => handleSelectCustomer(c.id)}
-                      className={`p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer flex items-center justify-between gap-3 ${
+                      className={`p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer flex items-center justify-between gap-2.5 ${
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/25 shadow-xs ring-1 ring-emerald-500/30'
+                          ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30 shadow-xs ring-1 ring-emerald-500/30'
                           : 'border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                         <div
-                          className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
+                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
                             isSelected
                               ? 'bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-emerald-600/20'
                               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
@@ -545,31 +572,41 @@ function AiCreditsManagementContent() {
                         >
                           {c.name?.slice(0, 2).toUpperCase() || 'CU'}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                             {c.name}
                           </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                            {c.companyName || c.email || `ID #${c.id}`}
+                          {c.companyName && (
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-medium">
+                              {c.companyName}
+                            </p>
+                          )}
+                          <p className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 mt-0.5">
+                            {custCode}
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0 flex items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black ${
-                            balance > 10
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800'
-                              : balance > 0
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800'
-                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800'
-                          }`}
-                        >
-                          <Coins className="w-3 h-3" />
-                          {balance}
-                        </span>
+                      <div className="text-right shrink-0 flex items-center gap-1.5 sm:gap-2">
+                        <div className="flex flex-col items-end">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black shadow-2xs ${
+                              balance > 10
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800'
+                                : balance > 0
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800'
+                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800'
+                            }`}
+                          >
+                            <Coins className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <span>{balance} Credits</span>
+                          </span>
+                          <span className="text-[9px] uppercase tracking-wider font-semibold text-slate-400 mt-0.5">
+                            Remaining
+                          </span>
+                        </div>
 
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-300 lg:hidden" />
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300 lg:hidden shrink-0" />
                       </div>
                     </div>
                   );
@@ -689,23 +726,26 @@ function AiCreditsManagementContent() {
                 {/* ── Wallet Metric Breakdown Cards ────────────────── */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                   {/* Current Available Balance */}
-                  <div className="bg-gradient-to-br from-emerald-50/80 via-emerald-50/30 to-teal-50/20 dark:from-emerald-950/40 dark:to-teal-950/10 border border-emerald-200/80 dark:border-emerald-800/60 rounded-2xl p-4 sm:p-5 shadow-xs">
+                  <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent border-2 border-emerald-500/30 dark:border-emerald-500/40 rounded-2xl p-4 sm:p-5 shadow-xs relative overflow-hidden">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-                        Current Available Balance
+                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                        CURRENT AVAILABLE BALANCE
                       </span>
-                      <Coins className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <Coins className="w-4.5 h-4.5" />
+                      </div>
                     </div>
                     <div className="mt-3 flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-emerald-900 dark:text-emerald-100 tracking-tight">
+                      <span className="text-3xl sm:text-4xl font-black text-emerald-950 dark:text-emerald-50 tracking-tight">
                         {currentBalance}
                       </span>
-                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                      <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
                         Credits
                       </span>
                     </div>
-                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1 font-medium">
-                      Authoritative balance in PostgreSQL
+                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1 font-medium flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Authoritative Real-Time Wallet Balance
                     </p>
                   </div>
 
@@ -713,7 +753,7 @@ function AiCreditsManagementContent() {
                   <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
-                        Total Granted / Earned
+                        TOTAL GRANTED / EARNED
                       </span>
                       <TrendingUp className="w-4 h-4 text-emerald-500" />
                     </div>
@@ -732,7 +772,7 @@ function AiCreditsManagementContent() {
                   <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
-                        Total Credits Consumed
+                        TOTAL CONSUMED
                       </span>
                       <TrendingDown className="w-4 h-4 text-amber-500" />
                     </div>
