@@ -127,26 +127,45 @@ export interface BookingStats {
   totalRevenue: number;
 }
 
+function unwrapData<T = any>(res: any, fallback?: T): T {
+  if (!res) return fallback as T;
+  // If res has an outer .data (e.g. { statusCode: 200, success: true, data: ... })
+  if (res.data !== undefined) {
+    // If double-nested { data: { data: ... } }
+    if (res.data && typeof res.data === 'object' && res.data.data !== undefined) {
+      return res.data.data;
+    }
+    return res.data;
+  }
+  return res as T;
+}
+
 export class InfluencerAdminService {
   // Influencers
   static async getInfluencers(params?: { search?: string; category?: string; status?: string }): Promise<InfluencerItem[]> {
     const res = await api.get('/admin/influencers', { params });
-    return res.data?.data || [];
+    const data = unwrapData<any>(res, []);
+    return Array.isArray(data) ? data : (data?.items || []);
   }
 
   static async getInfluencerById(id: number): Promise<InfluencerItem> {
     const res = await api.get(`/admin/influencers/${id}`);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async createInfluencer(data: Partial<InfluencerItem>): Promise<InfluencerItem> {
     const res = await api.post('/admin/influencers', data);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async updateInfluencer(id: number, data: Partial<InfluencerItem>): Promise<InfluencerItem> {
     const res = await api.patch(`/admin/influencers/${id}`, data);
-    return res.data?.data;
+    return unwrapData(res);
+  }
+
+  static async setFeatured(id: number, isFeatured: boolean): Promise<InfluencerItem> {
+    const res = await api.patch(`/admin/influencers/${id}`, { isFeatured });
+    return unwrapData(res);
   }
 
   static async deleteInfluencer(id: number): Promise<void> {
@@ -156,46 +175,48 @@ export class InfluencerAdminService {
   // Applications & Verification
   static async getApplications(params?: { search?: string; category?: string; status?: string }): Promise<InfluencerApplicationsResponse> {
     const res = await api.get('/admin/influencers/applications', { params });
+    const raw: any = res;
     return {
-      items: res.data?.data || [],
-      counts: res.data?.counts || { total: 0, pending: 0, approved: 0, rejected: 0, suspended: 0 },
+      items: unwrapData(raw, []),
+      counts: raw?.counts || raw?.data?.counts || { total: 0, pending: 0, approved: 0, rejected: 0, suspended: 0 },
     };
   }
 
   static async getApplicationById(id: number): Promise<InfluencerItem> {
     const res = await api.get(`/admin/influencers/applications/${id}`);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async approveInfluencer(id: number): Promise<InfluencerItem> {
     const res = await api.patch(`/admin/influencers/${id}/approve`);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async rejectInfluencer(id: number, reason: string): Promise<InfluencerItem> {
     const res = await api.patch(`/admin/influencers/${id}/reject`, { reason });
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async suspendInfluencer(id: number): Promise<InfluencerItem> {
     const res = await api.patch(`/admin/influencers/${id}/suspend`);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   // Categories
   static async getCategories(): Promise<InfluencerCategoryItem[]> {
     const res = await api.get('/admin/influencer-categories');
-    return res.data?.data || [];
+    const data = unwrapData(res, []);
+    return Array.isArray(data) ? data : [];
   }
 
   static async createCategory(data: Partial<InfluencerCategoryItem>): Promise<InfluencerCategoryItem> {
     const res = await api.post('/admin/influencer-categories', data);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async updateCategory(id: number, data: Partial<InfluencerCategoryItem>): Promise<InfluencerCategoryItem> {
     const res = await api.patch(`/admin/influencer-categories/${id}`, data);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async deleteCategory(id: number): Promise<void> {
@@ -205,17 +226,18 @@ export class InfluencerAdminService {
   // Packages
   static async getPackages(influencerId: number): Promise<InfluencerPackageItem[]> {
     const res = await api.get(`/admin/influencers/${influencerId}/packages`);
-    return res.data?.data || [];
+    const data = unwrapData(res, []);
+    return Array.isArray(data) ? data : [];
   }
 
   static async createPackage(influencerId: number, data: Partial<InfluencerPackageItem>): Promise<InfluencerPackageItem> {
     const res = await api.post(`/admin/influencers/${influencerId}/packages`, data);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async updatePackage(id: number, data: Partial<InfluencerPackageItem>): Promise<InfluencerPackageItem> {
     const res = await api.patch(`/admin/influencer-packages/${id}`, data);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async deletePackage(id: number): Promise<void> {
@@ -227,12 +249,13 @@ export class InfluencerAdminService {
     const res = await api.get(`/admin/influencers/${influencerId}/availability`, {
       params: { startDate, endDate },
     });
-    return res.data?.data || [];
+    const data = unwrapData(res, []);
+    return Array.isArray(data) ? data : [];
   }
 
   static async setAvailability(influencerId: number, data: { date: string; isAvailable?: boolean; startTime?: string; endTime?: string }): Promise<InfluencerAvailabilityItem> {
     const res = await api.post(`/admin/influencers/${influencerId}/availability`, data);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async deleteAvailability(id: number): Promise<void> {
@@ -242,17 +265,19 @@ export class InfluencerAdminService {
   // Bookings
   static async getBookings(params?: { search?: string; status?: string; paymentStatus?: string; limit?: number; offset?: number }): Promise<{ items: InfluencerBookingItem[]; total: number }> {
     const res = await api.get('/admin/influencer-bookings', { params });
-    return res.data?.data || { items: [], total: 0 };
+    const data = unwrapData(res, { items: [], total: 0 });
+    return data;
   }
 
   static async getBookingStats(): Promise<BookingStats> {
     const res = await api.get('/admin/influencer-bookings/stats');
-    return res.data?.data || { totalBookings: 0, pendingApproval: 0, totalRevenue: 0 };
+    const data = unwrapData(res, { totalBookings: 0, pendingApproval: 0, totalRevenue: 0 });
+    return data;
   }
 
   static async getBookingById(id: string | number): Promise<InfluencerBookingItem> {
     const res = await api.get(`/admin/influencer-bookings/${id}`);
-    return res.data?.data;
+    return unwrapData(res);
   }
 
   static async approveBooking(id: number): Promise<void> {

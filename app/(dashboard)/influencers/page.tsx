@@ -20,6 +20,7 @@ import {
   Layers,
   Check,
   X,
+  Star,
   Instagram,
   Youtube,
 } from 'lucide-react';
@@ -132,6 +133,22 @@ export default function InfluencersPage() {
     onSuccess: () => {
       toast.success('Status updated');
       queryClient.invalidateQueries({ queryKey: ['admin-influencers'] });
+    },
+  });
+
+  const toggleFeaturedMutation = useMutation({
+    mutationFn: ({ id, isFeatured }: { id: number; isFeatured: boolean }) =>
+      InfluencerAdminService.setFeatured(id, isFeatured),
+    onSuccess: (_, variables) => {
+      toast.success(
+        variables.isFeatured
+          ? 'Creator marked as Featured (visible on Customer Home)'
+          : 'Creator removed from Featured'
+      );
+      queryClient.invalidateQueries({ queryKey: ['admin-influencers'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Failed to update featured status');
     },
   });
 
@@ -343,6 +360,7 @@ export default function InfluencersPage() {
                 <th className="py-3.5 px-4">Followers</th>
                 <th className="py-3.5 px-4">Engagement</th>
                 <th className="py-3.5 px-4">Starting Price</th>
+                <th className="py-3.5 px-4">Featured</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
@@ -350,13 +368,13 @@ export default function InfluencersPage() {
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     Loading creators...
                   </td>
                 </tr>
               ) : influencers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     No creators found matching criteria.
                   </td>
                 </tr>
@@ -411,6 +429,37 @@ export default function InfluencersPage() {
                     </td>
                     <td className="py-3 px-4 font-black text-slate-800">
                       ₹{(item.startingPrice || 5000).toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          toggleFeaturedMutation.mutate({
+                            id: item.id,
+                            isFeatured: !item.isFeatured,
+                          })
+                        }
+                        disabled={toggleFeaturedMutation.isPending}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all border ${
+                          item.isFeatured
+                            ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 shadow-xs'
+                            : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
+                        }`}
+                        title={
+                          item.isFeatured
+                            ? 'Featured on Customer Home (Click to unfeature)'
+                            : 'Click to feature on Customer Home'
+                        }
+                      >
+                        <Star
+                          className={`w-3.5 h-3.5 ${
+                            item.isFeatured
+                              ? 'text-amber-500 fill-amber-500'
+                              : 'text-slate-400'
+                          }`}
+                        />
+                        {item.isFeatured ? 'Featured' : 'Standard'}
+                      </button>
                     </td>
                     <td className="py-3 px-4">
                       <span
