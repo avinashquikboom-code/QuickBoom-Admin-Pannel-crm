@@ -19,10 +19,17 @@ import {
   RefreshCw,
   X,
   ExternalLink,
+  ChevronRight,
+  User,
+  Users,
+  CreditCard,
+  ArrowRight,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { AiSocialAdminService, AiServiceConfigItem } from '@/lib/services/ai-social.service';
 
 interface CustomerListItem {
   id: number;
@@ -84,6 +91,9 @@ function AiCreditsManagementContent() {
     queryCustomerId ? parseInt(queryCustomerId, 10) : null
   );
 
+  // Mobile View Switch: 'list' | 'details'
+  const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
+
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -110,6 +120,7 @@ function AiCreditsManagementContent() {
       const parsed = parseInt(queryCustomerId, 10);
       if (!isNaN(parsed) && parsed > 0) {
         setSelectedCustomerId(parsed);
+        setMobileView('details');
       }
     }
   }, [queryCustomerId]);
@@ -162,6 +173,29 @@ function AiCreditsManagementContent() {
     },
   });
 
+  // 3. Fetch AI Services for Dynamic Average Price KPI
+  const { data: services = [] } = useQuery<AiServiceConfigItem[]>({
+    queryKey: ['admin-ai-services'],
+    queryFn: () => AiSocialAdminService.getAiServices(),
+  });
+
+  // Dynamic KPI Metrics across customers
+  const totalCustomersCount = useMemo(() => customers.length, [customers]);
+
+  const totalCreditsIssued = useMemo(() => {
+    return customers.reduce((sum, c) => sum + (c.aiWallet?.totalEarned ?? (c.aiCredits ?? 0)), 0);
+  }, [customers]);
+
+  const totalCreditsConsumed = useMemo(() => {
+    return customers.reduce((sum, c) => sum + (c.aiWallet?.totalSpent ?? 0), 0);
+  }, [customers]);
+
+  const avgCreditPrice = useMemo(() => {
+    if (!services.length) return 10;
+    const total = services.reduce((acc, s) => acc + (s.pricePerCredit || 0), 0);
+    return Math.round(total / services.length);
+  }, [services]);
+
   const currentBalance = creditDetails?.balance ?? 0;
   const totalEarned = creditDetails?.wallet?.totalEarned ?? 0;
   const totalSpent = creditDetails?.wallet?.totalSpent ?? 0;
@@ -172,7 +206,7 @@ function AiCreditsManagementContent() {
     return customers.find((c) => c.id === selectedCustomerId) || null;
   }, [creditDetails, customers, selectedCustomerId]);
 
-  // 3. Add Credits Mutation
+  // Add Credits Mutation
   const addCreditsMutation = useMutation({
     mutationFn: async (payload: { amount: number; reason: string }) => {
       if (!selectedCustomerId) throw new Error('No customer selected');
@@ -193,7 +227,7 @@ function AiCreditsManagementContent() {
     },
   });
 
-  // 4. Reduce Credits Mutation
+  // Reduce Credits Mutation
   const reduceCreditsMutation = useMutation({
     mutationFn: async (payload: { amount: number; reason: string }) => {
       if (!selectedCustomerId) throw new Error('No customer selected');
@@ -258,36 +292,53 @@ function AiCreditsManagementContent() {
     setIsReduceModalOpen(true);
   };
 
+  const handleSelectCustomer = (id: number) => {
+    setSelectedCustomerId(id);
+    setMobileView('details');
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-6 lg:p-8 space-y-6">
-      {/* ── Top Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-500 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
+    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* ── Breadcrumbs ────────────────────────────────────────── */}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <Link href="/dashboard" className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+          Dashboard
+        </Link>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
+        <span className="text-slate-500 dark:text-slate-400">Marketing</span>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
+        <span className="text-slate-900 dark:text-white font-semibold">AI Credit Management</span>
+      </nav>
+
+      {/* ── Page Header ────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xs">
+        <div className="flex items-start sm:items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/20 shrink-0">
             <Coins className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                 AI Credit Management
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Customer-Wise Control
               </span>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
               Inspect customer wallets, allocate complimentary credits, make adjustments, and track ledger history.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 self-start md:self-center shrink-0">
           <Link
             href="/marketing/ai-studio"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-slate-50/50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-xs"
           >
-            <Sparkles className="w-4 h-4 text-purple-500" />
-            AI Studio &amp; Pricing
+            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+            <span>AI Studio &amp; Pricing</span>
           </Link>
 
           <button
@@ -296,44 +347,162 @@ function AiCreditsManagementContent() {
               if (selectedCustomerId) refetchDetails();
             }}
             disabled={isRefetchingCustomers || isRefetchingDetails}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm hover:text-slate-900 dark:hover:text-white transition-all shadow-sm disabled:opacity-50"
-            title="Refresh Data"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+            title="Synchronize customer wallets and ledger"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefetchingCustomers || isRefetchingDetails ? 'animate-spin text-emerald-500' : ''}`} />
-            <span className="hidden sm:inline">Sync</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefetchingCustomers || isRefetchingDetails ? 'animate-spin text-emerald-500' : ''}`} />
+            <span>Sync</span>
           </button>
         </div>
       </div>
 
-      {/* ── Main Two-Column Layout ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* ── Left Column: Customer Search & Selection (4 cols) ─── */}
-        <div className="lg:col-span-4 xl:col-span-4 flex flex-col space-y-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col h-full max-h-[820px]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+      {/* ── Top Dynamic KPI Cards ──────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Total Customers */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all duration-200">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+              Total Customers
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+              <Building2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              {isLoadingCustomers ? '...' : totalCustomersCount}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              <Users className="w-3.5 h-3.5 text-slate-400" />
+              <span>Registered Workspaces</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 2: Total Credits Issued */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all duration-200">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+              Total Credits Issued
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              {isLoadingCustomers ? '...' : `${totalCreditsIssued} cr`}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+              <Coins className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Grants &amp; Wallet Purchases</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 3: Credits Consumed */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all duration-200">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+              Credits Consumed
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+              <TrendingDown className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              {isLoadingCustomers ? '...' : `${totalCreditsConsumed} cr`}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Used in AI Content Studio</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 4: Average Credit Price */}
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-sm transition-all duration-200">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+              Average Credit Price
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+              <CreditCard className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              ₹{avgCreditPrice} / credit
+            </p>
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              <span>Standard Billing Tariff</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mobile View Selector (<1024px) ─────────────────────── */}
+      <div className="lg:hidden flex items-center justify-between p-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
+        <button
+          type="button"
+          onClick={() => setMobileView('list')}
+          className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${
+            mobileView === 'list'
+              ? 'bg-emerald-500 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+          }`}
+        >
+          Customer List ({customers.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileView('details')}
+          className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all ${
+            mobileView === 'details'
+              ? 'bg-emerald-500 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+          }`}
+        >
+          Wallet Details {selectedCustomerInfo ? `(${selectedCustomerInfo.name.split(' ')[0]})` : ''}
+        </button>
+      </div>
+
+      {/* ── Main Responsive Layout ─────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ── Left Column: Customer List Panel ─────────────────── */}
+        <div
+          className={`lg:col-span-4 xl:col-span-4 flex flex-col space-y-4 ${
+            mobileView === 'details' ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs flex flex-col max-h-[820px]">
+            {/* Panel Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <h2 className="font-semibold text-slate-900 dark:text-white text-sm">
+                <h2 className="font-bold text-slate-900 dark:text-white text-sm">
                   Customers ({customers.length})
                 </h2>
               </div>
-              <span className="text-xs text-slate-400">Select to manage</span>
+              <span className="text-[11px] font-medium text-slate-400">Select to inspect</span>
             </div>
 
             {/* Search Input */}
-            <div className="mt-3 relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="mt-3.5 relative">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search name, company, email..."
-                className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                className="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -341,14 +510,14 @@ function AiCreditsManagementContent() {
             </div>
 
             {/* Customer List Items */}
-            <div className="mt-3 flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            <div className="mt-3.5 flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[300px]">
               {isLoadingCustomers ? (
-                <div className="py-12 text-center text-slate-400 text-sm flex flex-col items-center gap-2">
-                  <RefreshCw className="w-5 h-5 animate-spin text-emerald-500" />
-                  <span>Loading customers...</span>
+                <div className="py-16 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
+                  <RefreshCw className="w-6 h-6 animate-spin text-emerald-500" />
+                  <span>Loading customer workspaces...</span>
                 </div>
               ) : customers.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-sm">
+                <div className="py-16 text-center text-slate-400 text-xs">
                   No customers found matching &quot;{debouncedSearch}&quot;
                 </div>
               ) : (
@@ -359,46 +528,48 @@ function AiCreditsManagementContent() {
                   return (
                     <div
                       key={c.id}
-                      onClick={() => setSelectedCustomerId(c.id)}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                      onClick={() => handleSelectCustomer(c.id)}
+                      className={`p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer flex items-center justify-between gap-3 ${
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-sm ring-1 ring-emerald-500/30'
-                          : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
+                          ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/25 shadow-xs ring-1 ring-emerald-500/30'
+                          : 'border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                          className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
                             isSelected
-                              ? 'bg-emerald-600 text-white shadow-sm'
+                              ? 'bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-emerald-600/20'
                               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                           }`}
                         >
-                          {c.name.slice(0, 2).toUpperCase()}
+                          {c.name?.slice(0, 2).toUpperCase() || 'CU'}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                          <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                             {c.name}
                           </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                             {c.companyName || c.email || `ID #${c.id}`}
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
+                      <div className="text-right shrink-0 flex items-center gap-2">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black ${
                             balance > 10
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800'
                               : balance > 0
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800'
+                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800'
                           }`}
                         >
                           <Coins className="w-3 h-3" />
                           {balance}
                         </span>
+
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300 lg:hidden" />
                       </div>
                     </div>
                   );
@@ -408,66 +579,83 @@ function AiCreditsManagementContent() {
           </div>
         </div>
 
-        {/* ── Right Column: Selected Customer Wallet & Actions (8 cols) ── */}
-        <div className="lg:col-span-8 xl:col-span-8 flex flex-col space-y-6">
+        {/* ── Right Column: Selected Customer Details Panel ───── */}
+        <div
+          className={`lg:col-span-8 xl:col-span-8 flex flex-col space-y-6 ${
+            mobileView === 'list' ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
+          {/* Mobile Back Button */}
+          <div className="lg:hidden flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileView('list')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-xs"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Customer List</span>
+            </button>
+          </div>
+
           {!selectedCustomerId ? (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-400">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-400">
               <Coins className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-700 mb-3" />
-              <p className="text-base font-semibold text-slate-700 dark:text-slate-300">
-                No Customer Selected
+              <p className="text-base font-bold text-slate-700 dark:text-slate-300">
+                No Customer Workspace Selected
               </p>
-              <p className="text-sm text-slate-400 mt-1">
-                Please select a customer from the left list to view AI wallet balance and manage credits.
+              <p className="text-xs text-slate-400 mt-1">
+                Please select a customer from the left list to view AI wallet balance and allocate credits.
               </p>
             </div>
           ) : isLoadingDetails ? (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
               <RefreshCw className="w-8 h-8 animate-spin text-emerald-500" />
-              <p className="text-sm font-medium">Loading customer AI wallet &amp; transactions...</p>
+              <p className="text-xs sm:text-sm font-semibold">Loading customer AI wallet &amp; transaction ledger...</p>
             </div>
           ) : (
             <>
               {/* ── Customer Details Header & Wallet Balance Card ──── */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
                   {/* Customer Info */}
                   <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white text-lg font-bold shadow-md shadow-emerald-500/20 shrink-0">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white text-lg font-black shadow-md shadow-emerald-500/20 shrink-0">
                       {selectedCustomerInfo?.name?.slice(0, 2).toUpperCase() || 'CU'}
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white">
+                        <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
                           {selectedCustomerInfo?.name || `Customer #${selectedCustomerId}`}
                         </h2>
-                        <span className="px-2 py-0.5 rounded-md text-xs font-mono font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                           CUST-{String(selectedCustomerId).padStart(4, '0')}
                         </span>
                         <Link
                           href={`/customers/${selectedCustomerId}`}
-                          className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-medium"
-                          title="Open Customer Profile"
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 transition-colors"
+                          title="Open Customer Profile in CRM"
                         >
-                          Profile <ExternalLink className="w-3 h-3" />
+                          <span>Profile</span>
+                          <ExternalLink className="w-3 h-3" />
                         </Link>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
                         {selectedCustomerInfo?.companyName && (
-                          <span className="flex items-center gap-1">
-                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             {selectedCustomerInfo.companyName}
                           </span>
                         )}
                         {selectedCustomerInfo?.email && (
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="flex items-center gap-1.5">
+                            <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             {selectedCustomerInfo.email}
                           </span>
                         )}
                         {selectedCustomerInfo?.phone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             {selectedCustomerInfo.phone}
                           </span>
                         )}
@@ -476,126 +664,128 @@ function AiCreditsManagementContent() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
                     <button
+                      type="button"
                       onClick={openAddModal}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-md shadow-emerald-600/25 hover:shadow-lg transition-all active:scale-95"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/25 hover:shadow-lg transition-all active:scale-95"
                     >
                       <PlusCircle className="w-4 h-4" />
-                      Add Credits
+                      <span>Add Credits</span>
                     </button>
 
                     <button
+                      type="button"
                       onClick={openReduceModal}
                       disabled={currentBalance <= 0}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50/50 hover:bg-rose-100/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-semibold text-sm transition-all disabled:opacity-40 disabled:pointer-events-none active:scale-95"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-rose-300 dark:border-rose-900 bg-rose-50/60 hover:bg-rose-100/80 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold text-xs sm:text-sm transition-all disabled:opacity-40 disabled:pointer-events-none active:scale-95"
                     >
                       <MinusCircle className="w-4 h-4" />
-                      Reduce Credits
+                      <span>Reduce Credits</span>
                     </button>
                   </div>
                 </div>
 
-                {/* ── Stats Row ─────────────────────────────────────────── */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-                  {/* Current Balance */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50/40 dark:from-emerald-950/30 dark:to-teal-950/10 border border-emerald-200/70 dark:border-emerald-800/50 rounded-xl p-4">
+                {/* ── Wallet Metric Breakdown Cards ────────────────── */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  {/* Current Available Balance */}
+                  <div className="bg-gradient-to-br from-emerald-50/80 via-emerald-50/30 to-teal-50/20 dark:from-emerald-950/40 dark:to-teal-950/10 border border-emerald-200/80 dark:border-emerald-800/60 rounded-2xl p-4 sm:p-5 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
                         Current Available Balance
                       </span>
                       <Coins className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-emerald-900 dark:text-emerald-100">
+                    <div className="mt-3 flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-emerald-900 dark:text-emerald-100 tracking-tight">
                         {currentBalance}
                       </span>
                       <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                         Credits
                       </span>
                     </div>
-                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1">
-                      Ready for post, poster, &amp; video generation
+                    <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1 font-medium">
+                      Authoritative balance in PostgreSQL
                     </p>
                   </div>
 
-                  {/* Total Earned / Granted */}
-                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                  {/* Total Granted / Earned */}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                         Total Granted / Earned
                       </span>
                       <TrendingUp className="w-4 h-4 text-emerald-500" />
                     </div>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                    <div className="mt-3 flex items-baseline gap-2">
+                      <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                         {totalEarned}
                       </span>
-                      <span className="text-xs text-slate-500">Credits</span>
+                      <span className="text-xs font-bold text-slate-400">Credits</span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-slate-400 mt-1 font-medium">
                       Cumulative top-ups, grants &amp; bonuses
                     </p>
                   </div>
 
-                  {/* Total Spent */}
-                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                  {/* Total Consumed */}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                         Total Credits Consumed
                       </span>
                       <TrendingDown className="w-4 h-4 text-amber-500" />
                     </div>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                    <div className="mt-3 flex items-baseline gap-2">
+                      <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                         {totalSpent}
                       </span>
-                      <span className="text-xs text-slate-500">Credits</span>
+                      <span className="text-xs font-bold text-slate-400">Credits</span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Used by customer for AI generations
+                    <p className="text-[11px] text-slate-400 mt-1 font-medium">
+                      Spent on AI post/poster/video jobs
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* ── Credit History / Ledger Table ─────────────────────── */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+              {/* ── Transaction History Ledger Table ───────────────── */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <History className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                    <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                      Credit Transaction History ({transactions.length})
+                    <History className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
+                      Transaction Ledger History ({transactions.length})
                     </h3>
                   </div>
-                  <span className="text-xs text-slate-400">
-                    Real-time immutable audit ledger
+                  <span className="text-[11px] font-medium text-slate-400 hidden sm:inline">
+                    Immutable audit records
                   </span>
                 </div>
 
                 {transactions.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                  <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                     <Coins className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700 mb-2" />
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                    <p className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400">
                       No transaction history recorded yet
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Credit grants, deductions, and generation usage will appear here.
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Credit grants, admin reductions, and AI generation deductions will be listed here.
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800">
                     <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                      <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-semibold border-y border-slate-200 dark:border-slate-800">
+                      <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
                         <tr>
-                          <th className="py-3 px-3">Date &amp; Time</th>
-                          <th className="py-3 px-3">Type</th>
-                          <th className="py-3 px-3">Credits</th>
-                          <th className="py-3 px-3">Before</th>
-                          <th className="py-3 px-3">After</th>
-                          <th className="py-3 px-3">Reason / Details</th>
-                          <th className="py-3 px-3">Admin</th>
-                          <th className="py-3 px-3 text-right">Status</th>
+                          <th className="py-3 px-3.5 whitespace-nowrap">Date &amp; Time</th>
+                          <th className="py-3 px-3.5 whitespace-nowrap">Type</th>
+                          <th className="py-3 px-3.5 whitespace-nowrap">Credits</th>
+                          <th className="py-3 px-3.5 whitespace-nowrap">Before</th>
+                          <th className="py-3 px-3.5 whitespace-nowrap">After</th>
+                          <th className="py-3 px-3.5 min-w-[180px]">Reason / Details</th>
+                          <th className="py-3 px-3.5 whitespace-nowrap">Admin</th>
+                          <th className="py-3 px-3.5 text-right whitespace-nowrap">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -606,54 +796,54 @@ function AiCreditsManagementContent() {
                             timeStyle: 'short',
                           });
 
-                          let typeBadgeColor = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
-                          if (tx.type === 'CREDIT_GRANT') {
-                            typeBadgeColor = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
+                          let typeBadge = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+                          if (tx.type === 'CREDIT_GRANT' || tx.type === 'GRANT' || tx.type === 'BONUS') {
+                            typeBadge = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
                           } else if (tx.type === 'ADMIN_ADJUSTMENT') {
-                            typeBadgeColor = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
+                            typeBadge = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800';
                           } else if (tx.type === 'USAGE') {
-                            typeBadgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
+                            typeBadge = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
                           } else if (tx.type === 'PURCHASE') {
-                            typeBadgeColor = 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
+                            typeBadge = 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
                           }
 
                           return (
                             <tr key={tx.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                              <td className="py-3 px-3 whitespace-nowrap font-medium text-slate-800 dark:text-slate-200">
+                              <td className="py-3 px-3.5 whitespace-nowrap font-medium text-slate-800 dark:text-slate-200">
                                 {formattedDate}
                               </td>
-                              <td className="py-3 px-3 whitespace-nowrap">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeBadgeColor}`}>
+                              <td className="py-3 px-3.5 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${typeBadge}`}>
                                   {tx.type}
                                 </span>
                               </td>
-                              <td className="py-3 px-3 whitespace-nowrap">
+                              <td className="py-3 px-3.5 whitespace-nowrap">
                                 <span
-                                  className={`inline-flex items-center font-bold text-sm ${
+                                  className={`inline-flex items-center font-bold text-xs sm:text-sm ${
                                     isPositive
                                       ? 'text-emerald-600 dark:text-emerald-400'
                                       : 'text-rose-600 dark:text-rose-400'
                                   }`}
                                 >
-                                  {isPositive ? `+${tx.amount}` : tx.amount}
+                                  {isPositive ? `+${tx.amount}` : tx.amount} cr
                                 </span>
                               </td>
-                              <td className="py-3 px-3 whitespace-nowrap text-slate-500">
+                              <td className="py-3 px-3.5 whitespace-nowrap text-slate-400 font-mono">
                                 {tx.balanceBefore}
                               </td>
-                              <td className="py-3 px-3 whitespace-nowrap font-semibold text-slate-800 dark:text-slate-200">
+                              <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-900 dark:text-white font-mono">
                                 {tx.balanceAfter}
                               </td>
-                              <td className="py-3 px-3 max-w-[240px] truncate" title={tx.reason || tx.notes || ''}>
+                              <td className="py-3 px-3.5 max-w-[240px] truncate text-slate-600 dark:text-slate-300" title={tx.reason || tx.notes || ''}>
                                 {tx.reason || tx.notes || '—'}
                               </td>
-                              <td className="py-3 px-3 whitespace-nowrap text-slate-500">
-                                {tx.adminId ? `Admin #${tx.adminId}` : 'System / User'}
+                              <td className="py-3 px-3.5 whitespace-nowrap text-slate-400 text-[11px]">
+                                {tx.adminId ? `Admin #${tx.adminId}` : 'System / Auto'}
                               </td>
-                              <td className="py-3 px-3 whitespace-nowrap text-right">
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                              <td className="py-3 px-3.5 whitespace-nowrap text-right">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                                   <CheckCircle2 className="w-3.5 h-3.5" />
-                                  COMPLETED
+                                  <span>COMPLETED</span>
                                 </span>
                               </td>
                             </tr>
@@ -669,13 +859,13 @@ function AiCreditsManagementContent() {
         </div>
       </div>
 
-      {/* ── Modal: Add Credits ──────────────────────────────────────── */}
+      {/* ── Modal: Add Credits ─────────────────────────────────── */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
                   <PlusCircle className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
@@ -683,23 +873,24 @@ function AiCreditsManagementContent() {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-xs space-y-1">
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3.5 text-xs space-y-1.5 border border-slate-200/60 dark:border-slate-800">
               <div className="flex justify-between">
                 <span className="text-slate-500">Customer:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
                   {selectedCustomerInfo?.name}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Current Balance:</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="font-black text-emerald-600 dark:text-emerald-400">
                   {currentBalance} Credits
                 </span>
               </div>
@@ -707,7 +898,7 @@ function AiCreditsManagementContent() {
 
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Credits to Add <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -720,18 +911,19 @@ function AiCreditsManagementContent() {
                     setCreditsAmount(e.target.value === '' ? '' : parseInt(e.target.value, 10))
                   }
                   placeholder="e.g. 10"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
+
                 {/* Quick Add Pills */}
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                   {[5, 10, 25, 50, 100].map((num) => (
                     <button
                       type="button"
                       key={num}
                       onClick={() => setCreditsAmount(num)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                      className={`px-3 py-1 rounded-xl text-xs font-bold border transition-all ${
                         creditsAmount === num
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                           : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500'
                       }`}
                     >
@@ -742,7 +934,7 @@ function AiCreditsManagementContent() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Reason / Description <span className="text-rose-500">*</span>
                 </label>
                 <textarea
@@ -750,18 +942,18 @@ function AiCreditsManagementContent() {
                   rows={3}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Promotional onboarding grant, VIP customer compensation, campaign reward..."
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
+                  placeholder="e.g. Promotional onboarding grant, VIP customer bonus, compensation..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none font-medium"
                 />
               </div>
 
               {/* Preview */}
               {typeof creditsAmount === 'number' && creditsAmount > 0 && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs">
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs">
                   <span className="text-emerald-800 dark:text-emerald-300 font-medium">
                     New Balance Preview:
                   </span>
-                  <span className="font-bold text-emerald-700 dark:text-emerald-200 text-sm">
+                  <span className="font-black text-emerald-700 dark:text-emerald-200 text-sm">
                     {currentBalance} + {creditsAmount} = {currentBalance + creditsAmount} Credits
                   </span>
                 </div>
@@ -772,19 +964,19 @@ function AiCreditsManagementContent() {
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
                   disabled={addCreditsMutation.isPending}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={addCreditsMutation.isPending}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-md shadow-emerald-600/25 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-600/25 disabled:opacity-50 transition-all"
                 >
                   {addCreditsMutation.isPending ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Granting...
+                      Allocating...
                     </>
                   ) : (
                     'Confirm & Add Credits'
@@ -796,13 +988,13 @@ function AiCreditsManagementContent() {
         </div>
       )}
 
-      {/* ── Modal: Reduce Credits ───────────────────────────────────── */}
+      {/* ── Modal: Reduce Credits ──────────────────────────────── */}
       {isReduceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 flex items-center justify-center">
                   <MinusCircle className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-base">
@@ -810,23 +1002,24 @@ function AiCreditsManagementContent() {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsReduceModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-xs space-y-1">
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3.5 text-xs space-y-1.5 border border-slate-200/60 dark:border-slate-800">
               <div className="flex justify-between">
                 <span className="text-slate-500">Customer:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
                   {selectedCustomerInfo?.name}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Current Balance:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
+                <span className="font-black text-slate-800 dark:text-slate-200">
                   {currentBalance} Credits
                 </span>
               </div>
@@ -834,7 +1027,7 @@ function AiCreditsManagementContent() {
 
             <form onSubmit={handleReduceSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Credits to Deduct <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -848,10 +1041,11 @@ function AiCreditsManagementContent() {
                     setCreditsAmount(e.target.value === '' ? '' : parseInt(e.target.value, 10))
                   }
                   placeholder={`Max ${currentBalance}`}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
+
                 {/* Quick Reduce Pills */}
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                   {[1, 5, 10, 20].map((num) => {
                     if (num > currentBalance) return null;
                     return (
@@ -859,9 +1053,9 @@ function AiCreditsManagementContent() {
                         type="button"
                         key={num}
                         onClick={() => setCreditsAmount(num)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                        className={`px-3 py-1 rounded-xl text-xs font-bold border transition-all ${
                           creditsAmount === num
-                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                            ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
                             : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-rose-500'
                         }`}
                       >
@@ -873,7 +1067,7 @@ function AiCreditsManagementContent() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Reason / Description <span className="text-rose-500">*</span>
                 </label>
                 <textarea
@@ -881,15 +1075,15 @@ function AiCreditsManagementContent() {
                   rows={3}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Reversal of mistaken grant, administrative balance correction..."
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 resize-none"
+                  placeholder="e.g. Correction of mistaken grant, customer requested refund..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 resize-none font-medium"
                 />
               </div>
 
               {/* Preview */}
               {typeof creditsAmount === 'number' && creditsAmount > 0 && (
                 <div
-                  className={`flex items-center justify-between p-3 rounded-xl border text-xs ${
+                  className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs ${
                     creditsAmount > currentBalance
                       ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300'
                       : 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
@@ -900,7 +1094,7 @@ function AiCreditsManagementContent() {
                       ? 'Error: Insufficient balance!'
                       : 'New Balance Preview:'}
                   </span>
-                  <span className="font-bold text-sm">
+                  <span className="font-black text-sm">
                     {creditsAmount > currentBalance
                       ? `Cannot deduct ${creditsAmount}`
                       : `${currentBalance} - ${creditsAmount} = ${currentBalance - creditsAmount} Credits`}
@@ -913,7 +1107,7 @@ function AiCreditsManagementContent() {
                   type="button"
                   onClick={() => setIsReduceModalOpen(false)}
                   disabled={reduceCreditsMutation.isPending}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>
@@ -925,7 +1119,7 @@ function AiCreditsManagementContent() {
                     creditsAmount <= 0 ||
                     creditsAmount > currentBalance
                   }
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold text-sm shadow-md shadow-rose-600/25 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs shadow-md shadow-rose-600/25 disabled:opacity-50 transition-all"
                 >
                   {reduceCreditsMutation.isPending ? (
                     <>
