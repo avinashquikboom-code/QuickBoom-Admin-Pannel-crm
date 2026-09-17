@@ -88,8 +88,11 @@ interface SalaryStructureItem {
 
 export default function PayrollPage() {
   const [activeTab, setActiveTab] = useState<PayrollSubmodule>('dashboard');
-  const [selectedMonth, setSelectedMonth] = useState('August');
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const now = new Date();
+  const currentMonthName = MONTH_NAMES[now.getMonth()] || 'September';
+  const currentYearStr = String(now.getFullYear()) || '2026';
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
+  const [selectedYear, setSelectedYear] = useState(currentYearStr);
   const [selectedDept, setSelectedDept] = useState('All');
   const queryClient = useQueryClient();
 
@@ -331,6 +334,8 @@ export default function PayrollPage() {
     mutationFn: async () => {
       return api.post('/admin/payroll/generate', {
         payrollId: currentPayroll?.id,
+        month: selectedMonthNum,
+        year: Number(selectedYear),
       });
     },
     onSuccess: (res: any) => {
@@ -338,6 +343,7 @@ export default function PayrollPage() {
       toast.success(msg);
       queryClient.invalidateQueries({ queryKey: ['admin-current-payroll'] });
       queryClient.invalidateQueries({ queryKey: ['admin-salary-slips'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-payroll-history'] });
     },
     onError: (err: any) => {
       toast.error(getErrorMessage(err));
@@ -874,6 +880,14 @@ export default function PayrollPage() {
               <p className="text-xs text-slate-500">Download, print, or review individual employee salary statements.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending}
+                className="px-3.5 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>{generateMutation.isPending ? 'Generating...' : `Generate Slips (${selectedMonth} ${selectedYear})`}</span>
+              </button>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                 <input
@@ -904,6 +918,7 @@ export default function PayrollPage() {
                   <th className="p-3">Slip Number</th>
                   <th className="p-3">Employee</th>
                   <th className="p-3">Pay Period</th>
+                  <th className="p-3">Attendance</th>
                   <th className="p-3">Gross Salary</th>
                   <th className="p-3">Net Salary</th>
                   <th className="p-3">Status</th>
@@ -913,7 +928,7 @@ export default function PayrollPage() {
               <tbody className="divide-y divide-slate-100 font-medium">
                 {salarySlips.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-400">
+                    <td colSpan={8} className="p-8 text-center text-slate-400">
                       No salary slips generated for this period yet. Run payroll calculation and slip generation.
                     </td>
                   </tr>
@@ -926,6 +941,26 @@ export default function PayrollPage() {
                         <span className="block text-[10px] text-slate-400">{slip.employee?.employeeCode}</span>
                       </td>
                       <td className="p-3 text-slate-500">{slip.payPeriod}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                            {slip.workingDays ?? slip.payrollItem?.workingDays ?? 0} Working
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                            {slip.presentDays ?? slip.payrollItem?.presentDays ?? 0} Present
+                          </span>
+                          {(slip.absentDays ?? slip.payrollItem?.absentDays ?? 0) > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700">
+                              {slip.absentDays ?? slip.payrollItem?.absentDays} Absent
+                            </span>
+                          )}
+                          {((slip.paidLeaveDays ?? slip.payrollItem?.paidLeaveDays ?? 0) + (slip.unpaidLeaveDays ?? slip.payrollItem?.unpaidLeaveDays ?? 0)) > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700">
+                              {(slip.paidLeaveDays ?? slip.payrollItem?.paidLeaveDays ?? 0) + (slip.unpaidLeaveDays ?? slip.payrollItem?.unpaidLeaveDays ?? 0)} Leave
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-3 font-semibold">₹{Number(slip.grossSalary || 0).toLocaleString('en-IN')}</td>
                       <td className="p-3 font-bold text-emerald-700">₹{Number(slip.netSalary || 0).toLocaleString('en-IN')}</td>
                       <td className="p-3">
@@ -1213,7 +1248,9 @@ export default function PayrollPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">Official Payslip Statement</h3>
-                  <p className="text-xs text-slate-400 font-medium">{selectedSlip.slipNumber} • {selectedSlip.payPeriod}</p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {selectedSlip.slipNumber} • {selectedSlip.payPeriod} • Period Date: {selectedSlip.date || (selectedSlip.generatedAt ? new Date(selectedSlip.generatedAt).toISOString().split('T')[0] : '')}
+                  </p>
                 </div>
               </div>
               <button
@@ -1242,6 +1279,35 @@ export default function PayrollPage() {
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Status</span>
                 <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black rounded-md text-[10px]">
                   {selectedSlip.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Attendance & Working Days Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-indigo-50/50 border border-indigo-100/80 p-4 rounded-2xl text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-black text-slate-400 block">Working Days</span>
+                <span className="text-sm font-black text-slate-900">
+                  {selectedSlip.workingDays ?? selectedSlip.payrollItem?.workingDays ?? 0} days
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-black text-emerald-600 block">Present Days</span>
+                <span className="text-sm font-black text-emerald-700">
+                  {selectedSlip.presentDays ?? selectedSlip.payrollItem?.presentDays ?? 0} days
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-black text-rose-600 block">Absent Days</span>
+                <span className="text-sm font-black text-rose-700">
+                  {selectedSlip.absentDays ?? selectedSlip.payrollItem?.absentDays ?? 0} days
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-black text-amber-600 block">Approved Leave</span>
+                <span className="text-sm font-black text-amber-700">
+                  {selectedSlip.paidLeaveDays ?? selectedSlip.payrollItem?.paidLeaveDays ?? 0} paid
+                  {(selectedSlip.unpaidLeaveDays ?? selectedSlip.payrollItem?.unpaidLeaveDays ?? 0) > 0 ? ` + ${selectedSlip.unpaidLeaveDays ?? selectedSlip.payrollItem?.unpaidLeaveDays} LOP` : ''}
                 </span>
               </div>
             </div>
