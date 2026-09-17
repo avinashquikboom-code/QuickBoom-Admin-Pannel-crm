@@ -948,10 +948,10 @@ export default function LeaveManagementPage() {
               {/* Status Tabs */}
               <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                 {[
-                  { key: 'PENDING' as RequestTab, label: 'Pending', count: requestCounts.pending },
-                  { key: 'APPROVED' as RequestTab, label: 'Approved', count: requestCounts.approved },
-                  { key: 'REJECTED' as RequestTab, label: 'Rejected', count: requestCounts.rejected },
                   { key: 'ALL' as RequestTab, label: 'All Requests', count: requestCounts.all },
+                  { key: 'APPROVED' as RequestTab, label: 'Approved', count: requestCounts.approved },
+                  { key: 'PENDING' as RequestTab, label: 'Pending', count: requestCounts.pending },
+                  { key: 'REJECTED' as RequestTab, label: 'Rejected', count: requestCounts.rejected },
                 ].map((tab) => (
                   <button
                     key={tab.key}
