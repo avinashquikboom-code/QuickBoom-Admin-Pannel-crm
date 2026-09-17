@@ -319,7 +319,31 @@ export const adminNavigation: {
       ],
     },
 
-    // 4. Data Capture
+    // 4. Master Data
+    {
+      id: 'master',
+      category: 'Master',
+      sectionIcon: Database,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Departments', href: '/master/departments', icon: Building2, permission: 'department.view' },
+        { name: 'Designations', href: '/master/designations', icon: Award, permission: 'designation.view' },
+        { name: 'Employee Types', href: '/master/employee-types', icon: Users, permission: 'employee.view' },
+        { name: 'Leave Types', href: '/master/leave-types', icon: Calendar, permission: 'leave.view' },
+        { name: 'Leave Policies', href: '/master/leave-policies', icon: FileText, permission: 'leave.view' },
+        { name: 'Work Types', href: '/master/work-types', icon: Briefcase, permission: 'tasks.view' },
+        { name: 'Activity Types', href: '/master/activity-types', icon: Activity, permission: 'activities.view' },
+        { name: 'Task Status', href: '/master/task-status', icon: CheckSquare, permission: 'tasks.view' },
+        { name: 'Lead Stages', href: '/master/lead-stages', icon: Kanban, permission: 'leads.view' },
+        { name: 'Lead Sources', href: '/master/lead-sources', icon: Target, permission: 'leads.view' },
+        { name: 'Subscription Plans', href: '/master/subscription-plans', icon: Layers, permission: 'plans.manage' },
+        { name: 'Expense Categories', href: '/master/expense-categories', icon: CreditCard, permission: 'payroll.view' },
+        { name: 'Loan Types', href: '/master/loan-types', icon: DollarSign, permission: 'payroll.view' },
+        { name: 'Payment Methods', href: '/master/payment-methods', icon: Banknote, permission: 'customers.manage' },
+      ],
+    },
+
+    // 5. Data Capture
     {
       id: 'data-capture',
       category: 'Data Capture',
