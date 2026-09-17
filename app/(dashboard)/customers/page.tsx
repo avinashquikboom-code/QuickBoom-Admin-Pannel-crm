@@ -201,9 +201,24 @@ export default function CustomersPage() {
             sortOrder,
             page,
             limit: pageSize,
+            excludeAdmins: 'true',
           },
         });
-        const items = res?.data?.data || res?.data?.items || (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : res?.items || []);
+        const rawItems = res?.data?.data || res?.data?.items || (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : res?.items || []);
+        // Defensive safety check: strictly ensure non-customer system accounts never appear in customer directory
+        const items = Array.isArray(rawItems)
+          ? rawItems.filter((cust: any) => {
+              const custType = (cust.customerType || '').toUpperCase();
+              if (['SYSTEM', 'INTERNAL', 'SUPER_ADMIN', 'ADMIN'].includes(custType)) return false;
+              const role = (cust.role || cust.roleType || '').toUpperCase();
+              if (['SUPER_ADMIN', 'ADMIN'].includes(role)) return false;
+              const name = (cust.name || cust.customerName || '').trim().toLowerCase();
+              const contactName = (cust.contactFullName || '').trim().toLowerCase();
+              const email = (cust.email || '').trim().toLowerCase();
+              if (name === 'super admin' || contactName === 'super admin' || email === 'admin@quickboom.com') return false;
+              return true;
+            })
+          : [];
         const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
           page,
           pageSize,
