@@ -206,11 +206,23 @@ export default function DataManagementPage() {
     }
     setIsSearchingEmployees(true);
     try {
-      const res: any = await api.get('/employees', {
+      const res: any = await api.get('/admin/data-management/employees', {
         params: { search: query.trim(), limit: 10, page: 1 },
+      }).catch(async () => {
+        return api.get('/employees', {
+          params: { search: query.trim(), limit: 10, page: 1, excludeAdmins: 'true' },
+        });
       });
       const data = res?.data || res;
-      const employees = Array.isArray(data) ? data : (data?.data || data?.employees || []);
+      const rawEmployees = Array.isArray(data) ? data : (data?.data || data?.employees || []);
+      // Additional safety check: strictly ensure Super Admin or Admin never appears in employee list
+      const employees = rawEmployees.filter((emp: any) => {
+        const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim().toLowerCase();
+        const designation = (emp.designation?.name || emp.role || '').trim().toLowerCase();
+        const isSuperAdmin = fullName.includes('super admin') || designation.includes('super admin') || emp.email?.toLowerCase().includes('superadmin');
+        const isAdmin = fullName === 'admin' || designation === 'admin' || emp.email?.toLowerCase() === 'admin@quickboom.com';
+        return !isSuperAdmin && !isAdmin;
+      });
       setEmployeeSearchResults(employees);
       setShowSearchDropdown(employees.length > 0);
     } catch {
@@ -296,11 +308,24 @@ export default function DataManagementPage() {
     }
     setIsSearchingCustomers(true);
     try {
-      const res: any = await api.get('/customers', {
+      const res: any = await api.get('/admin/data-management/customers', {
         params: { search: query.trim(), limit: 10, page: 1 },
+      }).catch(async () => {
+        return api.get('/customers', {
+          params: { search: query.trim(), limit: 10, page: 1, excludeAdmins: 'true' },
+        });
       });
       const data = res?.data || res;
-      const customers = Array.isArray(data) ? data : (data?.data || data?.customers || []);
+      const rawCustomers = Array.isArray(data) ? data : (data?.data || data?.customers || []);
+      // Additional safety check: strictly ensure Super Admin or Admin never appears in customer list
+      const customers = rawCustomers.filter((cust: any) => {
+        const name = (cust.name || '').trim().toLowerCase();
+        const company = (cust.companyName || '').trim().toLowerCase();
+        const email = (cust.email || '').trim().toLowerCase();
+        const isSuperAdmin = name.includes('super admin') || company.includes('super admin') || email.includes('superadmin');
+        const isAdmin = name === 'admin' || company === 'admin' || email === 'admin@quickboom.com';
+        return !isSuperAdmin && !isAdmin;
+      });
       setCustomerSearchResults(customers);
       setShowCustomerSearchDropdown(customers.length > 0);
     } catch {
