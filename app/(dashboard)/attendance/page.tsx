@@ -55,6 +55,10 @@ interface AttendanceRecord {
   breakSessions: BreakSession[];
   status: string;
   location: string;
+  isAutoCheckout?: boolean;
+  isLate?: boolean;
+  lateMinutes?: number;
+  locationOut?: string | null;
 }
 
 export default function AttendancePage() {
@@ -205,6 +209,10 @@ export default function AttendancePage() {
           breakSessions,
           status: a.status || 'PRESENT',
           location: a.location || 'Office GPS',
+          locationOut: a.locationOut || null,
+          isAutoCheckout: Boolean(a.isAutoCheckout || (a.locationOut && a.locationOut.includes('Auto Check-out'))),
+          isLate: Boolean(a.isLate),
+          lateMinutes: a.lateMinutes || 0,
         };
       })
     : [];
@@ -476,7 +484,17 @@ export default function AttendancePage() {
                     </td>
 
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
-                      {r.punchOut}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{r.punchOut}</span>
+                        {r.isAutoCheckout && (
+                          <span
+                            title="Auto Check-out (Forgot Punch-Out)"
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                          >
+                            Auto
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="py-3.5 px-4 font-mono font-bold text-amber-700">
@@ -570,8 +588,16 @@ export default function AttendancePage() {
                 <p className="font-mono font-extrabold text-emerald-900 text-sm mt-0.5">{selectedRecord.punchIn}</p>
               </div>
               <div className="p-3 bg-blue-50/40 rounded-xl border border-blue-100">
-                <p className="text-[10px] font-bold text-blue-700 uppercase">Punch Out</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-blue-700 uppercase">Punch Out</p>
+                  {selectedRecord.isAutoCheckout && (
+                    <span className="text-[9px] font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Auto</span>
+                  )}
+                </div>
                 <p className="font-mono font-extrabold text-blue-900 text-sm mt-0.5">{selectedRecord.punchOut}</p>
+                {selectedRecord.isAutoCheckout && (
+                  <p className="text-[10px] text-blue-600 font-medium mt-0.5">Auto Check-out (Forgot Punch-Out)</p>
+                )}
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
