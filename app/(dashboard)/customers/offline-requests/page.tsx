@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer, CustomerDetailsDrawer } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer, CustomerDetailsDrawer, AdminStatusTabs } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
@@ -327,29 +327,19 @@ export default function OfflinePaymentRequestsPage() {
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-          {[
-            { label: 'All Requests', value: 'ALL' },
-            { label: 'Pending', value: 'PENDING' },
-            { label: 'Approved', value: 'SUCCESS' },
-            { label: 'Rejected', value: 'REJECTED' },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => {
-                setStatusFilter(tab.value);
-                setPage(1);
-              }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                statusFilter === tab.value
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <AdminStatusTabs<string>
+          activeTab={statusFilter}
+          onChange={(val) => {
+            setStatusFilter(val);
+            setPage(1);
+          }}
+          tabs={[
+            { key: 'ALL', label: 'All Requests', count: totalCount },
+            { key: 'SUCCESS', label: 'Approved', count: approvedCount },
+            { key: 'PENDING', label: 'Pending', count: pendingCount },
+            { key: 'REJECTED', label: 'Rejected', count: rejectedCount },
+          ]}
+        />
       </div>
 
       {/* 4. BULK ACTIONS BAR (When records selected) */}

@@ -18,6 +18,7 @@ export * from './buttons/AdminButton';
 // Filters & Search
 export * from './filters/AdminSearchInput';
 export * from './filters/AdminFilterBar';
+export * from './filters/AdminStatusTabs';
 
 // Dialogs & Drawers
 export * from './dialogs/AdminConfirmDialog';

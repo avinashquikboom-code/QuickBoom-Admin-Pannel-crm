@@ -29,6 +29,7 @@ import {
   AdminPageHero,
   AdminStatCard,
   AdminFormDrawer,
+  AdminStatusTabs,
 } from '@/components/admin';
 
 export default function InfluencerApplicationsPage() {
@@ -213,39 +214,17 @@ export default function InfluencerApplicationsPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Status Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-gray-50 border border-gray-200 rounded-lg">
-            {(
-              [
-                { id: 'PENDING', label: 'Pending', count: counts.pending },
-                { id: 'APPROVED', label: 'Approved', count: counts.approved },
-                { id: 'REJECTED', label: 'Rejected', count: counts.rejected },
-                { id: 'SUSPENDED', label: 'Suspended', count: counts.suspended },
-                { id: 'ALL', label: 'All', count: counts.total },
-              ] as const
-            ).map((tab) => {
-              const active = selectedStatus === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setSelectedStatus(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                    active
-                      ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                      active ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <AdminStatusTabs<any>
+            activeTab={selectedStatus}
+            onChange={(val) => setSelectedStatus(val)}
+            tabs={[
+              { key: 'ALL', label: 'All', count: counts.total },
+              { key: 'APPROVED', label: 'Approved', count: counts.approved },
+              { key: 'PENDING', label: 'Pending', count: counts.pending },
+              { key: 'REJECTED', label: 'Rejected', count: counts.rejected },
+              { key: 'SUSPENDED', label: 'Suspended', count: counts.suspended },
+            ]}
+          />
 
           {/* Search & Category Filter */}
           <div className="flex flex-wrap items-center gap-2.5">

@@ -28,7 +28,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer, AdminPagination } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
 import { getErrorMessage, formatTimeIST } from '@/lib/utils';
 
 type RequestTab = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
@@ -430,33 +430,16 @@ export default function RemoteWorkPage() {
         <div className="p-5 sm:p-6 border-b border-slate-100 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Status Tabs */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              {[
-                { key: 'PENDING' as RequestTab, label: 'Pending', count: summary.pending },
-                { key: 'APPROVED' as RequestTab, label: 'Approved', count: summary.approved },
-                { key: 'REJECTED' as RequestTab, label: 'Rejected', count: summary.rejected },
-                { key: 'ALL' as RequestTab, label: 'All', count: summary.totalRequests },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setRequestTab(tab.key)}
-                  className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
-                    requestTab === tab.key
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                      requestTab === tab.key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    {tab.count ?? 0}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <AdminStatusTabs<RequestTab>
+              activeTab={requestTab}
+              onChange={(tab) => setRequestTab(tab)}
+              tabs={[
+                { key: 'ALL', label: 'All', count: summary.totalRequests },
+                { key: 'APPROVED', label: 'Approved', count: summary.approved },
+                { key: 'PENDING', label: 'Pending', count: summary.pending },
+                { key: 'REJECTED', label: 'Rejected', count: summary.rejected },
+              ]}
+            />
 
             {/* Quick Search */}
             <div className="relative w-full sm:w-64">

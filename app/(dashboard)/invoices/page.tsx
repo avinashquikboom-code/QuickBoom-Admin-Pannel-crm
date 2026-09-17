@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminFormDrawer, AdminPagination } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
@@ -107,6 +107,7 @@ export default function InvoicesPage() {
     totalInvoices: invoicesPagination.total,
     pendingPayments: 0,
     paidInvoices: 0,
+    overdueInvoices: 0,
   };
 
   const { data: customersList = [] } = useQuery({
@@ -353,24 +354,20 @@ export default function InvoicesPage() {
       {/* Filter and Table Card */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 overflow-x-auto">
-            {['ALL', 'PAID', 'PENDING', 'OVERDUE', 'DRAFT'].map((status) => (
-              <button
-                key={status}
-                onClick={() => {
-                  setSelectedStatus(status);
-                  setPage(1);
-                }}
-                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition ${
-                  selectedStatus === status
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                }`}
-              >
-                {status === 'ALL' ? 'All Invoices' : status}
-              </button>
-            ))}
-          </div>
+          <AdminStatusTabs<string>
+            activeTab={selectedStatus}
+            onChange={(status) => {
+              setSelectedStatus(status);
+              setPage(1);
+            }}
+            tabs={[
+              { key: 'ALL', label: 'All Invoices', count: invoicesSummary.totalInvoices },
+              { key: 'DRAFT', label: 'Draft', count: invoicesList.filter((i: any) => i.status === 'DRAFT').length },
+              { key: 'OVERDUE', label: 'Overdue', count: invoicesSummary.overdueInvoices },
+              { key: 'PAID', label: 'Paid', count: invoicesSummary.paidInvoices },
+              { key: 'PENDING', label: 'Pending', count: invoicesSummary.pendingPayments },
+            ]}
+          />
 
           <div className="relative w-full md:w-72">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

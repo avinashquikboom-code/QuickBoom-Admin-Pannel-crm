@@ -21,7 +21,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer, AdminPagination } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 type ClaimTab = 'ALL' | 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED';
@@ -336,21 +336,20 @@ export default function ClaimsPage() {
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-2 overflow-x-auto">
             {/* Status Tabs */}
-            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-lg">
-              {(['ALL', 'PENDING', 'APPROVED', 'PAID', 'REJECTED'] as ClaimTab[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition ${
-                    activeTab === tab
-                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  {tab === 'ALL' ? 'All Claims' : tab.charAt(0) + tab.slice(1).toLowerCase()}
-                </button>
-              ))}
-            </div>
+            <AdminStatusTabs<ClaimTab>
+              activeTab={activeTab}
+              onChange={(tab) => {
+                setActiveTab(tab);
+                setPage(1);
+              }}
+              tabs={[
+                { key: 'ALL', label: 'All Claims', count: metrics?.totalClaims ?? 0 },
+                { key: 'APPROVED', label: 'Approved', count: metrics?.approvedClaims ?? 0 },
+                { key: 'PAID', label: 'Paid', count: metrics?.paidClaims ?? 0 },
+                { key: 'PENDING', label: 'Pending', count: metrics?.pendingClaims ?? 0 },
+                { key: 'REJECTED', label: 'Rejected', count: metrics?.rejectedClaims ?? 0 },
+              ]}
+            />
 
             {/* Category Dropdown */}
             <select

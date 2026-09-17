@@ -34,7 +34,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminStatusTabs } from '@/components/admin';
 
 export default function ShiftsPage() {
   const queryClient = useQueryClient();
@@ -314,19 +314,15 @@ export default function ShiftsPage() {
       <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {/* Status Tabs */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl">
-            {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === s ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {s === 'ALL' ? 'All Shifts' : s === 'ACTIVE' ? 'Active' : 'Inactive'}
-              </button>
-            ))}
-          </div>
+          <AdminStatusTabs<'ALL' | 'ACTIVE' | 'INACTIVE'>
+            activeTab={statusFilter}
+            onChange={(s) => setStatusFilter(s)}
+            tabs={[
+              { key: 'ALL', label: 'All Shifts', count: metrics?.total ?? 0 },
+              { key: 'ACTIVE', label: 'Active', count: metrics?.active ?? 0 },
+              { key: 'INACTIVE', label: 'Inactive', count: Math.max(0, (metrics?.total || 0) - (metrics?.active || 0)) },
+            ]}
+          />
 
           {/* Type Tabs */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl">

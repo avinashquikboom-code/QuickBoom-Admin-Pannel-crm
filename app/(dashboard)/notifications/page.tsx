@@ -5,7 +5,7 @@ import { Bell, CheckCircle2, Clock, Check, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AdminPageHero, AdminStatCard, AdminPagination } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminPagination, AdminStatusTabs } from '@/components/admin';
 
 interface NotificationItem {
   id: string;
@@ -162,25 +162,15 @@ export default function NotificationsPage() {
 
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="p-4 bg-slate-50/70 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-1.5">
-            {(['ALL', 'UNREAD', 'READ'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
-                  activeTab === tab
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-200/60'
-                }`}
-              >
-                {tab === 'ALL'
-                  ? `All (${items.length})`
-                  : tab === 'UNREAD'
-                  ? `Unread (${unreadCount})`
-                  : `Read (${readCount})`}
-              </button>
-            ))}
-          </div>
+          <AdminStatusTabs<any>
+            activeTab={activeTab}
+            onChange={(tab) => setActiveTab(tab)}
+            tabs={[
+              { key: 'ALL', label: 'All', count: items.length },
+              { key: 'READ', label: 'Read', count: readCount },
+              { key: 'UNREAD', label: 'Unread', count: unreadCount },
+            ]}
+          />
         </div>
 
         <div className="divide-y divide-slate-100">

@@ -37,7 +37,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer, AdminPagination } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 type MainSectionTab = 'requests' | 'balances' | 'holidays' | 'policies';
@@ -946,37 +946,20 @@ export default function LeaveManagementPage() {
               </div>
 
               {/* Status Tabs */}
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                {[
-                  { key: 'ALL' as RequestTab, label: 'All Requests', count: requestCounts.all },
-                  { key: 'APPROVED' as RequestTab, label: 'Approved', count: requestCounts.approved },
-                  { key: 'PENDING' as RequestTab, label: 'Pending', count: requestCounts.pending },
-                  { key: 'REJECTED' as RequestTab, label: 'Rejected', count: requestCounts.rejected },
-                ].map((tab) => (
-                  <button
-                    key={tab.key}
-                    onClick={() => {
-                      setRequestTab(tab.key);
-                      setRequestPage(1);
-                    }}
-                    className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                      requestTab === tab.key
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                  >
-                    <span>{tab.label}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                        requestTab === tab.key
-                          ? 'bg-white/20 text-white'
-                          : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {tab.count}
-                    </span>
-                  </button>
-                ))}
+              <div className="border-b border-slate-100 pb-2">
+                <AdminStatusTabs<RequestTab>
+                  activeTab={requestTab}
+                  onChange={(tab) => {
+                    setRequestTab(tab);
+                    setRequestPage(1);
+                  }}
+                  tabs={[
+                    { key: 'ALL', label: 'All Requests', count: requestCounts.all },
+                    { key: 'APPROVED', label: 'Approved', count: requestCounts.approved },
+                    { key: 'PENDING', label: 'Pending', count: requestCounts.pending },
+                    { key: 'REJECTED', label: 'Rejected', count: requestCounts.rejected },
+                  ]}
+                />
               </div>
             </div>
 

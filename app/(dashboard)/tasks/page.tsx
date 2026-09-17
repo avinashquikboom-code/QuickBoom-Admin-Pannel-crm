@@ -42,6 +42,7 @@ import {
   AdminFormDrawer,
   AdminPagination,
   TaskDetailsDrawer,
+  AdminStatusTabs,
 } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -511,39 +512,22 @@ export default function TasksPage() {
       {/* 4. TASK STATUS TABS & FILTERS */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5 space-y-4">
         {/* Status Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {[
+        <AdminStatusTabs<any>
+          activeTab={activeTab}
+          onChange={(tab) => {
+            setActiveTab(tab);
+            setPage(1);
+          }}
+          tabs={[
             { key: 'ALL', label: 'All Tasks', count: metrics.total },
-            { key: 'PENDING', label: 'Pending', count: metrics.pending },
-            { key: 'IN_PROGRESS', label: 'In Progress', count: metrics.inProgress },
             { key: 'UNDER_REVIEW', label: 'Awaiting Review', count: metrics.awaitingReview },
-            { key: 'OVERDUE', label: 'Overdue', count: metrics.overdue },
             { key: 'COMPLETED', label: 'Completed', count: metrics.completed },
+            { key: 'IN_PROGRESS', label: 'In Progress', count: metrics.inProgress },
+            { key: 'OVERDUE', label: 'Overdue', count: metrics.overdue },
+            { key: 'PENDING', label: 'Pending', count: metrics.pending },
             { key: 'REJECTED', label: 'Rejected', count: metricsData?.rejected ?? 0 },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setActiveTab(tab.key as any);
-                setPage(1);
-              }}
-              className={`px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === tab.key
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                  activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
+          ]}
+        />
 
         {/* Filter Toolbar & Sort Selector */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2 border-t border-slate-100">

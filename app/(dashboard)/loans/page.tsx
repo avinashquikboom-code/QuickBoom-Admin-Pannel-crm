@@ -24,7 +24,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer, AdminPagination } from '@/components/admin';
+import { AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 type LoanTab = 'ALL' | 'PENDING' | 'ACTIVE' | 'APPROVED' | 'PAID' | 'REJECTED';
@@ -329,21 +329,21 @@ export default function LoansPage() {
         {/* Controls */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-lg overflow-x-auto">
-            {(['ALL', 'PENDING', 'ACTIVE', 'PAID', 'REJECTED'] as LoanTab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition ${
-                  activeTab === tab
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                {tab === 'ALL' ? 'All Loans' : tab.charAt(0) + tab.slice(1).toLowerCase()}
-              </button>
-            ))}
-          </div>
+          <AdminStatusTabs<LoanTab>
+            activeTab={activeTab}
+            onChange={(tab) => {
+              setActiveTab(tab);
+              setPage(1);
+            }}
+            tabs={[
+              { key: 'ALL', label: 'All Loans', count: metrics?.totalLoans ?? 0 },
+              { key: 'ACTIVE', label: 'Active', count: metrics?.activeLoans ?? 0 },
+              { key: 'APPROVED', label: 'Approved', count: metrics?.approvedLoans ?? 0 },
+              { key: 'PAID', label: 'Paid', count: metrics?.paidLoans ?? 0 },
+              { key: 'PENDING', label: 'Pending', count: metrics?.pendingLoans ?? 0 },
+              { key: 'REJECTED', label: 'Rejected', count: metrics?.rejectedLoans ?? 0 },
+            ]}
+          />
 
           {/* Search */}
           <div className="relative w-full md:w-72">
