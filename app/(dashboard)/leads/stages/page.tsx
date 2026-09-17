@@ -10,13 +10,14 @@ import {
   RefreshCw,
   GripVertical,
   ArrowUpDown,
+  Kanban,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
 import {
-  AdminPageHeader,
+  AdminPageHero,
   AdminButton,
   AdminFormDrawer,
   AdminConfirmDialog,
@@ -250,24 +251,33 @@ export default function LeadStagesPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Page Header */}
-      <AdminPageHeader
+    <div className="space-y-6">
+      {/* Page Hero Header */}
+      <AdminPageHero
         title="Stage Management"
         description="Drag rows to reorder stages. Reordering instantly updates Admin Panel, Pipeline, and Mobile App — no code change required."
-        badge={{ text: 'Leads Module', icon: Layers }}
+        badge={{ text: 'Lead Stages Master', icon: Kanban, variant: 'emerald' }}
         actions={
-          <div className="flex items-center gap-2">
-            <AdminButton
-              variant="outline" size="sm" icon={RefreshCw}
-              onClick={() => { setLocalStages(null); refetch(); }}
-              loading={isFetching}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setLocalStages(null);
+                refetch();
+              }}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95"
+              title="Refresh"
             >
-              Refresh
-            </AdminButton>
-            <AdminButton variant="primary" size="sm" icon={Plus} onClick={handleOpenCreate}>
-              Add Stage
-            </AdminButton>
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Add Stage</span>
+            </button>
           </div>
         }
       />
