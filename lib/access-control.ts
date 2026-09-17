@@ -266,7 +266,31 @@ export const adminNavigation: {
       ],
     },
 
-    // 2. HRM
+    // 2. Master Data
+    {
+      id: 'master',
+      category: 'Master',
+      sectionIcon: Database,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Departments', href: '/master/departments', icon: Building2, permission: 'department.view' },
+        { name: 'Designations', href: '/master/designations', icon: Award, permission: 'designation.view' },
+        { name: 'Employee Types', href: '/master/employee-types', icon: Users, permission: 'employee.view' },
+        { name: 'Leave Types', href: '/master/leave-types', icon: Calendar, permission: 'leave.view' },
+        { name: 'Leave Policies', href: '/master/leave-policies', icon: FileText, permission: 'leave.view' },
+        { name: 'Work Types', href: '/master/work-types', icon: Briefcase, permission: 'tasks.view' },
+        { name: 'Activity Types', href: '/master/activity-types', icon: Activity, permission: 'activities.view' },
+        { name: 'Task Status', href: '/master/task-status', icon: CheckSquare, permission: 'tasks.view' },
+        { name: 'Lead Stages', href: '/master/lead-stages', icon: Kanban, permission: 'leads.view' },
+        { name: 'Lead Sources', href: '/master/lead-sources', icon: Target, permission: 'leads.view' },
+        { name: 'Subscription Plans', href: '/master/subscription-plans', icon: Layers, permission: 'plans.manage' },
+        { name: 'Expense Categories', href: '/master/expense-categories', icon: CreditCard, permission: 'payroll.view' },
+        { name: 'Loan Types', href: '/master/loan-types', icon: DollarSign, permission: 'payroll.view' },
+        { name: 'Payment Methods', href: '/master/payment-methods', icon: Banknote, permission: 'customers.manage' },
+      ],
+    },
+
+    // 3. HRM
     {
       id: 'hrm',
       category: 'HRM',
@@ -278,8 +302,6 @@ export const adminNavigation: {
         { name: 'Office Management', href: '/hrms/offices', icon: Building2, permission: 'hrm.manage' },
         { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
         { name: 'Team Management', href: '/teams', icon: Users, permission: 'employee.view' },
-        { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
-        { name: 'Designations', href: '/designations', icon: Award, permission: 'designation.view' },
         { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view_all' },
         { name: 'Shifts', href: '/shifts', icon: Clock, permission: 'attendance.view_all' },
         { name: 'Leave', href: '/leaves', icon: Calendar, permission: 'leave.view_all' },
@@ -291,7 +313,7 @@ export const adminNavigation: {
       ],
     },
 
-    // 3. CRM
+    // 4. CRM
     {
       id: 'crm',
       category: 'CRM',
@@ -319,68 +341,7 @@ export const adminNavigation: {
       ],
     },
 
-    // 4. Master Data
-    {
-      id: 'master',
-      category: 'Master',
-      sectionIcon: Database,
-      roles: ['Super Admin'],
-      items: [
-        { name: 'Departments', href: '/master/departments', icon: Building2, permission: 'department.view' },
-        { name: 'Designations', href: '/master/designations', icon: Award, permission: 'designation.view' },
-        { name: 'Employee Types', href: '/master/employee-types', icon: Users, permission: 'employee.view' },
-        { name: 'Leave Types', href: '/master/leave-types', icon: Calendar, permission: 'leave.view' },
-        { name: 'Leave Policies', href: '/master/leave-policies', icon: FileText, permission: 'leave.view' },
-        { name: 'Work Types', href: '/master/work-types', icon: Briefcase, permission: 'tasks.view' },
-        { name: 'Activity Types', href: '/master/activity-types', icon: Activity, permission: 'activities.view' },
-        { name: 'Task Status', href: '/master/task-status', icon: CheckSquare, permission: 'tasks.view' },
-        { name: 'Lead Stages', href: '/master/lead-stages', icon: Kanban, permission: 'leads.view' },
-        { name: 'Lead Sources', href: '/master/lead-sources', icon: Target, permission: 'leads.view' },
-        { name: 'Subscription Plans', href: '/master/subscription-plans', icon: Layers, permission: 'plans.manage' },
-        { name: 'Expense Categories', href: '/master/expense-categories', icon: CreditCard, permission: 'payroll.view' },
-        { name: 'Loan Types', href: '/master/loan-types', icon: DollarSign, permission: 'payroll.view' },
-        { name: 'Payment Methods', href: '/master/payment-methods', icon: Banknote, permission: 'customers.manage' },
-      ],
-    },
-
-    // 5. Data Capture
-    {
-      id: 'data-capture',
-      category: 'Data Capture',
-      sectionIcon: Target,
-      feature: 'data_capture',
-      roles: ['Super Admin'],
-      items: [
-        { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
-        { name: 'Capture History', href: '/data-capture/history', icon: History, permission: 'data_capture.view' },
-        { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity, permission: 'data_capture.view' },
-      ],
-    },
-
-    // 5. Reports
-    {
-      id: 'reports',
-      category: 'Reports',
-      sectionIcon: BarChart3,
-      feature: 'reports',
-      roles: ['Super Admin'],
-      items: [
-        { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
-      ],
-    },
-
-    // 6. Notifications
-    {
-      id: 'notifications',
-      category: 'Notifications',
-      sectionIcon: Bell,
-      roles: ['Super Admin'],
-      items: [
-        { name: 'Notifications', href: '/notifications', icon: Bell, permission: 'notifications.view' },
-      ],
-    },
-
-    // 7. Customers & Subscriptions
+    // 5. Customers & Subscriptions
     {
       id: 'customers',
       category: 'Customers',
@@ -397,22 +358,79 @@ export const adminNavigation: {
       ],
     },
 
-    // 8. Marketing
+    // 6. Data Capture
     {
-      id: 'marketing',
-      category: 'Marketing',
+      id: 'data-capture',
+      category: 'Data Capture',
+      sectionIcon: Target,
+      feature: 'data_capture',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
+        { name: 'Capture History', href: '/data-capture/history', icon: History, permission: 'data_capture.view' },
+        { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity, permission: 'data_capture.view' },
+      ],
+    },
+
+    // 7. Reports
+    {
+      id: 'reports',
+      category: 'Reports',
+      sectionIcon: BarChart3,
+      feature: 'reports',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
+      ],
+    },
+
+    // 8. Notifications
+    {
+      id: 'notifications',
+      category: 'Notifications',
+      sectionIcon: Bell,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Notifications', href: '/notifications', icon: Bell, permission: 'notifications.view' },
+      ],
+    },
+
+    // 9. Influencer Management
+    {
+      id: 'influencer-management',
+      category: 'Influencer Management',
       sectionIcon: Megaphone,
       roles: ['Super Admin'],
       items: [
         { name: 'Influencer Hub', href: '/influencers', icon: Award, permission: 'customers.manage' },
         { name: 'Influencer Applications', href: '/influencers/applications', icon: UserCheck, permission: 'customers.manage' },
         { name: 'Influencer Bookings', href: '/influencers/bookings', icon: CheckSquare, permission: 'customers.manage' },
+      ],
+    },
+
+    // 10. AI & Social
+    {
+      id: 'ai-social',
+      category: 'AI & Social',
+      sectionIcon: Sparkles,
+      roles: ['Super Admin'],
+      items: [
         { name: 'AI Studio & Social', href: '/marketing/ai-studio', icon: Sparkles, permission: 'customers.manage' },
         { name: 'AI Credits Management', href: '/marketing/ai-credits', icon: Coins, permission: 'customers.manage' },
+        { name: 'Social Media Handlers', href: '/marketing/social-media', icon: Share2, permission: 'customers.manage' },
+      ],
+    },
+
+    // 11. Content Management
+    {
+      id: 'content-management',
+      category: 'Content Management',
+      sectionIcon: Video,
+      roles: ['Super Admin'],
+      items: [
         { name: 'Trending Content', href: '/trending', icon: TrendingUp, permission: 'customers.manage' },
         { name: 'Home Banners', href: '/marketing/banners', icon: ImageIcon, permission: 'customers.manage' },
         { name: 'Marketing Videos', href: '/marketing/videos', icon: Video, permission: 'customers.manage' },
-        { name: 'Social Media Handlers', href: '/marketing/social-media', icon: Share2, permission: 'customers.manage' },
       ],
     },
 
