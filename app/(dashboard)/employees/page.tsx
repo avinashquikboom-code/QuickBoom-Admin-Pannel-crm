@@ -327,7 +327,7 @@ export default function EmployeesPage() {
     queryKey: ['admin-employees', search, officeFilter, departmentFilter, designationFilter, statusFilter, typeFilter, page, limit],
     queryFn: async () => {
       try {
-        const params: Record<string, any> = { page, limit };
+        const params: Record<string, any> = { page, limit, excludeAdmins: 'true' };
         if (search) params.search = search;
         if (officeFilter !== 'ALL') params.branch = officeFilter;
         if (departmentFilter !== 'ALL') params.department = departmentFilter;
@@ -343,19 +343,32 @@ export default function EmployeesPage() {
     },
   });
 
-  const rawList = Array.isArray(employeesRes?.data)
-    ? employeesRes.data
-    : Array.isArray(employeesRes?.employees)
-    ? employeesRes.employees
-    : Array.isArray(employeesRes?.items)
-    ? employeesRes.items
-    : Array.isArray(employeesRes?.data?.employees)
-    ? employeesRes.data.employees
-    : Array.isArray(employeesRes?.data?.items)
-    ? employeesRes.data.items
-    : Array.isArray(employeesRes)
-    ? employeesRes
-    : [];
+  const rawList = useMemo(() => {
+    const list = Array.isArray(employeesRes?.data)
+      ? employeesRes.data
+      : Array.isArray(employeesRes?.employees)
+      ? employeesRes.employees
+      : Array.isArray(employeesRes?.items)
+      ? employeesRes.items
+      : Array.isArray(employeesRes?.data?.employees)
+      ? employeesRes.data.employees
+      : Array.isArray(employeesRes?.data?.items)
+      ? employeesRes.data.items
+      : Array.isArray(employeesRes)
+      ? employeesRes
+      : [];
+
+    return list.filter((emp: any) => {
+      const fullName = `${emp.firstName || emp.name || ''} ${emp.lastName || ''}`.trim().toLowerCase();
+      const email = (emp.email || '').trim().toLowerCase();
+      const designation = (emp.designation?.name || emp.designation || '').trim().toLowerCase();
+      const role = (emp.role || emp.user?.role || '').trim().toLowerCase();
+      if (fullName.includes('super admin') || fullName === 'admin') return false;
+      if (email.includes('superadmin') || email === 'admin@quickboom.com' || email === 'admin@quikboom.com') return false;
+      if (designation.includes('super admin') || role.includes('super_admin') || role === 'admin') return false;
+      return true;
+    });
+  }, [employeesRes]);
 
   const pagination = employeesRes?.pagination || {
     page: employeesRes?.page || page,
@@ -1569,7 +1582,7 @@ export default function EmployeesPage() {
                     <div className="p-3.5 bg-slate-50 rounded-xl col-span-2">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Reporting Manager</span>
                       <p className="font-extrabold text-slate-900 mt-1">
-                        {selectedEmployee.managerId ? `Manager ID: ${selectedEmployee.managerId}` : 'Direct Super Admin / Customer Owner'}
+                        {selectedEmployee.managerId ? `Manager ID: ${selectedEmployee.managerId}` : 'Direct Company Admin / Owner'}
                       </p>
                     </div>
                   </div>
