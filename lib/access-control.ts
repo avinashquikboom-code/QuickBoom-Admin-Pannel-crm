@@ -321,16 +321,7 @@ export const adminNavigation: {
       feature: 'crm',
       roles: ['Super Admin'],
       items: [
-        {
-          name: 'Leads',
-          href: '/leads',
-          icon: UserCheck,
-          permission: 'leads.view',
-          children: [
-            { name: 'All Leads', href: '/leads' },
-            { name: 'Stage Management', href: '/leads/stages' },
-          ],
-        },
+        { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
         { name: 'Lead Limits', href: '/leads/limits', icon: ShieldCheck, permission: 'leads.view' },
         { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
         { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },

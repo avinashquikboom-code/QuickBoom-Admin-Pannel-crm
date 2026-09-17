@@ -45,6 +45,7 @@ import {
   Copy,
   Tag,
   AlertCircle,
+  Kanban,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -868,6 +869,14 @@ export default function LeadsPage() {
             >
               <ShieldCheck className="w-4 h-4 text-sky-300" />
               <span>Lead Limits</span>
+            </Link>
+
+            <Link
+              href="/master/lead-stages"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs flex items-center gap-2 transition-all border border-white/20 cursor-pointer active:scale-95"
+            >
+              <Kanban className="w-4 h-4 text-amber-300" />
+              <span>Stage Management</span>
             </Link>
 
             <button
