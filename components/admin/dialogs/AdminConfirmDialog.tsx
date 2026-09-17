@@ -12,9 +12,12 @@ export interface AdminConfirmDialogProps {
   description?: string;
   message?: string;
   confirmLabel?: string;
+  confirmText?: string;
   cancelLabel?: string;
+  cancelText?: string;
   variant?: 'danger' | 'primary' | 'warning';
   loading?: boolean;
+  isLoading?: boolean;
 }
 
 export function AdminConfirmDialog({
@@ -25,13 +28,19 @@ export function AdminConfirmDialog({
   description,
   message,
   confirmLabel = 'Confirm Action',
+  confirmText,
   cancelLabel = 'Cancel',
+  cancelText,
   variant = 'danger',
   loading = false,
+  isLoading,
 }: AdminConfirmDialogProps) {
   if (!isOpen) return null;
 
   const displayMessage = message || description || '';
+  const displayConfirm = confirmText || confirmLabel;
+  const displayCancel = cancelText || cancelLabel;
+  const isBusy = isLoading ?? loading;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -66,16 +75,16 @@ export function AdminConfirmDialog({
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-2">
-          <AdminButton variant="secondary" size="sm" onClick={onClose} disabled={loading}>
-            {cancelLabel}
+          <AdminButton variant="secondary" size="sm" onClick={onClose} disabled={isBusy}>
+            {displayCancel}
           </AdminButton>
           <AdminButton
             variant={variant === 'danger' ? 'danger' : 'primary'}
             size="sm"
             onClick={onConfirm}
-            loading={loading}
+            loading={isBusy}
           >
-            {confirmLabel}
+            {displayConfirm}
           </AdminButton>
         </div>
       </div>
