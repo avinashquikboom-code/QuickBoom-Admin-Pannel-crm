@@ -60,25 +60,35 @@ export default function MasterLeavePoliciesPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6">
       <AdminPageHero
         title="Leave Policies Master"
         description="Configure workforce leave application rules, maximum limits, notices, and approval chains."
-        badge={{ text: 'HRM Master', icon: FileText, variant: 'indigo' }}
+        badge={{ text: 'Leave Policy Master', icon: FileText, variant: 'emerald' }}
         actions={
-          <button
-            type="button"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            {saveMutation.isPending ? 'Saving...' : 'Save Policy Changes'}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+            >
+              <Save className="w-4 h-4 stroke-[2.5]" />
+              <span>{saveMutation.isPending ? 'Saving...' : 'Save Policy Changes'}</span>
+            </button>
+          </div>
         }
       />
 
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-6">
+      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         {/* Policy Identification */}
         <div className="pb-4 border-b border-slate-100 flex items-center justify-between">
           <div>
@@ -246,10 +256,10 @@ export default function MasterLeavePoliciesPage() {
             type="button"
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            className="px-5 py-2.5 bg-[#23C45E] hover:bg-emerald-600 text-white rounded-xl text-xs font-extrabold shadow-md flex items-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-6 py-3 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
           >
-            <Save className="w-4 h-4" />
-            {saveMutation.isPending ? 'Saving Rules...' : 'Save Policy Configuration'}
+            <Save className="w-4 h-4 stroke-[2.5]" />
+            <span>{saveMutation.isPending ? 'Saving Rules...' : 'Save Policy Configuration'}</span>
           </button>
         </div>
       </div>
