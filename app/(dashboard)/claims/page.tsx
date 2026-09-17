@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Trash2,
   Receipt,
+  Plus,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -64,6 +65,17 @@ export default function ClaimsPage() {
   const [selectedClaim, setSelectedClaim] = useState<ClaimRecord | null>(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // Create form state
+  const [createForm, setCreateForm] = useState({
+    employeeId: '',
+    category: 'TRAVEL',
+    amount: '',
+    description: '',
+    claimDate: new Date().toISOString().split('T')[0],
+    receiptUrl: '',
+  });
 
   // Review states
   const [reviewApprovedAmount, setReviewApprovedAmount] = useState<string>('');
@@ -71,11 +83,46 @@ export default function ClaimsPage() {
   const [rejectReason, setRejectReason] = useState<string>('');
 
   // Queries
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-employees-list-dropdown'],
+    queryFn: async () => {
+      const res: any = await api.get('/employees?limit=200');
+      const items = res.data?.data || res.data?.items || (Array.isArray(res.data) ? res.data : []);
+      return Array.isArray(items) ? items : [];
+    },
+  });
+
+  const employeesList = Array.isArray(employeesData) ? employeesData : [];
+
   const { data: metrics, isLoading: isMetricsLoading, refetch: refetchMetrics } = useQuery({
     queryKey: ['claims-metrics'],
     queryFn: async () => {
       const res = await api.get('/claims/metrics');
       return res.data?.data || res.data;
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await api.post('/claims', payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('Expense claim recorded successfully');
+      setIsCreateOpen(false);
+      setCreateForm({
+        employeeId: '',
+        category: 'TRAVEL',
+        amount: '',
+        description: '',
+        claimDate: new Date().toISOString().split('T')[0],
+        receiptUrl: '',
+      });
+      queryClient.invalidateQueries({ queryKey: ['claims-list'] });
+      queryClient.invalidateQueries({ queryKey: ['claims-metrics'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
     },
   });
 
@@ -250,6 +297,13 @@ export default function ClaimsPage() {
               title="Refresh"
             >
               <RefreshCw className={`w-4 h-4 ${isClaimsLoading || isMetricsLoading ? 'animate-spin text-[#23C45E]' : ''}`} />
+            </button>
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Record Expense</span>
             </button>
           </div>
         </div>
@@ -638,6 +692,153 @@ export default function ClaimsPage() {
               className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm disabled:opacity-50"
             >
               {rejectMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
+
+      {/* Record / Create Claim Drawer */}
+      <AdminFormDrawer
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Record Expense Claim"
+        subtitle="Log a business expense reimbursement for an employee"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!createForm.employeeId) {
+              toast.error('Please select an employee');
+              return;
+            }
+            if (!createForm.amount || Number(createForm.amount) <= 0) {
+              toast.error('Please enter a valid expense amount');
+              return;
+            }
+            createMutation.mutate({
+              employeeId: Number(createForm.employeeId),
+              category: createForm.category,
+              amount: Number(createForm.amount),
+              description: createForm.description,
+              claimDate: createForm.claimDate ? new Date(createForm.claimDate).toISOString() : undefined,
+              receiptUrl: createForm.receiptUrl || undefined,
+            });
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Employee <span className="text-red-500">*</span>
+            </label>
+            <select
+              required
+              value={createForm.employeeId}
+              onChange={(e) => setCreateForm({ ...createForm, employeeId: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">Select an employee...</option>
+              {employeesList.map((emp: any) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.user?.name || emp.name || `Employee #${emp.id}`} {emp.employeeCode ? `(${emp.employeeCode})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Category <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                value={createForm.category}
+                onChange={(e) => setCreateForm({ ...createForm, category: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="TRAVEL">Travel</option>
+                <option value="FOOD">Food & Meals</option>
+                <option value="FUEL">Fuel & Commute</option>
+                <option value="ACCOMMODATION">Accommodation</option>
+                <option value="MEDICAL">Medical</option>
+                <option value="COMMUNICATION">Communication</option>
+                <option value="OFFICE_SUPPLIES">Office Supplies</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Amount (₹) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="any"
+                required
+                placeholder="e.g. 1500"
+                value={createForm.amount}
+                onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Expense Date <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              required
+              value={createForm.claimDate}
+              onChange={(e) => setCreateForm({ ...createForm, claimDate: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            >
+            </input>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={3}
+              required
+              placeholder="e.g. Client visit travel and dinner expenses..."
+              value={createForm.description}
+              onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Receipt URL (Optional)
+            </label>
+            <input
+              type="url"
+              placeholder="https://..."
+              value={createForm.receiptUrl}
+              onChange={(e) => setCreateForm({ ...createForm, receiptUrl: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(false)}
+              className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="px-5 py-2 text-sm bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-lg shadow-sm disabled:opacity-50"
+            >
+              {createMutation.isPending ? 'Saving...' : 'Record Expense'}
             </button>
           </div>
         </form>

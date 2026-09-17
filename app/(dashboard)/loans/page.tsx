@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Percent,
   Trash2,
+  Plus,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -68,6 +69,17 @@ export default function LoansPage() {
   const [selectedLoan, setSelectedLoan] = useState<LoanRecord | null>(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  // Create form state
+  const [createForm, setCreateForm] = useState({
+    employeeId: '',
+    loanAmount: '',
+    termMonths: 12,
+    interestRate: 0,
+    reason: '',
+    notes: '',
+  });
 
   // Review states
   const [reviewApprovedAmount, setReviewApprovedAmount] = useState<string>('');
@@ -76,11 +88,46 @@ export default function LoansPage() {
   const [rejectReason, setRejectReason] = useState<string>('');
 
   // Queries
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-employees-list-loans-dropdown'],
+    queryFn: async () => {
+      const res: any = await api.get('/employees?limit=200');
+      const items = res.data?.data || res.data?.items || (Array.isArray(res.data) ? res.data : []);
+      return Array.isArray(items) ? items : [];
+    },
+  });
+
+  const employeesList = Array.isArray(employeesData) ? employeesData : [];
+
   const { data: metrics, isLoading: isMetricsLoading, refetch: refetchMetrics } = useQuery({
     queryKey: ['loans-metrics'],
     queryFn: async () => {
       const res = await api.get('/loans/metrics');
       return res.data?.data || res.data;
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await api.post('/loans', payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('Loan issued successfully');
+      setIsCreateOpen(false);
+      setCreateForm({
+        employeeId: '',
+        loanAmount: '',
+        termMonths: 12,
+        interestRate: 0,
+        reason: '',
+        notes: '',
+      });
+      queryClient.invalidateQueries({ queryKey: ['loans-list'] });
+      queryClient.invalidateQueries({ queryKey: ['loans-metrics'] });
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
     },
   });
 
@@ -244,6 +291,13 @@ export default function LoansPage() {
               title="Refresh"
             >
               <RefreshCw className={`w-4 h-4 ${isLoansLoading || isMetricsLoading ? 'animate-spin text-[#23C45E]' : ''}`} />
+            </button>
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Issue Loan</span>
             </button>
           </div>
         </div>
@@ -602,6 +656,167 @@ export default function LoansPage() {
               className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm disabled:opacity-50"
             >
               {rejectMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
+
+      {/* Issue / Create Loan Drawer */}
+      <AdminFormDrawer
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Issue Employee Loan"
+        subtitle="Grant a company advance or loan with custom EMI schedule"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!createForm.employeeId) {
+              toast.error('Please select an employee');
+              return;
+            }
+            const amount = Number(createForm.loanAmount);
+            if (!amount || amount <= 0) {
+              toast.error('Please enter a valid loan amount');
+              return;
+            }
+            if (createForm.termMonths < 1) {
+              toast.error('Term must be at least 1 month');
+              return;
+            }
+            const emi = Math.round((amount / createForm.termMonths) * 100) / 100;
+            createMutation.mutate({
+              employeeId: Number(createForm.employeeId),
+              loanAmount: amount,
+              termMonths: Number(createForm.termMonths),
+              interestRate: Number(createForm.interestRate || 0),
+              monthlyEmi: emi,
+              reason: createForm.reason,
+              notes: createForm.notes || undefined,
+            });
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Employee <span className="text-red-500">*</span>
+            </label>
+            <select
+              required
+              value={createForm.employeeId}
+              onChange={(e) => setCreateForm({ ...createForm, employeeId: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">Select an employee...</option>
+              {employeesList.map((emp: any) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.user?.name || emp.name || `Employee #${emp.id}`} {emp.employeeCode ? `(${emp.employeeCode})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Principal Loan Amount (₹) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="any"
+              required
+              placeholder="e.g. 50000"
+              value={createForm.loanAmount}
+              onChange={(e) => setCreateForm({ ...createForm, loanAmount: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Repayment Term (Months) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="120"
+                required
+                value={createForm.termMonths}
+                onChange={(e) => setCreateForm({ ...createForm, termMonths: Math.max(1, Number(e.target.value)) })}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Interest Rate (% p.a.)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                placeholder="0"
+                value={createForm.interestRate}
+                onChange={(e) => setCreateForm({ ...createForm, interestRate: Number(e.target.value) })}
+                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* EMI Preview Card */}
+          {Number(createForm.loanAmount) > 0 && createForm.termMonths > 0 && (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between text-xs">
+              <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+                Estimated Monthly Deduction (EMI):
+              </span>
+              <span className="font-black text-sm text-emerald-900 dark:text-emerald-200">
+                {formatCurrency(Math.round((Number(createForm.loanAmount) / createForm.termMonths) * 100) / 100)} / mo
+              </span>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Purpose / Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={3}
+              required
+              placeholder="e.g. Medical emergency, relocation advance, higher education..."
+              value={createForm.reason}
+              onChange={(e) => setCreateForm({ ...createForm, reason: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              HR / Admin Notes (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Approved under company staff policy scheme"
+              value={createForm.notes}
+              onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(false)}
+              className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="px-5 py-2 text-sm bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-lg shadow-sm disabled:opacity-50"
+            >
+              {createMutation.isPending ? 'Issuing...' : 'Issue Loan'}
             </button>
           </div>
         </form>
