@@ -385,7 +385,7 @@ export default function LeadsPage() {
         const res: any = await api.get('/leads', {
           params: {
             search: search || undefined,
-            status: activeTab !== 'ALL' ? activeTab : undefined,
+            stageId: activeTab !== 'ALL' ? activeTab : undefined,
             page,
             limit: pageSize,
           },
@@ -406,7 +406,12 @@ export default function LeadsPage() {
             totalPages: Number(pagination.totalPages) || 1,
           },
         };
-      } catch {
+      } catch (err: any) {
+        console.error('[Leads] Fetch error:', err);
+        const msg = getErrorMessage(err);
+        if (msg && msg !== 'Something went wrong') {
+          toast.error(msg, { id: 'leads-fetch-error' });
+        }
         return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },

@@ -38,6 +38,7 @@ export default function EditLeadPage() {
     country: 'India',
     source: 'WEBSITE',
     status: 'NEW',
+    stageId: '',
     priority: 'MEDIUM',
     leadValue: '50000',
     assignedToId: '',
@@ -54,12 +55,12 @@ export default function EditLeadPage() {
     enabled: Boolean(id),
   });
 
-  // Fetch Employees
+  // Fetch BPO Employees
   const { data: employeesData } = useQuery({
-    queryKey: ['admin-active-employees'],
+    queryKey: ['admin-active-bpo-employees'],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/employees');
+        const res: any = await api.get('/employees', { params: { bpoOnly: true } });
         return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       } catch {
         return [];
@@ -68,6 +69,21 @@ export default function EditLeadPage() {
   });
 
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
+
+  // Fetch Lead Stages
+  const { data: stagesData } = useQuery({
+    queryKey: ['admin-lead-stages'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/leads/stages?includeInactive=false');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const stages: any[] = Array.isArray(stagesData) ? stagesData : [];
 
   useEffect(() => {
     if (lead) {
@@ -86,6 +102,7 @@ export default function EditLeadPage() {
         country: lead.country || 'India',
         source: lead.source || 'WEBSITE',
         status: lead.status || 'NEW',
+        stageId: lead.stageId ? String(lead.stageId) : '',
         priority: lead.priority || 'MEDIUM',
         leadValue: String(lead.value || 50000),
         assignedToId: lead.assignedToId ? String(lead.assignedToId) : '',
@@ -98,24 +115,32 @@ export default function EditLeadPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      const cleanVal = (v?: string) => {
+        if (!v) return undefined;
+        const t = v.trim();
+        if (!t || ['N/A', 'NA', 'NONE', 'NULL', '-'].includes(t.toUpperCase())) return undefined;
+        return t;
+      };
+
       const payload = {
         title: formData.title.trim() || formData.companyName.trim() || `${formData.firstName} ${formData.lastName}`.trim(),
         firstName: formData.firstName.trim() || 'Prospect',
         lastName: formData.lastName.trim() || 'Client',
-        companyName: formData.companyName.trim() || undefined,
-        category: formData.category.trim() || undefined,
-        email: formData.email.trim() || undefined,
-        phone: formData.phone.trim() || undefined,
-        website: formData.website.trim() || undefined,
-        address: formData.address.trim() || undefined,
-        city: formData.city.trim() || undefined,
-        state: formData.state.trim() || undefined,
-        country: formData.country.trim() || 'India',
+        companyName: cleanVal(formData.companyName),
+        category: cleanVal(formData.category),
+        email: cleanVal(formData.email),
+        phone: cleanVal(formData.phone),
+        website: cleanVal(formData.website),
+        address: cleanVal(formData.address),
+        city: cleanVal(formData.city),
+        state: cleanVal(formData.state),
+        country: cleanVal(formData.country) || 'India',
         source: formData.source,
         status: formData.status,
+        stageId: formData.stageId ? Number(formData.stageId) : undefined,
         priority: formData.priority,
         value: formData.leadValue ? Number(formData.leadValue) : 0,
-        assignedToId: formData.assignedToId || undefined,
+        assignedToId: cleanVal(formData.assignedToId) ? Number(formData.assignedToId) : undefined,
       };
 
       await api.patch(`/leads/${id}`, payload);
@@ -257,19 +282,35 @@ export default function EditLeadPage() {
             />
           </AdminFormField>
 
-          <AdminFormField label="Pipeline Status">
+          <AdminFormField label="Pipeline Stage / Status">
             <AdminSelect
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              options={[
-                { label: 'NEW', value: 'NEW' },
-                { label: 'CONTACTED', value: 'CONTACTED' },
-                { label: 'FOLLOW_UP', value: 'FOLLOW_UP' },
-                { label: 'QUALIFIED', value: 'QUALIFIED' },
-                { label: 'PROPOSAL', value: 'PROPOSAL' },
-                { label: 'CONVERTED', value: 'CONVERTED' },
-                { label: 'LOST', value: 'LOST' },
-              ]}
+              value={formData.stageId || formData.status}
+              onChange={(e) => {
+                const val = e.target.value;
+                const matchedStage = stages.find((s) => String(s.id) === val || s.key === val);
+                if (matchedStage) {
+                  setFormData({
+                    ...formData,
+                    stageId: String(matchedStage.id),
+                    status: matchedStage.key || formData.status,
+                  });
+                } else {
+                  setFormData({ ...formData, status: val });
+                }
+              }}
+              options={
+                stages.length > 0
+                  ? stages.map((s) => ({ label: s.name || s.label || s.key, value: String(s.id) }))
+                  : [
+                      { label: 'NEW', value: 'NEW' },
+                      { label: 'CONTACTED', value: 'CONTACTED' },
+                      { label: 'FOLLOW_UP', value: 'FOLLOW_UP' },
+                      { label: 'QUALIFIED', value: 'QUALIFIED' },
+                      { label: 'PROPOSAL', value: 'PROPOSAL' },
+                      { label: 'CONVERTED', value: 'CONVERTED' },
+                      { label: 'LOST', value: 'LOST' },
+                    ]
+              }
             />
           </AdminFormField>
 
