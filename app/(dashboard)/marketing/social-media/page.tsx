@@ -281,7 +281,7 @@ export default function SocialMediaHandlersPage() {
       {/* 1. Page Hero */}
       <AdminPageHero
         title="SSM ACCOUNT ACCESS DETAILS"
-        description="Manage and review submitted SSM account access details"
+        description="Manage and review submitted SSM account access details."
         badge={{ text: 'Campaign Hub', icon: Share2, variant: 'purple' }}
         actions={
           <button
@@ -580,7 +580,7 @@ export default function SocialMediaHandlersPage() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         title={editingHandler ? 'Edit SSM Account Details' : 'Add SSM Account'}
-        subtitle="Manage and review submitted SSM account access details"
+        subtitle="Manage and review submitted SSM account access details."
       >
         <form onSubmit={handleFormSubmit} className="space-y-4">
           {/* Customer Selection */}

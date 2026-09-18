@@ -168,6 +168,17 @@ export class InfluencerAdminService {
     return unwrapData(res);
   }
 
+  static async uploadImage(file: File): Promise<{ imageUrl: string; imageKey: string }> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await api.post('/admin/influencers/upload-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return unwrapData(res);
+  }
+
   static async deleteInfluencer(id: number): Promise<void> {
     await api.delete(`/admin/influencers/${id}`);
   }

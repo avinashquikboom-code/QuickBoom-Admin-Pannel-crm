@@ -1091,7 +1091,7 @@ export default function CustomerDetailPage() {
                   </span>
                 </div>
                 <p className="text-slate-500 text-xs font-medium">
-                  Manage and review submitted SSM account access details
+                  Manage and review submitted SSM account access details.
                 </p>
               </div>
 

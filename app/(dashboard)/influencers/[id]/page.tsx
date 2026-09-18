@@ -238,9 +238,9 @@ export default function InfluencerDetailPage() {
       <div className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full overflow-hidden bg-muted border border-border flex-shrink-0">
-            {influencer.profileImage ? (
+            {influencer.profileImage || influencer.avatarUrl ? (
               <img
-                src={influencer.profileImage}
+                src={(influencer.profileImage || influencer.avatarUrl) || undefined}
                 alt={influencer.name}
                 className="w-full h-full object-cover"
               />

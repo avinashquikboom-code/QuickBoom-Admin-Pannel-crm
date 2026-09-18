@@ -23,6 +23,9 @@ import {
   Star,
   Instagram,
   Youtube,
+  UploadCloud,
+  FileImage,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -71,6 +74,12 @@ export default function InfluencersPage() {
   const [formTopCreator, setFormTopCreator] = useState(false);
   const [formIsFeatured, setFormIsFeatured] = useState(true);
   const [formStatus, setFormStatus] = useState('ACTIVE');
+
+  // Image Upload State
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [formImageFile, setFormImageFile] = useState<File | null>(null);
+  const [formImagePreview, setFormImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Queries
   const { data: influencers = [], isLoading } = useQuery({
@@ -158,6 +167,9 @@ export default function InfluencersPage() {
     if (categories.length > 0) {
       setFormCategoryId(categories[0].id);
     }
+    setFormImageFile(null);
+    setFormImagePreview(null);
+    setIsUploadingImage(false);
     setIsDrawerOpen(true);
   };
 
@@ -166,6 +178,9 @@ export default function InfluencersPage() {
     setFormName(item.name);
     setFormHandle(item.handle || '');
     setFormProfileImage(item.profileImage || item.avatarUrl || '');
+    setFormImageFile(null);
+    setFormImagePreview(item.profileImage || item.avatarUrl || null);
+    setIsUploadingImage(false);
     setFormCoverImage(item.coverImage || '');
     setFormPlatform(item.platform || 'INSTAGRAM');
     setFormCategoryId(item.categoryId || undefined);
@@ -191,6 +206,9 @@ export default function InfluencersPage() {
     setFormName('');
     setFormHandle('');
     setFormProfileImage('');
+    setFormImageFile(null);
+    setFormImagePreview(null);
+    setIsUploadingImage(false);
     setFormCoverImage('');
     setFormPlatform('INSTAGRAM');
     setFormLocation('India');
@@ -210,11 +228,41 @@ export default function InfluencersPage() {
     setFormStatus('ACTIVE');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileSelect = (file: File) => {
+    const validMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!validMimes.includes(file.type)) {
+      toast.error('Please upload a valid image (JPG, PNG, WEBP)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+    setFormImageFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setFormImagePreview(objectUrl);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
       toast.error('Name is required');
       return;
+    }
+
+    let finalImageUrl = formProfileImage.trim();
+
+    if (formImageFile) {
+      setIsUploadingImage(true);
+      try {
+        const uploadRes = await InfluencerAdminService.uploadImage(formImageFile);
+        finalImageUrl = uploadRes.imageUrl;
+      } catch (err: any) {
+        setIsUploadingImage(false);
+        toast.error(err?.response?.data?.message || err?.message || 'Failed to upload image to S3');
+        return;
+      }
+      setIsUploadingImage(false);
     }
 
     const langs = formLanguages
@@ -225,8 +273,8 @@ export default function InfluencersPage() {
     saveMutation.mutate({
       name: formName.trim(),
       handle: formHandle.trim() || undefined,
-      profileImage: formProfileImage.trim() || undefined,
-      avatarUrl: formProfileImage.trim() || undefined,
+      profileImage: finalImageUrl || undefined,
+      avatarUrl: finalImageUrl || undefined,
       coverImage: formCoverImage.trim() || undefined,
       platform: formPlatform,
       categoryId: formCategoryId,
@@ -592,17 +640,111 @@ export default function InfluencersPage() {
             </div>
           </div>
 
+          {/* Profile Image Upload & Preview */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Profile Image URL
+              Profile Image
             </label>
+
             <input
-              type="url"
-              value={formProfileImage}
-              onChange={(e) => setFormProfileImage(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              type="file"
+              ref={fileInputRef}
+              accept="image/jpeg,image/png,image/webp,image/jpg"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileSelect(e.target.files[0]);
+                }
+              }}
             />
+
+            {formImagePreview ? (
+              <div className="space-y-2 mb-2">
+                <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-950/5 h-40 group flex items-center justify-center">
+                  <img
+                    src={formImagePreview}
+                    alt="Influencer preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg bg-white/95 text-slate-900 text-xs font-bold hover:bg-white transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormImageFile(null);
+                        setFormImagePreview(null);
+                        setFormProfileImage('');
+                      }}
+                      className="p-1.5 rounded-lg bg-red-600/90 text-white text-xs font-bold hover:bg-red-600 transition-all shadow-md cursor-pointer"
+                      title="Remove image"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs px-1">
+                  <span className="flex items-center gap-1.5 text-slate-500 font-medium truncate max-w-[220px]">
+                    <FileImage className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">
+                      {formImageFile ? formImageFile.name : 'Selected / Current Image'}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormImageFile(null);
+                      setFormImagePreview(null);
+                      setFormProfileImage('');
+                    }}
+                    className="text-xs text-red-500 hover:text-red-600 font-semibold cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-slate-50/50 hover:bg-emerald-50/20 rounded-xl p-4 text-center cursor-pointer transition-colors mb-2"
+              >
+                <div className="flex flex-col items-center justify-center gap-1.5">
+                  <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700">
+                    Click to upload profile photo
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    PNG, JPG, or WEBP up to 10MB (Uploads to S3)
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-1">
+              <input
+                type="url"
+                value={formProfileImage}
+                onChange={(e) => {
+                  setFormProfileImage(e.target.value);
+                  if (e.target.value) {
+                    setFormImagePreview(e.target.value);
+                    setFormImageFile(null);
+                  } else if (!formImageFile) {
+                    setFormImagePreview(null);
+                  }
+                }}
+                placeholder="Or paste direct image URL (optional)"
+                className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-600 placeholder:text-slate-400"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -711,10 +853,24 @@ export default function InfluencersPage() {
             </button>
             <button
               type="submit"
-              disabled={saveMutation.isPending}
-              className="px-5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-all disabled:opacity-50"
+              disabled={saveMutation.isPending || isUploadingImage}
+              className="px-5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-all disabled:opacity-50 flex items-center gap-2"
             >
-              {saveMutation.isPending ? 'Saving...' : editingInfluencer ? 'Update' : 'Create'}
+              {isUploadingImage ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Uploading Image...
+                </>
+              ) : saveMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : editingInfluencer ? (
+                'Update'
+              ) : (
+                'Create'
+              )}
             </button>
           </div>
         </form>
