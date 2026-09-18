@@ -26,6 +26,7 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminFormDrawer } from '@/components/admin';
+import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function ContactDetailPage() {
@@ -36,6 +37,7 @@ export default function ContactDetailPage() {
 
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'DEALS' | 'VISITS' | 'TIMELINE'>('OVERVIEW');
   const [isVisitDrawerOpen, setIsVisitDrawerOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   const [visitForm, setVisitForm] = useState({
     purpose: 'Client Consultation & Review',
@@ -150,6 +152,17 @@ export default function ContactDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {contact.email && (
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-400/30 rounded-2xl text-xs font-black transition-all cursor-pointer active:scale-95"
+              >
+                <Mail className="w-4 h-4 text-blue-300" />
+                <span>Send Email</span>
+              </button>
+            )}
+
             <button
               onClick={() => {
                 setVisitForm({
@@ -220,12 +233,18 @@ export default function ContactDetailPage() {
               {contact.email && (
                 <div>
                   <span className="text-slate-400 text-[10px] font-bold uppercase block">Email Address</span>
-                  <a
-                    href={`mailto:${contact.email}`}
-                    className="font-bold text-slate-800 hover:text-[#1AA14D] flex items-center gap-1.5 mt-0.5"
-                  >
-                    <Mail className="w-3.5 h-3.5 text-slate-400" /> {contact.email}
-                  </a>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <span className="font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {contact.email}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsEmailModalOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shrink-0"
+                    >
+                      <Mail className="w-3 h-3" /> Send Email
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -499,6 +518,16 @@ export default function ContactDetailPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      <SendEmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        recipientEmail={contact.email || ''}
+        recipientName={name}
+        recordType="contact"
+        recordId={contact.id}
+        defaultSubject={`Connecting with ${name}`}
+      />
     </div>
   );
 }

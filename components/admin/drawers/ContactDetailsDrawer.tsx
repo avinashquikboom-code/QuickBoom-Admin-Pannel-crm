@@ -21,6 +21,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { AdminFormDrawer } from '../dialogs/AdminFormDrawer';
+import { SendEmailModal } from '../dialogs/SendEmailModal';
 
 export interface ContactDetailsDrawerProps {
   contactId: number | string | null;
@@ -34,6 +35,7 @@ export function ContactDetailsDrawer({
   onClose,
 }: ContactDetailsDrawerProps) {
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'DEALS' | 'VISITS'>('OVERVIEW');
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
   const {
     data: contact,
@@ -185,9 +187,20 @@ export function ContactDetailsDrawer({
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl col-span-2">
                     <span className="text-[10px] font-bold uppercase text-slate-400">Email Address</span>
-                    <p className="font-bold text-slate-900 mt-0.5 flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-slate-400" /> {contact.email || '—'}
-                    </p>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="font-bold text-slate-900 flex items-center gap-1.5 truncate">
+                        <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {contact.email || '—'}
+                      </p>
+                      {contact.email && (
+                        <button
+                          type="button"
+                          onClick={() => setIsEmailModalOpen(true)}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg transition-colors cursor-pointer shrink-0"
+                        >
+                          <Mail className="w-3 h-3" /> Send Email
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -256,6 +269,18 @@ export function ContactDetailsDrawer({
             </div>
           )}
         </div>
+      )}
+
+      {contact && (
+        <SendEmailModal
+          isOpen={isEmailModalOpen}
+          onClose={() => setIsEmailModalOpen(false)}
+          recipientEmail={contact.email || ''}
+          recipientName={`${contact.firstName || ''} ${contact.lastName || ''}`.trim()}
+          recordType="contact"
+          recordId={contact.id}
+          defaultSubject={`Hello from QuickBoom CRM`}
+        />
       )}
     </AdminFormDrawer>
   );

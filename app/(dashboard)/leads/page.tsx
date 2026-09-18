@@ -46,6 +46,7 @@ import {
   Tag,
   AlertCircle,
   Kanban,
+  Loader2,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -59,6 +60,7 @@ import {
   AdminSearchInput,
   AdminPagination,
 } from '@/components/admin';
+import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
 type LeadTab =
@@ -304,6 +306,14 @@ export default function LeadsPage() {
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [selectedLeadForAction, setSelectedLeadForAction] = useState<LeadItem | null>(null);
 
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [sendingLeadId, setSendingLeadId] = useState<number | string | null>(null);
+  const [emailRecipient, setEmailRecipient] = useState<{ email: string; name: string; id: number | string }>({
+    email: '',
+    name: '',
+    id: '',
+  });
+
   // Form states
   const [leadForm, setLeadForm] = useState({
     id: '',
@@ -409,6 +419,31 @@ export default function LeadsPage() {
     },
     enabled: Boolean(selectedLeadId),
   });
+
+  const handleSendLeadDetails = async (leadItem: any) => {
+    if (!leadItem?.email || !leadItem.email.trim()) {
+      toast.error('This lead does not have an email address configured');
+      return;
+    }
+
+    setSendingLeadId(leadItem.id);
+    try {
+      const res: any = await api.post(`/leads/${leadItem.id}/send-details`);
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success(data?.message || `Lead details sent successfully to ${leadItem.email}!`);
+        queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
+        if (selectedLeadId) refetchDetail();
+      } else {
+        toast.error(data?.message || 'Failed to send lead details');
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to send lead details';
+      toast.error(msg);
+    } finally {
+      setSendingLeadId(null);
+    }
+  };
 
   // 3. Fetch Real Metrics
   const { data: metricsData } = useQuery({
@@ -1208,6 +1243,23 @@ export default function LeadsPage() {
                           </button>
 
                           <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSendLeadDetails(lead);
+                            }}
+                            disabled={sendingLeadId === lead.id}
+                            className="p-2 hover:bg-blue-50 rounded-xl text-slate-500 hover:text-blue-600 transition-colors cursor-pointer disabled:opacity-50"
+                            title="Send Details"
+                            aria-label="Send Details"
+                          >
+                            {sendingLeadId === lead.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                            ) : (
+                              <Mail className="w-4 h-4" />
+                            )}
+                          </button>
+
+                          <button
                             onClick={() => handleOpenFollowUp(lead)}
                             className="p-2 hover:bg-emerald-50 rounded-xl text-slate-500 hover:text-[#1AA14D] transition-colors cursor-pointer"
                             title="Log Follow-up"
@@ -1315,6 +1367,21 @@ export default function LeadsPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {leadDetail && (
+                    <button
+                      onClick={() => handleSendLeadDetails(leadDetail)}
+                      disabled={sendingLeadId === leadDetail.id}
+                      className="p-2 hover:bg-blue-50 rounded-xl text-slate-600 hover:text-blue-600 transition-colors cursor-pointer disabled:opacity-50"
+                      title="Send Details"
+                      aria-label="Send Details"
+                    >
+                      {sendingLeadId === leadDetail.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      ) : (
+                        <Mail className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
                   {leadDetail && (
                     <button
                       onClick={() => handleOpenEdit(leadDetail)}
@@ -1641,14 +1708,27 @@ export default function LeadsPage() {
                         )}
 
                         {leadDetail.email && (
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <a
-                              href={`mailto:${leadDetail.email}`}
-                              className="font-bold text-slate-800 hover:text-blue-600 hover:underline truncate"
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                              <span className="font-bold text-slate-800 truncate">
+                                {leadDetail.email}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleSendLeadDetails(leadDetail)}
+                              disabled={sendingLeadId === leadDetail.id}
+                              className="p-1.5 hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                              title="Send Details"
+                              aria-label="Send Details"
                             >
-                              {leadDetail.email}
-                            </a>
+                              {sendingLeadId === leadDetail.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="w-3.5 h-3.5" />
+                              )}
+                            </button>
                           </div>
                         )}
 
@@ -2577,6 +2657,16 @@ export default function LeadsPage() {
           })}
         </div>
       </AdminFormDrawer>
+
+      <SendEmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        recipientEmail={emailRecipient.email}
+        recipientName={emailRecipient.name}
+        recordType="lead"
+        recordId={emailRecipient.id}
+        defaultSubject={`Inquiry from ${emailRecipient.name || 'QuickBoom CRM'}`}
+      />
     </div>
   );
 }

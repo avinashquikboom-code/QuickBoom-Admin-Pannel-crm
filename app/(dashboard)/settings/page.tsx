@@ -25,6 +25,8 @@ import {
   Smartphone,
   Bot,
   Sparkles,
+  Mail,
+  Server,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -133,6 +135,19 @@ export default function SettingsPage() {
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [whatsappAlerts, setWhatsappAlerts] = useState(true);
   const [leaveApprovalAlerts, setLeaveApprovalAlerts] = useState(true);
+  // SMTP Email Integration States
+  const [smtpConnected, setSmtpConnected] = useState(true);
+  const [smtpSource, setSmtpSource] = useState('DATABASE');
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState<number | string>(587);
+  const [smtpSecurity, setSmtpSecurity] = useState<'TLS' | 'SSL' | 'NONE'>('TLS');
+  const [smtpUsername, setSmtpUsername] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [smtpFromEmail, setSmtpFromEmail] = useState('');
+  const [smtpFromName, setSmtpFromName] = useState('');
+  const [isSavingSmtp, setIsSavingSmtp] = useState(false);
+  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
 
   // Fetch live integration settings on mount and tab switch
   useEffect(() => {
@@ -207,6 +222,19 @@ export default function SettingsPage() {
             setGeminiSource(item.source || 'ENV_FALLBACK');
             const creds = item.credentials || {};
             setGeminiApiKey(creds.apiKey || creds.api_key || '');
+          } else if (provider === 'SMTP') {
+            setSmtpConnected(item.isEnabled ?? true);
+            setSmtpSource(item.source || 'DATABASE');
+            const creds = item.credentials || {};
+            const cfg = item.config || {};
+            setSmtpHost(cfg.host || creds.host || creds.smtpHost || '');
+            setSmtpPort(cfg.port || creds.port || creds.smtpPort || 587);
+            const loadedSec = cfg.security || creds.security || (cfg.port === 465 ? 'SSL' : 'TLS');
+            setSmtpSecurity(loadedSec === 'SSL' || loadedSec === 'NONE' ? loadedSec : 'TLS');
+            setSmtpUsername(creds.username || creds.smtpUsername || '');
+            setSmtpPassword(creds.password || creds.smtpPassword || '');
+            setSmtpFromEmail(cfg.fromEmail || creds.fromEmail || '');
+            setSmtpFromName(cfg.fromName || creds.fromName || 'QuickBoom CRM');
           }
         }
       } catch (err: any) {
@@ -645,6 +673,101 @@ export default function SettingsPage() {
       toast.error(err?.response?.data?.message || err?.message || 'Google Gemini connection test failed');
     } finally {
       setIsTestingGemini(false);
+    }
+  };
+
+  const handleSaveSmtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!smtpHost.trim()) {
+      toast.error('Please enter SMTP Host');
+      return false;
+    }
+    if (!smtpPort) {
+      toast.error('Please enter SMTP Port');
+      return false;
+    }
+    if (!smtpFromEmail.trim()) {
+      toast.error('Please enter From Email address');
+      return false;
+    }
+
+    setIsSavingSmtp(true);
+    try {
+      const res: any = await api.put('/admin/settings/integrations/SMTP', {
+        isEnabled: smtpConnected,
+        credentials: {
+          username: smtpUsername.trim(),
+          password: smtpPassword.trim(),
+        },
+        config: {
+          host: smtpHost.trim(),
+          port: Number(smtpPort) || 587,
+          security: smtpSecurity,
+          fromEmail: smtpFromEmail.trim(),
+          fromName: smtpFromName.trim() || 'QuickBoom CRM',
+        },
+      });
+
+      setSmtpSource('DATABASE');
+      const creds = res?.credentials || res?.data?.credentials;
+      if (creds?.password) {
+        setSmtpPassword(creds.password);
+      }
+      setSmtpConnected(res?.isEnabled ?? true);
+      toast.success('SMTP Email settings saved securely!');
+      return true;
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save SMTP settings');
+      return false;
+    } finally {
+      setIsSavingSmtp(false);
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    if (!smtpHost.trim()) {
+      toast.error('Please enter SMTP Host to test connection');
+      return;
+    }
+    if (!smtpPort) {
+      toast.error('Please enter SMTP Port to test connection');
+      return;
+    }
+
+    setIsTestingSmtp(true);
+    try {
+      const res: any = await api.post('/admin/settings/integrations/SMTP/test', {
+        credentials: {
+          username: smtpUsername.trim(),
+          password: smtpPassword.trim(),
+        },
+        config: {
+          host: smtpHost.trim(),
+          port: Number(smtpPort) || 587,
+          security: smtpSecurity,
+          fromEmail: smtpFromEmail.trim(),
+          fromName: smtpFromName.trim(),
+        },
+      });
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success(data?.message || 'SMTP connection verified successfully!');
+        setSmtpConnected(true);
+      } else {
+        toast.error(data?.message || 'SMTP connection test failed');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'SMTP connection test failed');
+    } finally {
+      setIsTestingSmtp(false);
+    }
+  };
+
+  const handleSaveAndTestSmtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const saved = await handleSaveSmtp();
+    if (saved) {
+      await handleTestSmtp();
     }
   };
 
@@ -1679,6 +1802,219 @@ export default function SettingsPage() {
                     <><Save className="w-4 h-4" /> Save Gemini Key</>
                   )}
                 </button>
+              </div>
+            </form>
+          </div>
+
+          {/* SMTP EMAIL INTEGRATION CARD */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-black text-slate-900">SMTP Email Integration</h2>
+                    {smtpConnected ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
+                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> SMTP ACTIVE
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
+                        <AlertTriangle className="w-3 h-3 text-amber-600" /> SMTP DISABLED
+                      </span>
+                    )}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
+                      Source: {smtpSource}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Configure your corporate or transactional SMTP mail server to send actual emails from the CRM.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200 shrink-0">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 px-1">
+                  <input
+                    type="checkbox"
+                    checked={smtpConnected}
+                    onChange={(e) => setSmtpConnected(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  />
+                  Enable SMTP
+                </label>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveAndTestSmtp} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">
+                    SMTP Host <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={smtpHost}
+                      onChange={(e) => setSmtpHost(e.target.value)}
+                      placeholder="smtp.gmail.com or mail.domain.com"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">
+                    Port <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={smtpPort}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSmtpPort(val);
+                      if (val === '465') {
+                        setSmtpSecurity('SSL');
+                      } else if (val === '587' || val === '25') {
+                        setSmtpSecurity('TLS');
+                      }
+                    }}
+                    placeholder="587"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">
+                    Security (SSL/TLS)
+                  </label>
+                  <select
+                    value={smtpSecurity}
+                    onChange={(e) => setSmtpSecurity(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none text-xs"
+                  >
+                    <option value="TLS">STARTTLS / TLS (Port 587 recommended)</option>
+                    <option value="SSL">SSL (Port 465 recommended)</option>
+                    <option value="NONE">None / Plain (Port 25)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">
+                    SMTP Username
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpUsername}
+                    onChange={(e) => setSmtpUsername(e.target.value)}
+                    placeholder="user@example.com or apikey"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">
+                    SMTP Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSmtpPassword ? 'text' : 'password'}
+                      value={smtpPassword}
+                      onChange={(e) => setSmtpPassword(e.target.value)}
+                      placeholder={smtpPassword ? '••••••••' : 'Enter app password or secret'}
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      title={showSmtpPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">
+                    From Email <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={smtpFromEmail}
+                    onChange={(e) => setSmtpFromEmail(e.target.value)}
+                    placeholder="crm@yourcompany.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">
+                    From Name
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpFromName}
+                    onChange={(e) => setSmtpFromName(e.target.value)}
+                    placeholder="QuickBoom CRM"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-400 focus:border-transparent focus:outline-none text-xs"
+                  />
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400">
+                Credentials are encrypted with AES-256-GCM. Stored passwords are never exposed in UI or API responses.
+              </p>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestSmtp}
+                  disabled={isTestingSmtp || !smtpHost.trim()}
+                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                >
+                  {isTestingSmtp ? (
+                    <><Loader2 className="w-4 h-4 animate-spin text-blue-500" /> Testing Connection...</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4 text-slate-600" /> Test Connection</>
+                  )}
+                </button>
+
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveSmtp()}
+                    disabled={isSavingSmtp}
+                    className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingSmtp ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Save className="w-4 h-4" /> Save Configuration</>
+                    )}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingSmtp || isTestingSmtp}
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingSmtp || isTestingSmtp ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Validating & Saving...</>
+                    ) : (
+                      <><CheckCircle2 className="w-4 h-4" /> Save & Test Connection</>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

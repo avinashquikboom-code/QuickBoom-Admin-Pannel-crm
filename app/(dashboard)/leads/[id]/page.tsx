@@ -27,11 +27,13 @@ import {
   MessageSquare,
   Plus,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminFormDrawer } from '@/components/admin';
+import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
 function getStageConfigFromApi(
@@ -89,6 +91,8 @@ export default function LeadDetailPage() {
   const [newNote, setNewNote] = useState('');
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [isConvertOpen, setIsConvertOpen] = useState(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isSendingDetails, setIsSendingDetails] = useState(false);
 
   // Follow-up form
   const [followUpOutcome, setFollowUpOutcome] = useState('Interested');
@@ -111,6 +115,30 @@ export default function LeadDetailPage() {
     },
     enabled: Boolean(id),
   });
+
+  const handleSendLeadDetails = async () => {
+    if (!lead?.email || !lead.email.trim()) {
+      toast.error('This lead does not have an email address configured');
+      return;
+    }
+
+    setIsSendingDetails(true);
+    try {
+      const res: any = await api.post(`/leads/${id}/send-details`);
+      const data = res?.data || res;
+      if (data?.success) {
+        toast.success(data?.message || `Lead details sent successfully to ${lead.email}!`);
+        refetch();
+      } else {
+        toast.error(data?.message || 'Failed to send lead details');
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to send lead details';
+      toast.error(msg);
+    } finally {
+      setIsSendingDetails(false);
+    }
+  };
 
   // Fetch active stages from Stage Management API
   const {
@@ -282,6 +310,21 @@ export default function LeadDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSendLeadDetails}
+              disabled={isSendingDetails}
+              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+              title="Send Details"
+              aria-label="Send Details"
+            >
+              {isSendingDetails ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+              ) : (
+                <Mail className="w-4 h-4 text-emerald-400" />
+              )}
+            </button>
+
             <button
               onClick={() => {
                 setFollowUpOutcome('Interested');
@@ -588,12 +631,25 @@ export default function LeadDetailPage() {
               {lead.email && (
                 <div>
                   <span className="text-slate-400 text-[10px] font-bold uppercase block">Email</span>
-                  <a
-                    href={`mailto:${lead.email}`}
-                    className="font-bold text-slate-800 hover:text-[#1AA14D] flex items-center gap-1.5 mt-0.5"
-                  >
-                    <Mail className="w-3.5 h-3.5 text-slate-400" /> {lead.email}
-                  </a>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <span className="font-bold text-slate-800 flex items-center gap-1.5 truncate">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {lead.email}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleSendLeadDetails}
+                      disabled={isSendingDetails}
+                      className="p-1.5 hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                      title="Send Details"
+                      aria-label="Send Details"
+                    >
+                      {isSendingDetails ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Mail className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1012,6 +1068,19 @@ export default function LeadDetailPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      <SendEmailModal
+        isOpen={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        recipientEmail={lead.email || ''}
+        recipientName={name}
+        recordType="lead"
+        recordId={lead.id}
+        defaultSubject={`Following up: ${company}`}
+        onSuccess={() => {
+          refetch();
+        }}
+      />
     </div>
   );
 }
