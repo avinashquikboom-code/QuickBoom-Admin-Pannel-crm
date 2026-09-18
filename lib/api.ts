@@ -139,12 +139,21 @@ api.interceptors.request.use(
       const { token, customerId } = getPersistedAuthSession();
 
       if (token) {
+        const cleanToken = token.replace(/^["']|["']$/g, '').trim();
         if (typeof config.headers?.set === 'function') {
-          config.headers.set('Authorization', `Bearer ${token}`);
+          config.headers.set('Authorization', `Bearer ${cleanToken}`);
         } else {
           config.headers = config.headers || {};
           delete (config.headers as any)['authorization'];
-          config.headers['Authorization'] = `Bearer ${token}`;
+          config.headers['Authorization'] = `Bearer ${cleanToken}`;
+        }
+      } else {
+        if (typeof config.headers?.delete === 'function') {
+          config.headers.delete('Authorization');
+          config.headers.delete('authorization');
+        } else if (config.headers) {
+          delete (config.headers as any)['Authorization'];
+          delete (config.headers as any)['authorization'];
         }
       }
 
@@ -251,6 +260,22 @@ api.interceptors.response.use(
         originalRequest.url.includes('/auth/register') ||
         originalRequest.url.includes('/login'));
 
+    // Handle case where a retried request ALSO fails with 401: prevent loops and clear session
+    if (
+      error?.response?.status === 401 &&
+      originalRequest._retry &&
+      !isAuthUrl &&
+      typeof window !== 'undefined'
+    ) {
+      const authStore = useAuthStore.getState();
+      authStore.logout();
+      if (window.location.pathname !== '/login') {
+        toast.error('Your session has expired. Please login again.');
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
+    }
+
     // Attempt token refresh ONLY on 401 (Authentication/Expiration) — NEVER on 403 (Forbidden)
     if (
       error?.response?.status === 401 &&
@@ -276,12 +301,14 @@ api.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((newAccessToken) => {
+            originalRequest._retry = true;
+            const cleanToken = newAccessToken.replace(/^["']|["']$/g, '').trim();
             if (typeof originalRequest.headers?.set === 'function') {
-              originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
+              originalRequest.headers.set('Authorization', `Bearer ${cleanToken}`);
             } else {
               originalRequest.headers = originalRequest.headers || {};
               delete (originalRequest.headers as any)['authorization'];
-              originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+              originalRequest.headers['Authorization'] = `Bearer ${cleanToken}`;
             }
             return api(originalRequest);
           })
@@ -294,27 +321,44 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const baseURL =
-          api.defaults.baseURL ||
-          apiBaseURL;
+        const rawBase = api.defaults.baseURL || apiBaseURL;
+        const cleanBaseUrl = rawBase.replace(/\/+$/, '');
 
-        // Isolated POST call to avoid interceptor loop
-        const refreshRes = await axios.post(
-          `${baseURL}/auth/refresh`,
-          { refreshToken },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-client-type': 'admin',
-            },
+        // Isolated POST call to avoid interceptor loop; fallback to admin refresh route if needed
+        let refreshRes: any;
+        try {
+          refreshRes = await axios.post(
+            `${cleanBaseUrl}/auth/refresh`,
+            { refreshToken },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-client-type': 'admin',
+              },
+            }
+          );
+        } catch (authErr: any) {
+          if (authErr?.response?.status === 404) {
+            refreshRes = await axios.post(
+              `${cleanBaseUrl}/admin/auth/refresh`,
+              { refreshToken },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-client-type': 'admin',
+                },
+              }
+            );
+          } else {
+            throw authErr;
           }
-        );
+        }
 
         // Normalize response payload across raw and TransformInterceptor wrappers
         const resData = refreshRes?.data;
         const payload = resData?.data || resData?.tokens || resData;
-        const newAccessToken = payload?.accessToken || payload?.token;
-        const newRefreshToken = payload?.refreshToken || refreshToken;
+        const newAccessToken = (payload?.accessToken || payload?.token || '').replace(/^["']|["']$/g, '').trim();
+        const newRefreshToken = (payload?.refreshToken || refreshToken).replace(/^["']|["']$/g, '').trim();
 
         if (!newAccessToken) {
           throw new Error('No access token returned from refresh endpoint');
