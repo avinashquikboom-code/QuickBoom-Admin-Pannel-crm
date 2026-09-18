@@ -742,7 +742,7 @@ export default function CustomerDetailPage() {
           { id: 'OVERVIEW', label: 'Overview', icon: Building2 },
           { id: 'SUBSCRIPTIONS', label: `Subscriptions (${historySubs.length})`, icon: CreditCard },
           { id: 'AI_CREDITS', label: `AI Credits (${aiCreditsData?.balance ?? aiCreditsData?.wallet?.balance ?? 0})`, icon: Sparkles },
-          { id: 'SOCIAL_MEDIA', label: `Social Media (${socialMediaHandlers.length})`, icon: Share2 },
+          { id: 'SOCIAL_MEDIA', label: `SSM Account Access (${socialMediaHandlers.length})`, icon: Share2 },
           { id: 'INVOICES', label: `Billing & Invoices (${invoices.length})`, icon: FileText },
           { id: 'ACTIVITIES', label: `Activities (${activities.length})`, icon: Activity },
           { id: 'TASKS', label: `Tasks (${tasks.length})`, icon: CheckSquare },
@@ -1085,13 +1085,13 @@ export default function CustomerDetailPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5">
-                  <h3 className="text-lg font-black text-slate-900">Social Media Accounts & Handlers</h3>
+                  <h3 className="text-lg font-black text-slate-900">SSM ACCOUNT ACCESS DETAILS</h3>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
                     {socialMediaHandlers.length} Linked Accounts
                   </span>
                 </div>
                 <p className="text-slate-500 text-xs font-medium">
-                  Configured social media handles, assigned executive handlers, and active work campaigns for this customer.
+                  Manage and review submitted SSM account access details
                 </p>
               </div>
 
@@ -1100,7 +1100,7 @@ export default function CustomerDetailPage() {
                 className="flex items-center gap-1.5 px-3.5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Manage Handlers Hub</span>
+                <span>Add SSM Account</span>
               </Link>
             </div>
 

@@ -280,8 +280,8 @@ export default function SocialMediaHandlersPage() {
     <div className="space-y-6">
       {/* 1. Page Hero */}
       <AdminPageHero
-        title="Social Media Handlers"
-        description="Manage customer social media accounts, assigned handlers, scheduled work types, and campaign timelines."
+        title="SSM ACCOUNT ACCESS DETAILS"
+        description="Manage and review submitted SSM account access details"
         badge={{ text: 'Campaign Hub', icon: Share2, variant: 'purple' }}
         actions={
           <button
@@ -289,7 +289,7 @@ export default function SocialMediaHandlersPage() {
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm cursor-pointer shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Social Media Handler</span>
+            <span>Add SSM Account</span>
           </button>
         }
       />
@@ -579,8 +579,8 @@ export default function SocialMediaHandlersPage() {
       <AdminFormDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title={editingHandler ? 'Edit Social Media Handler' : 'New Social Media Handler'}
-        subtitle={editingHandler ? `Update configuration for #${editingHandler.id}` : 'Link a social media account and assigned handler to a customer.'}
+        title={editingHandler ? 'Edit SSM Account Details' : 'Add SSM Account'}
+        subtitle="Manage and review submitted SSM account access details"
       >
         <form onSubmit={handleFormSubmit} className="space-y-4">
           {/* Customer Selection */}
@@ -841,7 +841,7 @@ export default function SocialMediaHandlersPage() {
               disabled={createMutation.isPending || updateMutation.isPending}
               className="px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {editingHandler ? 'Save Changes' : 'Create Handler'}
+              {editingHandler ? 'Save Changes' : 'SUBMIT ACCOUNT DETAILS'}
             </button>
           </div>
         </form>
