@@ -313,7 +313,21 @@ export const adminNavigation: {
       ],
     },
 
-    // 4. CRM
+    // 4. Data Capture
+    {
+      id: 'data-capture',
+      category: 'Data Capture',
+      sectionIcon: Target,
+      feature: 'data_capture',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
+        { name: 'Capture History', href: '/data-capture/history', icon: History, permission: 'data_capture.view' },
+        { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity, permission: 'data_capture.view' },
+      ],
+    },
+
+    // 5. CRM
     {
       id: 'crm',
       category: 'CRM',
@@ -332,7 +346,7 @@ export const adminNavigation: {
       ],
     },
 
-    // 5. Customers & Subscriptions
+    // 6. Customers & Subscriptions
     {
       id: 'customers',
       category: 'Customers',
@@ -346,20 +360,6 @@ export const adminNavigation: {
         { name: 'Offline Payment Requests', href: '/customers/offline-requests', icon: Clock, permission: 'subscriptions.manage' },
         { name: 'Resource Usage', href: '/customers/usage', icon: Activity, permission: 'subscription.view' },
         { name: 'Super Admin Hub', href: '/super-admin', icon: ShieldCheck, permission: 'customers.manage' },
-      ],
-    },
-
-    // 6. Data Capture
-    {
-      id: 'data-capture',
-      category: 'Data Capture',
-      sectionIcon: Target,
-      feature: 'data_capture',
-      roles: ['Super Admin'],
-      items: [
-        { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
-        { name: 'Capture History', href: '/data-capture/history', icon: History, permission: 'data_capture.view' },
-        { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity, permission: 'data_capture.view' },
       ],
     },
 
