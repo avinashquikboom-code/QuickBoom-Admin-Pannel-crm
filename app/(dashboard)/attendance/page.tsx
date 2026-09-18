@@ -134,7 +134,7 @@ export default function AttendancePage() {
   const pagination = attendanceResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   const officesList: string[] = Array.isArray(officesData)
-    ? officesData.map((o: any) => o.name || o.branch || String(o))
+    ? Array.from(new Set(officesData.map((o: any) => (o.name || o.branch || String(o)).trim()).filter(Boolean) as string[]))
     : ['Head Office'];
 
   const summary = liveData?.summary || {
@@ -148,14 +148,22 @@ export default function AttendancePage() {
   };
 
   const rawOfficeBreakdown = Array.isArray(liveData?.offices) ? liveData.offices : [];
-  const excludedDistributionOffices = new Set([
-    'test location',
-    'quikboom digital marketing agency',
-  ]);
-  const officeBreakdown = rawOfficeBreakdown.filter((off: any) => {
-    const name = (off?.officeName || off?.name || '').trim().toLowerCase();
-    return !excludedDistributionOffices.has(name);
-  });
+  // Group by canonical officeId or canonical name to ensure single card per office
+  const officeBreakdownMap = new Map<string, any>();
+  for (const off of rawOfficeBreakdown) {
+    const key = off.officeId ? `id_${off.officeId}` : `name_${(off.officeName || off.name || '').trim().toLowerCase()}`;
+    if (!officeBreakdownMap.has(key)) {
+      officeBreakdownMap.set(key, { ...off });
+    } else {
+      const existing = officeBreakdownMap.get(key);
+      existing.totalEmployees = (existing.totalEmployees || 0) + (off.totalEmployees || 0);
+      existing.present = (existing.present || 0) + (off.present || 0);
+      existing.onBreak = (existing.onBreak || 0) + (off.onBreak || 0);
+      existing.onLeave = (existing.onLeave || 0) + (off.onLeave || 0);
+      existing.absent = (existing.absent || 0) + (off.absent || 0);
+    }
+  }
+  const officeBreakdown = Array.from(officeBreakdownMap.values());
 
   const records: AttendanceRecord[] = Array.isArray(attendanceData)
     ? attendanceData.map((a: any) => {
@@ -340,7 +348,7 @@ export default function AttendancePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {officeBreakdown.map((off: any) => (
               <div
-                key={off.officeName}
+                key={off.officeId ? `off-${off.officeId}` : `off-${off.officeName}`}
                 className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between"
               >
                 <div>
