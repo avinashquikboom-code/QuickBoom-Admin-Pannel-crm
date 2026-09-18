@@ -285,6 +285,17 @@ function LeadNoteCard({ note }: { note: any }) {
   );
 }
 
+const cleanOptionalString = (val?: string | null): string | undefined => {
+  if (!val) return undefined;
+  const trimmed = String(val).trim();
+  if (!trimmed) return undefined;
+  const upper = trimmed.toUpperCase();
+  if (upper === 'N/A' || upper === 'NA' || upper === 'NONE' || upper === 'NULL' || upper === '-') {
+    return undefined;
+  }
+  return trimmed;
+};
+
 export default function LeadsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<LeadTab>('ALL');
@@ -603,31 +614,31 @@ export default function LeadsPage() {
       }
 
       const payload: any = {
-        title: leadForm.title.trim() || leadForm.businessName.trim() || `${leadForm.firstName} ${leadForm.lastName}`.trim() || 'Direct Lead',
-        companyName: leadForm.businessName.trim() || leadForm.title.trim() || undefined,
-        category: leadForm.category.trim() || undefined,
+        title: cleanOptionalString(leadForm.title) || cleanOptionalString(leadForm.businessName) || `${cleanOptionalString(leadForm.firstName) || ''} ${cleanOptionalString(leadForm.lastName) || ''}`.trim() || 'Direct Lead',
+        companyName: cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || undefined,
+        category: cleanOptionalString(leadForm.category),
         source: leadForm.source || 'WEBSITE',
-        firstName: leadForm.firstName.trim() || leadForm.businessName.split(' ')[0] || 'Prospective',
-        lastName: leadForm.lastName.trim() || leadForm.businessName.split(' ').slice(1).join(' ') || 'Client',
-        phone: leadForm.phone.trim() || undefined,
-        email: leadForm.email.trim() || undefined,
-        website: leadForm.website.trim() || undefined,
-        address: leadForm.address.trim() || undefined,
-        city: leadForm.city.trim() || undefined,
-        state: leadForm.state.trim() || undefined,
-        country: leadForm.country.trim() || 'India',
+        firstName: cleanOptionalString(leadForm.firstName) || cleanOptionalString(leadForm.businessName)?.split(' ')[0] || 'Prospective',
+        lastName: cleanOptionalString(leadForm.lastName) || cleanOptionalString(leadForm.businessName)?.split(' ').slice(1).join(' ') || 'Client',
+        phone: cleanOptionalString(leadForm.phone),
+        email: cleanOptionalString(leadForm.email),
+        website: cleanOptionalString(leadForm.website),
+        address: cleanOptionalString(leadForm.address),
+        city: cleanOptionalString(leadForm.city),
+        state: cleanOptionalString(leadForm.state),
+        country: cleanOptionalString(leadForm.country) || 'India',
         latitude: leadForm.latitude ? parseFloat(leadForm.latitude) : undefined,
         longitude: leadForm.longitude ? parseFloat(leadForm.longitude) : undefined,
-        googlePlaceId: leadForm.googlePlaceId.trim() || undefined,
+        googlePlaceId: cleanOptionalString(leadForm.googlePlaceId),
         rating: leadForm.rating ? parseFloat(leadForm.rating) : undefined,
         reviewCount: leadForm.reviewCount ? parseInt(leadForm.reviewCount, 10) : undefined,
-        assignedToId: leadForm.assignedToId ? leadForm.assignedToId : undefined,
+        assignedToId: cleanOptionalString(leadForm.assignedToId) ? Number(leadForm.assignedToId) : undefined,
         ...(resolvedStatus ? { status: resolvedStatus } : {}),
         stageId: leadForm.stageId ? Number(leadForm.stageId) : undefined,
         priority: leadForm.priority,
         value: leadForm.value ? parseFloat(leadForm.value) : 0,
         nextFollowUpDate: leadForm.nextFollowUpDate ? new Date(leadForm.nextFollowUpDate) : undefined,
-        nextFollowUpTime: leadForm.nextFollowUpTime || undefined,
+        nextFollowUpTime: cleanOptionalString(leadForm.nextFollowUpTime),
       };
 
       if (leadForm.id) {
@@ -809,22 +820,22 @@ export default function LeadsPage() {
     setSelectedLeadForAction(lead);
     setLeadForm({
       id: String(lead.id),
-      title: lead.title || '',
-      businessName: lead.companyName || lead.title || '',
-      category: lead.category || '',
+      title: cleanOptionalString(lead.title) || '',
+      businessName: cleanOptionalString(lead.companyName) || cleanOptionalString(lead.title) || '',
+      category: cleanOptionalString(lead.category) || '',
       source: lead.source || 'WEBSITE',
-      firstName: lead.firstName || '',
-      lastName: lead.lastName || '',
-      phone: lead.phone || '',
-      email: lead.email || '',
-      website: lead.website || '',
-      address: lead.address || '',
-      city: lead.city || '',
-      state: lead.state || '',
-      country: lead.country || 'India',
+      firstName: cleanOptionalString(lead.firstName) || '',
+      lastName: cleanOptionalString(lead.lastName) || '',
+      phone: cleanOptionalString(lead.phone) || '',
+      email: cleanOptionalString(lead.email) || '',
+      website: cleanOptionalString(lead.website) || '',
+      address: cleanOptionalString(lead.address) || '',
+      city: cleanOptionalString(lead.city) || '',
+      state: cleanOptionalString(lead.state) || '',
+      country: cleanOptionalString(lead.country) || 'India',
       latitude: lead.latitude ? String(lead.latitude) : '',
       longitude: lead.longitude ? String(lead.longitude) : '',
-      googlePlaceId: lead.googlePlaceId || '',
+      googlePlaceId: cleanOptionalString(lead.googlePlaceId) || '',
       rating: lead.rating ? String(lead.rating) : '',
       reviewCount: lead.reviewCount ? String(lead.reviewCount) : '',
       assignedToId: lead.assignedToId ? String(lead.assignedToId) : '',
@@ -833,7 +844,7 @@ export default function LeadsPage() {
       priority: lead.priority || 'MEDIUM',
       value: String(lead.value || 0),
       nextFollowUpDate: lead.nextFollowUpDate ? lead.nextFollowUpDate.split('T')[0] : '',
-      nextFollowUpTime: lead.nextFollowUpTime || '',
+      nextFollowUpTime: cleanOptionalString(lead.nextFollowUpTime) || '',
       notes: '',
     });
     setIsAddDrawerOpen(true);
@@ -2317,11 +2328,20 @@ export default function LeadsPage() {
                 onChange={(e) => setLeadForm({ ...leadForm, assignedToId: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
               >
-                <option value="">-- Select Employee --</option>
-                {employees
-                  .filter((emp) => emp.userId)
+                <option value="">-- Select BPO Employee --</option>
+                {isLoadingBpoEmployees && (
+                  <option value="" disabled>Loading BPO employees...</option>
+                )}
+                {isBpoEmployeesError && (
+                  <option value="" disabled>Failed to load BPO employees</option>
+                )}
+                {!isLoadingBpoEmployees && !isBpoEmployeesError && bpoEmployees.length === 0 && (
+                  <option value="" disabled>No BPO employees available</option>
+                )}
+                {bpoEmployees
+                  .filter((emp) => emp.userId || emp.id)
                   .map((emp) => (
-                    <option key={emp.id} value={String(emp.userId)}>
+                    <option key={emp.id} value={String(emp.userId || emp.id)}>
                       {emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} ({emp.employeeCode})
                     </option>
                   ))}
@@ -2611,18 +2631,19 @@ export default function LeadsPage() {
                 onClick={() => {
                   setLeadForm((prev) => ({
                     ...prev,
-                    title: displayName || prev.title,
-                    businessName: displayName || prev.businessName,
-                    phone: place.phone || prev.phone,
-                    email: place.email || prev.email,
-                    website: place.website || prev.website,
-                    address: place.address || prev.address,
-                    city: place.city || prev.city,
-                    state: place.state || prev.state,
-                    country: place.country || prev.country,
+                    title: cleanOptionalString(displayName) || prev.title,
+                    businessName: cleanOptionalString(displayName) || prev.businessName,
+                    category: cleanOptionalString(place.category) || prev.category,
+                    phone: cleanOptionalString(place.phone) || '',
+                    email: cleanOptionalString(place.email) || '',
+                    website: cleanOptionalString(place.website) || '',
+                    address: cleanOptionalString(place.address) || '',
+                    city: cleanOptionalString(place.city) || '',
+                    state: cleanOptionalString(place.state) || '',
+                    country: cleanOptionalString(place.country) || prev.country,
                     latitude: place.latitude ? String(place.latitude) : prev.latitude,
                     longitude: place.longitude ? String(place.longitude) : prev.longitude,
-                    googlePlaceId: place.googlePlaceId || place.placeId || prev.googlePlaceId,
+                    googlePlaceId: cleanOptionalString(place.googlePlaceId) || cleanOptionalString(place.placeId) || prev.googlePlaceId,
                     rating: place.rating ? String(place.rating) : prev.rating,
                     reviewCount: place.reviewCount ? String(place.reviewCount) : prev.reviewCount,
                     source: 'GOOGLE_PLACES',
