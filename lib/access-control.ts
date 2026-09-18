@@ -408,7 +408,7 @@ export const adminNavigation: {
       items: [
         { name: 'AI Studio & Social', href: '/marketing/ai-studio', icon: Sparkles, permission: 'customers.manage' },
         { name: 'AI Credits Management', href: '/marketing/ai-credits', icon: Coins, permission: 'customers.manage' },
-        { name: 'Social Media Handlers', href: '/marketing/social-media', icon: Share2, permission: 'customers.manage' },
+        { name: 'SSM Account Access Details', href: '/marketing/social-media', icon: Share2, permission: 'customers.manage' },
       ],
     },
 

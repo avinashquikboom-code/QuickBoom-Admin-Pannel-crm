@@ -403,7 +403,7 @@ export default function SocialMediaHandlersPage() {
                   <td colSpan={7} className="py-12 text-center text-muted-foreground">
                     <div className="flex items-center justify-center gap-2">
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Loading social media handlers...</span>
+                      <span>Loading SSM account access details...</span>
                     </div>
                   </td>
                 </tr>
@@ -412,17 +412,17 @@ export default function SocialMediaHandlersPage() {
                   <td colSpan={7} className="py-12 text-center text-muted-foreground">
                     <div className="max-w-sm mx-auto space-y-2">
                       <Share2 className="w-8 h-8 mx-auto text-muted-foreground/50" />
-                      <p className="text-base font-semibold text-foreground">No handlers found</p>
+                      <p className="text-base font-semibold text-foreground">No accounts found</p>
                       <p className="text-xs text-muted-foreground">
                         {search || selectedPlatform !== 'ALL' || selectedCustomerId !== 'ALL'
-                          ? 'No handlers match your filters.'
-                          : 'Get started by creating your first social media handler for a customer.'}
+                          ? 'No accounts match your filters.'
+                          : 'Get started by creating your first SSM account access record for a customer.'}
                       </p>
                       <button
                         onClick={openCreateDrawer}
                         className="mt-4 px-4 py-2 text-xs font-semibold bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
                       >
-                        + Add Handler
+                        + Add SSM Account
                       </button>
                     </div>
                   </td>
