@@ -34,6 +34,7 @@ import {
   Unlink,
   Database,
   X,
+  AlertCircle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -128,16 +129,16 @@ export default function SettingsPage() {
 
   // Firebase Push Notifications (FCM) Integration State
   const [firebaseConnected, setFirebaseConnected] = useState(false);
-  const [firebaseStatus, setFirebaseStatus] = useState<'CONNECTED' | 'NOT CONFIGURED' | 'CONNECTION ERROR'>('NOT CONFIGURED');
-  const [firebaseSource, setFirebaseSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
-  const [firebaseProjectId, setFirebaseProjectId] = useState('quikboom-crm-925d5');
+  const [firebaseStatus, setFirebaseStatus] = useState<'CONNECTED' | 'PARTIALLY CONFIGURED' | 'NOT CONFIGURED' | 'CONNECTION ERROR'>('NOT CONFIGURED');
+  const [firebaseSource, setFirebaseSource] = useState<'DATABASE' | 'ENV_FALLBACK' | 'NONE'>('NONE');
+  const [firebaseProjectId, setFirebaseProjectId] = useState('');
   const [firebaseClientEmail, setFirebaseClientEmail] = useState('');
   const [firebasePrivateKey, setFirebasePrivateKey] = useState('');
-  const [firebaseSenderId, setFirebaseSenderId] = useState('325119319653');
+  const [firebaseSenderId, setFirebaseSenderId] = useState('');
   const [firebaseWebApiKey, setFirebaseWebApiKey] = useState('');
-  const [firebaseWebAppId, setFirebaseWebAppId] = useState('1:325119319653:web:9375042c4ead48710b708c');
-  const [firebaseAuthDomain, setFirebaseAuthDomain] = useState('quikboom-crm-925d5.firebaseapp.com');
-  const [firebaseStorageBucket, setFirebaseStorageBucket] = useState('quikboom-crm-925d5.firebasestorage.app');
+  const [firebaseWebAppId, setFirebaseWebAppId] = useState('');
+  const [firebaseAuthDomain, setFirebaseAuthDomain] = useState('');
+  const [firebaseStorageBucket, setFirebaseStorageBucket] = useState('');
   const [firebaseVapidKey, setFirebaseVapidKey] = useState('');
   const [showFirebaseKey, setShowFirebaseKey] = useState(false);
   const [isSavingFirebase, setIsSavingFirebase] = useState(false);
@@ -274,27 +275,35 @@ export default function SettingsPage() {
           } else if (provider === 'FIREBASE') {
             const creds = item.credentials || {};
             const cfg = item.config || {};
-            const isConfigured = Boolean(
-              (creds.projectId || creds.project_id) &&
-              (creds.clientEmail || creds.client_email || creds.privateKey || creds.private_key)
-            );
-            setFirebaseConnected(item.isEnabled ?? isConfigured);
-            setFirebaseSource(item.source || (isConfigured ? 'DATABASE' : 'ENV_FALLBACK'));
-            setFirebaseStatus(
-              item.isEnabled && isConfigured
-                ? 'CONNECTED'
-                : isConfigured
-                ? 'CONNECTED'
-                : 'NOT CONFIGURED'
-            );
-            setFirebaseProjectId(creds.projectId || creds.project_id || cfg.projectId || 'quikboom-crm-925d5');
+            const hasProj = Boolean(creds.projectId || creds.project_id || cfg.projectId);
+            const hasEmail = Boolean(creds.clientEmail || creds.client_email);
+            const hasKey = Boolean(creds.privateKey || creds.private_key);
+            const hasSender = Boolean(creds.messagingSenderId || creds.messaging_sender_id || cfg.messagingSenderId);
+            const hasAny = hasProj || hasEmail || hasKey || hasSender || Boolean(creds.apiKey || creds.api_key) || Boolean(creds.vapidKey || creds.vapid_key);
+            const isFully = hasProj && hasEmail && hasKey;
+
+            const isEnabled = Boolean(item.isEnabled);
+            setFirebaseConnected(isEnabled);
+            setFirebaseSource(hasAny ? (item.source || 'DATABASE') : 'NONE');
+
+            if (!hasAny) {
+              setFirebaseStatus('NOT CONFIGURED');
+            } else if (cfg.lastTestResult === 'FAILED') {
+              setFirebaseStatus('CONNECTION ERROR');
+            } else if (isFully) {
+              setFirebaseStatus('CONNECTED');
+            } else {
+              setFirebaseStatus('PARTIALLY CONFIGURED');
+            }
+
+            setFirebaseProjectId(creds.projectId || creds.project_id || cfg.projectId || '');
             setFirebaseClientEmail(creds.clientEmail || creds.client_email || '');
             setFirebasePrivateKey(creds.privateKey || creds.private_key || '');
-            setFirebaseSenderId(creds.messagingSenderId || creds.messaging_sender_id || cfg.messagingSenderId || '325119319653');
+            setFirebaseSenderId(creds.messagingSenderId || creds.messaging_sender_id || cfg.messagingSenderId || '');
             setFirebaseWebApiKey(creds.apiKey || creds.api_key || cfg.apiKey || '');
-            setFirebaseWebAppId(creds.appId || creds.app_id || cfg.appId || '1:325119319653:web:9375042c4ead48710b708c');
-            setFirebaseAuthDomain(creds.authDomain || creds.auth_domain || cfg.authDomain || 'quikboom-crm-925d5.firebaseapp.com');
-            setFirebaseStorageBucket(creds.storageBucket || creds.storage_bucket || cfg.storageBucket || 'quikboom-crm-925d5.firebasestorage.app');
+            setFirebaseWebAppId(creds.appId || creds.app_id || cfg.appId || '');
+            setFirebaseAuthDomain(creds.authDomain || creds.auth_domain || cfg.authDomain || '');
+            setFirebaseStorageBucket(creds.storageBucket || creds.storage_bucket || cfg.storageBucket || '');
             setFirebaseVapidKey(creds.vapidKey || creds.vapid_key || cfg.vapidKey || '');
             setFirebaseLastTestedAt(cfg.lastTestedAt || null);
             setFirebaseLastTestResult(cfg.lastTestResult || null);
@@ -742,27 +751,11 @@ export default function SettingsPage() {
 
   const handleSaveFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firebaseProjectId.trim()) {
-      toast.error('Firebase Project ID is required');
-      return;
-    }
-    if (!firebaseClientEmail.trim()) {
-      toast.error('Firebase Client Email is required');
-      return;
-    }
-    if (!firebasePrivateKey.trim()) {
-      toast.error('Firebase Private Key is required');
-      return;
-    }
-    if (!firebaseSenderId.trim()) {
-      toast.error('Firebase Messaging Sender ID is required');
-      return;
-    }
 
     setIsSavingFirebase(true);
     try {
       const res: any = await api.put('/admin/settings/integrations/FIREBASE', {
-        isEnabled: true,
+        isEnabled: firebaseConnected,
         environment: 'LIVE',
         credentials: {
           projectId: firebaseProjectId.trim(),
@@ -783,26 +776,38 @@ export default function SettingsPage() {
         },
       });
 
-      setFirebaseSource('DATABASE');
       const creds = res?.credentials || res?.data?.credentials;
       if (creds?.privateKey) {
         setFirebasePrivateKey(creds.privateKey);
       }
-      setFirebaseConnected(true);
-      setFirebaseStatus('CONNECTED');
+
+      const hasProj = Boolean(firebaseProjectId.trim());
+      const hasEmail = Boolean(firebaseClientEmail.trim());
+      const hasKey = Boolean((creds?.privateKey || firebasePrivateKey).trim());
+      const hasSender = Boolean(firebaseSenderId.trim());
+      const hasAny = hasProj || hasEmail || hasKey || hasSender || Boolean(firebaseWebApiKey.trim()) || Boolean(firebaseVapidKey.trim());
+      const isFully = hasProj && hasEmail && hasKey;
+
+      if (!hasAny) {
+        setFirebaseSource('NONE');
+        setFirebaseStatus('NOT CONFIGURED');
+      } else if (isFully) {
+        setFirebaseSource('DATABASE');
+        setFirebaseStatus(firebaseLastTestResult === 'FAILED' ? 'CONNECTION ERROR' : 'CONNECTED');
+      } else {
+        setFirebaseSource('DATABASE');
+        setFirebaseStatus('PARTIALLY CONFIGURED');
+      }
+
       toast.success('✓ FCM credentials updated successfully');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || '✕ Unable to connect to Firebase. Please verify your credentials.');
+      toast.error(err?.response?.data?.message || err?.message || '✕ Unable to save Firebase credentials.');
     } finally {
       setIsSavingFirebase(false);
     }
   };
 
   const handleTestFirebase = async () => {
-    if (!firebaseProjectId.trim()) {
-      toast.error('Firebase Project ID is required to test connection');
-      return;
-    }
     setIsTestingFirebase(true);
     try {
       const res: any = await api.post('/admin/settings/integrations/FIREBASE/test', {
@@ -822,11 +827,18 @@ export default function SettingsPage() {
         setFirebaseLastTestResult('SUCCESS');
         setFirebaseLastTestMessage(data?.message || 'Connection check successful');
       } else {
-        toast.error(data?.message || '✕ Connection failed');
-        setFirebaseStatus(data?.status || 'CONNECTION ERROR');
+        const msg = data?.message || '✕ Connection failed';
+        toast.error(msg);
+        if (data?.status === 'NOT CONFIGURED') {
+          const hasAny = Boolean(firebaseProjectId.trim() || firebaseClientEmail.trim() || firebasePrivateKey.trim());
+          setFirebaseStatus(hasAny ? 'PARTIALLY CONFIGURED' : 'NOT CONFIGURED');
+          setFirebaseLastTestResult(null);
+        } else {
+          setFirebaseStatus('CONNECTION ERROR');
+          setFirebaseLastTestResult('FAILED');
+        }
         setFirebaseLastTestedAt(new Date().toISOString());
-        setFirebaseLastTestResult('FAILED');
-        setFirebaseLastTestMessage(data?.message || 'Connection failed');
+        setFirebaseLastTestMessage(msg);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || '✕ Connection failed';
@@ -847,8 +859,16 @@ export default function SettingsPage() {
       toast.success('Firebase FCM integration disconnected');
       setFirebaseConnected(false);
       setFirebaseStatus('NOT CONFIGURED');
+      setFirebaseSource('NONE');
+      setFirebaseProjectId('');
       setFirebaseClientEmail('');
       setFirebasePrivateKey('');
+      setFirebaseSenderId('');
+      setFirebaseWebApiKey('');
+      setFirebaseWebAppId('');
+      setFirebaseAuthDomain('');
+      setFirebaseStorageBucket('');
+      setFirebaseVapidKey('');
       setFirebaseLastTestedAt(null);
       setFirebaseLastTestResult(null);
       setFirebaseLastTestMessage(null);
@@ -2045,6 +2065,10 @@ export default function SettingsPage() {
                       <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
                         <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> CONNECTED
                       </span>
+                    ) : firebaseStatus === 'PARTIALLY CONFIGURED' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-extrabold border border-blue-200">
+                        <AlertCircle className="w-3 h-3 text-blue-600" /> PARTIALLY CONFIGURED
+                      </span>
                     ) : firebaseStatus === 'CONNECTION ERROR' ? (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 font-extrabold border border-rose-200">
                         <AlertTriangle className="w-3 h-3 text-rose-600" /> CONNECTION ERROR
@@ -2071,6 +2095,16 @@ export default function SettingsPage() {
               </label>
             </div>
 
+            {/* NON-BLOCKING WARNING IF ACTIVE BUT INCOMPLETE */}
+            {firebaseConnected && (!firebaseProjectId.trim() || !firebaseClientEmail.trim() || !firebasePrivateKey.trim()) && (
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="font-medium">
+                  FCM is enabled but not fully configured. Push notifications will not be dispatched until Firebase configuration is complete.
+                </p>
+              </div>
+            )}
+
             {/* FEATURE INDICATORS */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/60 text-[11px]">
@@ -2095,28 +2129,26 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                    <Globe className="w-3.5 h-3.5 text-orange-500" /> Firebase Project ID *
+                    <Globe className="w-3.5 h-3.5 text-orange-500" /> Firebase Project ID
                   </label>
                   <input
                     type="text"
-                    required
                     value={firebaseProjectId}
                     onChange={(e) => setFirebaseProjectId(e.target.value)}
-                    placeholder="quikboom-crm-925d5"
+                    placeholder="e.g. your-project-id"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                 </div>
 
                 <div>
                   <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                    <Hash className="w-3.5 h-3.5 text-orange-500" /> Messaging Sender ID *
+                    <Hash className="w-3.5 h-3.5 text-orange-500" /> Messaging Sender ID
                   </label>
                   <input
                     type="text"
-                    required
                     value={firebaseSenderId}
                     onChange={(e) => setFirebaseSenderId(e.target.value)}
-                    placeholder="318285559092"
+                    placeholder="e.g. 123456789012"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                 </div>
@@ -2125,14 +2157,13 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5 text-orange-500" /> Firebase Client Email *
+                    <Mail className="w-3.5 h-3.5 text-orange-500" /> Firebase Client Email
                   </label>
                   <input
                     type="email"
-                    required
                     value={firebaseClientEmail}
                     onChange={(e) => setFirebaseClientEmail(e.target.value)}
-                    placeholder="firebase-adminsdk-...@quikboom-crm-925d5.iam.gserviceaccount.com"
+                    placeholder="firebase-adminsdk-...@your-project.iam.gserviceaccount.com"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                 </div>
@@ -2160,7 +2191,7 @@ export default function SettingsPage() {
                     type="text"
                     value={firebaseWebAppId}
                     onChange={(e) => setFirebaseWebAppId(e.target.value)}
-                    placeholder="1:318285559092:web:..."
+                    placeholder="1:123456789012:web:..."
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                 </div>
@@ -2188,7 +2219,7 @@ export default function SettingsPage() {
                     type="text"
                     value={firebaseAuthDomain}
                     onChange={(e) => setFirebaseAuthDomain(e.target.value)}
-                    placeholder="quikboom-crm-925d5.firebaseapp.com"
+                    placeholder="your-project.firebaseapp.com"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                 </div>
@@ -2201,7 +2232,7 @@ export default function SettingsPage() {
                     type="text"
                     value={firebaseStorageBucket}
                     onChange={(e) => setFirebaseStorageBucket(e.target.value)}
-                    placeholder="quikboom-crm-925d5.appspot.com"
+                    placeholder="your-project.firebasestorage.app"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                 </div>
@@ -2209,7 +2240,7 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-orange-500" /> Firebase Private Key (Service Account) *
+                  <Key className="w-3.5 h-3.5 text-orange-500" /> Firebase Private Key (Service Account)
                 </label>
                 <div className="relative">
                   <textarea
@@ -2239,7 +2270,7 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={handleTestFirebase}
-                    disabled={isTestingFirebase || !firebaseProjectId.trim()}
+                    disabled={isTestingFirebase}
                     className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
                   >
                     {isTestingFirebase ? (
@@ -2252,7 +2283,7 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowDisconnectModal(true)}
-                    disabled={firebaseStatus === 'NOT CONFIGURED' && !firebaseProjectId}
+                    disabled={firebaseStatus === 'NOT CONFIGURED' && !firebaseProjectId.trim() && !firebaseClientEmail.trim()}
                     className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-40 border border-rose-200"
                     title="Disconnect Firebase Integration"
                   >
@@ -2326,11 +2357,10 @@ export default function SettingsPage() {
                 {(testRecipientType === 'CUSTOMER' || testRecipientType === 'EMPLOYEE') && (
                   <div>
                     <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      {testRecipientType === 'CUSTOMER' ? 'Customer ID *' : 'Employee/User ID *'}
+                      {testRecipientType === 'CUSTOMER' ? 'Customer ID' : 'Employee/User ID'}
                     </label>
                     <input
                       type="text"
-                      required
                       value={testRecipientId}
                       onChange={(e) => setTestRecipientId(e.target.value)}
                       placeholder="e.g. 1"
