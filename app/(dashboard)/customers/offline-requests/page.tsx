@@ -107,8 +107,10 @@ export default function OfflinePaymentRequestsPage() {
   // Single Delete Mutation
   const singleDeleteMutation = useMutation({
     mutationFn: async (id: number | string) => {
+      // api.ts response interceptor already returns response.data;
+      // `res` IS the parsed response body — return it directly.
       const res: any = await api.delete(`/admin/subscriptions/offline-requests/${id}`);
-      return res.data;
+      return res;
     },
     onSuccess: (data: any) => {
       toast.success(data?.message || 'Offline payment request deleted successfully.');
@@ -155,8 +157,10 @@ export default function OfflinePaymentRequestsPage() {
   // Approve Mutation
   const approveMutation = useMutation({
     mutationFn: async (id: number | string) => {
+      // api.ts response interceptor already returns response.data;
+      // `res` IS the parsed response body — do NOT do res.data (double-unwrap).
       const res: any = await api.post(`/admin/subscriptions/offline-requests/${id}/approve`);
-      return res.data;
+      return res;
     },
     onSuccess: (data: any) => {
       toast.success(data?.message || 'Offline payment approved & subscription activated!');
@@ -170,16 +174,25 @@ export default function OfflinePaymentRequestsPage() {
       setIsViewModalOpen(false);
       setSelectedRequest(null);
     },
-    onError: (err) => {
-      toast.error(getErrorMessage(err));
+    onError: (err: any) => {
+      // api.ts interceptor already shows a toast for most API errors.
+      // Use the same message as toast ID to prevent duplicate toasts.
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Failed to approve the offline payment request.';
+      toast.error(msg, { id: `approve-err-${msg.slice(0, 40)}` });
     },
   });
 
   // Reject Mutation
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: number | string; reason?: string }) => {
+      // api.ts response interceptor already returns response.data;
+      // `res` IS the parsed response body — do NOT do res.data (double-unwrap).
       const res: any = await api.post(`/admin/subscriptions/offline-requests/${id}/reject`, { reason });
-      return res.data;
+      return res;
     },
     onSuccess: (data: any) => {
       toast.success(data?.message || 'Offline payment request rejected.');
@@ -192,8 +205,15 @@ export default function OfflinePaymentRequestsPage() {
       setSelectedRequest(null);
       setRejectReason('');
     },
-    onError: (err) => {
-      toast.error(getErrorMessage(err));
+    onError: (err: any) => {
+      // api.ts interceptor already shows a toast for most API errors.
+      // Use the same message as toast ID to prevent duplicate toasts.
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Failed to reject the offline payment request.';
+      toast.error(msg, { id: `reject-err-${msg.slice(0, 40)}` });
     },
   });
 
