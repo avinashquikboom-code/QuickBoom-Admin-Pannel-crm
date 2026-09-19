@@ -718,7 +718,9 @@ export default function SettingsPage() {
       toast.success('SMTP Email settings saved securely!');
       return true;
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to save SMTP settings');
+      const rawMsg = err?.response?.data?.message || err?.message || 'Failed to save SMTP settings';
+      const displayMsg = Array.isArray(rawMsg) ? rawMsg.join('. ') : rawMsg;
+      toast.error(displayMsg);
       return false;
     } finally {
       setIsSavingSmtp(false);
@@ -758,7 +760,9 @@ export default function SettingsPage() {
         toast.error(data?.message || 'SMTP connection test failed');
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'SMTP connection test failed');
+      const rawMsg = err?.response?.data?.message || err?.message || 'SMTP connection test failed';
+      const displayMsg = Array.isArray(rawMsg) ? rawMsg.join('. ') : rawMsg;
+      toast.error(displayMsg);
     } finally {
       setIsTestingSmtp(false);
     }
