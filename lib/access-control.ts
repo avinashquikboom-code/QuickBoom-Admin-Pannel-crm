@@ -452,6 +452,7 @@ export const adminNavigation: {
         { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
         { name: 'Email Templates', href: '/settings/email-templates', icon: Mail, permission: 'settings.global' },
         { name: 'Integrations', href: '/settings', icon: Zap, permission: 'settings.global' },
+        { name: 'Activity Logs', href: '/activity-logs', icon: Activity, permission: 'audit_logs.view' },
       ],
     },
   ],
@@ -777,6 +778,7 @@ export const SUPER_ADMIN_ONLY_ROUTES: string[] = [
   '/settings/data-management',
   '/roles-permissions',
   '/audit-logs',
+  '/activity-logs',
 ];
 
 // Route Protection Definition for Direct URL Protection
