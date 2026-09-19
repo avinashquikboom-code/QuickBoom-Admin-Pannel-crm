@@ -190,6 +190,7 @@ interface LeadItem {
   website?: string | null;
   address?: string | null;
   city?: string | null;
+  location?: string | null;
   state?: string | null;
   country?: string | null;
   category?: string | null;
@@ -623,13 +624,14 @@ export default function LeadsPage() {
         companyName: cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || undefined,
         category: cleanOptionalString(leadForm.category),
         source: leadForm.source || 'WEBSITE',
-        firstName: cleanOptionalString(leadForm.firstName) || cleanOptionalString(leadForm.businessName)?.split(' ')[0] || 'Prospective',
-        lastName: cleanOptionalString(leadForm.lastName) || cleanOptionalString(leadForm.businessName)?.split(' ').slice(1).join(' ') || 'Client',
+        firstName: cleanOptionalString(leadForm.firstName) || undefined,
+        lastName: cleanOptionalString(leadForm.lastName) || undefined,
         phone: cleanOptionalString(leadForm.phone),
         email: cleanOptionalString(leadForm.email),
         website: cleanOptionalString(leadForm.website),
         address: cleanOptionalString(leadForm.address),
         city: cleanOptionalString(leadForm.city),
+        location: cleanOptionalString(leadForm.city),
         state: cleanOptionalString(leadForm.state),
         country: cleanOptionalString(leadForm.country) || 'India',
         latitude: leadForm.latitude ? parseFloat(leadForm.latitude) : undefined,
@@ -835,7 +837,7 @@ export default function LeadsPage() {
       email: cleanOptionalString(lead.email) || '',
       website: cleanOptionalString(lead.website) || '',
       address: cleanOptionalString(lead.address) || '',
-      city: cleanOptionalString(lead.city) || '',
+      city: cleanOptionalString(lead.city) || cleanOptionalString(lead.location) || '',
       state: cleanOptionalString(lead.state) || '',
       country: cleanOptionalString(lead.country) || 'India',
       latitude: lead.latitude ? String(lead.latitude) : '',
@@ -1145,7 +1147,7 @@ export default function LeadsPage() {
                             </span>
                             <p className="text-slate-500 font-medium text-[11px] truncate flex items-center gap-1.5 mt-0.5">
                               <span className="font-bold text-slate-700">{leadName}</span>
-                              {lead.city && <span>• {lead.city}</span>}
+                              {(lead.city || lead.location) && <span>• {lead.city || lead.location}</span>}
                             </p>
                           </div>
                         </div>
@@ -2192,11 +2194,10 @@ export default function LeadsPage() {
 
             <div>
               <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                Contact First Name *
+                Contact First Name
               </label>
               <input
                 type="text"
-                required
                 value={leadForm.firstName}
                 onChange={(e) => setLeadForm({ ...leadForm, firstName: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
@@ -2205,11 +2206,10 @@ export default function LeadsPage() {
 
             <div>
               <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                Contact Last Name *
+                Contact Last Name
               </label>
               <input
                 type="text"
-                required
                 value={leadForm.lastName}
                 onChange={(e) => setLeadForm({ ...leadForm, lastName: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
@@ -2634,6 +2634,12 @@ export default function LeadsPage() {
                 key={i}
                 className="flex items-start gap-3 px-5 sm:px-6 py-3.5 hover:bg-emerald-50/60 cursor-pointer transition-colors group"
                 onClick={() => {
+                  const extractedCity =
+                    cleanOptionalString(place.city) ||
+                    cleanOptionalString(place.location) ||
+                    cleanOptionalString(googleLocation) ||
+                    (place.address ? cleanOptionalString(place.address.split(',').slice(-3, -2)[0]) : '') ||
+                    '';
                   setLeadForm((prev) => ({
                     ...prev,
                     title: cleanOptionalString(displayName) || prev.title,
@@ -2643,7 +2649,7 @@ export default function LeadsPage() {
                     email: cleanOptionalString(place.email) || '',
                     website: cleanOptionalString(place.website) || '',
                     address: cleanOptionalString(place.address) || '',
-                    city: cleanOptionalString(place.city) || '',
+                    city: extractedCity,
                     state: cleanOptionalString(place.state) || '',
                     country: cleanOptionalString(place.country) || prev.country,
                     latitude: place.latitude ? String(place.latitude) : prev.latitude,

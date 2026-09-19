@@ -39,6 +39,7 @@ import {
   Sparkles,
   Video,
   Coins,
+  Mail,
 } from 'lucide-react';
 import { User as UserType } from './store';
 
@@ -449,6 +450,7 @@ export const adminNavigation: {
       items: [
         { name: 'Roles & Permissions', href: '/roles-permissions', icon: ShieldCheck, permission: 'roles.manage' },
         { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
+        { name: 'Email Templates', href: '/settings/email-templates', icon: Mail, permission: 'settings.global' },
         { name: 'Integrations', href: '/settings', icon: Zap, permission: 'settings.global' },
       ],
     },

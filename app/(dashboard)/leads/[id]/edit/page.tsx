@@ -97,7 +97,7 @@ export default function EditLeadPage() {
         phone: lead.phone || '',
         website: lead.website || '',
         address: lead.address || '',
-        city: lead.city || '',
+        city: lead.city || lead.location || '',
         state: lead.state || '',
         country: lead.country || 'India',
         source: lead.source || 'WEBSITE',
@@ -124,8 +124,8 @@ export default function EditLeadPage() {
 
       const payload = {
         title: formData.title.trim() || formData.companyName.trim() || `${formData.firstName} ${formData.lastName}`.trim(),
-        firstName: formData.firstName.trim() || 'Prospect',
-        lastName: formData.lastName.trim() || 'Client',
+        firstName: cleanVal(formData.firstName) || undefined,
+        lastName: cleanVal(formData.lastName) || undefined,
         companyName: cleanVal(formData.companyName),
         category: cleanVal(formData.category),
         email: cleanVal(formData.email),
@@ -133,6 +133,7 @@ export default function EditLeadPage() {
         website: cleanVal(formData.website),
         address: cleanVal(formData.address),
         city: cleanVal(formData.city),
+        location: cleanVal(formData.city),
         state: cleanVal(formData.state),
         country: cleanVal(formData.country) || 'India',
         source: formData.source,
@@ -174,19 +175,17 @@ export default function EditLeadPage() {
             />
           </AdminFormField>
 
-          <AdminFormField label="First Name" required>
+          <AdminFormField label="First Name">
             <AdminInput
               type="text"
-              required
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
             />
           </AdminFormField>
 
-          <AdminFormField label="Last Name" required>
+          <AdminFormField label="Last Name">
             <AdminInput
               type="text"
-              required
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
             />

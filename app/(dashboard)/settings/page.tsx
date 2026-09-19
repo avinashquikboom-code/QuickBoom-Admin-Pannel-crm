@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Settings,
   CreditCard,
@@ -1976,18 +1977,27 @@ export default function SettingsPage() {
               </p>
 
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleTestSmtp}
-                  disabled={isTestingSmtp || !smtpHost.trim()}
-                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
-                >
-                  {isTestingSmtp ? (
-                    <><Loader2 className="w-4 h-4 animate-spin text-blue-500" /> Testing Connection...</>
-                  ) : (
-                    <><RefreshCw className="w-4 h-4 text-slate-600" /> Test Connection</>
-                  )}
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleTestSmtp}
+                    disabled={isTestingSmtp || !smtpHost.trim()}
+                    className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                  >
+                    {isTestingSmtp ? (
+                      <><Loader2 className="w-4 h-4 animate-spin text-blue-500" /> Testing Connection...</>
+                    ) : (
+                      <><RefreshCw className="w-4 h-4 text-slate-600" /> Test Connection</>
+                    )}
+                  </button>
+
+                  <Link
+                    href="/settings/email-templates"
+                    className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all border border-blue-200"
+                  >
+                    <Mail className="w-4 h-4 text-blue-600" /> Manage Email Templates →
+                  </Link>
+                </div>
 
                 <div className="flex items-center gap-2.5">
                   <button

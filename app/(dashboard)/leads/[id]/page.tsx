@@ -305,7 +305,7 @@ export default function LeadDetailPage() {
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{company}</h1>
             <p className="text-xs sm:text-sm text-slate-300 font-medium flex items-center gap-2">
               <span>Contact: {name}</span>
-              {lead.city && <span>• {lead.city}, {lead.state || lead.country}</span>}
+              {(lead.city || lead.location) && <span>• {lead.city || lead.location}, {lead.state || lead.country}</span>}
             </p>
           </div>
 
@@ -684,7 +684,7 @@ export default function LeadDetailPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="text-slate-400 text-[10px] font-bold uppercase block">City</span>
-                  <p className="font-bold text-slate-800">{lead.city || 'N/A'}</p>
+                  <p className="font-bold text-slate-800">{lead.city || lead.location || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] font-bold uppercase block">State / Country</span>
