@@ -17,7 +17,7 @@ import {
   Database,
   Loader2,
 } from 'lucide-react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
@@ -41,6 +41,7 @@ export function ResetCustomerDataModal({
 }: ResetCustomerDataModalProps) {
   const [confirmInput, setConfirmInput] = useState('');
   const [reason, setReason] = useState('');
+  const queryClient = useQueryClient();
 
   // Reset confirmation input when modal opens/closes
   useEffect(() => {
@@ -86,26 +87,46 @@ export function ResetCustomerDataModal({
   // Reset Mutation
   const resetMutation = useMutation({
     mutationFn: async () => {
+      // api.ts response interceptor already unwraps response.data — `res` IS the body.
       const res: any = await api.post(`/customers/${customerId}/reset-data`, {
         confirmation: confirmInput.trim(),
         reason: reason.trim() || 'Admin initiated customer data reset from dashboard',
-        preserveSubscriptions: true,
+        preserveSubscriptions: false,   // MUST be false — subscriptions are always reset
         preserveInvoices: false,
       });
-      return res?.data || res;
+      return res;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast.success(
-        data?.message || `Customer data for "${displayName}" has been reset!`,
-        { icon: '🔄', duration: 5000 }
+        data?.message || `Customer data for "${displayName}" has been completely reset!`,
+        { icon: '🔄', duration: 6000 }
       );
+
+      // Invalidate ALL subscription/customer related caches so the Admin Panel
+      // immediately reflects the reset state without requiring a browser refresh.
+      queryClient.invalidateQueries({ queryKey: ['customer-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-reset-summary', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-subscriptions-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-offline-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-plan'] });
+      queryClient.invalidateQueries({ queryKey: ['subscription-plans'] });
+
       if (onSuccess) {
         onSuccess();
       }
       onClose();
     },
-    onError: (err) => {
-      toast.error(getErrorMessage(err));
+    onError: (err: any) => {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Failed to reset customer data.';
+      toast.error(msg, { id: `reset-err-${String(customerId)}` });
     },
   });
 
