@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Sidebar } from '@/components/Sidebar';
 import { RouteGuard } from '@/components/RouteGuard';
+import { FcmProvider } from '@/components/FcmProvider';
 import Image from 'next/image';
 import {
   Bell,
@@ -151,10 +153,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* Notification Bell */}
-            <button className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 relative cursor-pointer">
+            <Link
+              href="/notifications"
+              className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 relative cursor-pointer block"
+              title="View All Notifications"
+            >
               <Bell className="w-5 h-5" />
               <span className="w-2 h-2 bg-[#23C45E] rounded-full absolute top-2 right-2" />
-            </button>
+            </Link>
 
             {/* User Profile Badge */}
             <div className="flex items-center gap-2.5 pl-2 sm:pl-3 border-l border-slate-200">
@@ -178,6 +184,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <RouteGuard>{children}</RouteGuard>
         </main>
       </div>
+
+      {/* FCM Background Push Notification Integration & Permission Banner */}
+      <FcmProvider />
     </div>
   );
 }

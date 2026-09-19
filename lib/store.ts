@@ -156,6 +156,9 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         if (typeof window !== 'undefined') {
           try {
+            import('./services/fcm.service')
+              .then(({ fcmWebService }) => fcmWebService.unregisterTokenFromBackend())
+              .catch(() => {});
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('token');

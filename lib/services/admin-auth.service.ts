@@ -92,6 +92,11 @@ export class AdminAuthService {
   // Logout
   logout() {
     if (typeof window === 'undefined') return;
+    try {
+      import('./fcm.service')
+        .then(({ fcmWebService }) => fcmWebService.unregisterTokenFromBackend())
+        .catch(() => {});
+    } catch {}
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
