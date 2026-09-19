@@ -146,20 +146,33 @@ export default function RemoteWorkPage() {
             limit: pageSize,
           },
         });
-        const items = res?.data?.requests || res?.data?.items || res?.data?.data || res?.requests || res?.items || (Array.isArray(res) ? res : []);
-        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+        const items = Array.isArray(res?.data?.requests)
+          ? res.data.requests
+          : Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.requests)
+          ? res.requests
+          : Array.isArray(res?.data?.items)
+          ? res.data.items
+          : Array.isArray(res?.items)
+          ? res.items
+          : Array.isArray(res)
+          ? res
+          : [];
+        const summary = res?.summary || res?.data?.summary || {};
+        const pagination = res?.pagination || res?.data?.pagination || res?.meta || res?.data?.meta || {
           page,
           pageSize,
-          total: Array.isArray(items) ? items.length : 0,
+          total: items.length,
           totalPages: 1,
         };
         return {
-          summary: res?.data?.summary || res?.summary || {},
-          requests: Array.isArray(items) ? items : [],
+          summary,
+          requests: items,
           pagination: {
             page: Number(pagination.page) || page,
             pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
-            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+            total: Number(pagination.total) || items.length,
             totalPages: Number(pagination.totalPages) || 1,
           },
         };
