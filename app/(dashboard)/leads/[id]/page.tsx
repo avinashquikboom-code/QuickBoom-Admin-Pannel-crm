@@ -116,9 +116,33 @@ export default function LeadDetailPage() {
     enabled: Boolean(id),
   });
 
+function isDetailsSendStage(lead: any): boolean {
+  if (!lead) return false;
+  const stageKey = String(lead.stage?.key || lead.stageKey || lead.status || '').toUpperCase().replace(/[\s-]+/g, '_');
+  const stageName = String(lead.stage?.name || lead.stageName || '').toUpperCase().trim();
+  return (
+    stageKey === 'DETAILS_SENT' ||
+    stageKey === 'DETAILS_SEND' ||
+    stageKey === 'DETAIL_SENT' ||
+    stageKey === 'DETAIL_SEND' ||
+    stageName === 'DETAILS SENT' ||
+    stageName === 'DETAILS SEND' ||
+    stageName === 'DETAIL SENT' ||
+    stageName === 'DETAIL SEND' ||
+    stageName.includes('DETAILS SEND') ||
+    stageName.includes('DETAILS SENT')
+  );
+}
+
   const handleSendLeadDetails = async () => {
-    if (!lead?.email || !lead.email.trim()) {
-      toast.error('This lead does not have an email address configured');
+    const email = lead?.email?.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      toast.error('This lead does not have an email address configured. Please add an email address first.');
+      return;
+    }
+    if (!emailRegex.test(email)) {
+      toast.error(`Invalid email address "${email}". Please update with a valid email address.`);
       return;
     }
 
@@ -127,13 +151,13 @@ export default function LeadDetailPage() {
       const res: any = await api.post(`/leads/${id}/send-details`);
       const data = res?.data || res;
       if (data?.success) {
-        toast.success(data?.message || `Lead details sent successfully to ${lead.email}!`);
+        toast.success(data?.message || `Lead details sent successfully to ${email}!`);
         refetch();
       } else {
         toast.error(data?.message || 'Failed to send lead details');
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to send lead details';
+      const msg = err?.response?.data?.message || err?.message || 'Failed to send lead details via SMTP';
       toast.error(msg);
     } finally {
       setIsSendingDetails(false);
@@ -291,15 +315,33 @@ export default function LeadDetailPage() {
               <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider">
                 Lead Record #{lead.id}
               </span>
-              <span
-                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                  isConverted
-                    ? 'bg-emerald-500 text-slate-950 font-black'
-                    : 'bg-white/15 text-white'
-                }`}
-              >
-                {lead.status}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    isConverted
+                      ? 'bg-emerald-500 text-slate-950 font-black'
+                      : 'bg-white/15 text-white'
+                  }`}
+                >
+                  {lead.stage?.name || lead.status}
+                </span>
+                {isDetailsSendStage(lead) && (
+                  <button
+                    type="button"
+                    onClick={handleSendLeadDetails}
+                    disabled={isSendingDetails}
+                    className="p-1.5 bg-blue-500/25 hover:bg-blue-500/40 text-blue-200 hover:text-white rounded-xl border border-blue-400/40 transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 inline-flex items-center justify-center"
+                    title="Send Details"
+                    aria-label="Send Details"
+                  >
+                    {isSendingDetails ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-300" />
+                    ) : (
+                      <Mail className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{company}</h1>
@@ -398,7 +440,25 @@ export default function LeadDetailPage() {
       {/* Dynamic Lifecycle Pipeline Progress Bar — 100% from Stage Management API */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex items-center justify-between text-xs font-black text-slate-800">
-          <span className="text-sm font-black">Lifecycle Pipeline Stage</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-black">Lifecycle Pipeline Stage</span>
+            {isDetailsSendStage(lead) && (
+              <button
+                type="button"
+                onClick={handleSendLeadDetails}
+                disabled={isSendingDetails}
+                className="p-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all cursor-pointer border border-blue-200/80 shadow-2xs active:scale-95 disabled:opacity-50 inline-flex items-center justify-center"
+                title="Send Details"
+                aria-label="Send Details"
+              >
+                {isSendingDetails ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                ) : (
+                  <Mail className="w-3.5 h-3.5 text-blue-600" />
+                )}
+              </button>
+            )}
+          </div>
           <span className="text-xs font-bold text-slate-500">
             {(() => {
               if (isLoadingStages) return 'Loading stages...';
