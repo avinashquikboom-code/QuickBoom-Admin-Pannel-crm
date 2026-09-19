@@ -159,11 +159,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* User Profile Badge */}
             <div className="flex items-center gap-2.5 pl-2 sm:pl-3 border-l border-slate-200">
               <div className="w-8 h-8 rounded-full bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/30 flex items-center justify-center font-bold text-xs shadow-2xs">
-                {user?.firstName?.[0] || 'D'}
+                {(user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
               </div>
               <div className="hidden sm:block text-left">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {user ? `${user.firstName} ${user.lastName}` : 'Demo User'}
+                  {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user?.email || 'User')}
                 </p>
                 <p className="text-[10px] text-[#1AA14D] font-bold capitalize truncate">
                   {currentRole}

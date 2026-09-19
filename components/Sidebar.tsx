@@ -554,12 +554,12 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className={`min-w-0 flex items-center gap-2.5 ${isCollapsed ? 'justify-center' : 'flex-1 mr-2'}`}>
             <div className="w-9 h-9 min-w-[36px] rounded-full bg-[#23C45E] text-white flex items-center justify-center font-extrabold text-xs shadow-sm">
-              {user?.firstName?.[0] || 'D'}
+              {(user?.firstName?.[0] || user?.email?.[0] || 'U').toUpperCase()}
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {user ? `${user.firstName} ${user.lastName}` : 'Demo User'}
+                  {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user?.email || 'User')}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-md bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/20 truncate">
