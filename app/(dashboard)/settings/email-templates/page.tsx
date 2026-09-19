@@ -306,7 +306,9 @@ export default function EmailTemplatesPage() {
       leadNotes: 'Enterprise CRM implementation request.',
     };
 
-    return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, v) => sampleVars[v] || match);
+    const interpolated = text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, v) => sampleVars[v] || match);
+    // Replace CID image references with public logo for browser preview
+    return interpolated.replace(/cid:quikboom-logo/g, '/logo.png');
   };
 
   // Stats Counters

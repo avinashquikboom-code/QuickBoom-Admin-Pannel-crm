@@ -315,7 +315,9 @@ export default function CrmEmailTemplatesPage() {
       companyName: 'QUIKBOOM Digital Marketing Agency',
     };
 
-    return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, v) => sampleVars[v] || match);
+    const interpolated = text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, v) => sampleVars[v] || match);
+    // Replace CID image references with public logo for browser preview
+    return interpolated.replace(/cid:quikboom-logo/g, '/logo.png');
   };
 
   // Convert plain text body with link styling for preview
