@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer, CustomerDetailsDrawer, AdminStatusTabs } from '@/components/admin';
+import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer, CustomerDetailsDrawer, AdminStatusTabs, PaymentReceiptModal, PaymentReceiptData } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
@@ -37,6 +37,11 @@ export default function OfflinePaymentRequestsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  // Payment Receipt Modal states
+  const [previewReceiptData, setPreviewReceiptData] = useState<PaymentReceiptData | null>(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
   // Selection & Bulk Delete states
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -218,16 +223,61 @@ export default function OfflinePaymentRequestsPage() {
   });
 
   const handleDownloadReceipt = async (req: any) => {
-    const receiptNo = req.invoiceUrl || `REC-${new Date(req.requestDate || Date.now()).getFullYear()}-${String(req.id).padStart(6, '0')}`;
-    await downloadPdfFromEndpoint(
-      `/receipts/${receiptNo}/download`,
-      `receipt_${receiptNo}.pdf`,
-      {
-        loadingMessage: `Preparing Receipt PDF for ${receiptNo}...`,
-        successMessage: 'Payment Receipt PDF downloaded',
-        toastId: 'rec-dl',
-      }
-    );
+    if (!req) return;
+    const receiptNo = req.receiptNumber || req.invoiceUrl || `REC-${new Date(req.requestDate || Date.now()).getFullYear()}-${String(req.id || '0').padStart(6, '0')}`;
+    setIsDownloadingReceipt(true);
+    try {
+      await downloadPdfFromEndpoint(
+        `/receipts/${receiptNo}/download`,
+        `receipt_${receiptNo}.pdf`,
+        {
+          loadingMessage: `Preparing Receipt PDF for ${receiptNo}...`,
+          successMessage: 'Payment Receipt PDF downloaded',
+          toastId: 'rec-dl',
+        }
+      );
+    } finally {
+      setIsDownloadingReceipt(false);
+    }
+  };
+
+  const handleOpenReceiptModal = (req: any) => {
+    if (!req) return;
+    const receiptNo = req.receiptNumber || req.invoiceUrl || `REC-${new Date(req.requestDate || Date.now()).getFullYear()}-${String(req.id || '0').padStart(6, '0')}`;
+    const baseAmt = Number(req.baseAmount || req.pricing?.baseAmount || req.amount || 0);
+    const taxAmt = Number(req.gst || req.pricing?.taxAmount || req.taxAmount || 0);
+    const totalAmt = Number(req.totalAmount || req.pricing?.totalAmount || (baseAmt + taxAmt));
+
+    setPreviewReceiptData({
+      receiptNumber: receiptNo,
+      receiptDate: req.requestDate || req.createdAt || new Date(),
+      customer: {
+        id: req.customerId || req.customer?.id,
+        name: req.customerName || req.customer?.name || 'Customer Account',
+        email: req.customerEmail || req.customer?.email || '',
+        phone: req.customerPhone || req.customer?.phone || '',
+        businessName: req.businessName || req.customer?.businessName || '',
+      },
+      transaction: {
+        mode: req.paymentMethod || req.paymentMode || 'OFFLINE',
+        ref: req.transactionId || (req.id ? `TXN-OFFLINE-${req.id}` : 'N/A'),
+        orderRef: req.orderNumber || (req.id ? `#QB-${req.id}` : '#QB-ORD'),
+        status: req.paymentStatus === 'PENDING' ? 'PENDING APPROVAL' : 'CONFIRMED (PAID)',
+        paymentDate: req.requestDate || req.createdAt || new Date(),
+      },
+      plan: {
+        name: req.planName || req.plan?.name || 'Standard Package',
+        billingCycle: req.billingCycle || req.plan?.billingCycle || 'Monthly',
+      },
+      pricing: {
+        baseAmount: baseAmt,
+        taxAmount: taxAmt,
+        totalAmount: totalAmt,
+        cgst: taxAmt / 2,
+        sgst: taxAmt / 2,
+      },
+    });
+    setIsReceiptModalOpen(true);
   };
 
   const totalCount = reqResponse?.counts?.total ?? (pagination.total || requests.length);
@@ -528,6 +578,16 @@ export default function OfflinePaymentRequestsPage() {
                             </button>
                           </>
                         )}
+                        {(r.paymentStatus === 'PAID' || r.paymentStatus === 'SUCCESS') && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReceiptModal(r)}
+                            className="p-1.5 hover:bg-emerald-50 text-slate-400 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer"
+                            title="View Payment Receipt"
+                          >
+                            <Receipt className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setDeleteConfirmItem(r)}
@@ -585,14 +645,25 @@ export default function OfflinePaymentRequestsPage() {
               Close
             </button>
             {(selectedRequest?.paymentStatus === 'PAID' || selectedRequest?.paymentStatus === 'SUCCESS') && (
-              <button
-                type="button"
-                onClick={() => handleDownloadReceipt(selectedRequest)}
-                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 flex items-center gap-1.5 shadow-sm cursor-pointer"
-              >
-                <Download className="w-4 h-4" />
-                Download Receipt
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleOpenReceiptModal(selectedRequest)}
+                  className="px-4 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold hover:bg-emerald-100 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Eye className="w-4 h-4" />
+                  View Receipt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadReceipt(selectedRequest)}
+                  disabled={isDownloadingReceipt}
+                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  {isDownloadingReceipt ? 'Preparing...' : 'Download Receipt'}
+                </button>
+              </>
             )}
             {selectedRequest?.paymentStatus === 'PENDING' && (
               <>
@@ -887,6 +958,18 @@ export default function OfflinePaymentRequestsPage() {
           </div>
         </div>
       )}
+
+      {/* 10. Payment Receipt Interactive Modal */}
+      <PaymentReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => {
+          setIsReceiptModalOpen(false);
+          setPreviewReceiptData(null);
+        }}
+        data={previewReceiptData}
+        onDownloadPdf={() => handleDownloadReceipt(previewReceiptData)}
+        isDownloadingPdf={isDownloadingReceipt}
+      />
     </div>
   );
 }

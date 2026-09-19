@@ -42,11 +42,18 @@ export function formatNumber(value: any, defaultValue: string = '0'): string {
   return num.toLocaleString('en-IN');
 }
 
-export function formatCurrency(value: any, defaultValue: string = '₹0'): string {
+const inrCurrencyFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+export function formatCurrency(value: any, defaultValue: string = '₹0.00'): string {
   if (value === null || value === undefined || value === '') return defaultValue;
   const num = Number(value);
   if (Number.isNaN(num)) return defaultValue;
-  return `₹${num.toLocaleString('en-IN')}`;
+  return inrCurrencyFormatter.format(num);
 }
 
 export function formatDate(value: any, defaultValue: string = '—'): string {
