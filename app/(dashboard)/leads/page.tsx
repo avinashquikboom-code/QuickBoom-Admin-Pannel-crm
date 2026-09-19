@@ -179,6 +179,28 @@ function getStageConfigFromApi(
   };
 }
 
+/**
+ * Checks if the current lead stage is "DETAILS SEND" / "DETAILS SENT".
+ * Matches against stage key, custom name, and status code.
+ */
+function isDetailsSendStage(lead: any): boolean {
+  if (!lead) return false;
+  const stageKey = String(lead.stage?.key || lead.stageKey || lead.status || '').toUpperCase().replace(/[\s-]+/g, '_');
+  const stageName = String(lead.stage?.name || lead.stageName || '').toUpperCase().trim();
+  return (
+    stageKey === 'DETAILS_SENT' ||
+    stageKey === 'DETAILS_SEND' ||
+    stageKey === 'DETAIL_SENT' ||
+    stageKey === 'DETAIL_SEND' ||
+    stageName === 'DETAILS SENT' ||
+    stageName === 'DETAILS SEND' ||
+    stageName === 'DETAIL SENT' ||
+    stageName === 'DETAIL SEND' ||
+    stageName.includes('DETAILS SEND') ||
+    stageName.includes('DETAILS SENT')
+  );
+}
+
 interface LeadItem {
   id: number | string;
   title: string;
@@ -438,8 +460,14 @@ export default function LeadsPage() {
   });
 
   const handleSendLeadDetails = async (leadItem: any) => {
-    if (!leadItem?.email || !leadItem.email.trim()) {
-      toast.error('This lead does not have an email address configured');
+    const rawEmail = leadItem?.email?.trim();
+    if (!rawEmail) {
+      toast.error('This lead does not have an email address configured. Please add an email address first.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(rawEmail)) {
+      toast.error(`Invalid email address "${rawEmail}". Please update with a valid email address.`);
       return;
     }
 
@@ -448,14 +476,14 @@ export default function LeadsPage() {
       const res: any = await api.post(`/leads/${leadItem.id}/send-details`);
       const data = res?.data || res;
       if (data?.success) {
-        toast.success(data?.message || `Lead details sent successfully to ${leadItem.email}!`);
+        toast.success(data?.message || `Lead details sent successfully to ${rawEmail}!`);
         queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
         if (selectedLeadId) refetchDetail();
       } else {
         toast.error(data?.message || 'Failed to send lead details');
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to send lead details';
+      const msg = err?.response?.data?.message || err?.message || 'Failed to send lead details via SMTP';
       toast.error(msg);
     } finally {
       setSendingLeadId(null);
@@ -1200,17 +1228,39 @@ export default function LeadsPage() {
                       <td className="py-4 px-4">
                         {(() => {
                           const conf = getStageConfigFromApi(lead, allStagesForDropdown);
+                          const isDetailsSend = isDetailsSendStage(lead);
                           return (
-                            <span
-                              className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border"
-                              style={{
-                                backgroundColor: conf.bgColor,
-                                borderColor: conf.borderColor,
-                                color: conf.color || '#334155',
-                              }}
-                            >
-                              {conf.label}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border"
+                                style={{
+                                  backgroundColor: conf.bgColor,
+                                  borderColor: conf.borderColor,
+                                  color: conf.color || '#334155',
+                                }}
+                              >
+                                {conf.label}
+                              </span>
+                              {isDetailsSend && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSendLeadDetails(lead);
+                                  }}
+                                  disabled={sendingLeadId === lead.id}
+                                  className="p-1 hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50 border border-blue-200 shadow-xs"
+                                  title="Send Details"
+                                  aria-label="Send Details"
+                                >
+                                  {sendingLeadId === lead.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Mail className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           );
                         })()}
                       </td>
@@ -1385,11 +1435,11 @@ export default function LeadsPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {leadDetail && (
+                  {leadDetail && isDetailsSendStage(leadDetail) && (
                     <button
                       onClick={() => handleSendLeadDetails(leadDetail)}
                       disabled={sendingLeadId === leadDetail.id}
-                      className="p-2 hover:bg-blue-50 rounded-xl text-slate-600 hover:text-blue-600 transition-colors cursor-pointer disabled:opacity-50"
+                      className="p-2 hover:bg-blue-50 rounded-xl text-blue-600 hover:text-blue-700 transition-colors cursor-pointer disabled:opacity-50 border border-blue-200"
                       title="Send Details"
                       aria-label="Send Details"
                     >
@@ -1491,7 +1541,25 @@ export default function LeadsPage() {
                     {/* Dynamic Lifecycle Pipeline Progress Bar — 100% from Stage Management API */}
                     <div className="p-4 bg-slate-50/90 rounded-3xl border border-slate-200/80 space-y-3">
                       <div className="flex items-center justify-between text-xs font-black text-slate-800">
-                        <span>Lifecycle Pipeline Stage</span>
+                        <div className="flex items-center gap-2">
+                          <span>Lifecycle Pipeline Stage</span>
+                          {isDetailsSendStage(leadDetail) && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendLeadDetails(leadDetail)}
+                              disabled={sendingLeadId === leadDetail.id}
+                              className="p-1 hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50 border border-blue-200 shadow-xs"
+                              title="Send Details"
+                              aria-label="Send Details"
+                            >
+                              {sendingLeadId === leadDetail.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
                         <span className="text-[11px] font-bold text-slate-500">
                           {(() => {
                             if (isLoadingStages) return 'Loading stages...';
@@ -1642,6 +1710,22 @@ export default function LeadsPage() {
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 <span>{conf.label}</span>
                               </span>
+                              {isDetailsSendStage(leadDetail) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendLeadDetails(leadDetail)}
+                                  disabled={sendingLeadId === leadDetail.id}
+                                  className="p-1 hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50 border border-blue-200 shadow-xs"
+                                  title="Send Details"
+                                  aria-label="Send Details"
+                                >
+                                  {sendingLeadId === leadDetail.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Mail className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              )}
                             </div>
                           );
                         })()}

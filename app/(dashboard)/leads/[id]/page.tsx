@@ -352,20 +352,6 @@ function isDetailsSendStage(lead: any): boolean {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleSendLeadDetails}
-              disabled={isSendingDetails}
-              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
-              title="Send Details"
-              aria-label="Send Details"
-            >
-              {isSendingDetails ? (
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-              ) : (
-                <Mail className="w-4 h-4 text-emerald-400" />
-              )}
-            </button>
 
             <button
               onClick={() => {
