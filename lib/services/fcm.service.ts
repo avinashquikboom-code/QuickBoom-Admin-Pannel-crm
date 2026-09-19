@@ -104,15 +104,22 @@ class FcmWebService {
       }
 
       if (current === 'denied') {
-        console.log('[FCM] Notification permission: denied');
+        console.warn(
+          '[FCM] Notification permission: denied. Browser notifications are blocked. Please enable notifications for this site in your browser settings.',
+        );
         return false;
       }
 
       const permission = await Notification.requestPermission();
-      console.log(`[FCM] Notification permission: ${permission}`);
+      console.log(`[FCM] Notification permission result: ${permission}`);
+      if (permission === 'denied') {
+        console.warn(
+          '[FCM] Notification permission was denied by the user. Please enable notifications in your browser address bar/settings.',
+        );
+      }
       return permission === 'granted';
     } catch (err: any) {
-      console.error('[FCM] Error requesting notification permission:', err?.message);
+      console.error('[FCM] Error requesting notification permission:', err?.message || err);
       return false;
     }
   }
@@ -126,7 +133,15 @@ class FcmWebService {
       if (!ok) return null;
     }
 
-    if (!this.messaging) return null;
+    if (!this.messaging) {
+      console.warn('[FCM] Firebase Messaging instance not initialized');
+      return null;
+    }
+
+    if (Notification.permission !== 'granted') {
+      console.warn(`[FCM] Cannot obtain FCM token: Notification.permission is "${Notification.permission}"`);
+      return null;
+    }
 
     try {
       // Ensure Service Worker is registered with scope '/'
@@ -136,28 +151,69 @@ class FcmWebService {
           scope: '/',
         });
         await navigator.serviceWorker.ready;
+        console.log('[FCM] Service Worker ready with scope:', registration.scope);
       } catch (swErr: any) {
-        console.warn('[FCM] Failed to register /firebase-messaging-sw.js:', swErr?.message);
+        console.warn('[FCM] Failed to register /firebase-messaging-sw.js:', swErr?.message || swErr);
         return null;
       }
 
       const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim() || undefined;
+      if (!vapidKey) {
+        console.warn(
+          '[FCM] Notice: NEXT_PUBLIC_FIREBASE_VAPID_KEY is not set. Web Push requires a public VAPID key pair from Firebase Console (Project Settings -> Cloud Messaging -> Web Push certificates).',
+        );
+      }
 
-      const token = await getToken(this.messaging, {
-        serviceWorkerRegistration: registration,
-        ...(vapidKey ? { vapidKey } : {}),
-      });
+      let token: string | null = null;
+      try {
+        token = await getToken(this.messaging, {
+          serviceWorkerRegistration: registration,
+          ...(vapidKey ? { vapidKey } : {}),
+        });
+      } catch (initialErr: any) {
+        console.warn('[FCM] Initial getToken attempt failed:', initialErr?.code || initialErr?.name, initialErr?.message);
+
+        // If push service error, clean up any existing stale/corrupted subscription and retry
+        if (
+          initialErr?.message?.includes('push service error') ||
+          initialErr?.message?.includes('Registration failed') ||
+          initialErr?.code === 'messaging/token-unsubscribe-failed'
+        ) {
+          try {
+            console.log('[FCM] Inspecting existing push subscriptions for reset...');
+            const existingSub = await registration.pushManager?.getSubscription();
+            if (existingSub) {
+              await existingSub.unsubscribe();
+              console.log('[FCM] Stale push subscription successfully unsubscribed. Retrying getToken...');
+              token = await getToken(this.messaging, {
+                serviceWorkerRegistration: registration,
+                ...(vapidKey ? { vapidKey } : {}),
+              });
+            }
+          } catch (retryErr: any) {
+            console.error('[FCM] Push subscription reset retry failed:', retryErr?.message || retryErr);
+          }
+        } else {
+          throw initialErr;
+        }
+      }
 
       if (token) {
         this.currentToken = token;
-        console.log('[FCM] Token generated');
+        console.log('[FCM] Token generated successfully (length: ' + token.length + ')');
         return token;
       } else {
-        console.warn('[FCM] No registration token available. Ensure notifications are permitted.');
+        console.warn('[FCM] No registration token returned by Firebase.');
         return null;
       }
     } catch (error: any) {
-      console.error('[FCM] Failed to obtain FCM token:', error?.message);
+      console.error('[FCM] Failed to obtain FCM token:', {
+        name: error?.name,
+        code: error?.code,
+        message: error?.message,
+        permission: typeof window !== 'undefined' ? Notification.permission : 'unknown',
+        hasVapidKey: Boolean(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()),
+      });
       return null;
     }
   }

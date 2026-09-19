@@ -18,6 +18,7 @@ import {
   Bell,
   Eye,
   EyeOff,
+  Hash,
   Loader2,
   RefreshCw,
   AlertTriangle,
@@ -30,6 +31,9 @@ import {
   Server,
   Flame,
   Send,
+  Unlink,
+  Database,
+  X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -122,23 +126,33 @@ export default function SettingsPage() {
   const [isSavingGemini, setIsSavingGemini] = useState(false);
   const [isTestingGemini, setIsTestingGemini] = useState(false);
 
-  // Firebase Cloud Messaging (FCM) Integration State
+  // Firebase Push Notifications (FCM) Integration State
   const [firebaseConnected, setFirebaseConnected] = useState(false);
+  const [firebaseStatus, setFirebaseStatus] = useState<'CONNECTED' | 'NOT CONFIGURED' | 'CONNECTION ERROR'>('NOT CONFIGURED');
   const [firebaseSource, setFirebaseSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
   const [firebaseProjectId, setFirebaseProjectId] = useState('quikboom-crm-925d5');
   const [firebaseClientEmail, setFirebaseClientEmail] = useState('');
   const [firebasePrivateKey, setFirebasePrivateKey] = useState('');
+  const [firebaseSenderId, setFirebaseSenderId] = useState('325119319653');
+  const [firebaseWebApiKey, setFirebaseWebApiKey] = useState('');
+  const [firebaseWebAppId, setFirebaseWebAppId] = useState('1:325119319653:web:9375042c4ead48710b708c');
+  const [firebaseAuthDomain, setFirebaseAuthDomain] = useState('quikboom-crm-925d5.firebaseapp.com');
+  const [firebaseStorageBucket, setFirebaseStorageBucket] = useState('quikboom-crm-925d5.firebasestorage.app');
+  const [firebaseVapidKey, setFirebaseVapidKey] = useState('');
   const [showFirebaseKey, setShowFirebaseKey] = useState(false);
   const [isSavingFirebase, setIsSavingFirebase] = useState(false);
   const [isTestingFirebase, setIsTestingFirebase] = useState(false);
+  const [isDisconnectingFirebase, setIsDisconnectingFirebase] = useState(false);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [firebaseLastTestedAt, setFirebaseLastTestedAt] = useState<string | null>(null);
   const [firebaseLastTestResult, setFirebaseLastTestResult] = useState<string | null>(null);
+  const [firebaseLastTestMessage, setFirebaseLastTestMessage] = useState<string | null>(null);
 
   // FCM Test Notification State
-  const [testRecipientType, setTestRecipientType] = useState<'ALL_ADMINS' | 'CUSTOMER' | 'EMPLOYEE' | 'ALL_ACTIVE_DEVICES'>('ALL_ADMINS');
+  const [testRecipientType, setTestRecipientType] = useState<'CURRENT_ADMIN' | 'ALL_ADMINS' | 'CUSTOMER' | 'EMPLOYEE' | 'ALL_ACTIVE_DEVICES'>('CURRENT_ADMIN');
   const [testRecipientId, setTestRecipientId] = useState('');
   const [testTitle, setTestTitle] = useState('QuikBoom Test Notification');
-  const [testMessage, setTestMessage] = useState('FCM integration is working correctly.');
+  const [testMessage, setTestMessage] = useState('Firebase Cloud Messaging is working correctly.');
   const [isSendingTestNotification, setIsSendingTestNotification] = useState(false);
 
   // Workforce & Attendance Rules State
@@ -258,15 +272,33 @@ export default function SettingsPage() {
             setSmtpFromEmail(cfg.fromEmail || creds.fromEmail || '');
             setSmtpFromName(cfg.fromName || creds.fromName || 'QuickBoom CRM');
           } else if (provider === 'FIREBASE') {
-            setFirebaseConnected(item.isEnabled ?? false);
-            setFirebaseSource(item.source || 'ENV_FALLBACK');
             const creds = item.credentials || {};
             const cfg = item.config || {};
-            setFirebaseProjectId(creds.projectId || creds.project_id || 'quikboom-crm-925d5');
+            const isConfigured = Boolean(
+              (creds.projectId || creds.project_id) &&
+              (creds.clientEmail || creds.client_email || creds.privateKey || creds.private_key)
+            );
+            setFirebaseConnected(item.isEnabled ?? isConfigured);
+            setFirebaseSource(item.source || (isConfigured ? 'DATABASE' : 'ENV_FALLBACK'));
+            setFirebaseStatus(
+              item.isEnabled && isConfigured
+                ? 'CONNECTED'
+                : isConfigured
+                ? 'CONNECTED'
+                : 'NOT CONFIGURED'
+            );
+            setFirebaseProjectId(creds.projectId || creds.project_id || cfg.projectId || 'quikboom-crm-925d5');
             setFirebaseClientEmail(creds.clientEmail || creds.client_email || '');
             setFirebasePrivateKey(creds.privateKey || creds.private_key || '');
+            setFirebaseSenderId(creds.messagingSenderId || creds.messaging_sender_id || cfg.messagingSenderId || '325119319653');
+            setFirebaseWebApiKey(creds.apiKey || creds.api_key || cfg.apiKey || '');
+            setFirebaseWebAppId(creds.appId || creds.app_id || cfg.appId || '1:325119319653:web:9375042c4ead48710b708c');
+            setFirebaseAuthDomain(creds.authDomain || creds.auth_domain || cfg.authDomain || 'quikboom-crm-925d5.firebaseapp.com');
+            setFirebaseStorageBucket(creds.storageBucket || creds.storage_bucket || cfg.storageBucket || 'quikboom-crm-925d5.firebasestorage.app');
+            setFirebaseVapidKey(creds.vapidKey || creds.vapid_key || cfg.vapidKey || '');
             setFirebaseLastTestedAt(cfg.lastTestedAt || null);
             setFirebaseLastTestResult(cfg.lastTestResult || null);
+            setFirebaseLastTestMessage(cfg.lastTestResult === 'SUCCESS' ? 'Connection check successful' : cfg.lastTestError || null);
           }
         }
       } catch (err: any) {
@@ -711,18 +743,43 @@ export default function SettingsPage() {
   const handleSaveFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firebaseProjectId.trim()) {
-      toast.error('Please enter a valid Firebase Project ID');
+      toast.error('Firebase Project ID is required');
       return;
     }
+    if (!firebaseClientEmail.trim()) {
+      toast.error('Firebase Client Email is required');
+      return;
+    }
+    if (!firebasePrivateKey.trim()) {
+      toast.error('Firebase Private Key is required');
+      return;
+    }
+    if (!firebaseSenderId.trim()) {
+      toast.error('Firebase Messaging Sender ID is required');
+      return;
+    }
+
     setIsSavingFirebase(true);
     try {
       const res: any = await api.put('/admin/settings/integrations/FIREBASE', {
-        isEnabled: firebaseConnected,
+        isEnabled: true,
         environment: 'LIVE',
         credentials: {
           projectId: firebaseProjectId.trim(),
           clientEmail: firebaseClientEmail.trim(),
-          privateKey: firebasePrivateKey.trim(),
+          privateKey: firebasePrivateKey.includes('•') ? undefined : firebasePrivateKey.trim(),
+          messagingSenderId: firebaseSenderId.trim(),
+          apiKey: firebaseWebApiKey.trim() || undefined,
+          appId: firebaseWebAppId.trim() || undefined,
+          authDomain: firebaseAuthDomain.trim() || undefined,
+          storageBucket: firebaseStorageBucket.trim() || undefined,
+          vapidKey: firebaseVapidKey.trim() || undefined,
+        },
+        config: {
+          projectId: firebaseProjectId.trim(),
+          messagingSenderId: firebaseSenderId.trim(),
+          authDomain: firebaseAuthDomain.trim(),
+          storageBucket: firebaseStorageBucket.trim(),
         },
       });
 
@@ -731,10 +788,11 @@ export default function SettingsPage() {
       if (creds?.privateKey) {
         setFirebasePrivateKey(creds.privateKey);
       }
-      setFirebaseConnected(res?.isEnabled ?? true);
-      toast.success('Firebase Cloud Messaging settings saved & active immediately!');
+      setFirebaseConnected(true);
+      setFirebaseStatus('CONNECTED');
+      toast.success('✓ FCM credentials updated successfully');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to save Firebase settings');
+      toast.error(err?.response?.data?.message || err?.message || '✕ Unable to connect to Firebase. Please verify your credentials.');
     } finally {
       setIsSavingFirebase(false);
     }
@@ -751,22 +809,54 @@ export default function SettingsPage() {
         credentials: {
           projectId: firebaseProjectId.trim(),
           clientEmail: firebaseClientEmail.trim(),
-          privateKey: firebasePrivateKey.trim(),
+          privateKey: firebasePrivateKey.includes('•') ? undefined : firebasePrivateKey.trim(),
+          messagingSenderId: firebaseSenderId.trim(),
         },
       });
       const data = res?.data || res;
       if (data?.success || data?.connected) {
-        toast.success(data?.message || 'Firebase FCM connection verified successfully!');
+        toast.success(data?.message || '✓ Connection check successful');
         setFirebaseConnected(true);
-        setFirebaseLastTestedAt(new Date().toISOString());
+        setFirebaseStatus('CONNECTED');
+        setFirebaseLastTestedAt(data?.lastTestedAt || new Date().toISOString());
         setFirebaseLastTestResult('SUCCESS');
+        setFirebaseLastTestMessage(data?.message || 'Connection check successful');
       } else {
-        toast.error(data?.message || 'Firebase connection test failed');
+        toast.error(data?.message || '✕ Connection failed');
+        setFirebaseStatus(data?.status || 'CONNECTION ERROR');
+        setFirebaseLastTestedAt(new Date().toISOString());
+        setFirebaseLastTestResult('FAILED');
+        setFirebaseLastTestMessage(data?.message || 'Connection failed');
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Firebase connection test failed');
+      const msg = err?.response?.data?.message || err?.message || '✕ Connection failed';
+      toast.error(msg);
+      setFirebaseStatus('CONNECTION ERROR');
+      setFirebaseLastTestedAt(new Date().toISOString());
+      setFirebaseLastTestResult('FAILED');
+      setFirebaseLastTestMessage(msg);
     } finally {
       setIsTestingFirebase(false);
+    }
+  };
+
+  const handleDisconnectFirebase = async () => {
+    setIsDisconnectingFirebase(true);
+    try {
+      await api.delete('/admin/settings/integrations/FIREBASE');
+      toast.success('Firebase FCM integration disconnected');
+      setFirebaseConnected(false);
+      setFirebaseStatus('NOT CONFIGURED');
+      setFirebaseClientEmail('');
+      setFirebasePrivateKey('');
+      setFirebaseLastTestedAt(null);
+      setFirebaseLastTestResult(null);
+      setFirebaseLastTestMessage(null);
+      setShowDisconnectModal(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to disconnect Firebase');
+    } finally {
+      setIsDisconnectingFirebase(false);
     }
   };
 
@@ -792,12 +882,12 @@ export default function SettingsPage() {
       });
       const data = res?.data || res;
       if (data?.success) {
-        toast.success(data?.message || 'Test notification sent successfully!');
+        toast.success(data?.message || '✓ Test notification sent successfully');
       } else {
-        toast.error(data?.message || 'Unable to send notification');
+        toast.error(data?.message || '✕ Failed to send test notification');
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Unable to send notification');
+      toast.error(err?.response?.data?.message || err?.message || '✕ Failed to send test notification');
     } finally {
       setIsSendingTestNotification(false);
     }
@@ -1939,38 +2029,38 @@ export default function SettingsPage() {
 
           {/* FIREBASE CLOUD MESSAGING (FCM) INTEGRATION CARD */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center font-bold">
-                  <Flame className="w-5 h-5" />
+            {/* CARD HEADER */}
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 border border-orange-200/80 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                  <Bell className="w-6 h-6 text-orange-500" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base font-black text-slate-900">Firebase Cloud Messaging (FCM)</h2>
-                    {firebaseConnected ? (
+                    <h2 className="text-base font-black text-slate-900">Firebase Push Notifications (FCM)</h2>
+                    <span className="text-[10px] px-2.5 py-0.5 rounded-md bg-orange-100/70 text-orange-800 font-extrabold tracking-wider border border-orange-200 uppercase">
+                      FCM Push Service
+                    </span>
+                    {firebaseStatus === 'CONNECTED' ? (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
                         <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> CONNECTED
+                      </span>
+                    ) : firebaseStatus === 'CONNECTION ERROR' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 font-extrabold border border-rose-200">
+                        <AlertTriangle className="w-3 h-3 text-rose-600" /> CONNECTION ERROR
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
                         <AlertTriangle className="w-3 h-3 text-amber-600" /> NOT CONFIGURED
                       </span>
                     )}
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
-                      Source: {firebaseSource}
-                    </span>
-                    {firebaseLastTestedAt && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200">
-                        Last Test: {new Date(firebaseLastTestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({firebaseLastTestResult})
-                      </span>
-                    )}
                   </div>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Push notifications for customers, employees, and admins. Stored encrypted and accessed exclusively by the backend.
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Firebase Cloud Messaging credentials for Android, iOS &amp; Web Push Notifications
                   </p>
                 </div>
               </div>
-              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 select-none self-start sm:self-center">
                 <input
                   type="checkbox"
                   checked={firebaseConnected}
@@ -1981,11 +2071,31 @@ export default function SettingsPage() {
               </label>
             </div>
 
-            <form onSubmit={handleSaveFirebase} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
+            {/* FEATURE INDICATORS */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/60 text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                Mobile &amp; Web Push
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/60 text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                FCM V1 / Server Key
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/60 text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Instant Push Dispatch
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200 ml-auto">
+                Source: {firebaseSource}
+              </span>
+            </div>
+
+            {/* CREDENTIALS FORM */}
+            <form onSubmit={handleSaveFirebase} className="space-y-4 pt-3 text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                    <Globe className="w-3.5 h-3.5 text-amber-500" /> Firebase Project ID *
+                    <Globe className="w-3.5 h-3.5 text-orange-500" /> Firebase Project ID *
                   </label>
                   <input
                     type="text"
@@ -1993,35 +2103,121 @@ export default function SettingsPage() {
                     value={firebaseProjectId}
                     onChange={(e) => setFirebaseProjectId(e.target.value)}
                     placeholder="quikboom-crm-925d5"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-amber-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                 </div>
 
                 <div>
                   <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                    <Mail className="w-3.5 h-3.5 text-amber-500" /> Client Email (Service Account)
+                    <Hash className="w-3.5 h-3.5 text-orange-500" /> Messaging Sender ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={firebaseSenderId}
+                    onChange={(e) => setFirebaseSenderId(e.target.value)}
+                    placeholder="318285559092"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Mail className="w-3.5 h-3.5 text-orange-500" /> Firebase Client Email *
                   </label>
                   <input
                     type="email"
+                    required
                     value={firebaseClientEmail}
                     onChange={(e) => setFirebaseClientEmail(e.target.value)}
                     placeholder="firebase-adminsdk-...@quikboom-crm-925d5.iam.gserviceaccount.com"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-amber-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Key className="w-3.5 h-3.5 text-orange-500" /> Firebase Web API Key
+                  </label>
+                  <input
+                    type="text"
+                    value={firebaseWebApiKey}
+                    onChange={(e) => setFirebaseWebApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Smartphone className="w-3.5 h-3.5 text-orange-500" /> Firebase Web App ID
+                  </label>
+                  <input
+                    type="text"
+                    value={firebaseWebAppId}
+                    onChange={(e) => setFirebaseWebAppId(e.target.value)}
+                    placeholder="1:318285559092:web:..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-orange-500" /> Web Push Public VAPID Key
+                  </label>
+                  <input
+                    type="text"
+                    value={firebaseVapidKey}
+                    onChange={(e) => setFirebaseVapidKey(e.target.value)}
+                    placeholder="BOr314jZq_9bX..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Globe className="w-3.5 h-3.5 text-slate-400" /> Firebase Auth Domain
+                  </label>
+                  <input
+                    type="text"
+                    value={firebaseAuthDomain}
+                    onChange={(e) => setFirebaseAuthDomain(e.target.value)}
+                    placeholder="quikboom-crm-925d5.firebaseapp.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
+                    <Database className="w-3.5 h-3.5 text-slate-400" /> Firebase Storage Bucket
+                  </label>
+                  <input
+                    type="text"
+                    value={firebaseStorageBucket}
+                    onChange={(e) => setFirebaseStorageBucket(e.target.value)}
+                    placeholder="quikboom-crm-925d5.appspot.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                  <Key className="w-3.5 h-3.5 text-amber-500" /> Private Key (Service Account)
+                  <Key className="w-3.5 h-3.5 text-orange-500" /> Firebase Private Key (Service Account) *
                 </label>
                 <div className="relative">
                   <textarea
-                    rows={3}
+                    rows={4}
                     value={firebasePrivateKey}
                     onChange={(e) => setFirebasePrivateKey(e.target.value)}
                     placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
-                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-amber-400 focus:border-transparent focus:outline-none font-semibold text-xs"
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-orange-400 focus:border-transparent focus:outline-none font-semibold text-xs"
                   />
                   <button
                     type="button"
@@ -2033,42 +2229,81 @@ export default function SettingsPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Credentials are encrypted with AES-256-GCM. Stored keys are masked and never exposed to the client.
+                  Credentials are encrypted with AES-256-GCM. Stored private keys are masked and never exposed to the client.
                 </p>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={handleTestFirebase}
-                  disabled={isTestingFirebase || !firebaseProjectId.trim()}
-                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
-                >
-                  {isTestingFirebase ? (
-                    <><Loader2 className="w-4 h-4 animate-spin text-amber-500" /> Testing Connection...</>
-                  ) : (
-                    <><RefreshCw className="w-4 h-4 text-slate-600" /> Test Connection</>
-                  )}
-                </button>
+              {/* ACTION BUTTONS */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTestFirebase}
+                    disabled={isTestingFirebase || !firebaseProjectId.trim()}
+                    className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                  >
+                    {isTestingFirebase ? (
+                      <><Loader2 className="w-4 h-4 animate-spin text-orange-500" /> Testing FCM Connection...</>
+                    ) : (
+                      <><RefreshCw className="w-4 h-4 text-slate-600" /> Test FCM Connection</>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowDisconnectModal(true)}
+                    disabled={firebaseStatus === 'NOT CONFIGURED' && !firebaseProjectId}
+                    className="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-40 border border-rose-200"
+                    title="Disconnect Firebase Integration"
+                  >
+                    <Unlink className="w-4 h-4" /> Disconnect
+                  </button>
+                </div>
+
                 <button
                   type="submit"
                   disabled={isSavingFirebase}
-                  className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isSavingFirebase ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Updating...</>
                   ) : (
-                    <><Save className="w-4 h-4" /> Save Firebase Config</>
+                    <><Save className="w-4 h-4" /> Update FCM Credentials</>
                   )}
                 </button>
               </div>
             </form>
 
+            {/* AUDIT / TEST RESULT FOOTER */}
+            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium">
+                LAST TESTED:{' '}
+                {firebaseLastTestedAt ? (
+                  <span className="font-semibold text-slate-700">
+                    {new Date(firebaseLastTestedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })},{' '}
+                    {new Date(firebaseLastTestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Never tested</span>
+                )}
+                {firebaseLastTestResult && (
+                  <span className={`ml-2 font-bold ${firebaseLastTestResult === 'SUCCESS' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    • {firebaseLastTestResult}
+                  </span>
+                )}
+              </span>
+              {firebaseLastTestMessage && (
+                <span className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 font-mono">
+                  {firebaseLastTestMessage}
+                </span>
+              )}
+            </div>
+
             {/* FCM TEST NOTIFICATION SUB-CARD */}
             <div className="mt-4 pt-4 border-t border-slate-100 bg-slate-50/70 p-4 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                  <Bell className="w-3.5 h-3.5 text-amber-500" /> FCM Test Notification
+                  <Send className="w-3.5 h-3.5 text-orange-500" /> Send Test Notification
                 </h3>
                 <span className="text-[10px] text-slate-400 font-medium">Verify live push delivery across devices</span>
               </div>
@@ -2079,9 +2314,9 @@ export default function SettingsPage() {
                   <select
                     value={testRecipientType}
                     onChange={(e: any) => setTestRecipientType(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-orange-400"
                   >
-                    <option value="ALL_ADMINS">All Admin Web Devices</option>
+                    <option value="ALL_ADMINS">My Device (Current Admin / All Admins)</option>
                     <option value="CUSTOMER">Specific Customer ID</option>
                     <option value="EMPLOYEE">Specific Employee User ID</option>
                     <option value="ALL_ACTIVE_DEVICES">All Active Devices (Broadcast)</option>
@@ -2099,31 +2334,31 @@ export default function SettingsPage() {
                       value={testRecipientId}
                       onChange={(e) => setTestRecipientId(e.target.value)}
                       placeholder="e.g. 1"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-orange-400"
                     />
                   </div>
                 )}
 
                 <div className={testRecipientType === 'ALL_ADMINS' || testRecipientType === 'ALL_ACTIVE_DEVICES' ? 'sm:col-span-2' : ''}>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Title</label>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Notification Title</label>
                   <input
                     type="text"
                     value={testTitle}
                     onChange={(e) => setTestTitle(e.target.value)}
                     placeholder="QuikBoom Test Notification"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-orange-400"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Message</label>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Notification Message</label>
                 <input
                   type="text"
                   value={testMessage}
                   onChange={(e) => setTestMessage(e.target.value)}
-                  placeholder="FCM integration is working correctly."
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  placeholder="FCM push delivery is working correctly."
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-orange-400"
                 />
               </div>
 
@@ -2132,10 +2367,10 @@ export default function SettingsPage() {
                   type="button"
                   onClick={handleSendTestNotification}
                   disabled={isSendingTestNotification}
-                  className="inline-flex items-center gap-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black px-4 py-2 rounded-lg text-xs transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
+                  className="inline-flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
                 >
                   {isSendingTestNotification ? (
-                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending...</>
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending Push...</>
                   ) : (
                     <><Send className="w-3.5 h-3.5" /> Send Test Notification</>
                   )}
@@ -2143,6 +2378,50 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {/* DISCONNECT CONFIRMATION MODAL */}
+          {showDisconnectModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in">
+              <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0 border border-rose-200">
+                    <Unlink className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">Disconnect Firebase FCM?</h3>
+                    <p className="text-xs text-slate-500 font-medium">Remove Firebase integration credentials</p>
+                  </div>
+                </div>
+
+                <div className="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 leading-relaxed">
+                  Disconnecting will remove saved FCM credentials from the database and stop push notifications from being sent through Firebase. Device tokens and past notification logs will remain intact.
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    disabled={isDisconnectingFirebase}
+                    onClick={() => setShowDisconnectModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDisconnectingFirebase}
+                    onClick={handleDisconnectFirebase}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isDisconnectingFirebase ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Disconnecting...</>
+                    ) : (
+                      <><Unlink className="w-3.5 h-3.5" /> Disconnect</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* SMTP EMAIL INTEGRATION CARD */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
