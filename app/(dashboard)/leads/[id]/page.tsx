@@ -233,7 +233,7 @@ function isDetailsSendStage(lead: any): boolean {
       });
     },
     onSuccess: () => {
-      toast.success('Lead status updated!');
+      toast.success('Lead stage updated! Automatic stage Email & WhatsApp notifications dispatched.');
       queryClient.invalidateQueries({ queryKey: ['lead-detail', id] });
     },
     onError: (err) => {
@@ -653,22 +653,20 @@ function isDetailsSendStage(lead: any): boolean {
                 const foundByKey = allStages.find((s: any) => s.key === lead.status);
                 return foundByKey ? String(foundByKey.id) : '';
               })()}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const selectedId = e.target.value;
                 const matchedStage = allStages.find((s: any) => String(s.id) === String(selectedId));
                 if (matchedStage) {
                   const currentStageId = lead.stageId ? String(lead.stageId) : lead.stage?.id ? String(lead.stage.id) : null;
                   if (currentStageId && String(currentStageId) === String(matchedStage.id)) return;
 
-                  const previousStageName = lead.stage?.name || lead.stage?.label || lead.status || 'Current Stage';
-                  setStageEmailDrawerState({
-                    isOpen: true,
-                    lead,
-                    previousStageName,
-                    newStage: matchedStage,
-                    initialChannel: 'EMAIL',
-                    isDirectSend: false,
-                  });
+                  try {
+                    await updateStatusMutation.mutateAsync({
+                      stageId: Number(matchedStage.id),
+                    });
+                  } catch {
+                    // Handled by mutation onError
+                  }
                 }
               }}
               disabled={updateStatusMutation.isPending || isLoadingStages}

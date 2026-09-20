@@ -821,7 +821,7 @@ export default function LeadsPage() {
       });
     },
     onSuccess: (res: any) => {
-      toast.success('Lead status updated!', { id: 'lead-status-update' });
+      toast.success('Lead stage updated! Automatic stage Email & WhatsApp notifications dispatched.', { id: 'lead-status-update' });
       const updatedLead = res?.data || res;
       if (updatedLead && updatedLead.id) {
         queryClient.setQueryData(['admin-lead-detail', selectedLeadId], updatedLead);
@@ -1767,22 +1767,20 @@ export default function LeadsPage() {
                             const foundByKey = allStagesForDropdown.find((s: any) => s.key === leadDetail.status);
                             return foundByKey ? String(foundByKey.id) : '';
                           })()}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const selectedId = e.target.value;
                             const matchedStage = allStagesForDropdown.find((s: any) => String(s.id) === String(selectedId));
                             if (matchedStage) {
                               const currentStageId = leadDetail.stageId ? String(leadDetail.stageId) : leadDetail.stage?.id ? String(leadDetail.stage.id) : null;
                               if (currentStageId && String(currentStageId) === String(matchedStage.id)) return;
 
-                              const previousStageName = leadDetail.stage?.name || leadDetail.stage?.title || leadDetail.status || 'Current Stage';
-                              setStageEmailDrawerState({
-                                isOpen: true,
-                                lead: leadDetail,
-                                previousStageName,
-                                newStage: matchedStage,
-                                initialChannel: 'EMAIL',
-                                isDirectSend: false,
-                              });
+                              try {
+                                await updateStatusMutation.mutateAsync({
+                                  stageId: Number(matchedStage.id),
+                                });
+                              } catch {
+                                // Handled by mutation onError
+                              }
                             }
                           }}
                           disabled={updateStatusMutation.isPending || isLoadingStages}

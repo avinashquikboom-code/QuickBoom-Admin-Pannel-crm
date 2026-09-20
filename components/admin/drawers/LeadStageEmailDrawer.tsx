@@ -111,9 +111,11 @@ export const STAGE_KEY_TO_EMAIL_TEMPLATE_KEY: Record<string, string> = {
   CANCELLED: 'QUIKBOOM_LOST',
   DEAL_LOST: 'QUIKBOOM_LOST',
   DETAILS_SENT: 'QUIKBOOM_DETAILS_SENT',
+  DETAILS_SEND: 'QUIKBOOM_DETAILS_SENT',
   COMPANY_DETAILS_SENT: 'QUIKBOOM_DETAILS_SENT',
   FOLLOW_UP: 'QUIKBOOM_FOLLOW_UP',
   FOLLOWUP: 'QUIKBOOM_FOLLOW_UP',
+  CUSTOMER_FOLLOW_UP: 'QUIKBOOM_FOLLOW_UP',
   VISIT_SCHEDULED: 'QUIKBOOM_VISIT_SCHEDULED',
   VISIT: 'QUIKBOOM_VISIT_SCHEDULED',
   VISIT_DONE: 'QUIKBOOM_VISIT_DONE',
@@ -125,6 +127,7 @@ export const STAGE_KEY_TO_WHATSAPP_KEY: Record<string, string> = {
   NEW: 'NEW',
   NEW_LEAD: 'NEW',
   CONTACTED: 'CONTACTED',
+  CALL_BACK: 'CONTACTED',
   QUALIFIED: 'QUALIFIED',
   PROPOSAL: 'PROPOSAL',
   PROPOSAL_SENT: 'PROPOSAL_SENT',
@@ -140,9 +143,11 @@ export const STAGE_KEY_TO_WHATSAPP_KEY: Record<string, string> = {
   CANCELLED: 'CANCELLED',
   DEAL_LOST: 'LOST',
   DETAILS_SENT: 'DETAILS_SENT',
+  DETAILS_SEND: 'DETAILS_SENT',
   COMPANY_DETAILS_SENT: 'DETAILS_SENT',
   FOLLOW_UP: 'FOLLOW_UP',
   FOLLOWUP: 'FOLLOW_UP',
+  CUSTOMER_FOLLOW_UP: 'FOLLOW_UP',
   VISIT_SCHEDULED: 'VISIT_SCHEDULED',
   VISIT: 'VISIT',
   VISIT_DONE: 'VISIT_DONE',
@@ -812,24 +817,57 @@ export function LeadStageEmailDrawer({
     if (!lead?.id) return;
     setIsDirectSending(true);
     try {
+      let emailSuccess = false;
+      let whatsAppSuccess = false;
+      let emailErr = '';
+      let whatsAppErr = '';
+
       if (hasValidEmail && activeEmailTemplate) {
-        await api.post('/email/send', {
-          to: recipientEmail,
-          subject: finalSubject.trim(),
-          body: finalBodyHtml.trim(),
-          templateId: activeEmailTemplate.id,
-          recordType: 'lead',
-          recordId: lead.id,
-        }).catch((err) => console.warn('Email dispatch warning:', err));
+        try {
+          await api.post('/email/send', {
+            to: recipientEmail,
+            subject: finalSubject.trim(),
+            body: finalBodyHtml.trim(),
+            templateId: activeEmailTemplate.id,
+            recordType: 'lead',
+            recordId: lead.id,
+          });
+          emailSuccess = true;
+        } catch (err: any) {
+          emailErr = err?.response?.data?.message || err?.message || 'Email delivery failed';
+        }
       }
+
       if (hasValidPhone && activeWhatsAppTemplate) {
-        await api.post(`/leads/${lead.id}/send-whatsapp`, {
-          message: finalWhatsAppText.trim(),
-          templateName: activeWhatsAppTemplate.templateName,
-          stageName: effectiveStage.name,
-        }).catch((err) => console.warn('WhatsApp dispatch warning:', err));
+        try {
+          const res: any = await api.post(`/leads/${lead.id}/send-whatsapp`, {
+            message: finalWhatsAppText.trim(),
+            templateName: activeWhatsAppTemplate.templateName,
+            stageName: effectiveStage.name,
+          });
+          const data = res?.data || res;
+          if (data?.success !== false) {
+            whatsAppSuccess = true;
+          } else {
+            whatsAppErr = data?.message || data?.reason || 'WhatsApp delivery skipped or failed';
+          }
+        } catch (err: any) {
+          whatsAppErr = err?.response?.data?.message || err?.message || 'WhatsApp dispatch failed';
+        }
       }
-      toast.success('Communication dispatched via Email & WhatsApp!');
+
+      if (emailSuccess && whatsAppSuccess) {
+        toast.success('Communication dispatched via Email & WhatsApp!');
+      } else if (emailSuccess && !whatsAppSuccess) {
+        toast.success('Email sent successfully!');
+        if (whatsAppErr) toast.error(`WhatsApp notice: ${whatsAppErr}`);
+      } else if (!emailSuccess && whatsAppSuccess) {
+        toast.success('WhatsApp sent successfully!');
+        if (emailErr) toast.error(`Email notice: ${emailErr}`);
+      } else {
+        toast.error(emailErr || whatsAppErr || 'Failed to dispatch communication.');
+      }
+
       queryClient.invalidateQueries({ queryKey: ['lead-detail', String(lead.id)] });
       queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', String(lead.id)] });
       onClose();
@@ -1105,7 +1143,7 @@ export function LeadStageEmailDrawer({
                   color: effectiveStage.color || '#15803D',
                 }}
               >
-                {effectiveStage.name}
+                {isDirectSend ? `Stage: ${effectiveStage.name}` : effectiveStage.name}
               </span>
             </div>
           </div>
