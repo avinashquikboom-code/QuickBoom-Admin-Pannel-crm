@@ -304,11 +304,17 @@ export default function EmailTemplatesPage() {
       leadCity: 'Mumbai',
       leadValue: '2,50,000',
       leadNotes: 'Enterprise CRM implementation request.',
+      primaryColor: '#16A34A',
+      logoUrl: 'https://admin.qbapp.online/logo.png',
     };
 
     const interpolated = text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, v) => sampleVars[v] || match);
-    // Replace CID image references with public logo for browser preview
-    return interpolated.replace(/cid:quikboom-logo/g, '/logo.png');
+    // Replace CID image references with public absolute HTTPS logo and dynamic primary color
+    return interpolated
+      .replace(/cid:quikboom-logo/g, 'https://admin.qbapp.online/logo.png')
+      .replace(/src=["']\/logo\.png["']/g, 'src="https://admin.qbapp.online/logo.png"')
+      .replace(/src=["']\/app_logo\.png["']/g, 'src="https://admin.qbapp.online/logo.png"')
+      .replace(/linear-gradient\(135deg,\s*#0f172a,\s*#1e293b\)/g, '#16A34A');
   };
 
   // Stats Counters

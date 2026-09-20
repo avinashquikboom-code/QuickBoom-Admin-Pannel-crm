@@ -313,11 +313,17 @@ export default function CrmEmailTemplatesPage() {
       startDate: '25 September 2026',
       startTime: '11:30 AM',
       companyName: 'QUIKBOOM Digital Marketing Agency',
+      primaryColor: '#16A34A',
+      logoUrl: 'https://admin.qbapp.online/logo.png',
     };
 
     const interpolated = text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, v) => sampleVars[v] || match);
-    // Replace CID image references with public logo for browser preview
-    return interpolated.replace(/cid:quikboom-logo/g, '/logo.png');
+    // Replace CID image references with public absolute HTTPS logo and dynamic primary color
+    return interpolated
+      .replace(/cid:quikboom-logo/g, 'https://admin.qbapp.online/logo.png')
+      .replace(/src=["']\/logo\.png["']/g, 'src="https://admin.qbapp.online/logo.png"')
+      .replace(/src=["']\/app_logo\.png["']/g, 'src="https://admin.qbapp.online/logo.png"')
+      .replace(/linear-gradient\(135deg,\s*#0f172a,\s*#1e293b\)/g, '#16A34A');
   };
 
   // Convert plain text body with link styling for preview
@@ -333,7 +339,7 @@ export default function CrmEmailTemplatesPage() {
         const trimmed = line.trim();
         if (!trimmed) return '<br />';
         if (trimmed === 'Visit QUIKBOOM Website') {
-          return '<div style="margin: 16px 0; text-align: center;"><a href="https://quikboom.com" target="_blank" style="display: inline-block; padding: 10px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 14px;">Visit QUIKBOOM Website &rarr;</a></div>';
+          return '<div style="margin: 16px 0; text-align: center;"><a href="https://quikboom.com" target="_blank" style="display: inline-block; padding: 10px 24px; background-color: #16A34A; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 14px;">Visit QUIKBOOM Website &rarr;</a></div>';
         }
         return `<p style="margin: 0 0 12px; font-size: 14px; line-height: 1.6; color: #334155;">${trimmed}</p>`;
       })
