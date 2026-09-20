@@ -665,9 +665,13 @@ export default function LeadsPage() {
         category: cleanOptionalString(leadForm.category),
         source: leadForm.source || 'WEBSITE',
         firstName: cleanOptionalString(leadForm.firstName) || undefined,
+        first_name: cleanOptionalString(leadForm.firstName) || undefined,
         lastName: cleanOptionalString(leadForm.lastName) || undefined,
+        last_name: cleanOptionalString(leadForm.lastName) || undefined,
         phone: cleanOptionalString(leadForm.phone),
+        mobile: cleanOptionalString(leadForm.phone),
         email: cleanOptionalString(leadForm.email),
+        emailAddress: cleanOptionalString(leadForm.email),
         website: cleanOptionalString(leadForm.website),
         address: cleanOptionalString(leadForm.address),
         city: cleanOptionalString(leadForm.city),
@@ -2779,13 +2783,67 @@ export default function LeadsPage() {
                     cleanOptionalString(googleLocation) ||
                     (place.address ? cleanOptionalString(place.address.split(',').slice(-3, -2)[0]) : '') ||
                     '';
+
+                  const rawData = (place.rawData && typeof place.rawData === 'object' ? place.rawData : {}) as any;
+
+                  // Extract Contact Name from place or rawData or displayName
+                  let resolvedFirstName =
+                    cleanOptionalString(place.firstName) ||
+                    cleanOptionalString(place.first_name) ||
+                    cleanOptionalString(rawData.firstName) ||
+                    cleanOptionalString(rawData.first_name) ||
+                    '';
+                  let resolvedLastName =
+                    cleanOptionalString(place.lastName) ||
+                    cleanOptionalString(place.last_name) ||
+                    cleanOptionalString(rawData.lastName) ||
+                    cleanOptionalString(rawData.last_name) ||
+                    '';
+
+                  if (!resolvedFirstName && !resolvedLastName) {
+                    const rawFullName =
+                      cleanOptionalString(place.name) ||
+                      cleanOptionalString(place.full_name) ||
+                      cleanOptionalString(rawData.name) ||
+                      cleanOptionalString(rawData.full_name) ||
+                      cleanOptionalString(displayName) ||
+                      '';
+                    if (rawFullName) {
+                      const parts = rawFullName.split(/\s+/);
+                      resolvedFirstName = parts[0] || '';
+                      resolvedLastName = parts.slice(1).join(' ') || '';
+                    }
+                  }
+
+                  const resolvedPhone =
+                    cleanOptionalString(place.phone) ||
+                    cleanOptionalString(place.mobile) ||
+                    cleanOptionalString(place.internationalPhoneNumber) ||
+                    cleanOptionalString(place.nationalPhoneNumber) ||
+                    cleanOptionalString(rawData.mobile) ||
+                    cleanOptionalString(rawData.phone) ||
+                    cleanOptionalString(rawData.phoneNumber) ||
+                    cleanOptionalString(rawData.internationalPhoneNumber) ||
+                    '';
+
+                  const resolvedEmail =
+                    cleanOptionalString(place.email) ||
+                    cleanOptionalString(place.emailAddress) ||
+                    cleanOptionalString(place.user_email) ||
+                    cleanOptionalString(rawData.email) ||
+                    cleanOptionalString(rawData.emailAddress) ||
+                    cleanOptionalString(rawData.user_email) ||
+                    '';
+
                   setLeadForm((prev) => ({
                     ...prev,
                     title: cleanOptionalString(displayName) || prev.title,
                     businessName: cleanOptionalString(displayName) || prev.businessName,
+                    firstName: resolvedFirstName || prev.firstName,
+                    lastName: resolvedLastName || prev.lastName,
                     category: cleanOptionalString(place.category) || prev.category,
-                    phone: cleanOptionalString(place.phone) || '',
-                    email: cleanOptionalString(place.email) || '',
+                    phone: resolvedPhone || prev.phone,
+                    email: resolvedEmail || prev.email,
                     website: cleanOptionalString(place.website) || '',
                     address: cleanOptionalString(place.address) || '',
                     city: extractedCity,
@@ -2796,7 +2854,7 @@ export default function LeadsPage() {
                     googlePlaceId: cleanOptionalString(place.googlePlaceId) || cleanOptionalString(place.placeId) || prev.googlePlaceId,
                     rating: place.rating ? String(place.rating) : prev.rating,
                     reviewCount: place.reviewCount ? String(place.reviewCount) : prev.reviewCount,
-                    source: 'GOOGLE_PLACES',
+                    source: 'Google Discovery',
                   }));
                   setIsPlacesDrawerOpen(false);
                   setIsAddDrawerOpen(true);

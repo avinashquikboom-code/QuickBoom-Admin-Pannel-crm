@@ -148,6 +148,9 @@ export default function DataCapturePage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newRecordForm, setNewRecordForm] = useState({
     businessName: '',
+    firstName: '',
+    lastName: '',
+    mobile: '',
     category: '',
     phone: '',
     email: '',
@@ -390,6 +393,9 @@ export default function DataCapturePage() {
       setCreateModalOpen(false);
       setNewRecordForm({
         businessName: '',
+        firstName: '',
+        lastName: '',
+        mobile: '',
         category: '',
         phone: '',
         email: '',
@@ -1405,8 +1411,18 @@ export default function DataCapturePage() {
             toast.error('Business Name is required');
             return;
           }
+          const finalPhone = newRecordForm.mobile.trim() || newRecordForm.phone.trim();
           manualCreateMutation.mutate({
             ...newRecordForm,
+            firstName: newRecordForm.firstName.trim() || undefined,
+            first_name: newRecordForm.firstName.trim() || undefined,
+            lastName: newRecordForm.lastName.trim() || undefined,
+            last_name: newRecordForm.lastName.trim() || undefined,
+            phone: finalPhone || undefined,
+            mobile: finalPhone || undefined,
+            mobileNumber: finalPhone || undefined,
+            email: newRecordForm.email.trim() || undefined,
+            emailAddress: newRecordForm.email.trim() || undefined,
             source: 'MANUAL',
             status: 'CAPTURED',
           });
@@ -1431,6 +1447,62 @@ export default function DataCapturePage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
+                Contact First Name
+              </label>
+              <input
+                type="text"
+                value={newRecordForm.firstName}
+                onChange={(e) => setNewRecordForm({ ...newRecordForm, firstName: e.target.value })}
+                placeholder="e.g. John"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
+                Contact Last Name
+              </label>
+              <input
+                type="text"
+                value={newRecordForm.lastName}
+                onChange={(e) => setNewRecordForm({ ...newRecordForm, lastName: e.target.value })}
+                placeholder="e.g. Doe"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
+                Mobile Number
+              </label>
+              <input
+                type="text"
+                value={newRecordForm.mobile}
+                onChange={(e) => setNewRecordForm({ ...newRecordForm, mobile: e.target.value, phone: e.target.value || newRecordForm.phone })}
+                placeholder="+91 98765 43210"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={newRecordForm.email}
+                onChange={(e) => setNewRecordForm({ ...newRecordForm, email: e.target.value })}
+                placeholder="contact@example.com"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
                 Category
               </label>
               <input
@@ -1444,7 +1516,7 @@ export default function DataCapturePage() {
 
             <div>
               <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
-                Phone
+                Landline / Alternate Phone
               </label>
               <input
                 type="text"
@@ -1456,32 +1528,17 @@ export default function DataCapturePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                value={newRecordForm.email}
-                onChange={(e) => setNewRecordForm({ ...newRecordForm, email: e.target.value })}
-                placeholder="contact@business.com"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
-                Website
-              </label>
-              <input
-                type="url"
-                value={newRecordForm.website}
-                onChange={(e) => setNewRecordForm({ ...newRecordForm, website: e.target.value })}
-                placeholder="https://example.com"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-              />
-            </div>
+          <div>
+            <label className="block text-[11px] font-black uppercase text-slate-500 mb-1.5">
+              Website
+            </label>
+            <input
+              type="url"
+              value={newRecordForm.website}
+              onChange={(e) => setNewRecordForm({ ...newRecordForm, website: e.target.value })}
+              placeholder="https://example.com"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+            />
           </div>
 
           <div>
