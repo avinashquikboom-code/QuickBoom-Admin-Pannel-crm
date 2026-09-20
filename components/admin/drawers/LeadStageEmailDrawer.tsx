@@ -92,24 +92,265 @@ export interface LeadStageEmailDrawerProps {
 }
 
 // Map stage keys to predefined system email template keys
-const STAGE_KEY_TO_EMAIL_TEMPLATE_KEY: Record<string, string> = {
+export const STAGE_KEY_TO_EMAIL_TEMPLATE_KEY: Record<string, string> = {
   NEW: 'QUIKBOOM_NEW_LEAD',
+  NEW_LEAD: 'QUIKBOOM_NEW_LEAD',
   CONTACTED: 'QUIKBOOM_CONTACTED',
   QUALIFIED: 'QUIKBOOM_QUALIFIED',
   PROPOSAL: 'QUIKBOOM_PROPOSAL_SENT',
   PROPOSAL_SENT: 'QUIKBOOM_PROPOSAL_SENT',
   NEGOTIATION: 'QUIKBOOM_NEGOTIATION',
   FINAL_CALL: 'QUIKBOOM_FINAL_CALL',
-  WON: 'QUIKBOOM_DEAL_WON',
-  CONVERTED: 'QUIKBOOM_DEAL_WON',
-  LOST: 'QUIKBOOM_DEAL_LOST',
-  CANCELLED: 'QUIKBOOM_DEAL_LOST',
+  FINAL_DISCUSSION: 'QUIKBOOM_FINAL_CALL',
+  WON: 'QUIKBOOM_WON',
+  CLOSED_WON: 'QUIKBOOM_WON',
+  CONVERTED: 'QUIKBOOM_WON',
+  DEAL_WON: 'QUIKBOOM_WON',
+  LOST: 'QUIKBOOM_LOST',
+  CLOSED_LOST: 'QUIKBOOM_LOST',
+  CANCELLED: 'QUIKBOOM_LOST',
+  DEAL_LOST: 'QUIKBOOM_LOST',
   DETAILS_SENT: 'QUIKBOOM_DETAILS_SENT',
+  COMPANY_DETAILS_SENT: 'QUIKBOOM_DETAILS_SENT',
   FOLLOW_UP: 'QUIKBOOM_FOLLOW_UP',
+  FOLLOWUP: 'QUIKBOOM_FOLLOW_UP',
   VISIT_SCHEDULED: 'QUIKBOOM_VISIT_SCHEDULED',
   VISIT: 'QUIKBOOM_VISIT_SCHEDULED',
   VISIT_DONE: 'QUIKBOOM_VISIT_DONE',
+  VISIT_COMPLETED: 'QUIKBOOM_VISIT_DONE',
 };
+
+// Map stage keys to WhatsApp template keys
+export const STAGE_KEY_TO_WHATSAPP_KEY: Record<string, string> = {
+  NEW: 'NEW',
+  NEW_LEAD: 'NEW',
+  CONTACTED: 'CONTACTED',
+  QUALIFIED: 'QUALIFIED',
+  PROPOSAL: 'PROPOSAL',
+  PROPOSAL_SENT: 'PROPOSAL_SENT',
+  NEGOTIATION: 'NEGOTIATION',
+  FINAL_CALL: 'FINAL_CALL',
+  FINAL_DISCUSSION: 'FINAL_CALL',
+  WON: 'WON',
+  CLOSED_WON: 'WON',
+  CONVERTED: 'CONVERTED',
+  DEAL_WON: 'WON',
+  LOST: 'LOST',
+  CLOSED_LOST: 'LOST',
+  CANCELLED: 'CANCELLED',
+  DEAL_LOST: 'LOST',
+  DETAILS_SENT: 'DETAILS_SENT',
+  COMPANY_DETAILS_SENT: 'DETAILS_SENT',
+  FOLLOW_UP: 'FOLLOW_UP',
+  FOLLOWUP: 'FOLLOW_UP',
+  VISIT_SCHEDULED: 'VISIT_SCHEDULED',
+  VISIT: 'VISIT',
+  VISIT_DONE: 'VISIT_DONE',
+  VISIT_COMPLETED: 'VISIT_DONE',
+};
+
+export function normalizeStageKey(keyOrName?: string | null): string {
+  if (!keyOrName) return '';
+  return keyOrName
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+}
+
+/**
+ * Dynamically find the Email Template configured for a given lead stage.
+ * NEVER defaults to templates[0] or a random template.
+ * Returns null if no template matches.
+ */
+export function findMatchingEmailTemplate(
+  templates: EmailTemplateItem[],
+  stage?: { id?: number | string; name?: string; key?: string } | null,
+  leadStatus?: string | null
+): EmailTemplateItem | null {
+  if (!templates || templates.length === 0) return null;
+
+  const stageKey = normalizeStageKey(stage?.key);
+  const stageName = normalizeStageKey(stage?.name);
+  const statusKey = normalizeStageKey(leadStatus);
+
+  const candidateKeys = Array.from(new Set([stageKey, stageName, statusKey].filter(Boolean)));
+  if (candidateKeys.length === 0) return null;
+
+  // 1. Check mapped system keys
+  for (const cKey of candidateKeys) {
+    const targetKey = STAGE_KEY_TO_EMAIL_TEMPLATE_KEY[cKey];
+    if (targetKey) {
+      const match = templates.find((t) => {
+        const idKey = (t.identifierKey || t.key || '').toUpperCase();
+        return (
+          (idKey === targetKey ||
+            (targetKey === 'QUIKBOOM_WON' && (idKey === 'QUIKBOOM_DEAL_WON' || idKey === 'QUIKBOOM_WON')) ||
+            (targetKey === 'QUIKBOOM_LOST' && (idKey === 'QUIKBOOM_DEAL_LOST' || idKey === 'QUIKBOOM_LOST'))) &&
+          t.isActive !== false
+        );
+      });
+      if (match) return match;
+    }
+  }
+
+  // 2. Direct key match on identifierKey or key
+  for (const cKey of candidateKeys) {
+    const match = templates.find((t) => {
+      const idKey = (t.identifierKey || t.key || '').toUpperCase();
+      return (
+        (idKey === cKey ||
+          idKey === `QUIKBOOM_${cKey}` ||
+          idKey.replace('QUIKBOOM_', '') === cKey) &&
+        t.isActive !== false
+      );
+    });
+    if (match) return match;
+  }
+
+  // 3. Match by stage name keywords
+  const rawStageName = (stage?.name || leadStatus || '').trim().toLowerCase();
+  if (rawStageName) {
+    const match = templates.find((t) => {
+      if (t.isActive === false) return false;
+      const tplName = (t.templateName || t.name || '').toLowerCase();
+      if (tplName === rawStageName) return true;
+      if (
+        tplName.startsWith(`${rawStageName} `) ||
+        tplName.startsWith(`${rawStageName} –`) ||
+        tplName.startsWith(`${rawStageName} -`)
+      ) {
+        return true;
+      }
+      if (candidateKeys.includes('FOLLOW_UP')) {
+        return tplName.includes('follow-up') || tplName.includes('follow up');
+      }
+      if (candidateKeys.includes('DETAILS_SENT')) {
+        return tplName.includes('details sent') || tplName.includes('company details');
+      }
+      if (candidateKeys.includes('QUALIFIED')) {
+        return tplName.includes('qualified');
+      }
+      if (candidateKeys.includes('CONTACTED')) {
+        return tplName.includes('contacted');
+      }
+      if (candidateKeys.includes('NEW') || candidateKeys.includes('NEW_LEAD')) {
+        return tplName.includes('new lead') || (tplName.includes('new') && !tplName.includes('news'));
+      }
+      if (candidateKeys.includes('PROPOSAL') || candidateKeys.includes('PROPOSAL_SENT')) {
+        return tplName.includes('proposal');
+      }
+      if (candidateKeys.includes('NEGOTIATION')) {
+        return tplName.includes('negotiat') || tplName.includes('proposal discussion');
+      }
+      if (candidateKeys.includes('FINAL_CALL')) {
+        return tplName.includes('final call') || tplName.includes('final discussion');
+      }
+      if (candidateKeys.includes('WON') || candidateKeys.includes('CLOSED_WON') || candidateKeys.includes('CONVERTED')) {
+        return tplName.includes('won') || tplName.includes('onboarding');
+      }
+      if (candidateKeys.includes('LOST') || candidateKeys.includes('CLOSED_LOST') || candidateKeys.includes('CANCELLED')) {
+        return tplName.includes('lost') || tplName.includes('closed');
+      }
+      if (candidateKeys.includes('VISIT_SCHEDULED') || candidateKeys.includes('VISIT')) {
+        return tplName.includes('visit scheduled') || (tplName.includes('meeting') && tplName.includes('scheduled'));
+      }
+      if (candidateKeys.includes('VISIT_DONE')) {
+        return tplName.includes('visit completed') || tplName.includes('visit done');
+      }
+      return false;
+    });
+    if (match) return match;
+  }
+
+  // IMPORTANT: Return null if no template matches this stage. NEVER return templates[0]!
+  return null;
+}
+
+/**
+ * Dynamically find the WhatsApp Template configured for a given lead stage.
+ * NEVER defaults to templates[0] or a random template.
+ * Returns null if no template matches.
+ */
+export function findMatchingWhatsAppTemplate(
+  templates: WhatsAppStageTemplate[],
+  stage?: { id?: number | string; name?: string; key?: string } | null,
+  leadStatus?: string | null
+): WhatsAppStageTemplate | null {
+  if (!templates || templates.length === 0) return null;
+
+  const stageKey = normalizeStageKey(stage?.key);
+  const stageName = normalizeStageKey(stage?.name);
+  const statusKey = normalizeStageKey(leadStatus);
+
+  const candidateKeys = Array.from(new Set([stageKey, stageName, statusKey].filter(Boolean)));
+  if (candidateKeys.length === 0) return null;
+
+  // 1. Direct or mapped key match
+  for (const cKey of candidateKeys) {
+    const targetKey = STAGE_KEY_TO_WHATSAPP_KEY[cKey] || cKey;
+    const match = templates.find((t) => {
+      const tKey = t.key.toUpperCase();
+      return (
+        tKey === targetKey ||
+        tKey === cKey ||
+        (targetKey === 'WON' && (tKey === 'WON' || tKey === 'CONVERTED')) ||
+        (targetKey === 'LOST' && (tKey === 'LOST' || tKey === 'CANCELLED')) ||
+        (targetKey === 'PROPOSAL' && (tKey === 'PROPOSAL' || tKey === 'PROPOSAL_SENT')) ||
+        (targetKey === 'VISIT_SCHEDULED' && (tKey === 'VISIT_SCHEDULED' || tKey === 'VISIT'))
+      );
+    });
+    if (match) return match;
+  }
+
+  // 2. Title/Name keyword match
+  const rawStageName = (stage?.name || leadStatus || '').trim().toLowerCase();
+  if (rawStageName) {
+    const match = templates.find((t) => {
+      const title = (t.title || t.name || '').toLowerCase();
+      if (candidateKeys.includes('FOLLOW_UP')) {
+        return title.includes('follow up') || title.includes('follow-up');
+      }
+      if (candidateKeys.includes('DETAILS_SENT')) {
+        return title.includes('details sent');
+      }
+      if (candidateKeys.includes('QUALIFIED')) {
+        return title.includes('qualified');
+      }
+      if (candidateKeys.includes('CONTACTED')) {
+        return title.includes('contacted');
+      }
+      if (candidateKeys.includes('NEW') || candidateKeys.includes('NEW_LEAD')) {
+        return title.includes('new lead') || title.includes('welcome');
+      }
+      if (candidateKeys.includes('PROPOSAL') || candidateKeys.includes('PROPOSAL_SENT')) {
+        return title.includes('proposal');
+      }
+      if (candidateKeys.includes('NEGOTIATION')) {
+        return title.includes('negotiation');
+      }
+      if (candidateKeys.includes('FINAL_CALL')) {
+        return title.includes('final call');
+      }
+      if (candidateKeys.includes('WON') || candidateKeys.includes('CLOSED_WON') || candidateKeys.includes('CONVERTED')) {
+        return title.includes('won') || title.includes('deal closed');
+      }
+      if (candidateKeys.includes('LOST') || candidateKeys.includes('CLOSED_LOST') || candidateKeys.includes('CANCELLED')) {
+        return title.includes('lost') || title.includes('cancelled');
+      }
+      if (candidateKeys.includes('VISIT_SCHEDULED') || candidateKeys.includes('VISIT')) {
+        return title.includes('visit scheduled') || title.includes('visit stage');
+      }
+      if (candidateKeys.includes('VISIT_DONE')) {
+        return title.includes('visit done');
+      }
+      return title.includes(rawStageName);
+    });
+    if (match) return match;
+  }
+
+  // IMPORTANT: Return null if no template matches this stage. NEVER return templates[0]!
+  return null;
+}
 
 // Standard WhatsApp templates for lead stages
 export const WHATSAPP_STAGE_TEMPLATES: Record<string, WhatsAppStageTemplate> = {
@@ -327,106 +568,59 @@ export function LeadStageEmailDrawer({
     initialData: Object.values(WHATSAPP_STAGE_TEMPLATES),
   });
 
-  // 3. Resolve stage-matching email template
+  // 3. Resolve stage-matching email template (dynamically matched to Lead's current/new stage)
   const stageMatchedEmailTemplate = useMemo(() => {
-    if (!emailTemplates.length) return null;
-    const normKey = (effectiveStage.key || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-    const normName = (effectiveStage.name || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+    return findMatchingEmailTemplate(emailTemplates, effectiveStage, lead?.status);
+  }, [emailTemplates, effectiveStage, lead?.status]);
 
-    // Priority 1: Mapped system key
-    const mappedSystemKey = STAGE_KEY_TO_EMAIL_TEMPLATE_KEY[normKey] || STAGE_KEY_TO_EMAIL_TEMPLATE_KEY[normName];
-    if (mappedSystemKey) {
-      const found = emailTemplates.find(
-        (t) =>
-          (t.identifierKey?.toUpperCase() === mappedSystemKey ||
-            t.key?.toUpperCase() === mappedSystemKey) &&
-          t.isActive !== false
-      );
-      if (found) return found;
-    }
+  // 4. Resolve stage-matching WhatsApp template (dynamically matched to Lead's current/new stage)
+  const stageMatchedWhatsAppTemplate = useMemo(() => {
+    return findMatchingWhatsAppTemplate(whatsAppTemplates, effectiveStage, lead?.status);
+  }, [whatsAppTemplates, effectiveStage, lead?.status]);
 
-    // Priority 2: Direct key match
-    const directKeyMatch = emailTemplates.find((t) => {
-      const tKey = (t.identifierKey || t.key || '').toUpperCase();
-      return (
-        (tKey === normKey ||
-          tKey === normName ||
-          tKey === `QUIKBOOM_${normKey}` ||
-          tKey === `QUIKBOOM_${normName}`) &&
-        t.isActive !== false
-      );
-    });
-    if (directKeyMatch) return directKeyMatch;
-
-    // Priority 3: Name match
-    const nameMatch = emailTemplates.find((t) => {
-      const tName = (t.templateName || t.name || '').toLowerCase();
-      const sName = (effectiveStage.name || '').toLowerCase();
-      return (tName === sName || tName.includes(sName)) && t.isActive !== false;
-    });
-    if (nameMatch) return nameMatch;
-
-    return emailTemplates[0] || null;
-  }, [effectiveStage, emailTemplates]);
-
-  // Set default selected email template
+  // Automatically select stage-configured Email & WhatsApp templates whenever the drawer opens or stage changes
   useEffect(() => {
-    if (emailTemplates.length > 0) {
-      const exists = emailTemplates.some((t) => String(t.id) === String(selectedEmailTemplateId));
-      if (!exists) {
-        if (stageMatchedEmailTemplate) {
-          setSelectedEmailTemplateId(stageMatchedEmailTemplate.id);
-        } else {
-          setSelectedEmailTemplateId(emailTemplates[0].id);
-        }
-      }
-    }
-  }, [emailTemplates, stageMatchedEmailTemplate, selectedEmailTemplateId]);
+    if (!isOpen) return;
 
-  // Active email template (selected by user or stage matched)
+    // Reset user-edited states so fresh stage template content is shown
+    setHasUserEditedSubject(false);
+    setCustomSubject('');
+    setHasUserEditedBody(false);
+    setCustomBodyHtml('');
+    setHasUserEditedWhatsApp(false);
+    setCustomWhatsAppText('');
+
+    // Automatically select the template configured for the CURRENT/NEW stage
+    setSelectedEmailTemplateId(stageMatchedEmailTemplate ? stageMatchedEmailTemplate.id : null);
+    setSelectedWhatsAppTemplateKey(stageMatchedWhatsAppTemplate ? stageMatchedWhatsAppTemplate.key : null);
+  }, [
+    isOpen,
+    lead?.id,
+    effectiveStage.id,
+    effectiveStage.name,
+    effectiveStage.key,
+    stageMatchedEmailTemplate?.id,
+    stageMatchedWhatsAppTemplate?.key,
+  ]);
+
+  // Active email template (selected by user or stage matched, NEVER defaults to templates[0])
   const activeEmailTemplate = useMemo(() => {
     if (!emailTemplates.length) return null;
     if (selectedEmailTemplateId) {
       const found = emailTemplates.find((t) => String(t.id) === String(selectedEmailTemplateId));
       if (found) return found;
     }
-    return stageMatchedEmailTemplate || emailTemplates[0] || null;
+    return stageMatchedEmailTemplate || null;
   }, [emailTemplates, selectedEmailTemplateId, stageMatchedEmailTemplate]);
 
-  // 4. Resolve stage-matching WhatsApp template
-  const stageMatchedWhatsAppTemplate = useMemo(() => {
-    if (!whatsAppTemplates.length) return null;
-    const normKey = (effectiveStage.key || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-    const normName = (effectiveStage.name || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-
-    const found = whatsAppTemplates.find(
-      (t) => t.key.toUpperCase() === normKey || t.key.toUpperCase() === normName
-    );
-    return found || whatsAppTemplates[0] || null;
-  }, [effectiveStage, whatsAppTemplates]);
-
-  // Set default selected WhatsApp template
-  useEffect(() => {
-    if (whatsAppTemplates.length > 0) {
-      const exists = whatsAppTemplates.some((t) => t.key === selectedWhatsAppTemplateKey);
-      if (!exists) {
-        if (stageMatchedWhatsAppTemplate) {
-          setSelectedWhatsAppTemplateKey(stageMatchedWhatsAppTemplate.key);
-        } else {
-          setSelectedWhatsAppTemplateKey(whatsAppTemplates[0].key);
-        }
-      }
-    }
-  }, [whatsAppTemplates, stageMatchedWhatsAppTemplate, selectedWhatsAppTemplateKey]);
-
-  // Active WhatsApp template
+  // Active WhatsApp template (selected by user or stage matched, NEVER defaults to templates[0])
   const activeWhatsAppTemplate = useMemo(() => {
     if (!whatsAppTemplates.length) return null;
     if (selectedWhatsAppTemplateKey) {
       const found = whatsAppTemplates.find((t) => t.key === selectedWhatsAppTemplateKey);
       if (found) return found;
     }
-    return stageMatchedWhatsAppTemplate || whatsAppTemplates[0] || null;
+    return stageMatchedWhatsAppTemplate || null;
   }, [whatsAppTemplates, selectedWhatsAppTemplateKey, stageMatchedWhatsAppTemplate]);
 
   // 5. Lead context & formatted variables
@@ -452,6 +646,13 @@ export function LeadStageEmailDrawer({
       return { defaultRenderedSubject: '', defaultRenderedBodyHtml: '', defaultRenderedWhatsAppText: '', renderedVariables: [] };
     }
 
+    // Resolve assigned employee details for signature (or fallback to creator/company)
+    const assignedEmpName = lead.assignedTo
+      ? (`${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() || lead.assignedTo.name || '')
+      : (lead.user?.name || (lead.user?.firstName ? `${lead.user.firstName || ''} ${lead.user.lastName || ''}`.trim() : ''));
+    const assignedEmpEmail = lead.assignedTo?.email?.trim() || lead.user?.email?.trim() || 'sales@quikboom.com';
+    const repName = assignedEmpName || 'QuickBoom Team';
+
     const variableMap: Record<string, string> = {
       leadName: leadFullName,
       leadFirstName: (lead.firstName || '').trim() || leadFullName,
@@ -459,16 +660,27 @@ export function LeadStageEmailDrawer({
       customerName: leadFullName,
       recipientName: leadFullName,
       leadTitle: (lead.title || lead.companyName || 'your requirements').trim(),
-      email: recipientEmail,
+      leadEmail: recipientEmail,
+      leadPhone: formattedPhone || rawPhone,
       phone: formattedPhone || rawPhone,
       company: lead.companyName || 'your company',
       companyName: lead.customer?.companyName || lead.customer?.name || lead.companyName || 'QUIKBOOM Digital Marketing Agency',
-      assignedUser: lead.assignedTo ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() : 'QuickBoom Team',
-      assignedEmployee: lead.assignedTo ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() : 'QuickBoom Team',
+      userName: repName,
+      senderName: repName,
+      assignedUser: repName,
+      assignedEmployee: repName,
+      assignedEmployeeName: repName,
+      assignedEmployeeEmail: assignedEmpEmail,
+      senderEmail: assignedEmpEmail,
+      email: assignedEmpEmail,
+      stage: effectiveStage.name || 'Current Stage',
       stageName: effectiveStage.name || 'Updated Stage',
+      newStage: effectiveStage.name || 'Updated Stage',
       previousStage: previousStageName || 'Previous Stage',
       followUpDate: lead.nextFollowUpDate || 'as scheduled',
       followUpTime: lead.nextFollowUpTime || 'soon',
+      startDate: lead.nextFollowUpDate || 'as scheduled',
+      startTime: lead.nextFollowUpTime || 'soon',
       loginUrl: 'https://quikboom.com/login',
     };
 
@@ -988,7 +1200,7 @@ export function LeadStageEmailDrawer({
               <select
                 value={selectedEmailTemplateId ? String(selectedEmailTemplateId) : ''}
                 onChange={(e) => {
-                  setSelectedEmailTemplateId(e.target.value);
+                  setSelectedEmailTemplateId(e.target.value || null);
                   setHasUserEditedSubject(false);
                   setHasUserEditedBody(false);
                 }}
@@ -996,8 +1208,12 @@ export function LeadStageEmailDrawer({
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#23C45E] transition-all cursor-pointer disabled:opacity-50"
               >
                 {isLoadingEmailTemplates && <option value="">Loading email templates...</option>}
-                {!isLoadingEmailTemplates && emailTemplates.length === 0 && (
-                  <option value="">No email templates configured</option>
+                {!isLoadingEmailTemplates && (
+                  <option value="">
+                    {stageMatchedEmailTemplate
+                      ? '-- Select Email Template --'
+                      : 'No email template configured for this stage'}
+                  </option>
                 )}
                 {emailTemplates.map((tpl) => (
                   <option key={tpl.id} value={String(tpl.id)}>
@@ -1078,10 +1294,12 @@ export function LeadStageEmailDrawer({
             )}
 
             {!isLoadingEmailTemplates && !activeEmailTemplate && (
-              <div className="py-12 px-6 bg-slate-50 border border-dashed border-slate-300 rounded-3xl text-center space-y-2">
+              <div className="py-10 px-6 bg-slate-50 border border-dashed border-slate-300 rounded-3xl text-center space-y-2">
                 <FileQuestion className="w-8 h-8 text-slate-400 mx-auto" />
-                <h4 className="text-sm font-black text-slate-800">No Email Templates Found</h4>
-                <p className="text-xs text-slate-500">Configure email templates under Settings &rarr; Email Templates.</p>
+                <h4 className="text-sm font-black text-slate-800">No email template configured for this stage.</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  No email template matches the &ldquo;{effectiveStage.name}&rdquo; stage. You can manually select an existing template from the dropdown above if desired, or proceed without sending an email.
+                </p>
               </div>
             )}
           </div>
@@ -1120,13 +1338,20 @@ export function LeadStageEmailDrawer({
               <select
                 value={selectedWhatsAppTemplateKey || ''}
                 onChange={(e) => {
-                  setSelectedWhatsAppTemplateKey(e.target.value);
+                  setSelectedWhatsAppTemplateKey(e.target.value || null);
                   setHasUserEditedWhatsApp(false);
                 }}
                 disabled={isLoadingWhatsAppTemplates || whatsAppTemplates.length === 0}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#23C45E] transition-all cursor-pointer disabled:opacity-50"
               >
                 {isLoadingWhatsAppTemplates && <option value="">Loading WhatsApp templates...</option>}
+                {!isLoadingWhatsAppTemplates && (
+                  <option value="">
+                    {stageMatchedWhatsAppTemplate
+                      ? '-- Select WhatsApp Template --'
+                      : 'No WhatsApp template configured for this stage'}
+                  </option>
+                )}
                 {whatsAppTemplates.map((t) => (
                   <option key={t.key} value={t.key}>
                     {t.title || t.name || t.key}
@@ -1214,6 +1439,16 @@ export function LeadStageEmailDrawer({
                   <span>Delivered via <strong>Meta WhatsApp Cloud API</strong></span>
                   <span className="text-emerald-700 font-bold">End-to-end encrypted</span>
                 </div>
+              </div>
+            )}
+
+            {!isLoadingWhatsAppTemplates && !activeWhatsAppTemplate && (
+              <div className="py-10 px-6 bg-slate-50 border border-dashed border-slate-300 rounded-3xl text-center space-y-2">
+                <FileQuestion className="w-8 h-8 text-slate-400 mx-auto" />
+                <h4 className="text-sm font-black text-slate-800">No WhatsApp template configured for this stage.</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  No WhatsApp template matches the &ldquo;{effectiveStage.name}&rdquo; stage. You can manually select an existing template from the dropdown above if desired, or proceed without sending a WhatsApp message.
+                </p>
               </div>
             )}
           </div>
