@@ -2835,6 +2835,8 @@ export default function LeadsPage() {
                     cleanOptionalString(rawData.user_email) ||
                     '';
 
+                  const newStage = allStagesForDropdown.find((s: any) => s.key === 'NEW') || allStagesForDropdown[0];
+
                   setLeadForm((prev) => ({
                     ...prev,
                     title: cleanOptionalString(displayName) || prev.title,
@@ -2855,6 +2857,8 @@ export default function LeadsPage() {
                     rating: place.rating ? String(place.rating) : prev.rating,
                     reviewCount: place.reviewCount ? String(place.reviewCount) : prev.reviewCount,
                     source: 'Google Discovery',
+                    status: 'NEW',
+                    stageId: newStage ? String(newStage.id) : '',
                   }));
                   setIsPlacesDrawerOpen(false);
                   setIsAddDrawerOpen(true);
