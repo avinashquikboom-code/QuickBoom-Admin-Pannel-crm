@@ -202,6 +202,9 @@ function isDetailsSendStage(lead: any): boolean {
       templateId,
       customSubject,
       customBody,
+      sendWhatsapp,
+      whatsappMessage,
+      whatsappTemplateName,
     }: {
       stageId?: number;
       status?: string;
@@ -210,6 +213,9 @@ function isDetailsSendStage(lead: any): boolean {
       templateId?: number;
       customSubject?: string;
       customBody?: string;
+      sendWhatsapp?: boolean;
+      whatsappMessage?: string;
+      whatsappTemplateName?: string;
     }) => {
       return api.patch(`/leads/${id}/status`, {
         stageId,
@@ -219,6 +225,9 @@ function isDetailsSendStage(lead: any): boolean {
         templateId,
         customSubject,
         customBody,
+        sendWhatsapp,
+        whatsappMessage,
+        whatsappTemplateName,
       });
     },
     onSuccess: () => {
@@ -1174,7 +1183,15 @@ function isDetailsSendStage(lead: any): boolean {
         previousStageName={stageEmailDrawerState?.previousStageName || 'Current Stage'}
         newStage={stageEmailDrawerState?.newStage || null}
         isSubmitting={updateStatusMutation.isPending}
-        onConfirm={async ({ sendEmail, templateId, customSubject, customBody }) => {
+        onConfirm={async ({
+          sendEmail,
+          templateId,
+          customSubject,
+          customBody,
+          sendWhatsapp,
+          whatsappMessage,
+          whatsappTemplateName,
+        }) => {
           if (!stageEmailDrawerState?.newStage) return;
           try {
             await updateStatusMutation.mutateAsync({
@@ -1183,6 +1200,9 @@ function isDetailsSendStage(lead: any): boolean {
               templateId,
               customSubject,
               customBody,
+              sendWhatsapp,
+              whatsappMessage,
+              whatsappTemplateName,
             });
             setStageEmailDrawerState(null);
           } catch {

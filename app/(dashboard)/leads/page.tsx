@@ -788,6 +788,9 @@ export default function LeadsPage() {
       templateId,
       customSubject,
       customBody,
+      sendWhatsapp,
+      whatsappMessage,
+      whatsappTemplateName,
     }: {
       stageId?: number;
       status?: string;
@@ -796,6 +799,9 @@ export default function LeadsPage() {
       templateId?: number;
       customSubject?: string;
       customBody?: string;
+      sendWhatsapp?: boolean;
+      whatsappMessage?: string;
+      whatsappTemplateName?: string;
     }) => {
       if (!selectedLeadId) return;
       return api.patch(`/leads/${selectedLeadId}/status`, {
@@ -806,6 +812,9 @@ export default function LeadsPage() {
         templateId,
         customSubject,
         customBody,
+        sendWhatsapp,
+        whatsappMessage,
+        whatsappTemplateName,
       });
     },
     onSuccess: (res: any) => {
@@ -2827,7 +2836,15 @@ export default function LeadsPage() {
         previousStageName={stageEmailDrawerState?.previousStageName || 'Current Stage'}
         newStage={stageEmailDrawerState?.newStage || null}
         isSubmitting={updateStatusMutation.isPending}
-        onConfirm={async ({ sendEmail, templateId, customSubject, customBody }) => {
+        onConfirm={async ({
+          sendEmail,
+          templateId,
+          customSubject,
+          customBody,
+          sendWhatsapp,
+          whatsappMessage,
+          whatsappTemplateName,
+        }) => {
           if (!stageEmailDrawerState?.newStage) return;
           try {
             await updateStatusMutation.mutateAsync({
@@ -2836,6 +2853,9 @@ export default function LeadsPage() {
               templateId,
               customSubject,
               customBody,
+              sendWhatsapp,
+              whatsappMessage,
+              whatsappTemplateName,
             });
             setStageEmailDrawerState(null);
           } catch {
