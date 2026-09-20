@@ -35,6 +35,8 @@ import {
   Database,
   X,
   AlertCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -81,12 +83,22 @@ export default function SettingsPage() {
 
   // WhatsApp Integration State
   const [whatsappApiKey, setWhatsappApiKey] = useState('');
+  const [hasExistingWhatsappToken, setHasExistingWhatsappToken] = useState(false);
   const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState('');
+  const [whatsappBusinessAccountId, setWhatsappBusinessAccountId] = useState('');
+  const [whatsappApiVersion, setWhatsappApiVersion] = useState('v19.0');
+  const [whatsappVerifyToken, setWhatsappVerifyToken] = useState('3f4e429cbf154b82ca819b5af5bc046110d18f336db6627a');
+  const [whatsappAppId, setWhatsappAppId] = useState('');
+  const [whatsappAppSecret, setWhatsappAppSecret] = useState('');
+  const [hasExistingWhatsappAppSecret, setHasExistingWhatsappAppSecret] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(true);
-  const [whatsappSource, setWhatsappSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('ENV_FALLBACK');
+  const [whatsappSource, setWhatsappSource] = useState<'DATABASE' | 'ENV_FALLBACK'>('DATABASE');
   const [showWhatsappKey, setShowWhatsappKey] = useState(false);
+  const [showWhatsappAppSecret, setShowWhatsappAppSecret] = useState(false);
   const [isSavingWhatsapp, setIsSavingWhatsapp] = useState(false);
   const [isTestingWhatsapp, setIsTestingWhatsapp] = useState(false);
+  const [isSubscribingWhatsapp, setIsSubscribingWhatsapp] = useState(false);
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
 
   // AWS S3 Integration State
   const [awsAccessKeyId, setAwsAccessKeyId] = useState('');
@@ -229,8 +241,16 @@ export default function SettingsPage() {
           } else if (provider === 'WHATSAPP') {
             setWhatsappConnected(item.isEnabled ?? true);
             setWhatsappSource(item.source || 'DATABASE');
-            setWhatsappPhoneNumberId(item.credentials?.phoneNumberId || item.credentials?.phone_number_id || '');
-            setWhatsappApiKey(item.credentials?.apiKey || item.credentials?.accessToken || item.credentials?.access_token || '');
+            const creds = item.credentials || {};
+            setWhatsappPhoneNumberId(creds.phoneNumberId || creds.phone_number_id || '');
+            setWhatsappBusinessAccountId(creds.businessAccountId || creds.business_account_id || creds.wabaId || '');
+            setWhatsappApiVersion(creds.apiVersion || 'v19.0');
+            setWhatsappVerifyToken(creds.verifyToken || creds.webhookVerifyToken || '3f4e429cbf154b82ca819b5af5bc046110d18f336db6627a');
+            setWhatsappAppId(creds.appId || '');
+            setHasExistingWhatsappToken(Boolean(creds.hasAccessToken || creds.isTokenSaved || creds.apiKey || creds.accessToken));
+            setHasExistingWhatsappAppSecret(Boolean(creds.hasAppSecret || creds.isAppSecretSaved || creds.appSecret));
+            setWhatsappApiKey('');
+            setWhatsappAppSecret('');
           } else if (provider === 'AWS') {
             setAwsConnected(item.isEnabled ?? false);
             setAwsSource(item.source || 'ENV_FALLBACK');
@@ -455,27 +475,44 @@ export default function SettingsPage() {
 
   const handleSaveWhatsapp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!whatsappApiKey.trim()) {
-      toast.error('Please enter a valid WhatsApp Business API Access Token');
+    if (!whatsappPhoneNumberId.trim()) {
+      toast.error('WhatsApp Business Phone Number ID is required');
       return;
     }
     setIsSavingWhatsapp(true);
     try {
+      const credentialsPayload: Record<string, any> = {
+        phoneNumberId: whatsappPhoneNumberId.trim(),
+        businessAccountId: whatsappBusinessAccountId.trim(),
+        apiVersion: whatsappApiVersion.trim() || 'v19.0',
+        verifyToken: whatsappVerifyToken.trim(),
+        appId: whatsappAppId.trim(),
+      };
+      if (whatsappApiKey.trim()) {
+        credentialsPayload.apiKey = whatsappApiKey.trim();
+        credentialsPayload.accessToken = whatsappApiKey.trim();
+      }
+      if (whatsappAppSecret.trim()) {
+        credentialsPayload.appSecret = whatsappAppSecret.trim();
+      }
+
       const res: any = await api.put('/admin/settings/integrations/WHATSAPP', {
         isEnabled: whatsappConnected,
         environment: 'LIVE',
-        credentials: {
-          apiKey: whatsappApiKey.trim(),
-          phoneNumberId: whatsappPhoneNumberId.trim(),
-        },
+        credentials: credentialsPayload,
       });
 
       setWhatsappSource('DATABASE');
       const creds = res?.credentials || res?.data?.credentials;
-      if (creds?.apiKey) {
-        setWhatsappApiKey(creds.apiKey);
+      if (creds?.apiKey || credentialsPayload.apiKey) {
+        setHasExistingWhatsappToken(true);
+        setWhatsappApiKey('');
       }
-      toast.success('WhatsApp Business API settings saved to database!');
+      if (creds?.appSecret || credentialsPayload.appSecret) {
+        setHasExistingWhatsappAppSecret(true);
+        setWhatsappAppSecret('');
+      }
+      toast.success('WhatsApp API settings saved successfully!');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to save WhatsApp settings');
     } finally {
@@ -484,27 +521,64 @@ export default function SettingsPage() {
   };
 
   const handleTestWhatsapp = async () => {
-    if (!whatsappApiKey.trim() || !whatsappPhoneNumberId.trim()) {
-      toast.error('Enter Phone Number ID and Access Token to test connection');
+    if (!whatsappPhoneNumberId.trim()) {
+      toast.error('Enter Phone Number ID to test connection');
       return;
     }
     setIsTestingWhatsapp(true);
     try {
+      const credentialsPayload: Record<string, any> = {
+        phoneNumberId: whatsappPhoneNumberId.trim(),
+      };
+      if (whatsappApiKey.trim()) {
+        credentialsPayload.apiKey = whatsappApiKey.trim();
+      }
       const res: any = await api.post('/admin/settings/integrations/WHATSAPP/test', {
-        credentials: {
-          apiKey: whatsappApiKey.trim(),
-          phoneNumberId: whatsappPhoneNumberId.trim(),
-        },
+        credentials: credentialsPayload,
       });
       const data = res?.data || res;
       if (data?.success) {
-        toast.success('WhatsApp Business API credentials verified successfully!');
+        toast.success('WhatsApp Business API connection verified successfully!');
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'WhatsApp test failed');
     } finally {
       setIsTestingWhatsapp(false);
     }
+  };
+
+  const handleSubscribeWhatsapp = async () => {
+    if (!whatsappBusinessAccountId.trim()) {
+      toast.error('WhatsApp Business Account ID is required');
+      return;
+    }
+    setIsSubscribingWhatsapp(true);
+    try {
+      const credentialsPayload: Record<string, any> = {
+        businessAccountId: whatsappBusinessAccountId.trim(),
+        apiVersion: whatsappApiVersion.trim() || 'v19.0',
+      };
+      if (whatsappApiKey.trim()) {
+        credentialsPayload.accessToken = whatsappApiKey.trim();
+      }
+      const res: any = await api.post('/admin/settings/integrations/WHATSAPP/subscribe', {
+        credentials: credentialsPayload,
+      });
+      toast.success(res?.message || 'Subscribed to WhatsApp webhook events with Meta!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to subscribe webhook');
+    } finally {
+      setIsSubscribingWhatsapp(false);
+    }
+  };
+
+  const handleCopyWebhookUrl = (url: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+    }
+    setCopiedWebhookUrl(true);
+    toast.success('Webhook URL copied to clipboard!');
+    setTimeout(() => setCopiedWebhookUrl(false), 2500);
   };
 
   const handleSaveGeneral = (e: React.FormEvent) => {
@@ -1473,33 +1547,23 @@ export default function SettingsPage() {
             </form>
           </div>
 
-          {/* WHATSAPP BUSINESS API CARD */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+          {/* WHATSAPP BUSINESS API CARD - EXACT META DEVELOPER SETUP DESIGN */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-7 shadow-xs space-y-6">
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-xl bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/20 flex items-center justify-center font-bold">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base font-black text-slate-900">WhatsApp Business API Integration</h2>
-                    {whatsappConnected ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-extrabold border border-[#23C45E]/30">
-                        <CheckCircle2 className="w-3 h-3 text-[#23C45E]" /> ACTIVE
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-extrabold border border-amber-200">
-                        <AlertTriangle className="w-3 h-3 text-amber-600" /> DISABLED
-                      </span>
-                    )}
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono font-bold border border-slate-200">
-                      Source: {whatsappSource}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Powers automated customer notifications, visit confirmations, and workforce alerts via Meta Cloud API.
-                  </p>
-                </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight">API Credentials</h2>
+                <p className="text-xs text-slate-500 mt-1 font-normal">
+                  From{' '}
+                  <a
+                    href="https://developers.facebook.com/apps"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:text-blue-700 hover:underline font-medium inline-flex items-center gap-0.5"
+                  >
+                    Meta for Developers
+                  </a>{' '}
+                  → Your App → WhatsApp → API Setup
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1508,84 +1572,238 @@ export default function SettingsPage() {
                     type="checkbox"
                     checked={whatsappConnected}
                     onChange={(e) => setWhatsappConnected(e.target.checked)}
-                    className="w-4 h-4 text-[#23C45E] rounded border-slate-300 focus:ring-[#23C45E]"
+                    className="w-4 h-4 text-[#22C55E] rounded border-slate-300 focus:ring-[#22C55E]"
                   />
                   Active
                 </label>
               </div>
             </div>
 
-            <form onSubmit={handleSaveWhatsapp} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleSaveWhatsapp} className="space-y-5 text-xs">
+              {/* Row 1: WhatsApp Business Phone Number ID & WhatsApp Business Account ID */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                    <Key className="w-3.5 h-3.5 text-[#23C45E]" /> Phone Number ID *
+                  <label className="block text-xs font-semibold text-slate-800 mb-2">
+                    WhatsApp Business Phone Number ID
                   </label>
                   <input
                     type="text"
-                    required
                     value={whatsappPhoneNumberId}
                     onChange={(e) => setWhatsappPhoneNumberId(e.target.value)}
-                    placeholder="e.g. 104829104810291"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
+                    placeholder="903438676196217"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs font-medium focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E] focus:outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-extrabold text-slate-700 mb-1.5 flex items-center gap-1">
-                    <Lock className="w-3.5 h-3.5 text-[#23C45E]" /> Permanent Access Token *
+                  <label className="block text-xs font-semibold text-slate-800 mb-2">
+                    WhatsApp Business Account ID
                   </label>
-                  <div className="relative">
+                  <input
+                    type="text"
+                    value={whatsappBusinessAccountId}
+                    onChange={(e) => setWhatsappBusinessAccountId(e.target.value)}
+                    placeholder="1585695696450414"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs font-medium focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E] focus:outline-none transition-all placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Meta Access Token */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="text-xs font-semibold text-slate-800">
+                    Meta Access Token
+                  </label>
+                  {hasExistingWhatsappToken && (
+                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold border border-emerald-200">
+                      <Check className="w-3 h-3 text-emerald-600" /> Saved
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showWhatsappKey ? 'text' : 'password'}
+                    value={whatsappApiKey}
+                    onChange={(e) => setWhatsappApiKey(e.target.value)}
+                    placeholder={hasExistingWhatsappToken ? 'Leave blank to keep existing token' : 'Enter permanent Meta Access Token (EAAG...)'}
+                    className="w-full pl-4 pr-11 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs font-mono font-medium focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E] focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-sans"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowWhatsappKey(!showWhatsappKey)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                    title={showWhatsappKey ? 'Hide token' : 'Show token'}
+                  >
+                    {showWhatsappKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5 font-normal">
+                  Token is stored securely on the server and never exposed to the browser.
+                </p>
+              </div>
+
+              {/* Row 3: API Version & Webhook Verify Token */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-2">
+                    API Version
+                  </label>
+                  <input
+                    type="text"
+                    value={whatsappApiVersion}
+                    onChange={(e) => setWhatsappApiVersion(e.target.value)}
+                    placeholder="v18.0"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs font-medium focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E] focus:outline-none transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-2">
+                    Webhook Verify Token
+                  </label>
+                  <input
+                    type="text"
+                    value={whatsappVerifyToken}
+                    onChange={(e) => setWhatsappVerifyToken(e.target.value)}
+                    placeholder="3f4e429cbf154b82ca819b5af5bc046110d18f336db6627a"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs font-mono font-medium focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E] focus:outline-none transition-all placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              {/* Row 4: Webhook URL with Copy button */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-2">
+                  Webhook URL <span className="text-slate-400 font-normal">(copy this into Meta Dashboard)</span>
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    readOnly
+                    value="https://api.qbapp.online/api/v1/webhooks/whatsapp"
+                    className="w-full pl-4 pr-12 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-slate-700 text-xs font-mono select-all focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCopyWebhookUrl('https://api.qbapp.online/api/v1/webhooks/whatsapp')}
+                    className="absolute right-2 px-2.5 py-1 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                    title="Copy Webhook URL"
+                  >
+                    {copiedWebhookUrl ? (
+                      <Check className="w-4 h-4 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Section: Auto-Subscribe Webhook Credentials */}
+              <div className="pt-2 space-y-4">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900">Auto-Subscribe Webhook Credentials</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5 font-normal">
+                    Sirf &quot;Subscribe Messages&quot; button use karne ke liye chahiye — Meta App Dashboard → Settings → Basic mein milega.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-800 mb-2">
+                      App ID
+                    </label>
                     <input
-                      type={showWhatsappKey ? 'text' : 'password'}
-                      required
-                      value={whatsappApiKey}
-                      onChange={(e) => setWhatsappApiKey(e.target.value)}
-                      placeholder="EAAG..."
-                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:border-transparent focus:outline-none font-semibold text-xs"
+                      type="text"
+                      value={whatsappAppId}
+                      onChange={(e) => setWhatsappAppId(e.target.value)}
+                      placeholder="1446083643979885"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs font-medium focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E] focus:outline-none transition-all placeholder:text-slate-400"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowWhatsappKey(!showWhatsappKey)}
-                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                      title={showWhatsappKey ? 'Hide key' : 'Show key'}
-                    >
-                      {showWhatsappKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-xs font-semibold text-slate-800">
+                        App Secret
+                      </label>
+                      {hasExistingWhatsappAppSecret && (
+                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-semibold border border-emerald-200">
+                          <Check className="w-3 h-3 text-emerald-600" /> Saved
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showWhatsappAppSecret ? 'text' : 'password'}
+                        value={whatsappAppSecret}
+                        onChange={(e) => setWhatsappAppSecret(e.target.value)}
+                        placeholder={hasExistingWhatsappAppSecret ? 'Leave blank to keep existing' : 'Enter Meta App Secret'}
+                        className="w-full pl-4 pr-11 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs font-mono font-medium focus:ring-2 focus:ring-[#22C55E]/30 focus:border-[#22C55E] focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-sans"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowWhatsappAppSecret(!showWhatsappAppSecret)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        title={showWhatsappAppSecret ? 'Hide secret' : 'Show secret'}
+                      >
+                        {showWhatsappAppSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSavingWhatsapp}
+                    className="inline-flex items-center gap-2 bg-[#22C55E] hover:bg-[#16A34A] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingWhatsapp ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" /> Save Settings
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSubscribeWhatsapp}
+                    disabled={isSubscribingWhatsapp || !whatsappBusinessAccountId.trim()}
+                    className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs border border-slate-200 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubscribingWhatsapp ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[#22C55E]" /> Subscribing...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 text-emerald-600" /> Subscribe Messages
+                      </>
+                    )}
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleTestWhatsapp}
-                  disabled={isTestingWhatsapp || !whatsappApiKey.trim() || !whatsappPhoneNumberId.trim()}
-                  className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer disabled:opacity-50 border border-slate-200"
+                  disabled={isTestingWhatsapp || !whatsappPhoneNumberId.trim()}
+                  className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3.5 py-2 rounded-xl font-semibold text-xs transition-colors cursor-pointer disabled:opacity-40"
                 >
                   {isTestingWhatsapp ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-[#23C45E]" /> Testing WhatsApp API...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22C55E]" /> Testing...
                     </>
                   ) : (
                     <>
-                      <RefreshCw className="w-4 h-4 text-slate-600" /> Test WhatsApp API
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={isSavingWhatsapp}
-                  className="inline-flex items-center gap-2 bg-[#23C45E] hover:bg-[#1AA14D] text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isSavingWhatsapp ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" /> Save WhatsApp Settings
+                      <RefreshCw className="w-3.5 h-3.5 text-slate-500" /> Test Connection
                     </>
                   )}
                 </button>
