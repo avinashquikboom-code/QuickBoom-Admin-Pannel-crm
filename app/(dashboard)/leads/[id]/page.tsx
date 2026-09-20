@@ -32,7 +32,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, LeadStageEmailDrawer } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -93,6 +93,14 @@ export default function LeadDetailPage() {
   const [isConvertOpen, setIsConvertOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isSendingDetails, setIsSendingDetails] = useState(false);
+
+  // Lead Stage Email Drawer state
+  const [stageEmailDrawerState, setStageEmailDrawerState] = useState<{
+    isOpen: boolean;
+    lead: any;
+    previousStageName: string;
+    newStage: any;
+  } | null>(null);
 
   // Follow-up form
   const [followUpOutcome, setFollowUpOutcome] = useState('Interested');
@@ -186,8 +194,32 @@ function isDetailsSendStage(lead: any): boolean {
 
   // Update Status / Stage Mutation
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ stageId, status }: { stageId?: number; status?: string }) => {
-      return api.patch(`/leads/${id}/status`, { stageId, status });
+    mutationFn: async ({
+      stageId,
+      status,
+      notes,
+      sendEmail,
+      templateId,
+      customSubject,
+      customBody,
+    }: {
+      stageId?: number;
+      status?: string;
+      notes?: string;
+      sendEmail?: boolean;
+      templateId?: number;
+      customSubject?: string;
+      customBody?: string;
+    }) => {
+      return api.patch(`/leads/${id}/status`, {
+        stageId,
+        status,
+        notes,
+        sendEmail,
+        templateId,
+        customSubject,
+        customBody,
+      });
     },
     onSuccess: () => {
       toast.success('Lead status updated!');
@@ -614,8 +646,15 @@ function isDetailsSendStage(lead: any): boolean {
                 const selectedId = e.target.value;
                 const matchedStage = allStages.find((s: any) => String(s.id) === String(selectedId));
                 if (matchedStage) {
-                  updateStatusMutation.mutate({
-                    stageId: Number(matchedStage.id),
+                  const currentStageId = lead.stageId ? String(lead.stageId) : lead.stage?.id ? String(lead.stage.id) : null;
+                  if (currentStageId && String(currentStageId) === String(matchedStage.id)) return;
+
+                  const previousStageName = lead.stage?.name || lead.stage?.label || lead.status || 'Current Stage';
+                  setStageEmailDrawerState({
+                    isOpen: true,
+                    lead,
+                    previousStageName,
+                    newStage: matchedStage,
                   });
                 }
               }}
@@ -1125,6 +1164,30 @@ function isDetailsSendStage(lead: any): boolean {
         defaultSubject={`Following up: ${company}`}
         onSuccess={() => {
           refetch();
+        }}
+      />
+
+      <LeadStageEmailDrawer
+        isOpen={Boolean(stageEmailDrawerState?.isOpen)}
+        onClose={() => setStageEmailDrawerState(null)}
+        lead={stageEmailDrawerState?.lead || null}
+        previousStageName={stageEmailDrawerState?.previousStageName || 'Current Stage'}
+        newStage={stageEmailDrawerState?.newStage || null}
+        isSubmitting={updateStatusMutation.isPending}
+        onConfirm={async ({ sendEmail, templateId, customSubject, customBody }) => {
+          if (!stageEmailDrawerState?.newStage) return;
+          try {
+            await updateStatusMutation.mutateAsync({
+              stageId: Number(stageEmailDrawerState.newStage.id),
+              sendEmail,
+              templateId,
+              customSubject,
+              customBody,
+            });
+            setStageEmailDrawerState(null);
+          } catch {
+            // error handled by mutation onError
+          }
         }}
       />
     </div>

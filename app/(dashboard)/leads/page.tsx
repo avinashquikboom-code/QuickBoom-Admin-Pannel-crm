@@ -59,6 +59,7 @@ import {
   AdminConfirmDialog,
   AdminSearchInput,
   AdminPagination,
+  LeadStageEmailDrawer,
 } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
@@ -399,6 +400,14 @@ export default function LeadsPage() {
   const [googleLocation, setGoogleLocation] = useState('');
   const [placesResults, setPlaceResults] = useState<any[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+
+  // Lead Stage Email Drawer state
+  const [stageEmailDrawerState, setStageEmailDrawerState] = useState<{
+    isOpen: boolean;
+    lead: any;
+    previousStageName: string;
+    newStage: any;
+  } | null>(null);
 
   // 1. Fetch Real Leads List
   const { data: leadsResponse, isLoading: isLoadingLeads, refetch } = useQuery({
@@ -771,12 +780,32 @@ export default function LeadsPage() {
 
   // Status Change Mutation
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ stageId, status, notes }: { stageId?: number; status?: string; notes?: string }) => {
+    mutationFn: async ({
+      stageId,
+      status,
+      notes,
+      sendEmail,
+      templateId,
+      customSubject,
+      customBody,
+    }: {
+      stageId?: number;
+      status?: string;
+      notes?: string;
+      sendEmail?: boolean;
+      templateId?: number;
+      customSubject?: string;
+      customBody?: string;
+    }) => {
       if (!selectedLeadId) return;
       return api.patch(`/leads/${selectedLeadId}/status`, {
         stageId,
         status,
         notes,
+        sendEmail,
+        templateId,
+        customSubject,
+        customBody,
       });
     },
     onSuccess: (res: any) => {
@@ -1747,8 +1776,15 @@ export default function LeadsPage() {
                             const selectedId = e.target.value;
                             const matchedStage = allStagesForDropdown.find((s: any) => String(s.id) === String(selectedId));
                             if (matchedStage) {
-                              updateStatusMutation.mutate({
-                                stageId: Number(matchedStage.id),
+                              const currentStageId = leadDetail.stageId ? String(leadDetail.stageId) : leadDetail.stage?.id ? String(leadDetail.stage.id) : null;
+                              if (currentStageId && String(currentStageId) === String(matchedStage.id)) return;
+
+                              const previousStageName = leadDetail.stage?.name || leadDetail.stage?.title || leadDetail.status || 'Current Stage';
+                              setStageEmailDrawerState({
+                                isOpen: true,
+                                lead: leadDetail,
+                                previousStageName,
+                                newStage: matchedStage,
                               });
                             }
                           }}
@@ -2782,6 +2818,30 @@ export default function LeadsPage() {
         recordType="lead"
         recordId={emailRecipient.id}
         defaultSubject={`Inquiry from ${emailRecipient.name || 'QuickBoom CRM'}`}
+      />
+
+      <LeadStageEmailDrawer
+        isOpen={Boolean(stageEmailDrawerState?.isOpen)}
+        onClose={() => setStageEmailDrawerState(null)}
+        lead={stageEmailDrawerState?.lead || null}
+        previousStageName={stageEmailDrawerState?.previousStageName || 'Current Stage'}
+        newStage={stageEmailDrawerState?.newStage || null}
+        isSubmitting={updateStatusMutation.isPending}
+        onConfirm={async ({ sendEmail, templateId, customSubject, customBody }) => {
+          if (!stageEmailDrawerState?.newStage) return;
+          try {
+            await updateStatusMutation.mutateAsync({
+              stageId: Number(stageEmailDrawerState.newStage.id),
+              sendEmail,
+              templateId,
+              customSubject,
+              customBody,
+            });
+            setStageEmailDrawerState(null);
+          } catch {
+            // error handled by mutation onError
+          }
+        }}
       />
     </div>
   );

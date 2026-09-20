@@ -30,6 +30,7 @@ export * from './drawers/ContactDetailsDrawer';
 export * from './drawers/DealDetailsDrawer';
 export * from './drawers/TaskDetailsDrawer';
 export * from './drawers/VisitDetailsDrawer';
+export * from './drawers/LeadStageEmailDrawer';
 
 // States
 export * from './states/AdminEmptyState';
