@@ -278,6 +278,7 @@ export function LeadStageEmailDrawer({
                     sendEmail: true,
                     templateId: matchedTemplate.id,
                     customSubject: renderedSubject,
+                    customBody: renderedBodyHtml,
                   })
                 }
                 disabled={isSubmitting}
