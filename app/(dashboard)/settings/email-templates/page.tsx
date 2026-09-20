@@ -27,6 +27,7 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { AdminFormDrawer } from '@/components/admin/dialogs/AdminFormDrawer';
 
 interface EmailTemplate {
   id: number;
@@ -53,10 +54,14 @@ const CATEGORIES = [
 ];
 
 const COMMON_VARIABLES = [
+  'customerName',
   'companyName',
+  'leadTitle',
+  'contactEmail',
+  'supportPhone',
   'userName',
-  'otp',
   'email',
+  'otp',
   'resetLink',
   'loginUrl',
   'temporaryPassword',
@@ -65,11 +70,13 @@ const COMMON_VARIABLES = [
   'startDate',
   'endDate',
   'approverName',
-  'leadTitle',
+  'remarks',
   'leadContact',
   'leadPhone',
   'leadCity',
   'leadValue',
+  'companyLogoUrl',
+  'primaryColor',
 ];
 
 export default function EmailTemplatesPage() {
@@ -229,10 +236,9 @@ export default function EmailTemplatesPage() {
     setIsEditModalOpen(true);
   };
 
-  // Open Preview Modal
+  // Open Preview in Right-side Drawer
   const handleOpenPreview = (template: EmailTemplate) => {
-    setSelectedTemplate(template);
-    setIsPreviewModalOpen(true);
+    handleOpenEdit(template);
   };
 
   // Open Test Send Modal
@@ -283,7 +289,11 @@ export default function EmailTemplatesPage() {
   // Safe sample preview renderer
   const renderInterpolatedPreview = (text: string) => {
     const sampleVars: Record<string, string> = {
+      customerName: 'Acme Technologies Ltd',
       companyName: 'QuickBoom Technologies',
+      leadTitle: 'Acme Technologies Ltd',
+      contactEmail: 'billing@acme.com',
+      supportPhone: '+91 8000 123 456',
       userName: 'Alex Smith',
       otp: '748291',
       email: 'alex.smith@example.com',
@@ -298,7 +308,6 @@ export default function EmailTemplatesPage() {
       remarks: 'Approved as discussed in 1-on-1 meeting.',
       rejectionReason: 'Urgent sprint deployment scheduled.',
       recipientName: 'Vikram Patel',
-      leadTitle: 'Apex Retail Solutions Ltd',
       leadContact: 'Vikram Patel',
       leadPhone: '+91 98765 43210',
       leadCity: 'Mumbai',
@@ -306,15 +315,47 @@ export default function EmailTemplatesPage() {
       leadNotes: 'Enterprise CRM implementation request.',
       primaryColor: '#16A34A',
       logoUrl: 'https://admin.qbapp.online/logo.png',
+      companyLogoUrl: 'https://admin.qbapp.online/logo.png',
+      companyLogo: 'https://admin.qbapp.online/logo.png',
+      logo: 'https://admin.qbapp.online/logo.png',
     };
 
-    const interpolated = text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, v) => sampleVars[v] || match);
+    let interpolated = text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, v) => sampleVars[v] || match);
     // Replace CID image references with public absolute HTTPS logo and dynamic primary color
-    return interpolated
+    interpolated = interpolated
       .replace(/cid:quikboom-logo/g, 'https://admin.qbapp.online/logo.png')
       .replace(/src=["']\/logo\.png["']/g, 'src="https://admin.qbapp.online/logo.png"')
       .replace(/src=["']\/app_logo\.png["']/g, 'src="https://admin.qbapp.online/logo.png"')
+      .replace(/src=["']logo\.png["']/g, 'src="https://admin.qbapp.online/logo.png"')
+      .replace(/src=["']app_logo\.png["']/g, 'src="https://admin.qbapp.online/logo.png"')
       .replace(/linear-gradient\(135deg,\s*#0f172a,\s*#1e293b\)/g, '#16A34A');
+
+    // If template body has no HTML header or tags, wrap with branded layout preview
+    if (
+      !interpolated.includes('<html') &&
+      !interpolated.includes('<!DOCTYPE') &&
+      !interpolated.includes('<body') &&
+      !interpolated.includes('class="email-header"')
+    ) {
+      return `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+        <div style="background-color: #16A34A; padding: 20px 24px; text-align: center; color: #ffffff;">
+          <img src="https://admin.qbapp.online/logo.png" alt="QuickBoom Technologies" width="140" style="display: block; width: 140px; max-width: 100%; height: auto; margin: 0 auto 8px; border: 0;" />
+          <h2 style="margin: 0; font-size: 16px; font-weight: 800; color: #ffffff;">QuickBoom Technologies</h2>
+        </div>
+        <div style="padding: 24px; font-size: 14px; line-height: 1.6; color: #334155;">
+          ${
+            interpolated.includes('<p') || interpolated.includes('<div')
+              ? interpolated
+              : interpolated
+                  .split(/\n\n+/)
+                  .map((p) => `<p style="margin: 0 0 12px;">${p.replace(/\n/g, '<br/>')}</p>`)
+                  .join('')
+          }
+        </div>
+      </div>`;
+    }
+
+    return interpolated;
   };
 
   // Stats Counters
@@ -610,246 +651,215 @@ export default function EmailTemplatesPage() {
         </div>
       )}
 
-      {/* CREATE / EDIT MODAL */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                  <Mail className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-slate-900">
-                    {formData.id > 0 ? `Edit Template: ${formData.name}` : 'Create New Email Template'}
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Configure template content and dynamic &#123;&#123;placeholders&#125;&#125;
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="p-2 hover:bg-slate-200/70 rounded-xl text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Form Body */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                saveMutation.mutate(formData);
-              }}
-              className="p-6 overflow-y-auto space-y-4 flex-1"
+      {/* ================= EDIT / CREATE RIGHT-SIDE SHEET ================= */}
+      <AdminFormDrawer
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={formData.id > 0 ? 'Edit Email Template' : 'Create Email Template'}
+        description={formData.name || 'Configure template content and dynamic variables'}
+        icon={Mail}
+        maxWidth="sm:max-w-[650px] lg:max-w-[750px] w-full"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="px-4 py-2.5 border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Template Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g. Email OTP Verification"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  />
-                </div>
+              Cancel
+            </button>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Identifier Key <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={selectedTemplate?.isSystem}
-                    value={formData.key}
-                    onChange={(e) =>
-                      setFormData({ ...formData, key: e.target.value.toUpperCase().replace(/[\s-]+/g, '_') })
-                    }
-                    placeholder="e.g. EMAIL_OTP"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs font-bold focus:ring-2 focus:ring-blue-400 focus:outline-none disabled:opacity-60"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
-                  >
-                    <option value="AUTH">Authentication (AUTH)</option>
-                    <option value="HR">HR & Onboarding (HR)</option>
-                    <option value="LEAVE">Leaves & Attendance (LEAVE)</option>
-                    <option value="CRM">CRM & Leads (CRM)</option>
-                    <option value="GENERAL">General System (GENERAL)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
-                  <div className="flex items-center gap-3 pt-2">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={formData.isActive}
-                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                        className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
-                      />
-                      Active Template (Dispatched on trigger)
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Email Subject <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  placeholder="e.g. Your OTP for {{companyName}}"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="e.g. Verification code dispatched for customer login or password recovery"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
-
-              {/* Variable Helper Palette */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">Insert Dynamic Placeholder</label>
-                  <span className="text-[10px] text-slate-400">Click any chip to insert into body</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  {COMMON_VARIABLES.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => handleInsertVariable(v)}
-                      className="px-2 py-1 bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 rounded-lg text-[11px] font-mono font-bold transition-colors cursor-pointer shadow-2xs"
-                    >
-                      + &#123;&#123;{v}&#125;&#125;
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Email Body (HTML / Text) <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={9}
-                  value={formData.body}
-                  onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs font-medium focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
-
-              {/* Modal Footer */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+            <div className="flex items-center gap-2.5">
+              {formData.id > 0 && (
                 <button
                   type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2.5 border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  onClick={() => handleOpenTestSend({ ...selectedTemplate, ...formData } as any)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl transition-all border border-blue-200 cursor-pointer"
                 >
-                  Cancel
+                  <Send className="w-3.5 h-3.5 text-blue-600" /> Test Send
                 </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => saveMutation.mutate(formData)}
+                disabled={saveMutation.isPending || !formData.name.trim() || !formData.subject.trim() || !formData.body.trim()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#1AA14D] hover:bg-[#168940] text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              >
+                {saveMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                ) : (
+                  <><CheckCircle2 className="w-4 h-4 text-emerald-200" /> Save Changes</>
+                )}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveMutation.mutate(formData);
+          }}
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Template Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. Customer Welcome & Website"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-400 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Identifier Key <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                disabled={selectedTemplate?.isSystem}
+                value={formData.key}
+                onChange={(e) =>
+                  setFormData({ ...formData, key: e.target.value.toUpperCase().replace(/[\s-]+/g, '_') })
+                }
+                placeholder="e.g. CUSTOMER_WELCOME"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs font-bold focus:ring-2 focus:ring-emerald-400 focus:outline-none disabled:opacity-60"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+              >
+                <option value="AUTH">Authentication (AUTH)</option>
+                <option value="HR">HR & Onboarding (HR)</option>
+                <option value="LEAVE">Leaves & Attendance (LEAVE)</option>
+                <option value="CRM">CRM & Leads (CRM)</option>
+                <option value="GENERAL">General System (GENERAL)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
+              <div className="flex items-center gap-3 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                  />
+                  Active Template (Dispatched on trigger)
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Email Subject <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              placeholder="e.g. Welcome to {{companyName}}, {{customerName}}!"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-400 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
+            <input
+              type="text"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="e.g. Automated notification dispatched upon customer onboarding"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-400 focus:outline-none"
+            />
+          </div>
+
+          {/* Dynamic Variables Helper Palette */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-700">Insert Dynamic Placeholder</label>
+              <span className="text-[10px] text-slate-400">Click any variable chip to insert</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl max-h-28 overflow-y-auto">
+              {COMMON_VARIABLES.map((v) => (
                 <button
-                  type="submit"
-                  disabled={saveMutation.isPending}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  key={v}
+                  type="button"
+                  onClick={() => handleInsertVariable(v)}
+                  className="px-2 py-1 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 rounded-lg text-[11px] font-mono font-bold transition-colors cursor-pointer shadow-2xs"
                 >
-                  {saveMutation.isPending ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                  ) : (
-                    <><CheckCircle2 className="w-4 h-4 text-emerald-400" /> Save Template</>
-                  )}
+                  + &#123;&#123;{v}&#125;&#125;
                 </button>
-              </div>
-            </form>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* PREVIEW MODAL */}
-      {isPreviewModalOpen && selectedTemplate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div>
-                <h3 className="text-sm font-black text-slate-900">Live Email Preview</h3>
-                <p className="text-xs text-slate-500 font-medium">Rendered with sample values</p>
+          {/* Email Body Editor */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">
+                Email Body (HTML / Text) <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">Supports rich HTML & dynamic variables</span>
+            </div>
+            <textarea
+              required
+              rows={8}
+              value={formData.body}
+              onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs font-medium focus:ring-2 focus:ring-emerald-400 focus:outline-none leading-relaxed"
+            />
+          </div>
+
+          {/* Integrated Live Email Preview Inside Right-Side Sheet */}
+          <div className="space-y-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-[#23C45E]" />
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Live Email Preview</h3>
               </div>
-              <button
-                onClick={() => setIsPreviewModalOpen(false)}
-                className="p-2 hover:bg-slate-200/70 rounded-xl text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-bold border border-emerald-200/60">
+                Real-Time Sample Data
+              </span>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-4 flex-1">
-              <div className="bg-slate-100/70 p-3 rounded-xl border border-slate-200 text-xs">
-                <p className="text-slate-500 font-bold text-[11px]">SUBJECT:</p>
-                <p className="text-slate-900 font-extrabold mt-0.5">
-                  {renderInterpolatedPreview(selectedTemplate.subject)}
-                </p>
-              </div>
-
-              <div className="border border-slate-200 rounded-2xl p-4 bg-white shadow-xs">
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: renderInterpolatedPreview(selectedTemplate.body),
-                  }}
-                  className="prose max-w-none text-xs"
-                />
-              </div>
+            <div className="bg-slate-100/80 p-3 rounded-xl border border-slate-200 text-xs">
+              <span className="text-slate-400 font-bold text-[10px] uppercase block">Rendered Subject:</span>
+              <p className="text-slate-900 font-extrabold mt-0.5">
+                {renderInterpolatedPreview(formData.subject || 'Subject will appear here')}
+              </p>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  setIsPreviewModalOpen(false);
-                  handleOpenTestSend(selectedTemplate);
+            <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/70 shadow-inner overflow-hidden">
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: renderInterpolatedPreview(formData.body || '<p class="text-slate-400 italic">Email body is empty...</p>'),
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" /> Test Send This Template
-              </button>
-              <button
-                onClick={() => setIsPreviewModalOpen(false)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-all cursor-pointer"
-              >
-                Close
-              </button>
+                className="text-xs bg-white p-5 rounded-xl border border-slate-200 shadow-xs prose max-w-none"
+              />
             </div>
           </div>
-        </div>
-      )}
+        </form>
+      </AdminFormDrawer>
 
       {/* TEST SEND MODAL */}
       {isTestSendModalOpen && selectedTemplate && (
