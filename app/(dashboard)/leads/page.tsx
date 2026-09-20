@@ -1349,23 +1349,6 @@ export default function LeadsPage() {
                           </button>
 
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSendLeadDetails(lead);
-                            }}
-                            disabled={sendingLeadId === lead.id}
-                            className="p-2 hover:bg-blue-50 rounded-xl text-slate-500 hover:text-blue-600 transition-colors cursor-pointer disabled:opacity-50"
-                            title="Send Details"
-                            aria-label="Send Details"
-                          >
-                            {sendingLeadId === lead.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                            ) : (
-                              <Mail className="w-4 h-4" />
-                            )}
-                          </button>
-
-                          <button
                             onClick={() => handleOpenFollowUp(lead)}
                             className="p-2 hover:bg-emerald-50 rounded-xl text-slate-500 hover:text-[#1AA14D] transition-colors cursor-pointer"
                             title="Log Follow-up"
