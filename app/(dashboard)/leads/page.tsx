@@ -60,6 +60,7 @@ import {
   AdminSearchInput,
   AdminPagination,
   LeadStageEmailDrawer,
+  WhatsAppIcon,
 } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
@@ -401,12 +402,14 @@ export default function LeadsPage() {
   const [placesResults, setPlaceResults] = useState<any[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
 
-  // Lead Stage Email Drawer state
+  // Lead Stage Email / Communication Drawer state
   const [stageEmailDrawerState, setStageEmailDrawerState] = useState<{
     isOpen: boolean;
     lead: any;
-    previousStageName: string;
-    newStage: any;
+    previousStageName?: string;
+    newStage?: any;
+    initialChannel?: 'EMAIL' | 'WHATSAPP';
+    isDirectSend?: boolean;
   } | null>(null);
 
   // 1. Fetch Real Leads List
@@ -1777,6 +1780,8 @@ export default function LeadsPage() {
                                 lead: leadDetail,
                                 previousStageName,
                                 newStage: matchedStage,
+                                initialChannel: 'EMAIL',
+                                isDirectSend: false,
                               });
                             }
                           }}
@@ -1826,14 +1831,34 @@ export default function LeadsPage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         {leadDetail.phone && (
-                          <div className="flex items-center gap-2">
-                            <Phone className="w-3.5 h-3.5 text-[#23C45E] shrink-0" />
-                            <a
-                              href={`tel:${leadDetail.phone}`}
-                              className="font-bold text-slate-800 hover:text-[#1AA14D] hover:underline"
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Phone className="w-3.5 h-3.5 text-[#23C45E] shrink-0" />
+                              <a
+                                href={`tel:${leadDetail.phone}`}
+                                className="font-bold text-slate-800 hover:text-[#1AA14D] hover:underline truncate"
+                              >
+                                {leadDetail.phone}
+                              </a>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStageEmailDrawerState({
+                                  isOpen: true,
+                                  lead: leadDetail,
+                                  previousStageName: leadDetail.stage?.name || leadDetail.status || 'Current Stage',
+                                  newStage: leadDetail.stage || { id: leadDetail.stageId || 0, name: leadDetail.status || 'Current Stage' },
+                                  initialChannel: 'WHATSAPP',
+                                  isDirectSend: true,
+                                });
+                              }}
+                              className="p-1.5 hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 rounded-lg transition-colors cursor-pointer shrink-0"
+                              title="Send WhatsApp Message"
+                              aria-label="Send WhatsApp Message"
                             >
-                              {leadDetail.phone}
-                            </a>
+                              <WhatsAppIcon className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         )}
 
@@ -1847,17 +1872,21 @@ export default function LeadsPage() {
                             </div>
                             <button
                               type="button"
-                              onClick={() => handleSendLeadDetails(leadDetail)}
-                              disabled={sendingLeadId === leadDetail.id}
-                              className="p-1.5 hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded-lg transition-colors cursor-pointer shrink-0 disabled:opacity-50"
-                              title="Send Details"
-                              aria-label="Send Details"
+                              onClick={() => {
+                                setStageEmailDrawerState({
+                                  isOpen: true,
+                                  lead: leadDetail,
+                                  previousStageName: leadDetail.stage?.name || leadDetail.status || 'Current Stage',
+                                  newStage: leadDetail.stage || { id: leadDetail.stageId || 0, name: leadDetail.status || 'Current Stage' },
+                                  initialChannel: 'EMAIL',
+                                  isDirectSend: true,
+                                });
+                              }}
+                              className="p-1.5 hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded-lg transition-colors cursor-pointer shrink-0"
+                              title="Send Email"
+                              aria-label="Send Email"
                             >
-                              {sendingLeadId === leadDetail.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Mail className="w-3.5 h-3.5" />
-                              )}
+                              <Mail className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
@@ -2818,6 +2847,8 @@ export default function LeadsPage() {
         lead={stageEmailDrawerState?.lead || null}
         previousStageName={stageEmailDrawerState?.previousStageName || 'Current Stage'}
         newStage={stageEmailDrawerState?.newStage || null}
+        initialChannel={stageEmailDrawerState?.initialChannel || 'EMAIL'}
+        isDirectSend={Boolean(stageEmailDrawerState?.isDirectSend)}
         isSubmitting={updateStatusMutation.isPending}
         onConfirm={async ({
           sendEmail,

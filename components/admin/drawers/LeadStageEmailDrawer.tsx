@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Mail,
   ArrowRight,
@@ -15,8 +15,10 @@ import {
   Check,
   Clock,
   ExternalLink,
+  RotateCcw,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { AdminFormDrawer } from '../dialogs/AdminFormDrawer';
@@ -40,6 +42,7 @@ export interface WhatsAppStageTemplate {
   key: string;
   templateName: string;
   title: string;
+  name?: string;
   body: string;
 }
 
@@ -62,9 +65,11 @@ export interface LeadStageEmailDrawerProps {
     customer?: any | null;
     nextFollowUpDate?: string | null;
     nextFollowUpTime?: string | null;
+    assignedTo?: { firstName?: string | null; lastName?: string | null; [key: string]: any } | null;
+    [key: string]: any;
   } | null;
-  previousStageName: string;
-  newStage: {
+  previousStageName?: string;
+  newStage?: {
     id: number | string;
     name: string;
     key?: string;
@@ -72,7 +77,9 @@ export interface LeadStageEmailDrawerProps {
     bgColor?: string;
     borderColor?: string;
   } | null;
-  onConfirm: (options: {
+  initialChannel?: 'EMAIL' | 'WHATSAPP';
+  isDirectSend?: boolean;
+  onConfirm?: (options: {
     sendEmail: boolean;
     sendWhatsapp?: boolean;
     templateId?: number;
@@ -88,20 +95,20 @@ export interface LeadStageEmailDrawerProps {
 const STAGE_KEY_TO_EMAIL_TEMPLATE_KEY: Record<string, string> = {
   NEW: 'QUIKBOOM_NEW_LEAD',
   CONTACTED: 'QUIKBOOM_CONTACTED',
+  QUALIFIED: 'QUIKBOOM_QUALIFIED',
+  PROPOSAL: 'QUIKBOOM_PROPOSAL_SENT',
+  PROPOSAL_SENT: 'QUIKBOOM_PROPOSAL_SENT',
+  NEGOTIATION: 'QUIKBOOM_NEGOTIATION',
+  FINAL_CALL: 'QUIKBOOM_FINAL_CALL',
+  WON: 'QUIKBOOM_DEAL_WON',
+  CONVERTED: 'QUIKBOOM_DEAL_WON',
+  LOST: 'QUIKBOOM_DEAL_LOST',
+  CANCELLED: 'QUIKBOOM_DEAL_LOST',
   DETAILS_SENT: 'QUIKBOOM_DETAILS_SENT',
   FOLLOW_UP: 'QUIKBOOM_FOLLOW_UP',
   VISIT_SCHEDULED: 'QUIKBOOM_VISIT_SCHEDULED',
   VISIT: 'QUIKBOOM_VISIT_SCHEDULED',
   VISIT_DONE: 'QUIKBOOM_VISIT_DONE',
-  PROPOSAL_SENT: 'QUIKBOOM_PROPOSAL_SENT',
-  PROPOSAL: 'QUIKBOOM_PROPOSAL_SENT',
-  NEGOTIATION: 'QUIKBOOM_NEGOTIATION',
-  FINAL_CALL: 'QUIKBOOM_FINAL_CALL',
-  WON: 'QUIKBOOM_WON',
-  CONVERTED: 'QUIKBOOM_WON',
-  LOST: 'QUIKBOOM_LOST',
-  CANCELLED: 'QUIKBOOM_LOST',
-  QUALIFIED: 'QUIKBOOM_QUALIFIED',
 };
 
 // Standard WhatsApp templates for lead stages
@@ -206,8 +213,14 @@ export const WHATSAPP_STAGE_TEMPLATES: Record<string, WhatsAppStageTemplate> = {
 
 export function WhatsAppIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.456 5.711 1.457h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
     </svg>
   );
 }
@@ -216,39 +229,114 @@ export function LeadStageEmailDrawer({
   isOpen,
   onClose,
   lead,
-  previousStageName,
+  previousStageName = 'Current Stage',
   newStage,
+  initialChannel = 'EMAIL',
+  isDirectSend = false,
   onConfirm,
   isSubmitting = false,
 }: LeadStageEmailDrawerProps) {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+
   const [activeTab, setActiveTab] = useState<'EMAIL' | 'WHATSAPP'>('EMAIL');
+  const [isDirectSending, setIsDirectSending] = useState(false);
+
+  // Template selection state
+  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<number | string | null>(null);
+  const [selectedWhatsAppTemplateKey, setSelectedWhatsAppTemplateKey] = useState<string | null>(null);
+
+  // User customization overrides
+  const [customSubject, setCustomSubject] = useState<string>('');
+  const [hasUserEditedSubject, setHasUserEditedSubject] = useState<boolean>(false);
+  const [customBodyHtml, setCustomBodyHtml] = useState<string>('');
+  const [hasUserEditedBody, setHasUserEditedBody] = useState<boolean>(false);
+  const [customWhatsAppText, setCustomWhatsAppText] = useState<string>('');
+  const [hasUserEditedWhatsApp, setHasUserEditedWhatsApp] = useState<boolean>(false);
+
+  // Automatically switch tab when initialChannel changes or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      if (initialChannel) {
+        setActiveTab(initialChannel);
+      }
+      setHasUserEditedSubject(false);
+      setHasUserEditedBody(false);
+      setHasUserEditedWhatsApp(false);
+    }
+  }, [isOpen, initialChannel]);
+
+  // Fallback effective stage when newStage is not passed (e.g. direct send from contact card)
+  const effectiveStage = useMemo(() => {
+    if (newStage) return newStage;
+    if (lead?.stage) {
+      return {
+        id: lead.stage.id,
+        name: lead.stage.name || lead.stage.label || lead.status || 'Current Stage',
+        key: lead.stage.key || lead.status,
+        color: lead.stage.color || '#15803D',
+        bgColor: lead.stage.bgColor || '#ECFDF5',
+        borderColor: lead.stage.borderColor || '#A7F3D0',
+      };
+    }
+    return {
+      id: lead?.stageId || 0,
+      name: lead?.status || 'Current Stage',
+      key: lead?.status,
+      color: '#15803D',
+      bgColor: '#ECFDF5',
+      borderColor: '#A7F3D0',
+    };
+  }, [newStage, lead]);
 
   // 1. Fetch available email templates from existing CRM API
   const {
-    data: templates = [],
-    isLoading: isLoadingTemplates,
-    isError: isTemplatesError,
+    data: emailTemplates = [],
+    isLoading: isLoadingEmailTemplates,
+    isError: isEmailTemplatesError,
+    refetch: refetchEmailTemplates,
   } = useQuery<EmailTemplateItem[]>({
     queryKey: ['crm-email-templates', 'ALL'],
-    enabled: isOpen && !!newStage,
+    enabled: isOpen,
     queryFn: async () => {
       const res: any = await api.get('/email/templates');
-      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      const list = res?.data || res;
+      if (!Array.isArray(list)) return [];
+      return list.filter((t) => t.isActive !== false);
     },
   });
 
-  // 2. Resolve matching email template for newly selected stage
-  const matchedEmailTemplate = useMemo(() => {
-    if (!newStage || !templates.length) return null;
+  // 2. Fetch available WhatsApp templates (from backend /leads/whatsapp-templates with fallback)
+  const {
+    data: whatsAppTemplates = [],
+    isLoading: isLoadingWhatsAppTemplates,
+    isError: isWhatsAppTemplatesError,
+  } = useQuery<WhatsAppStageTemplate[]>({
+    queryKey: ['crm-whatsapp-templates'],
+    enabled: isOpen,
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/leads/whatsapp-templates');
+        const list = res?.data || res;
+        if (Array.isArray(list) && list.length > 0) return list;
+      } catch {
+        // graceful fallback to predefined templates
+      }
+      return Object.values(WHATSAPP_STAGE_TEMPLATES);
+    },
+    initialData: Object.values(WHATSAPP_STAGE_TEMPLATES),
+  });
 
-    const normKey = (newStage.key || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-    const normName = (newStage.name || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+  // 3. Resolve stage-matching email template
+  const stageMatchedEmailTemplate = useMemo(() => {
+    if (!emailTemplates.length) return null;
+    const normKey = (effectiveStage.key || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+    const normName = (effectiveStage.name || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
 
-    // Priority 1: Match by mapped system key
+    // Priority 1: Mapped system key
     const mappedSystemKey = STAGE_KEY_TO_EMAIL_TEMPLATE_KEY[normKey] || STAGE_KEY_TO_EMAIL_TEMPLATE_KEY[normName];
     if (mappedSystemKey) {
-      const found = templates.find(
+      const found = emailTemplates.find(
         (t) =>
           (t.identifierKey?.toUpperCase() === mappedSystemKey ||
             t.key?.toUpperCase() === mappedSystemKey) &&
@@ -258,7 +346,7 @@ export function LeadStageEmailDrawer({
     }
 
     // Priority 2: Direct key match
-    const directKeyMatch = templates.find((t) => {
+    const directKeyMatch = emailTemplates.find((t) => {
       const tKey = (t.identifierKey || t.key || '').toUpperCase();
       return (
         (tKey === normKey ||
@@ -271,24 +359,77 @@ export function LeadStageEmailDrawer({
     if (directKeyMatch) return directKeyMatch;
 
     // Priority 3: Name match
-    const nameMatch = templates.find((t) => {
+    const nameMatch = emailTemplates.find((t) => {
       const tName = (t.templateName || t.name || '').toLowerCase();
-      const sName = (newStage.name || '').toLowerCase();
+      const sName = (effectiveStage.name || '').toLowerCase();
       return (tName === sName || tName.includes(sName)) && t.isActive !== false;
     });
+    if (nameMatch) return nameMatch;
 
-    return nameMatch || null;
-  }, [newStage, templates]);
+    return emailTemplates[0] || null;
+  }, [effectiveStage, emailTemplates]);
 
-  // 3. Resolve matching WhatsApp template for newly selected stage
-  const matchedWhatsAppTemplate = useMemo(() => {
-    if (!newStage) return null;
-    const normKey = (newStage.key || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-    const normName = (newStage.name || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-    return WHATSAPP_STAGE_TEMPLATES[normKey] || WHATSAPP_STAGE_TEMPLATES[normName] || null;
-  }, [newStage]);
+  // Set default selected email template
+  useEffect(() => {
+    if (emailTemplates.length > 0) {
+      const exists = emailTemplates.some((t) => String(t.id) === String(selectedEmailTemplateId));
+      if (!exists) {
+        if (stageMatchedEmailTemplate) {
+          setSelectedEmailTemplateId(stageMatchedEmailTemplate.id);
+        } else {
+          setSelectedEmailTemplateId(emailTemplates[0].id);
+        }
+      }
+    }
+  }, [emailTemplates, stageMatchedEmailTemplate, selectedEmailTemplateId]);
 
-  // 4. Lead context variables
+  // Active email template (selected by user or stage matched)
+  const activeEmailTemplate = useMemo(() => {
+    if (!emailTemplates.length) return null;
+    if (selectedEmailTemplateId) {
+      const found = emailTemplates.find((t) => String(t.id) === String(selectedEmailTemplateId));
+      if (found) return found;
+    }
+    return stageMatchedEmailTemplate || emailTemplates[0] || null;
+  }, [emailTemplates, selectedEmailTemplateId, stageMatchedEmailTemplate]);
+
+  // 4. Resolve stage-matching WhatsApp template
+  const stageMatchedWhatsAppTemplate = useMemo(() => {
+    if (!whatsAppTemplates.length) return null;
+    const normKey = (effectiveStage.key || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+    const normName = (effectiveStage.name || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+
+    const found = whatsAppTemplates.find(
+      (t) => t.key.toUpperCase() === normKey || t.key.toUpperCase() === normName
+    );
+    return found || whatsAppTemplates[0] || null;
+  }, [effectiveStage, whatsAppTemplates]);
+
+  // Set default selected WhatsApp template
+  useEffect(() => {
+    if (whatsAppTemplates.length > 0) {
+      const exists = whatsAppTemplates.some((t) => t.key === selectedWhatsAppTemplateKey);
+      if (!exists) {
+        if (stageMatchedWhatsAppTemplate) {
+          setSelectedWhatsAppTemplateKey(stageMatchedWhatsAppTemplate.key);
+        } else {
+          setSelectedWhatsAppTemplateKey(whatsAppTemplates[0].key);
+        }
+      }
+    }
+  }, [whatsAppTemplates, stageMatchedWhatsAppTemplate, selectedWhatsAppTemplateKey]);
+
+  // Active WhatsApp template
+  const activeWhatsAppTemplate = useMemo(() => {
+    if (!whatsAppTemplates.length) return null;
+    if (selectedWhatsAppTemplateKey) {
+      const found = whatsAppTemplates.find((t) => t.key === selectedWhatsAppTemplateKey);
+      if (found) return found;
+    }
+    return stageMatchedWhatsAppTemplate || whatsAppTemplates[0] || null;
+  }, [whatsAppTemplates, selectedWhatsAppTemplateKey, stageMatchedWhatsAppTemplate]);
+
+  // 5. Lead context & formatted variables
   const leadFullName = useMemo(() => {
     if (!lead) return 'Valued Client';
     const combined = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
@@ -305,50 +446,44 @@ export function LeadStageEmailDrawer({
     ? `+91 ${cleanPhoneDigits.slice(0, 5)} ${cleanPhoneDigits.slice(5)}`
     : rawPhone;
 
-  // 5. Interpolate variables for Email & WhatsApp
-  const { renderedSubject, renderedBodyHtml, renderedWhatsAppText, renderedVariables } = useMemo(() => {
-    if (!lead || !newStage) {
-      return { renderedSubject: '', renderedBodyHtml: '', renderedWhatsAppText: '', renderedVariables: [] };
+  // 6. Interpolation logic
+  const { defaultRenderedSubject, defaultRenderedBodyHtml, defaultRenderedWhatsAppText, renderedVariables } = useMemo(() => {
+    if (!lead) {
+      return { defaultRenderedSubject: '', defaultRenderedBodyHtml: '', defaultRenderedWhatsAppText: '', renderedVariables: [] };
     }
 
-    const currentUserName =
-      `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'QuickBoom Team';
-    const currentUserEmail = user?.email || 'sales@quikboom.com';
-    const companyName =
-      lead.customer?.companyName || lead.customer?.name || 'QUIKBOOM Digital Marketing Agency';
-
     const variableMap: Record<string, string> = {
-      leadTitle: leadFullName,
       leadName: leadFullName,
-      leadEmail: recipientEmail || 'No email specified',
-      leadPhone: formattedPhone || 'No phone specified',
-      email: currentUserEmail,
-      userName: currentUserName,
-      stage: newStage.name,
-      newStage: newStage.name,
-      previousStage: previousStageName || 'New',
-      companyName,
-      startDate: lead.nextFollowUpDate
-        ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }).format(
-            new Date(lead.nextFollowUpDate)
-          )
-        : 'To be scheduled',
-      startTime: lead.nextFollowUpTime || '',
+      leadFirstName: (lead.firstName || '').trim() || leadFullName,
+      name: leadFullName,
+      customerName: leadFullName,
+      recipientName: leadFullName,
+      leadTitle: (lead.title || lead.companyName || 'your requirements').trim(),
+      email: recipientEmail,
+      phone: formattedPhone || rawPhone,
+      company: lead.companyName || 'your company',
+      companyName: lead.customer?.companyName || lead.customer?.name || lead.companyName || 'QUIKBOOM Digital Marketing Agency',
+      assignedUser: lead.assignedTo ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() : 'QuickBoom Team',
+      assignedEmployee: lead.assignedTo ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() : 'QuickBoom Team',
+      stageName: effectiveStage.name || 'Updated Stage',
+      previousStage: previousStageName || 'Previous Stage',
+      followUpDate: lead.nextFollowUpDate || 'as scheduled',
+      followUpTime: lead.nextFollowUpTime || 'soon',
+      loginUrl: 'https://quikboom.com/login',
     };
 
     const interpolate = (text: string) => {
       if (!text) return '';
-      return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => {
-        return variableMap[key] !== undefined ? variableMap[key] : match;
+      return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => {
+        return variableMap[key] !== undefined ? variableMap[key] : `{{${key}}}`;
       });
     };
 
-    // Email rendering
     let subject = '';
     let bodyHtml = '';
-    if (matchedEmailTemplate) {
-      subject = interpolate(matchedEmailTemplate.subject || 'Your Lead Status Has Been Updated');
-      const interpolatedBody = interpolate(matchedEmailTemplate.body || '');
+    if (activeEmailTemplate) {
+      subject = interpolate(activeEmailTemplate.subject || 'Your Lead Status Has Been Updated');
+      const interpolatedBody = interpolate(activeEmailTemplate.body || '');
 
       bodyHtml = interpolatedBody;
       if (!bodyHtml.includes('<html') && !bodyHtml.includes('<body') && !bodyHtml.includes('<div')) {
@@ -367,147 +502,329 @@ export function LeadStageEmailDrawer({
       bodyHtml = bodyHtml.replace(/cid:quikboom-logo/g, '/logo.png');
     }
 
-    // WhatsApp rendering
     let whatsAppText = '';
-    if (matchedWhatsAppTemplate) {
-      whatsAppText = interpolate(matchedWhatsAppTemplate.body);
+    if (activeWhatsAppTemplate) {
+      whatsAppText = interpolate(activeWhatsAppTemplate.body);
     }
 
     const injectedVars = Object.entries(variableMap)
       .filter(([key]) =>
-        (matchedEmailTemplate?.body.includes(`{{${key}}}`) || matchedEmailTemplate?.subject.includes(`{{${key}}}`)) ||
-        matchedWhatsAppTemplate?.body.includes(`{{${key}}}`)
+        (activeEmailTemplate?.body.includes(`{{${key}}}`) || activeEmailTemplate?.subject.includes(`{{${key}}}`)) ||
+        activeWhatsAppTemplate?.body.includes(`{{${key}}}`)
       )
       .map(([key, val]) => ({ key: `{{${key}}}`, value: val }));
 
     return {
-      renderedSubject: subject,
-      renderedBodyHtml: bodyHtml,
-      renderedWhatsAppText: whatsAppText,
+      defaultRenderedSubject: subject,
+      defaultRenderedBodyHtml: bodyHtml,
+      defaultRenderedWhatsAppText: whatsAppText,
       renderedVariables: injectedVars,
     };
-  }, [matchedEmailTemplate, matchedWhatsAppTemplate, lead, newStage, leadFullName, recipientEmail, formattedPhone, previousStageName, user]);
+  }, [activeEmailTemplate, activeWhatsAppTemplate, lead, effectiveStage, leadFullName, recipientEmail, formattedPhone, rawPhone, previousStageName]);
 
-  if (!isOpen || !lead || !newStage) return null;
+  const finalSubject = hasUserEditedSubject ? customSubject : defaultRenderedSubject;
+  const finalBodyHtml = hasUserEditedBody ? customBodyHtml : defaultRenderedBodyHtml;
+  const finalWhatsAppText = hasUserEditedWhatsApp ? customWhatsAppText : defaultRenderedWhatsAppText;
+
+  // Direct Send Handlers
+  const handleDirectSendEmail = async () => {
+    if (!lead?.id) return;
+    if (!hasValidEmail) {
+      toast.error('No valid recipient email address is available for this lead.');
+      return;
+    }
+    if (!finalSubject.trim()) {
+      toast.error('Subject line is required.');
+      return;
+    }
+    setIsDirectSending(true);
+    try {
+      const res: any = await api.post('/email/send', {
+        to: recipientEmail,
+        subject: finalSubject.trim(),
+        body: finalBodyHtml.trim(),
+        templateId: activeEmailTemplate?.id,
+        recordType: 'lead',
+        recordId: lead.id,
+      });
+      const data = res?.data || res;
+      if (data?.success !== false) {
+        toast.success(data?.message || `Email sent successfully to ${recipientEmail}`);
+        queryClient.invalidateQueries({ queryKey: ['lead-detail', String(lead.id)] });
+        queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', String(lead.id)] });
+        onClose();
+      } else {
+        toast.error(data?.message || 'Failed to send email.');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Could not send email.');
+    } finally {
+      setIsDirectSending(false);
+    }
+  };
+
+  const handleDirectSendWhatsApp = async () => {
+    if (!lead?.id) return;
+    if (!hasValidPhone) {
+      toast.error('No WhatsApp number is available for this lead.');
+      return;
+    }
+    if (!finalWhatsAppText.trim()) {
+      toast.error('WhatsApp message cannot be empty.');
+      return;
+    }
+    setIsDirectSending(true);
+    try {
+      const res: any = await api.post(`/leads/${lead.id}/send-whatsapp`, {
+        message: finalWhatsAppText.trim(),
+        templateName: activeWhatsAppTemplate?.templateName,
+        stageName: effectiveStage.name,
+      });
+      const data = res?.data || res;
+      if (data?.success !== false) {
+        toast.success(data?.message || `WhatsApp message sent successfully to ${formattedPhone}`);
+        queryClient.invalidateQueries({ queryKey: ['lead-detail', String(lead.id)] });
+        queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', String(lead.id)] });
+        onClose();
+      } else {
+        toast.error(data?.message || 'Failed to send WhatsApp message.');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Could not send WhatsApp message.');
+    } finally {
+      setIsDirectSending(false);
+    }
+  };
+
+  const handleDirectSendBoth = async () => {
+    if (!lead?.id) return;
+    setIsDirectSending(true);
+    try {
+      if (hasValidEmail && activeEmailTemplate) {
+        await api.post('/email/send', {
+          to: recipientEmail,
+          subject: finalSubject.trim(),
+          body: finalBodyHtml.trim(),
+          templateId: activeEmailTemplate.id,
+          recordType: 'lead',
+          recordId: lead.id,
+        }).catch((err) => console.warn('Email dispatch warning:', err));
+      }
+      if (hasValidPhone && activeWhatsAppTemplate) {
+        await api.post(`/leads/${lead.id}/send-whatsapp`, {
+          message: finalWhatsAppText.trim(),
+          templateName: activeWhatsAppTemplate.templateName,
+          stageName: effectiveStage.name,
+        }).catch((err) => console.warn('WhatsApp dispatch warning:', err));
+      }
+      toast.success('Communication dispatched via Email & WhatsApp!');
+      queryClient.invalidateQueries({ queryKey: ['lead-detail', String(lead.id)] });
+      queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', String(lead.id)] });
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to send communication.');
+    } finally {
+      setIsDirectSending(false);
+    }
+  };
+
+  if (!isOpen || !lead) return null;
+
+  const isBusy = isSubmitting || isDirectSending;
 
   return (
     <AdminFormDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="Lead Stage Communication"
-      description="Select and review communication channels for this stage transition."
+      title={isDirectSend ? 'Lead Communication' : 'Lead Stage Communication'}
+      description={
+        isDirectSend
+          ? `Select template and communicate with ${leadFullName} via Email or WhatsApp.`
+          : 'Select and review communication channels for this stage transition.'
+      }
       icon={Mail}
       maxWidth="sm:max-w-[640px]"
-      isSubmitting={isSubmitting}
+      isSubmitting={isBusy}
       footer={
         <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-3">
           <button
             type="button"
             onClick={onClose}
-            disabled={isSubmitting}
+            disabled={isBusy}
             className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer disabled:opacity-50"
           >
             Close
           </button>
 
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              type="button"
-              onClick={() => onConfirm({ sendEmail: false, sendWhatsapp: false })}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto px-3.5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-xs transition-all cursor-pointer disabled:opacity-50"
-            >
-              Skip Communication
-            </button>
+            {/* Stage Change Workflow Actions */}
+            {!isDirectSend && onConfirm && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onConfirm({ sendEmail: false, sendWhatsapp: false })}
+                  disabled={isBusy}
+                  className="w-full sm:w-auto px-3.5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Skip Communication
+                </button>
 
-            {/* Tab specific Send button */}
-            {activeTab === 'EMAIL' && matchedEmailTemplate && hasValidEmail && (
-              <button
-                type="button"
-                onClick={() =>
-                  onConfirm({
-                    sendEmail: true,
-                    sendWhatsapp: false,
-                    templateId: matchedEmailTemplate.id,
-                    customSubject: renderedSubject,
-                    customBody: renderedBodyHtml,
-                  })
-                }
-                disabled={isSubmitting}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Sending Email...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Send Email</span>
-                  </>
+                {activeTab === 'EMAIL' && activeEmailTemplate && hasValidEmail && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onConfirm({
+                        sendEmail: true,
+                        sendWhatsapp: false,
+                        templateId: activeEmailTemplate.id,
+                        customSubject: finalSubject,
+                        customBody: finalBodyHtml,
+                      })
+                    }
+                    disabled={isBusy}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isBusy ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending Email...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Send Email</span>
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+
+                {activeTab === 'WHATSAPP' && activeWhatsAppTemplate && hasValidPhone && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onConfirm({
+                        sendEmail: false,
+                        sendWhatsapp: true,
+                        whatsappMessage: finalWhatsAppText,
+                        whatsappTemplateName: activeWhatsAppTemplate.templateName,
+                      })
+                    }
+                    disabled={isBusy}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#128C7E] hover:bg-[#075E54] text-white font-black rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isBusy ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending WhatsApp...</span>
+                      </>
+                    ) : (
+                      <>
+                        <WhatsAppIcon className="w-3.5 h-3.5" />
+                        <span>Send WhatsApp</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {hasValidEmail && hasValidPhone && activeEmailTemplate && activeWhatsAppTemplate && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onConfirm({
+                        sendEmail: true,
+                        sendWhatsapp: true,
+                        templateId: activeEmailTemplate.id,
+                        customSubject: finalSubject,
+                        customBody: finalBodyHtml,
+                        whatsappMessage: finalWhatsAppText,
+                        whatsappTemplateName: activeWhatsAppTemplate.templateName,
+                      })
+                    }
+                    disabled={isBusy}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-[#128C7E] hover:from-blue-700 hover:to-[#075E54] text-white font-black rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isBusy ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Send Email & WhatsApp</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </>
             )}
 
-            {activeTab === 'WHATSAPP' && matchedWhatsAppTemplate && hasValidPhone && (
-              <button
-                type="button"
-                onClick={() =>
-                  onConfirm({
-                    sendEmail: false,
-                    sendWhatsapp: true,
-                    whatsappMessage: renderedWhatsAppText,
-                    whatsappTemplateName: matchedWhatsAppTemplate.templateName,
-                  })
-                }
-                disabled={isSubmitting}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#25D366] hover:bg-[#1EBE5D] text-slate-950 font-black rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Sending WhatsApp...</span>
-                  </>
-                ) : (
-                  <>
-                    <WhatsAppIcon className="w-3.5 h-3.5" />
-                    <span>Send WhatsApp</span>
-                  </>
+            {/* Direct Send Workflow Actions (from Contact Card click) */}
+            {isDirectSend && (
+              <>
+                {activeTab === 'EMAIL' && (
+                  <button
+                    type="button"
+                    onClick={handleDirectSendEmail}
+                    disabled={isBusy || !hasValidEmail || !activeEmailTemplate}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isBusy ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending Email...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Send Email</span>
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
 
-            {/* Combined Send Both button if both channels available */}
-            {hasValidEmail && hasValidPhone && matchedEmailTemplate && matchedWhatsAppTemplate && (
-              <button
-                type="button"
-                onClick={() =>
-                  onConfirm({
-                    sendEmail: true,
-                    sendWhatsapp: true,
-                    templateId: matchedEmailTemplate.id,
-                    customSubject: renderedSubject,
-                    customBody: renderedBodyHtml,
-                    whatsappMessage: renderedWhatsAppText,
-                    whatsappTemplateName: matchedWhatsAppTemplate.templateName,
-                  })
-                }
-                disabled={isSubmitting}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-black rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Dispatching Both...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Send Email & WhatsApp</span>
-                  </>
+                {activeTab === 'WHATSAPP' && (
+                  <button
+                    type="button"
+                    onClick={handleDirectSendWhatsApp}
+                    disabled={isBusy || !hasValidPhone || !activeWhatsAppTemplate}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#128C7E] hover:bg-[#075E54] text-white font-black rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isBusy ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending WhatsApp...</span>
+                      </>
+                    ) : (
+                      <>
+                        <WhatsAppIcon className="w-3.5 h-3.5" />
+                        <span>Send WhatsApp</span>
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+
+                {hasValidEmail && hasValidPhone && activeEmailTemplate && activeWhatsAppTemplate && (
+                  <button
+                    type="button"
+                    onClick={handleDirectSendBoth}
+                    disabled={isBusy}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-[#128C7E] hover:from-blue-700 hover:to-[#075E54] text-white font-black rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isBusy ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Send Email & WhatsApp</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -558,21 +875,25 @@ export function LeadStageEmailDrawer({
               </div>
             </div>
 
-            {/* Stage Transition Badge */}
+            {/* Stage Badge */}
             <div className="flex items-center gap-1.5 text-xs font-bold shrink-0 self-start">
-              <span className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold text-[11px]">
-                {previousStageName || 'Current Stage'}
-              </span>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              {!isDirectSend && (
+                <>
+                  <span className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold text-[11px]">
+                    {previousStageName || 'Current Stage'}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                </>
+              )}
               <span
                 className="px-2.5 py-1 rounded-lg font-black border text-[11px]"
                 style={{
-                  backgroundColor: newStage.bgColor || '#ECFDF5',
-                  borderColor: newStage.borderColor || '#A7F3D0',
-                  color: newStage.color || '#15803D',
+                  backgroundColor: effectiveStage.bgColor || '#ECFDF5',
+                  borderColor: effectiveStage.borderColor || '#A7F3D0',
+                  color: effectiveStage.color || '#15803D',
                 }}
               >
-                {newStage.name}
+                {effectiveStage.name}
               </span>
             </div>
           </div>
@@ -590,7 +911,7 @@ export function LeadStageEmailDrawer({
             }`}
           >
             <Mail className={`w-4 h-4 ${activeTab === 'EMAIL' ? 'text-blue-600' : 'text-slate-400'}`} />
-            <span>Email Notification</span>
+            <span>Email</span>
             {hasValidEmail ? (
               <span className="w-2 h-2 rounded-full bg-emerald-500" title="Email recipient available" />
             ) : (
@@ -608,7 +929,7 @@ export function LeadStageEmailDrawer({
             }`}
           >
             <WhatsAppIcon className={`w-4 h-4 ${activeTab === 'WHATSAPP' ? 'text-[#25D366]' : 'text-slate-400'}`} />
-            <span>WhatsApp Message</span>
+            <span>WhatsApp</span>
             {hasValidPhone ? (
               <span className="w-2 h-2 rounded-full bg-emerald-500" title="Phone number available" />
             ) : (
@@ -620,83 +941,121 @@ export function LeadStageEmailDrawer({
         {/* ======================= EMAIL TAB ======================= */}
         {activeTab === 'EMAIL' && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
-            {isLoadingTemplates && (
-              <div className="py-16 flex flex-col items-center justify-center space-y-3">
-                <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs font-bold text-slate-400">Locating matching email template for {newStage.name}...</p>
-              </div>
-            )}
-
-            {!isLoadingTemplates && isTemplatesError && (
-              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs space-y-1">
-                <p className="font-bold text-rose-800 flex items-center gap-1.5">
-                  <AlertCircle className="w-4 h-4 text-rose-600" />
-                  Unable to load email templates from server
-                </p>
-                <p className="text-rose-600">You can still proceed with WhatsApp or skip communication.</p>
-              </div>
-            )}
-
-            {!isLoadingTemplates && !hasValidEmail && (
+            {/* Missing email warning */}
+            {!hasValidEmail && (
               <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-1">
                 <p className="font-bold text-amber-900 flex items-center gap-1.5">
                   <AlertCircle className="w-4 h-4 text-amber-600" />
-                  No email address recorded for this lead
+                  No valid email address recorded for this lead
                 </p>
                 <p className="text-amber-700">
-                  You can update the lead's email first, or use the WhatsApp option to contact them.
+                  Please update the lead's email address in their profile to send emails.
                 </p>
               </div>
             )}
 
-            {!isLoadingTemplates && !isTemplatesError && !matchedEmailTemplate && (
-              <div className="py-12 px-6 bg-slate-50 border border-dashed border-slate-300 rounded-3xl text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto border border-slate-200">
-                  <FileQuestion className="w-6 h-6 text-slate-400" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-sm font-black text-slate-900">No email template configured for this stage.</h4>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto">
-                    No automatic email will be dispatched for stage{' '}
-                    <strong className="text-slate-800 font-bold">"{newStage.name}"</strong>.
-                  </p>
-                </div>
+            {/* Error Loading Templates */}
+            {isEmailTemplatesError && (
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs space-y-2">
+                <p className="font-bold text-rose-800 flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-rose-600" />
+                  Failed to load email templates from server
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetchEmailTemplates()}
+                  className="px-3 py-1 bg-white border border-rose-300 rounded-lg text-rose-700 font-bold hover:bg-rose-50"
+                >
+                  Retry Loading
+                </button>
               </div>
             )}
 
-            {!isLoadingTemplates && !isTemplatesError && matchedEmailTemplate && (
-              <div className="space-y-4">
-                {/* Template Envelope Header */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[10px] font-black uppercase tracking-wider">
-                        Selected Template
-                      </span>
-                      <span className="text-xs font-black text-slate-900 truncate">
-                        {matchedEmailTemplate.templateName || matchedEmailTemplate.name}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-400 shrink-0">
-                      {matchedEmailTemplate.identifierKey || matchedEmailTemplate.key}
-                    </span>
-                  </div>
+            {/* Template Selector Control */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Select Email Template</span>
+                </label>
+                {activeEmailTemplate?.category && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
+                    {activeEmailTemplate.category}
+                  </span>
+                )}
+              </div>
 
-                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-16 font-bold text-slate-400 shrink-0">To:</span>
-                      <span className="font-bold text-slate-900 truncate">{recipientEmail || '—'}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="w-16 font-bold text-slate-400 shrink-0 mt-0.5">Subject:</span>
-                      <span className="font-black text-slate-900">{renderedSubject}</span>
-                    </div>
-                  </div>
+              <select
+                value={selectedEmailTemplateId ? String(selectedEmailTemplateId) : ''}
+                onChange={(e) => {
+                  setSelectedEmailTemplateId(e.target.value);
+                  setHasUserEditedSubject(false);
+                  setHasUserEditedBody(false);
+                }}
+                disabled={isLoadingEmailTemplates || emailTemplates.length === 0}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#23C45E] transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isLoadingEmailTemplates && <option value="">Loading email templates...</option>}
+                {!isLoadingEmailTemplates && emailTemplates.length === 0 && (
+                  <option value="">No email templates configured</option>
+                )}
+                {emailTemplates.map((tpl) => (
+                  <option key={tpl.id} value={String(tpl.id)}>
+                    {tpl.templateName || tpl.name} {tpl.subject ? `— "${tpl.subject}"` : ''}
+                  </option>
+                ))}
+              </select>
+
+              {/* Recipient Details */}
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-20 font-bold text-slate-400 shrink-0">Recipient:</span>
+                  <span className="font-bold text-slate-900">{recipientEmail || '—'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-20 font-bold text-slate-400 shrink-0">Subject:</span>
+                  <input
+                    type="text"
+                    value={finalSubject}
+                    onChange={(e) => {
+                      setCustomSubject(e.target.value);
+                      setHasUserEditedSubject(true);
+                    }}
+                    placeholder="Enter email subject"
+                    className="flex-1 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                  />
+                  {hasUserEditedSubject && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHasUserEditedSubject(false);
+                        setCustomSubject('');
+                      }}
+                      title="Reset to template subject"
+                      className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-200"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Email Preview Section */}
+            {activeEmailTemplate && (
+              <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white">
+                <div className="bg-slate-100/80 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between text-xs">
+                  <span className="font-black text-slate-700 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                    Email Rendered Preview
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Template #{activeEmailTemplate.id}
+                  </span>
                 </div>
 
-                {/* Email Body Card */}
-                <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-xs space-y-4">
-                  <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
+                <div className="p-4 sm:p-5 space-y-4 max-h-[300px] overflow-y-auto">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div>
                       <h4 className="text-xs font-black text-slate-900 tracking-tight">QUIKBOOM</h4>
                       <p className="text-[10px] text-slate-400 font-medium">Digital Marketing Agency</p>
@@ -708,7 +1067,7 @@ export function LeadStageEmailDrawer({
 
                   <div
                     className="text-xs text-slate-700 leading-relaxed font-sans overflow-x-auto"
-                    dangerouslySetInnerHTML={{ __html: renderedBodyHtml }}
+                    dangerouslySetInnerHTML={{ __html: finalBodyHtml }}
                   />
 
                   <div className="pt-4 border-t border-slate-100 text-center text-[10px] text-slate-400">
@@ -717,111 +1076,143 @@ export function LeadStageEmailDrawer({
                 </div>
               </div>
             )}
+
+            {!isLoadingEmailTemplates && !activeEmailTemplate && (
+              <div className="py-12 px-6 bg-slate-50 border border-dashed border-slate-300 rounded-3xl text-center space-y-2">
+                <FileQuestion className="w-8 h-8 text-slate-400 mx-auto" />
+                <h4 className="text-sm font-black text-slate-800">No Email Templates Found</h4>
+                <p className="text-xs text-slate-500">Configure email templates under Settings &rarr; Email Templates.</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* ======================= WHATSAPP TAB ======================= */}
         {activeTab === 'WHATSAPP' && (
           <div className="space-y-4 animate-in fade-in-50 duration-150">
+            {/* Missing phone warning */}
             {!hasValidPhone && (
               <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-1">
                 <p className="font-bold text-amber-900 flex items-center gap-1.5">
                   <AlertCircle className="w-4 h-4 text-amber-600" />
-                  No valid phone number recorded for this lead
+                  No WhatsApp number is available for this lead.
                 </p>
                 <p className="text-amber-700">
-                  WhatsApp messages require an E.164 phone number. Please update the lead profile with a 10-digit mobile number.
+                  Please update the lead profile with a valid 10-digit mobile number before sending.
                 </p>
               </div>
             )}
 
-            {!matchedWhatsAppTemplate && (
-              <div className="py-12 px-6 bg-slate-50 border border-dashed border-slate-300 rounded-3xl text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto border border-slate-200">
-                  <FileQuestion className="w-6 h-6 text-slate-400" />
+            {/* Template Selector Control */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" />
+                  <span>Select WhatsApp Template</span>
+                </label>
+                {activeWhatsAppTemplate && (
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200">
+                    {activeWhatsAppTemplate.templateName}
+                  </span>
+                )}
+              </div>
+
+              <select
+                value={selectedWhatsAppTemplateKey || ''}
+                onChange={(e) => {
+                  setSelectedWhatsAppTemplateKey(e.target.value);
+                  setHasUserEditedWhatsApp(false);
+                }}
+                disabled={isLoadingWhatsAppTemplates || whatsAppTemplates.length === 0}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#23C45E] transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isLoadingWhatsAppTemplates && <option value="">Loading WhatsApp templates...</option>}
+                {whatsAppTemplates.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.title || t.name || t.key}
+                  </option>
+                ))}
+              </select>
+
+              {/* Recipient Details & Editable Message Area */}
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-20 font-bold text-slate-400 shrink-0">Recipient:</span>
+                  <span className="font-bold text-slate-900">{formattedPhone || '—'}</span>
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-sm font-black text-slate-900">No WhatsApp template configured for this stage.</h4>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto">
-                    No automatic WhatsApp message is registered for stage{' '}
-                    <strong className="text-slate-800 font-bold">"{newStage.name}"</strong>.
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-500">Customize WhatsApp Message:</span>
+                    {hasUserEditedWhatsApp && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHasUserEditedWhatsApp(false);
+                          setCustomWhatsAppText('');
+                        }}
+                        className="text-[10px] text-emerald-600 hover:text-emerald-800 font-bold flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={finalWhatsAppText}
+                    onChange={(e) => {
+                      setCustomWhatsAppText(e.target.value);
+                      setHasUserEditedWhatsApp(true);
+                    }}
+                    placeholder="Enter WhatsApp message text"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-[#23C45E] shadow-2xs resize-none"
+                  />
                 </div>
               </div>
-            )}
+            </div>
 
-            {matchedWhatsAppTemplate && (
-              <div className="space-y-4">
-                {/* Template Info Card */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-black uppercase tracking-wider">
-                        WhatsApp Template
-                      </span>
-                      <span className="text-xs font-black text-slate-900 truncate">
-                        {matchedWhatsAppTemplate.title}
-                      </span>
+            {/* WhatsApp Chat Preview Simulation */}
+            {activeWhatsAppTemplate && (
+              <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
+                {/* WhatsApp App Header */}
+                <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-xs">
+                      {leadFullName[0] || 'L'}
                     </div>
-                    <span className="text-[10px] font-mono font-bold text-slate-400 shrink-0">
-                      {matchedWhatsAppTemplate.templateName}
+                    <div>
+                      <p className="text-xs font-bold leading-tight truncate max-w-[200px]">{leadFullName}</p>
+                      <p className="text-[10px] text-emerald-200/80 leading-none mt-0.5">Online via WhatsApp</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-100">
+                    <WhatsAppIcon className="w-4 h-4" />
+                  </div>
+                </div>
+
+                {/* Chat Area with WhatsApp Texture */}
+                <div className="bg-[#ECE5DD] p-4 min-h-[160px] flex flex-col justify-end space-y-2">
+                  <div className="text-center">
+                    <span className="px-2.5 py-0.5 bg-white/80 rounded-md text-[10px] font-bold text-slate-500 shadow-2xs">
+                      TODAY
                     </span>
                   </div>
 
-                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-20 font-bold text-slate-400 shrink-0">Recipient:</span>
-                      <span className="font-bold text-slate-900">{formattedPhone || '—'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-20 font-bold text-slate-400 shrink-0">Target Stage:</span>
-                      <span className="font-black text-emerald-700">{newStage.name}</span>
+                  {/* WhatsApp Speech Bubble */}
+                  <div className="self-end max-w-[85%] bg-[#DCF8C6] text-slate-900 rounded-2xl rounded-tr-xs p-3 shadow-xs space-y-1.5">
+                    <p className="text-xs whitespace-pre-wrap leading-relaxed">
+                      {finalWhatsAppText}
+                    </p>
+                    <div className="flex items-center justify-end gap-1 text-[10px] text-slate-500 font-medium">
+                      <span>Just now</span>
+                      <span className="text-sky-500 font-bold">✓✓</span>
                     </div>
                   </div>
                 </div>
 
-                {/* WhatsApp Chat Preview Simulation */}
-                <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
-                  {/* WhatsApp App Header */}
-                  <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center font-bold text-xs">
-                        {leadFullName[0] || 'L'}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold leading-tight truncate max-w-[200px]">{leadFullName}</p>
-                        <p className="text-[10px] text-emerald-200/80 leading-none mt-0.5">Online via WhatsApp</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-100">
-                      <WhatsAppIcon className="w-4 h-4" />
-                    </div>
-                  </div>
-
-                  {/* Chat Area with Background Texture */}
-                  <div className="bg-[#ECE5DD] p-4 min-h-[160px] flex flex-col justify-end space-y-2">
-                    <div className="text-center">
-                      <span className="px-2.5 py-0.5 bg-white/80 rounded-md text-[10px] font-bold text-slate-500 shadow-2xs">
-                        TODAY
-                      </span>
-                    </div>
-
-                    {/* WhatsApp Speech Bubble */}
-                    <div className="self-end max-w-[85%] bg-[#DCF8C6] text-slate-900 rounded-2xl rounded-tr-xs p-3 shadow-xs space-y-1.5">
-                      <p className="text-xs whitespace-pre-wrap leading-relaxed">
-                        {renderedWhatsAppText}
-                      </p>
-                      <div className="flex items-center justify-end gap-1 text-[10px] text-slate-500 font-medium">
-                        <span>Just now</span>
-                        <span className="text-sky-500 font-bold">✓✓</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white px-4 py-2 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
-                    <span>Delivered via <strong>Meta WhatsApp Cloud API</strong></span>
-                    <span className="text-emerald-700 font-bold">End-to-end encrypted</span>
-                  </div>
+                <div className="bg-white px-4 py-2 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
+                  <span>Delivered via <strong>Meta WhatsApp Cloud API</strong></span>
+                  <span className="text-emerald-700 font-bold">End-to-end encrypted</span>
                 </div>
               </div>
             )}
