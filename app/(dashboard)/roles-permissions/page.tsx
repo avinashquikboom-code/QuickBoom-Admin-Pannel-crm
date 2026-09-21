@@ -453,7 +453,8 @@ function toKey(mod: string, act: string): string {
 }
 
 interface RoleItem {
-  id: string;
+  id: string;          // designationId (used as the canonical role identifier)
+  roleId?: string;     // underlying Role table id (kept for reference only)
   name: string;
   rawName?: string;
   type: string;
@@ -486,10 +487,10 @@ export default function RolesPermissionsPage() {
   const [serverPerms, setServerPerms] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
 
-  // Role Drawer State
+  // Role Drawer State — no longer used for creating roles (use Designations page)
   const [isRoleDrawerOpen, setIsRoleDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
-  const [roleFormData, setRoleFormData] = useState({ name: '', description: '', templateRole: 'TELECALLER' });
+  const [roleFormData, setRoleFormData] = useState({ name: '', description: '' });
 
   // =========================================================================
   // TAB 2: EMPLOYEE PERMISSIONS STATE
@@ -511,19 +512,22 @@ export default function RolesPermissionsPage() {
   const [isRestrictingAllPerms, setIsRestrictingAllPerms] = useState(false);
 
   // -------------------------------------------------------------------------
-  // 1. FETCH ROLES (Backend API)
-  // -------------------------------------------------------------------------
+  // ─── 1. FETCH ROLES ─── source of truth: /designations/roles ──────────────
+  // Designations are the single source of truth for Employee Roles.
+  // /designations/roles auto-creates linked Role records on demand.
   const { data: rolesData, isLoading: isRolesLoading, refetch: refetchRoles } = useQuery({
     queryKey: ['admin-rbac-roles'],
     queryFn: async () => {
-      const res: any = await api.get('/auth/roles');
+      const res: any = await api.get('/designations/roles');
       return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
     },
   });
 
   const roles: RoleItem[] = useMemo(() => {
     return (rolesData || []).map((r: any) => ({
-      id: String(r.id),
+      // id = designationId — this is what /designations/:id/permissions expects
+      id: String(r.designationId ?? r.id),
+      roleId: r.roleId ? String(r.roleId) : undefined,
       name: r.name,
       rawName: r.rawName || r.name,
       type: r.type || 'CUSTOM',
@@ -582,12 +586,13 @@ export default function RolesPermissionsPage() {
     }
   }, [employeeRoles, selectedRoleId]);
 
-  // Fetch Permissions for Selected Role
+  // Fetch Permissions for Selected Designation-Role
+  // Uses /designations/:designationId/permissions — the source-of-truth endpoint.
   const { data: rolePermsData, isLoading: isPermsLoading, refetch: refetchRolePerms } = useQuery({
     queryKey: ['admin-role-perms', selectedRole?.id],
     enabled: Boolean(selectedRole?.id),
     queryFn: async () => {
-      const res: any = await api.get(`/auth/roles/${selectedRole!.id}/permissions`);
+      const res: any = await api.get(`/designations/${selectedRole!.id}/permissions`);
       const payload = res?.data || res;
       const keys: string[] = [];
       if (Array.isArray(payload?.permissions)) {
@@ -980,7 +985,8 @@ export default function RolesPermissionsPage() {
     setIsSaving(true);
     try {
       const keysList = Array.from(localPerms);
-      await api.put(`/auth/roles/${selectedRole.id}/permissions`, {
+      // PUT /designations/:designationId/permissions — emits real-time events to affected employees
+      await api.put(`/designations/${selectedRole.id}/permissions`, {
         permissions: keysList,
       });
       setServerPerms(new Set(localPerms));
@@ -1015,47 +1021,22 @@ export default function RolesPermissionsPage() {
   };
 
   const handleOpenCreateRole = () => {
-    setDrawerMode('create');
-    setRoleFormData({ name: '', description: '', templateRole: 'TELECALLER' });
+    // Roles derive from Designations — redirect admin to Designation management
     setIsRoleDrawerOpen(true);
+    setDrawerMode('create');
+    setRoleFormData({ name: '', description: '' });
   };
 
   const handleOpenEditRole = (role: RoleItem) => {
     setDrawerMode('edit');
-    setRoleFormData({ name: role.name, description: role.description, templateRole: 'TELECALLER' });
+    setRoleFormData({ name: role.name, description: role.description });
     setIsRoleDrawerOpen(true);
   };
 
+  // Role creation / editing is handled via Designation management page.
+  // This function is intentionally a no-op — the drawer now shows an info panel.
   const handleSaveRoleForm = async () => {
-    if (!roleFormData.name.trim()) {
-      toast.error('Role name is required');
-      return;
-    }
-    try {
-      if (drawerMode === 'create') {
-        const res: any = await api.post('/auth/roles', {
-          name: roleFormData.name.trim(),
-          description: roleFormData.description.trim(),
-        });
-        const created = res?.data || res;
-        toast.success(`Role "${roleFormData.name}" created!`);
-        setIsRoleDrawerOpen(false);
-        await queryClient.invalidateQueries({ queryKey: ['admin-rbac-roles'] });
-        await refetchRoles();
-        if (created?.id) setSelectedRoleId(String(created.id));
-      } else {
-        await api.put(`/auth/roles/${selectedRole!.id}`, {
-          name: roleFormData.name.trim(),
-          description: roleFormData.description.trim(),
-        });
-        toast.success('Role updated successfully!');
-        setIsRoleDrawerOpen(false);
-        await queryClient.invalidateQueries({ queryKey: ['admin-rbac-roles'] });
-        await refetchRoles();
-      }
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to save role');
-    }
+    setIsRoleDrawerOpen(false);
   };
 
   // Filter modules for Tab 1 (Role Permissions)
@@ -2520,42 +2501,74 @@ export default function RolesPermissionsPage() {
       )}
 
       {/* ========================================================= */}
-      {/* 4. CREATE / EDIT ROLE DRAWER                              */}
+      {/* 4. ROLE SOURCE-OF-TRUTH INFO DRAWER                       */}
+      {/* Employee Roles come from Designations — not created here  */}
       {/* ========================================================= */}
       <AdminFormDrawer
         isOpen={isRoleDrawerOpen}
         onClose={() => setIsRoleDrawerOpen(false)}
-        title={drawerMode === 'create' ? 'Create Employee Role' : `Edit Role: ${selectedRole?.name}`}
-        subtitle="Specify role title and descriptive purpose for employee mobile access"
+        title="Employee Roles & Designations"
+        subtitle="How Employee Roles are managed in this system"
         isSubmitting={false}
         maxWidth="sm:max-w-[500px]"
-        showFooter={true}
-        onSave={handleSaveRoleForm}
+        showFooter={false}
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Role Title</label>
-            <input
-              type="text"
-              value={roleFormData.name}
-              onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
-              placeholder="e.g. Telecaller, Designer, Editor, Social Media Manager..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#23C45E]"
-            />
+        <div className="space-y-5 py-2">
+          {/* Info Banner */}
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 flex gap-3 items-start">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+              <FolderLock className="w-4 h-4 text-emerald-700" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-emerald-800 mb-1">Designations are the Source of Truth</p>
+              <p className="text-xs text-emerald-700 leading-relaxed">
+                Employee Roles in the Permissions page are automatically derived from your
+                <strong> Employee Designations</strong>. Each Designation (e.g. Designer, Telecaller)
+                maps to exactly one Role and its default permissions.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Role Description</label>
-            <textarea
-              rows={3}
-              value={roleFormData.description}
-              onChange={(e) => setRoleFormData({ ...roleFormData, description: e.target.value })}
-              placeholder="Scope of work and mobile permissions granted to staff holding this role..."
-              className="w-full p-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#23C45E]"
-            />
+          {/* Flow diagram */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+            <p className="font-bold text-slate-700 mb-3 text-xs uppercase tracking-wide">Permission Resolution Flow</p>
+            <div className="space-y-2">
+              {[
+                { step: '1', label: 'Designation', desc: 'Created in Settings → Designations' },
+                { step: '2', label: 'Default Permissions', desc: 'Configured here in Roles & Permissions' },
+                { step: '3', label: 'Employee Override', desc: 'INHERIT / ALLOW / DENY per employee' },
+                { step: '4', label: 'Effective Permissions', desc: 'Fetched by the mobile app in real-time' },
+              ].map(({ step, label, desc }) => (
+                <div key={step} className="flex gap-3 items-start">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{step}</div>
+                  <div>
+                    <span className="font-bold text-slate-800">{label}</span>
+                    <span className="text-slate-500"> — {desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-bold text-slate-700 mb-2">To add a new Employee Role:</p>
+            <p className="text-xs text-slate-500 mb-4">
+              Create a new <strong>Designation</strong> from the Designation management page.
+              It will automatically appear here in Roles & Permissions once created.
+            </p>
+            <Link
+              href="/designations"
+              onClick={() => setIsRoleDrawerOpen(false)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Go to Designation Management
+            </Link>
           </div>
         </div>
       </AdminFormDrawer>
+
     </div>
   );
 }
