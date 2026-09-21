@@ -232,8 +232,15 @@ function isDetailsSendStage(lead: any): boolean {
         whatsappTemplateName,
       });
     },
-    onSuccess: () => {
-      toast.success('Lead stage updated! Automatic stage Email & WhatsApp notifications dispatched.');
+    onSuccess: (res: any) => {
+      const emailNotif = res?.data?.emailNotification || res?.emailNotification;
+      if (emailNotif?.sent) {
+        toast.success(`Lead stage updated! Customer email sent to ${emailNotif.recipient || 'customer'}.`);
+      } else if (emailNotif && emailNotif.sent === false && emailNotif.status === 'FAILED') {
+        toast.error(`Lead stage updated, but customer email failed: ${emailNotif.error || 'Check SMTP configuration'}.`);
+      } else {
+        toast.success('Lead stage updated successfully.');
+      }
       queryClient.invalidateQueries({ queryKey: ['lead-detail', id] });
     },
     onError: (err) => {

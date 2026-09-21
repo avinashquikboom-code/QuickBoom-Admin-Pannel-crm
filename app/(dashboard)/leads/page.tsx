@@ -825,7 +825,14 @@ export default function LeadsPage() {
       });
     },
     onSuccess: (res: any) => {
-      toast.success('Lead stage updated! Automatic stage Email & WhatsApp notifications dispatched.', { id: 'lead-status-update' });
+      const emailNotif = res?.data?.emailNotification || res?.emailNotification;
+      if (emailNotif?.sent) {
+        toast.success(`Lead stage updated! Customer email sent to ${emailNotif.recipient || 'customer'}.`, { id: 'lead-status-update' });
+      } else if (emailNotif && emailNotif.sent === false && emailNotif.status === 'FAILED') {
+        toast.error(`Lead stage updated, but customer email failed: ${emailNotif.error || 'Check SMTP configuration'}.`, { id: 'lead-status-update' });
+      } else {
+        toast.success('Lead stage updated successfully.', { id: 'lead-status-update' });
+      }
       const updatedLead = res?.data || res;
       if (updatedLead && updatedLead.id) {
         queryClient.setQueryData(['admin-lead-detail', selectedLeadId], updatedLead);
