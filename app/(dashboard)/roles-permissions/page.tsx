@@ -94,14 +94,29 @@ const ALL_UI_PERMISSIONS: { group: string; category: "screens" | "actions" | "ta
       { key: "PAYMENTS:CREATE", module: "PAYMENTS", action: "CREATE", label: "Record Payment Button", category: "actions", description: "Record incoming client payment" },
       { key: "PAYMENTS:EDIT", module: "PAYMENTS", action: "EDIT", label: "Edit Payment", category: "actions", description: "Update payment entry" },
       { key: "PAYMENTS:DELETE", module: "PAYMENTS", action: "DELETE", label: "Delete Payment", category: "actions", description: "Delete payment entry" },
+      { key: "PAYMENTS:EXPORT", module: "PAYMENTS", action: "EXPORT", label: "Export Payments", category: "actions", description: "Export payment records and statements" },
+
+      { key: "ATTENDANCE:CREATE", module: "ATTENDANCE", action: "CREATE", label: "Punch In/Out Attendance", category: "actions", description: "Allow biometric and GPS attendance punch in/out" },
+      { key: "ATTENDANCE:EDIT", module: "ATTENDANCE", action: "EDIT", label: "Regularize Attendance", category: "actions", description: "Allow submitting attendance regularization requests" },
+
+      { key: "LEAVE:CREATE", module: "LEAVE", action: "CREATE", label: "Apply Leave Button", category: "actions", description: "Show 'Apply for Leave' and WFH request button" },
+      { key: "LEAVE:DELETE", module: "LEAVE", action: "DELETE", label: "Cancel Leave Request", category: "actions", description: "Allow cancelling submitted leave requests" },
+      { key: "LEAVE:APPROVE", module: "LEAVE", action: "APPROVE", label: "Approve Leave Button", category: "actions", description: "Approve team leave requests" },
+      { key: "LEAVE:REJECT", module: "LEAVE", action: "REJECT", label: "Reject Leave Button", category: "actions", description: "Reject team leave requests" },
+
+      { key: "TASKS:CREATE", module: "TASKS", action: "CREATE", label: "Create Task Button", category: "actions", description: "Allow creating new assigned tasks" },
+      { key: "TASKS:EDIT", module: "TASKS", action: "EDIT", label: "Start / Complete Task", category: "actions", description: "Allow starting tasks and uploading photo proof" },
+
+      { key: "SALARY:DOWNLOAD", module: "SALARY", action: "DOWNLOAD", label: "Download Payslips", category: "actions", description: "Allow downloading salary slip PDF files" },
+
+      { key: "LOAN:CREATE", module: "LOAN", action: "CREATE", label: "Request Loan Button", category: "actions", description: "Show 'Request Loan' application button" },
+      { key: "LOAN:APPROVE", module: "LOAN", action: "APPROVE", label: "Approve Loan Button", category: "actions", description: "Approve employee loan requests" },
+      { key: "LOAN:REJECT", module: "LOAN", action: "REJECT", label: "Reject Loan Button", category: "actions", description: "Reject employee loan requests" },
 
       { key: "NOTIFICATIONS:SEND", module: "NOTIFICATIONS", action: "SEND", label: "Send Notifications Button", category: "actions", description: "Send push and in-app alerts" },
 
       { key: "REPORTS:EXPORT", module: "REPORTS", action: "EXPORT", label: "Export Reports", category: "actions", description: "Export analytical reports" },
       { key: "REPORTS:DOWNLOAD", module: "REPORTS", action: "DOWNLOAD", label: "Download Reports", category: "actions", description: "Download report files" },
-
-      { key: "LEAVE:APPROVE", module: "LEAVE", action: "APPROVE", label: "Approve Leave Button", category: "actions", description: "Approve team leave requests" },
-      { key: "LEAVE:REJECT", module: "LEAVE", action: "REJECT", label: "Reject Leave Button", category: "actions", description: "Reject team leave requests" },
     ],
   },
   {
