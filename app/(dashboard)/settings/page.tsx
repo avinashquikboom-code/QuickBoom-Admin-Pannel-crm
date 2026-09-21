@@ -558,6 +558,8 @@ export default function SettingsPage() {
       const data = res?.data || res;
       if (data?.success) {
         toast.success(data?.message || 'WhatsApp Business API connection verified successfully!');
+      } else {
+        toast.error(data?.message || data?.details || 'WhatsApp test failed');
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'WhatsApp test failed');
