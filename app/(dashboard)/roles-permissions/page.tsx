@@ -521,6 +521,7 @@ export default function RolesPermissionsPage() {
       const res: any = await api.get('/designations/roles');
       return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
     },
+    retry: 1,
   });
 
   const roles: RoleItem[] = useMemo(() => {
@@ -603,6 +604,7 @@ export default function RolesPermissionsPage() {
       }
       return keys;
     },
+    retry: 1,
   });
 
   useEffect(() => {
@@ -650,6 +652,7 @@ export default function RolesPermissionsPage() {
         return [];
       }
     },
+    retry: 1,
   });
 
   const employeesList = useMemo(() => {
@@ -694,6 +697,7 @@ export default function RolesPermissionsPage() {
       const res: any = await api.get(`/employees/${selectedEmployee.id}/permissions`);
       return res?.data || res;
     },
+    retry: 1,
   });
 
   const initialEmpOverrides: Record<string, 'INHERIT' | 'ALLOW' | 'DENY'> = useMemo(() => {
@@ -1005,9 +1009,13 @@ export default function RolesPermissionsPage() {
     if (!selectedRole) return;
     try {
       const nextActive = !selectedRole.isActive;
-      await api.put(`/auth/roles/${selectedRole.id}`, {
+      const targetId = selectedRole.roleId || selectedRole.id;
+      await api.put(`/auth/roles/${targetId}`, {
         isActive: nextActive,
       });
+      try {
+        await api.patch(`/designations/${selectedRole.id}/status`, { isActive: nextActive });
+      } catch (_) {}
       toast.success(
         nextActive
           ? `Role "${selectedRole.name}" activated!`
