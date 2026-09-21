@@ -31,6 +31,117 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminFormDrawer } from '@/components/admin';
 
+interface UiPermissionItem {
+  key: string;
+  module: string;
+  action: string;
+  label: string;
+  category: "screens" | "actions" | "tabs" | "dashboard" | "settings";
+  description: string;
+}
+
+const ALL_UI_PERMISSIONS: { group: string; category: "screens" | "actions" | "tabs" | "dashboard" | "settings"; items: UiPermissionItem[] }[] = [
+  {
+    group: "Screens & Navigation Access",
+    category: "screens",
+    items: [
+      { key: "DASHBOARD:VIEW", module: "DASHBOARD", action: "VIEW", label: "Dashboard Screen", category: "screens", description: "Display Dashboard in menu & allow screen view" },
+      { key: "LEADS:VIEW", module: "LEADS", action: "VIEW", label: "Leads Screen", category: "screens", description: "Display Leads in menu & allow viewing lead list" },
+      { key: "CUSTOMERS:VIEW", module: "CUSTOMERS", action: "VIEW", label: "Customers Screen", category: "screens", description: "Display Customers in menu & allow directory view" },
+      { key: "FOLLOW_UP:VIEW", module: "FOLLOW_UP", action: "VIEW", label: "Follow-ups Screen", category: "screens", description: "Display Follow-ups in navigation & allow viewing" },
+      { key: "VISITS:VIEW", module: "VISITS", action: "VIEW", label: "Visits Screen", category: "screens", description: "Display Visits in menu & view client field visits" },
+      { key: "PROPOSALS:VIEW", module: "PROPOSALS", action: "VIEW", label: "Proposals Screen", category: "screens", description: "Display Proposals in menu & view quotes" },
+      { key: "PAYMENTS:VIEW", module: "PAYMENTS", action: "VIEW", label: "Payments Screen", category: "screens", description: "Display Payments in menu & view payments list" },
+      { key: "NOTIFICATIONS:VIEW", module: "NOTIFICATIONS", action: "VIEW", label: "Notifications Screen", category: "screens", description: "Display Notification center" },
+      { key: "REPORTS:VIEW", module: "REPORTS", action: "VIEW", label: "Reports & Analytics Screen", category: "screens", description: "Display Reports in menu & view reports" },
+      { key: "SETTINGS:VIEW", module: "SETTINGS", action: "VIEW", label: "Settings Screen", category: "screens", description: "Display Settings in menu & allow settings view" },
+      { key: "TASKS:VIEW", module: "TASKS", action: "VIEW", label: "Tasks Screen", category: "screens", description: "Display Tasks in menu & view assigned tasks" },
+      { key: "ATTENDANCE:VIEW", module: "ATTENDANCE", action: "VIEW", label: "Attendance Screen", category: "screens", description: "Display Attendance in menu & view log" },
+      { key: "LEAVE:VIEW", module: "LEAVE", action: "VIEW", label: "Leave Screen", category: "screens", description: "Display Leave in menu & view requests" },
+      { key: "SALARY:VIEW", module: "SALARY", action: "VIEW", label: "Salary & Payroll Screen", category: "screens", description: "Display Salary & slips in menu" },
+      { key: "LOAN:VIEW", module: "LOAN", action: "VIEW", label: "Loan Advances Screen", category: "screens", description: "Display Loan in menu" },
+    ],
+  },
+  {
+    group: "Screen Actions & Buttons",
+    category: "actions",
+    items: [
+      { key: "LEADS:CREATE", module: "LEADS", action: "CREATE", label: "Add Lead Button", category: "actions", description: "Show 'Add Lead' button and enable lead creation sheet" },
+      { key: "LEADS:EDIT", module: "LEADS", action: "EDIT", label: "Edit Lead Button", category: "actions", description: "Show 'Edit Lead' button & allow updating lead details" },
+      { key: "LEADS:DELETE", module: "LEADS", action: "DELETE", label: "Delete Lead Button", category: "actions", description: "Show 'Delete Lead' button" },
+      { key: "LEADS:CHANGE_STATUS", module: "LEADS", action: "CHANGE_STATUS", label: "Change Lead Status", category: "actions", description: "Allow changing lead pipeline stages and statuses" },
+      { key: "LEADS:EXPORT", module: "LEADS", action: "EXPORT", label: "Export Leads", category: "actions", description: "Show export CSV / Excel action for leads" },
+
+      { key: "CUSTOMERS:CREATE", module: "CUSTOMERS", action: "CREATE", label: "Add Customer Button", category: "actions", description: "Show 'Add Customer' button and client creation sheet" },
+      { key: "CUSTOMERS:EDIT", module: "CUSTOMERS", action: "EDIT", label: "Edit Customer Button", category: "actions", description: "Show 'Edit Customer' button & profile edit" },
+      { key: "CUSTOMERS:DELETE", module: "CUSTOMERS", action: "DELETE", label: "Delete Customer Button", category: "actions", description: "Show 'Delete Customer' action" },
+      { key: "CUSTOMERS:EXPORT", module: "CUSTOMERS", action: "EXPORT", label: "Export Customers", category: "actions", description: "Export customer records" },
+
+      { key: "FOLLOW_UP:CREATE", module: "FOLLOW_UP", action: "CREATE", label: "Add Follow-up Button", category: "actions", description: "Log and schedule new follow-ups" },
+      { key: "FOLLOW_UP:EDIT", module: "FOLLOW_UP", action: "EDIT", label: "Edit Follow-up Button", category: "actions", description: "Update follow-up outcome and status" },
+      { key: "FOLLOW_UP:DELETE", module: "FOLLOW_UP", action: "DELETE", label: "Delete Follow-up", category: "actions", description: "Delete scheduled follow-ups" },
+
+      { key: "VISITS:CREATE", module: "VISITS", action: "CREATE", label: "Schedule Visit Button", category: "actions", description: "Schedule new client visits" },
+      { key: "VISITS:EDIT", module: "VISITS", action: "EDIT", label: "Complete/Update Visit", category: "actions", description: "Start, check-in, or complete visits" },
+      { key: "VISITS:DELETE", module: "VISITS", action: "DELETE", label: "Cancel Visit", category: "actions", description: "Cancel or delete visits" },
+
+      { key: "PROPOSALS:CREATE", module: "PROPOSALS", action: "CREATE", label: "Create Proposal Button", category: "actions", description: "Create new commercial proposal" },
+      { key: "PROPOSALS:EDIT", module: "PROPOSALS", action: "EDIT", label: "Edit Proposal", category: "actions", description: "Edit proposal details and items" },
+      { key: "PROPOSALS:DELETE", module: "PROPOSALS", action: "DELETE", label: "Delete Proposal", category: "actions", description: "Delete proposal" },
+      { key: "PROPOSALS:SEND", module: "PROPOSALS", action: "SEND", label: "Send Proposal (Email/WhatsApp)", category: "actions", description: "Send proposals to clients" },
+      { key: "PROPOSALS:DOWNLOAD", module: "PROPOSALS", action: "DOWNLOAD", label: "Download Proposal PDF", category: "actions", description: "Download proposal document" },
+
+      { key: "PAYMENTS:CREATE", module: "PAYMENTS", action: "CREATE", label: "Record Payment Button", category: "actions", description: "Record incoming client payment" },
+      { key: "PAYMENTS:EDIT", module: "PAYMENTS", action: "EDIT", label: "Edit Payment", category: "actions", description: "Update payment entry" },
+      { key: "PAYMENTS:DELETE", module: "PAYMENTS", action: "DELETE", label: "Delete Payment", category: "actions", description: "Delete payment entry" },
+
+      { key: "NOTIFICATIONS:SEND", module: "NOTIFICATIONS", action: "SEND", label: "Send Notifications Button", category: "actions", description: "Send push and in-app alerts" },
+
+      { key: "REPORTS:EXPORT", module: "REPORTS", action: "EXPORT", label: "Export Reports", category: "actions", description: "Export analytical reports" },
+      { key: "REPORTS:DOWNLOAD", module: "REPORTS", action: "DOWNLOAD", label: "Download Reports", category: "actions", description: "Download report files" },
+
+      { key: "LEAVE:APPROVE", module: "LEAVE", action: "APPROVE", label: "Approve Leave Button", category: "actions", description: "Approve team leave requests" },
+      { key: "LEAVE:REJECT", module: "LEAVE", action: "REJECT", label: "Reject Leave Button", category: "actions", description: "Reject team leave requests" },
+    ],
+  },
+  {
+    group: "Tabs & Detail Sections",
+    category: "tabs",
+    items: [
+      { key: "LEADS:TAB_OVERVIEW", module: "LEADS", action: "TAB_OVERVIEW", label: "Lead Overview Tab", category: "tabs", description: "Display Lead basic information & overview" },
+      { key: "LEADS:TAB_ACTIVITY", module: "LEADS", action: "TAB_ACTIVITY", label: "Lead Activity & Comms Tab", category: "tabs", description: "Display communication logs, calls and follow-ups" },
+      { key: "LEADS:TAB_TIMELINE", module: "LEADS", action: "TAB_TIMELINE", label: "Lead Timeline Tab", category: "tabs", description: "Display milestone timeline" },
+      { key: "LEADS:TAB_HISTORY", module: "LEADS", action: "TAB_HISTORY", label: "Lead Status History Tab", category: "tabs", description: "Display audit history and status changes" },
+
+      { key: "CUSTOMERS:TAB_OVERVIEW", module: "CUSTOMERS", action: "TAB_OVERVIEW", label: "Customer Overview Tab", category: "tabs", description: "Display Customer details & contact info" },
+      { key: "CUSTOMERS:TAB_PLANS", module: "CUSTOMERS", action: "TAB_PLANS", label: "Customer Active Plans Tab", category: "tabs", description: "Display active plan and quota balance" },
+      { key: "CUSTOMERS:TAB_SCHEDULE", module: "CUSTOMERS", action: "TAB_SCHEDULE", label: "Customer Schedule Tab", category: "tabs", description: "Display deliverable calendar schedule" },
+    ],
+  },
+  {
+    group: "Dashboard Cards & Widgets",
+    category: "dashboard",
+    items: [
+      { key: "DASHBOARD:CARD_STATS", module: "DASHBOARD", action: "CARD_STATS", label: "Statistics Overview Card", category: "dashboard", description: "Show general performance stats card" },
+      { key: "DASHBOARD:CARD_LEADS", module: "DASHBOARD", action: "CARD_LEADS", label: "Open Leads Widget", category: "dashboard", description: "Show open leads count and priority follow-ups" },
+      { key: "DASHBOARD:CARD_VISITS", module: "DASHBOARD", action: "CARD_VISITS", label: "Today's Visits Widget", category: "dashboard", description: "Show today's field visits count and card" },
+      { key: "DASHBOARD:CARD_WORK", module: "DASHBOARD", action: "CARD_WORK", label: "Active SSM Work Widget", category: "dashboard", description: "Show active SSM work deliverables card" },
+      { key: "DASHBOARD:CARD_PROPOSALS", module: "DASHBOARD", action: "CARD_PROPOSALS", label: "Pending Proposals Widget", category: "dashboard", description: "Show pending proposals card" },
+      { key: "DASHBOARD:CARD_EMPLOYEES", module: "DASHBOARD", action: "CARD_EMPLOYEES", label: "Total Employees Widget", category: "dashboard", description: "Show team size and active staff card" },
+    ],
+  },
+  {
+    group: "Settings UI Items",
+    category: "settings",
+    items: [
+      { key: "SETTINGS:SETTING_PROFILE", module: "SETTINGS", action: "SETTING_PROFILE", label: "Company / User Profile", category: "settings", description: "Show Company Profile in Settings" },
+      { key: "SETTINGS:SETTING_NOTIFICATIONS", module: "SETTINGS", action: "SETTING_NOTIFICATIONS", label: "Push Notification Settings", category: "settings", description: "Show Notifications preferences tile" },
+      { key: "SETTINGS:SETTING_INTEGRATIONS", module: "SETTINGS", action: "SETTING_INTEGRATIONS", label: "Integrations Settings", category: "settings", description: "Show third-party integrations tile" },
+      { key: "SETTINGS:SETTING_USERS", module: "SETTINGS", action: "SETTING_USERS", label: "User & Role Management", category: "settings", description: "Show Team and Role management in settings" },
+    ],
+  },
+];
+
 interface Role {
   id: string;
   name: string;
@@ -118,6 +229,9 @@ export default function RolesPermissionsPage() {
 
   // Employee Overrides State
   const [employeeSearch, setEmployeeSearch] = useState('');
+  const [rolePermissionsSet, setRolePermissionsSet] = useState<Set<string>>(new Set());
+  const [isLoadingRolePerms, setIsLoadingRolePerms] = useState(false);
+  const [rbacSectionTab, setRbacSectionTab] = useState<"screens" | "actions" | "tabs" | "dashboard" | "settings">("screens");
   const [localEmployeeOverrides, setLocalEmployeeOverrides] = useState<
     Record<number, Record<string, 'DEFAULT' | 'ALLOW' | 'DENY'>>
   >({});
@@ -406,42 +520,123 @@ export default function RolesPermissionsPage() {
   const handleOpenCreate = () => {
     setSelectedRole(null);
     setRoleForm({
-      name: '',
-      description: '',
-      permissions: ['crm.read', 'hrm.attendance.view', 'reports.view'],
+      name: "",
+      description: "",
+      permissions: [],
     });
+    setRolePermissionsSet(new Set([
+      "DASHBOARD:VIEW",
+      "LEADS:VIEW",
+      "CUSTOMERS:VIEW",
+      "FOLLOW_UP:VIEW",
+      "SETTINGS:VIEW",
+    ]));
     setIsDrawerOpen(true);
   };
 
-  const handleOpenEdit = (role: Role) => {
+  const handleOpenEdit = async (role: Role) => {
     setSelectedRole(role);
     setRoleForm({
       name: role.name,
-      description: role.description,
-      permissions: ['crm.read', 'hrm.attendance.view', 'reports.view'],
+      description: role.description || "",
+      permissions: [],
     });
     setIsDrawerOpen(true);
+    setIsLoadingRolePerms(true);
+    try {
+      const res = await api.get(`/auth/roles/${role.id}/permissions`);
+      const list = res.data?.permissions || res.data?.data?.permissions || [];
+      const newSet = new Set<string>();
+      list.forEach((p: any) => {
+        if (p.module && p.action) {
+          newSet.add(`${p.module.toUpperCase()}:${p.action.toUpperCase()}`);
+        }
+      });
+      setRolePermissionsSet(newSet);
+    } catch {
+      setRolePermissionsSet(new Set());
+    } finally {
+      setIsLoadingRolePerms(false);
+    }
+  };
+
+  const handleTogglePermKey = (key: string) => {
+    setRolePermissionsSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllPerms = () => {
+    const all = new Set<string>();
+    ALL_UI_PERMISSIONS.forEach((g) => {
+      g.items.forEach((item) => {
+        all.add(`${item.module}:${item.action}`);
+      });
+    });
+    setRolePermissionsSet(all);
+    toast.success("All permissions selected");
+  };
+
+  const handleSelectReadOnlyPerms = () => {
+    const readOnly = new Set<string>();
+    ALL_UI_PERMISSIONS.forEach((g) => {
+      g.items.forEach((item) => {
+        if (item.action === "VIEW") {
+          readOnly.add(`${item.module}:${item.action}`);
+        }
+      });
+    });
+    setRolePermissionsSet(readOnly);
+    toast.success("Read-only preset selected");
+  };
+
+  const handleClearAllPerms = () => {
+    setRolePermissionsSet(new Set());
+    toast.success("All permissions cleared");
   };
 
   const handleSaveRole = async () => {
     if (!roleForm.name.trim()) {
-      toast.error('Please enter a role title');
+      toast.error("Please enter a role title");
       return;
     }
     setIsSubmitting(true);
     try {
+      let targetId = selectedRole?.id;
       if (selectedRole) {
-        await api.patch(`/auth/roles/${selectedRole.id}`, roleForm);
-        toast.success(`Role ${roleForm.name} updated successfully!`);
+        await api.patch(`/auth/roles/${selectedRole.id}`, {
+          name: roleForm.name,
+          description: roleForm.description,
+        });
       } else {
-        await api.post('/auth/roles', roleForm);
-        toast.success(`Custom role ${roleForm.name} created successfully!`);
+        const res = await api.post("/auth/roles", {
+          name: roleForm.name,
+          description: roleForm.description,
+        });
+        targetId = res.data?.id || res.data?.data?.id;
       }
+
+      if (targetId) {
+        const permArray = Array.from(rolePermissionsSet).map((k) => {
+          const [module, action] = k.split(":");
+          return { module, action };
+        });
+        await api.put(`/auth/roles/${targetId}/permissions`, {
+          permissions: permArray,
+        });
+      }
+
+      toast.success(`Role ${roleForm.name} saved with ${rolePermissionsSet.size} permissions!`);
       setIsDrawerOpen(false);
       refetchRoles();
-    } catch {
-      toast.success(`Role configuration saved successfully!`);
-      setIsDrawerOpen(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to save role");
     } finally {
       setIsSubmitting(false);
     }
@@ -1173,36 +1368,147 @@ export default function RolesPermissionsPage() {
         </div>
       )}
 
-      {/* RBAC Role Drawer */}
+      {/* RBAC Role Drawer with Granular UI Permissions */}
       <AdminFormDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title={selectedRole ? 'Edit Security Role' : 'Create Security Role'}
-        subtitle="Manage access permissions for this administrative role"
+        title={selectedRole ? `Edit Security Role: ${roleForm.name || selectedRole.name}` : "Create Security Role"}
+        subtitle="Manage granular UI elements, screens, buttons, tabs, and widgets for this role"
         isSubmitting={isSubmitting}
+        isLoading={isLoadingRolePerms}
+        maxWidth="sm:max-w-[760px]"
         showFooter={true}
         onSave={handleSaveRole}
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Role Title</label>
-            <input
-              type="text"
-              value={roleForm.name}
-              onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })}
-              placeholder="e.g. Social Media Lead"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#23C45E]"
-            />
+        <div className="space-y-6">
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Role Title</label>
+              <input
+                type="text"
+                value={roleForm.name}
+                onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })}
+                placeholder="e.g. Telecaller / Sales Lead"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Role Description</label>
+              <input
+                type="text"
+                value={roleForm.description}
+                onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
+                placeholder="Scope and purpose of this role..."
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#23C45E]"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Description</label>
-            <textarea
-              value={roleForm.description}
-              onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
-              rows={3}
-              placeholder="Brief description of the role's scope..."
-              className="w-full p-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#23C45E]"
-            />
+
+          {/* Quick Presets & Stats */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-extrabold text-slate-800">
+                Selected: <span className="text-[#1AA14D] font-black">{rolePermissionsSet.size}</span> permissions
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSelectAllPerms}
+                className="px-2.5 py-1 text-[11px] font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg transition-colors cursor-pointer"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={handleSelectReadOnlyPerms}
+                className="px-2.5 py-1 text-[11px] font-bold bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition-colors cursor-pointer"
+              >
+                Read-Only
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAllPerms}
+                className="px-2.5 py-1 text-[11px] font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors cursor-pointer"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          {/* Category Tabs */}
+          <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2 overflow-x-auto">
+            {(
+              [
+                { key: "screens", label: "1. Screens & Navigation" },
+                { key: "actions", label: "2. Action Buttons" },
+                { key: "tabs", label: "3. Tabs & Sections" },
+                { key: "dashboard", label: "4. Dashboard Cards" },
+                { key: "settings", label: "5. Settings Items" },
+              ] as const
+            ).map((t) => {
+              const active = rbacSectionTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setRbacSectionTab(t.key)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                    active
+                      ? "bg-[#23C45E] text-slate-950 shadow-xs"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Permissions List for Active Category */}
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+            {ALL_UI_PERMISSIONS.filter((g) => g.category === rbacSectionTab).map((group) => (
+              <div key={group.group} className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {group.items.map((item) => {
+                    const isChecked = rolePermissionsSet.has(item.key);
+                    return (
+                      <div
+                        key={item.key}
+                        onClick={() => handleTogglePermKey(item.key)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                          isChecked
+                            ? "bg-[#E8F9EE] border-[#23C45E]/40 shadow-xs"
+                            : "bg-white border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-extrabold text-slate-900">{item.label}</span>
+                            <span className="text-[10px] font-mono font-bold text-slate-400">
+                              {item.action}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-medium line-clamp-1 mt-0.5">
+                            {item.description}
+                          </p>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-colors ${
+                            isChecked
+                              ? "bg-[#23C45E] border-[#23C45E] text-slate-950"
+                              : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </AdminFormDrawer>
