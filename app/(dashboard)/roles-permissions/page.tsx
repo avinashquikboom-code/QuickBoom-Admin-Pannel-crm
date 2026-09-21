@@ -44,15 +44,17 @@ import {
   RotateCcw,
   Unlock,
   Lock,
-  CheckCircle,
+  ExternalLink,
+  Power,
 } from 'lucide-react';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminFormDrawer } from '@/components/admin';
 
 // ---------------------------------------------------------------------------
-// PERMISSION TREE DEFINITIONS (Normalized Granular Model)
+// PERMISSION TREE DEFINITIONS (Categorized & Normalized Granular Model)
 // ---------------------------------------------------------------------------
 
 interface PermissionNode {
@@ -63,23 +65,42 @@ interface PermissionNode {
   description: string;
 }
 
+type PermissionCategory =
+  | 'CRM'
+  | 'WORKSPACE'
+  | 'CALENDAR'
+  | 'CREATIVE'
+  | 'HRM'
+  | 'SYSTEM';
+
 interface ModuleGroup {
   id: string;
   name: string;
   icon: any;
-  category: 'CRM' | 'WORKSPACE' | 'CALENDAR' | 'CREATIVE' | 'HRM' | 'SYSTEM';
+  category: PermissionCategory;
   description: string;
   permissions: PermissionNode[];
 }
 
+const CATEGORY_DEFINITIONS: { id: PermissionCategory; name: string; icon: any }[] = [
+  { id: 'CRM', name: 'CRM WORKFLOW', icon: Users },
+  { id: 'WORKSPACE', name: 'MY WORK & TASKS', icon: Briefcase },
+  { id: 'CALENDAR', name: 'CALENDAR', icon: Calendar },
+  { id: 'CREATIVE', name: 'CREATIVE / SSM', icon: Share2 },
+  { id: 'HRM', name: 'HRM / WORKPLACE', icon: Clock3 },
+  { id: 'SYSTEM', name: 'SYSTEM', icon: Sliders },
+];
+
 const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
+  // =========================================================================
   // 1. CRM WORKFLOW
+  // =========================================================================
   {
     id: 'LEADS',
     name: 'Leads & Inquiries',
     icon: Users,
     category: 'CRM',
-    description: 'CRM lead acquisition pipeline, calling, and status changes',
+    description: 'CRM lead acquisition pipeline, telecalling, and stage status changes',
     permissions: [
       { key: 'employee.leads.view', module: 'LEADS', action: 'VIEW', label: 'View Leads', description: 'Display Leads screen and view pipeline records' },
       { key: 'employee.leads.create', module: 'LEADS', action: 'CREATE', label: 'Create Lead', description: 'Show Add Lead button and capture inquiries' },
@@ -146,7 +167,7 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
     name: 'Packages & Services',
     icon: Package,
     category: 'CRM',
-    description: 'Independent service bundle catalog, pricing, and toggling',
+    description: 'Service bundle catalog, pricing, and offering toggling',
     permissions: [
       { key: 'employee.packages.view', module: 'PACKAGES', action: 'VIEW', label: 'View Packages', description: 'Display Packages in drawer menu' },
       { key: 'employee.packages.create', module: 'PACKAGES', action: 'CREATE', label: 'Create Package', description: 'Define new commercial bundle' },
@@ -160,7 +181,7 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
     name: 'Payments & Revenue',
     icon: CreditCard,
     category: 'CRM',
-    description: 'Client invoices, payment logs, and financial records',
+    description: 'Client invoices, payment logs, and transaction records',
     permissions: [
       { key: 'employee.payments.view', module: 'PAYMENTS', action: 'VIEW', label: 'View Payments', description: 'Display Payments in navigation' },
       { key: 'employee.payments.create', module: 'PAYMENTS', action: 'CREATE', label: 'Record Payment', description: 'Log incoming client payment transaction' },
@@ -170,10 +191,62 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
     ],
   },
   {
+    id: 'CUSTOMERS',
+    name: 'Customer Directory',
+    icon: Building2,
+    category: 'CRM',
+    description: 'Client master accounts, plan quotas, and company profiles',
+    permissions: [
+      { key: 'employee.customers.view', module: 'CUSTOMERS', action: 'VIEW', label: 'View Customers', description: 'Display Customers directory in drawer' },
+      { key: 'employee.customers.create', module: 'CUSTOMERS', action: 'CREATE', label: 'Add Customer', description: 'Create new company client account' },
+      { key: 'employee.customers.edit', module: 'CUSTOMERS', action: 'EDIT', label: 'Edit Customer', description: 'Update client profile details' },
+      { key: 'employee.customers.delete', module: 'CUSTOMERS', action: 'DELETE', label: 'Delete Customer', description: 'Remove or archive customer' },
+      { key: 'employee.customers.export', module: 'CUSTOMERS', action: 'EXPORT', label: 'Export Customers', description: 'Export customer list' },
+    ],
+  },
+
+  // =========================================================================
+  // 2. MY WORK & TASKS
+  // =========================================================================
+  {
+    id: 'MY_WORK',
+    name: 'My Work (Creative Execution)',
+    icon: Briefcase,
+    category: 'WORKSPACE',
+    description: 'Core creative workspace for Designers, Editors, Photographers, SMM',
+    permissions: [
+      { key: 'employee.my_work.view', module: 'MY_WORK', action: 'VIEW', label: 'View My Work', description: 'Display My Work in bottom navigation and drawer' },
+      { key: 'employee.my_work.open', module: 'MY_WORK', action: 'OPEN', label: 'Open Deliverable', description: 'Open detailed deliverable bottom sheet' },
+      { key: 'employee.my_work.start', module: 'MY_WORK', action: 'START', label: 'Start Work', description: 'Transition deliverable to In Progress' },
+      { key: 'employee.my_work.update_progress', module: 'MY_WORK', action: 'UPDATE_PROGRESS', label: 'Update Progress', description: 'Log percentage and work notes' },
+      { key: 'employee.my_work.upload', module: 'MY_WORK', action: 'UPLOAD', label: 'Upload Asset', description: 'Upload media files, photos, or draft links' },
+      { key: 'employee.my_work.submit', module: 'MY_WORK', action: 'SUBMIT', label: 'Submit for Review', description: 'Submit creative for supervisory review' },
+      { key: 'employee.my_work.complete', module: 'MY_WORK', action: 'COMPLETE', label: 'Mark Complete', description: 'Mark deliverable fully finished' },
+    ],
+  },
+  {
+    id: 'TASKS',
+    name: 'Assigned Tasks',
+    icon: CheckCheck,
+    category: 'WORKSPACE',
+    description: 'Operational tasks, photo proofs, and internal checklists',
+    permissions: [
+      { key: 'employee.tasks.view', module: 'TASKS', action: 'VIEW', label: 'View Tasks', description: 'Display Tasks in drawer and view task board' },
+      { key: 'employee.tasks.create', module: 'TASKS', action: 'CREATE', label: 'Create Task', description: 'Assign new task to team or self' },
+      { key: 'employee.tasks.start', module: 'TASKS', action: 'START', label: 'Start Task', description: 'Clock in on assigned task' },
+      { key: 'employee.tasks.update', module: 'TASKS', action: 'UPDATE', label: 'Update Task', description: 'Update task checklist and notes' },
+      { key: 'employee.tasks.submit_proof', module: 'TASKS', action: 'SUBMIT_PROOF', label: 'Submit Photo Proof', description: 'Upload camera proof of completion' },
+      { key: 'employee.tasks.complete', module: 'TASKS', action: 'COMPLETE', label: 'Complete Task', description: 'Mark task done' },
+      { key: 'employee.tasks.approve', module: 'TASKS', action: 'APPROVE', label: 'Approve Task', description: 'Manager sign-off on completed task' },
+      { key: 'employee.tasks.edit', module: 'TASKS', action: 'EDIT', label: 'Edit Task', description: 'Modify task deadlines and priority' },
+      { key: 'employee.tasks.delete', module: 'TASKS', action: 'DELETE', label: 'Delete Task', description: 'Remove task from board' },
+    ],
+  },
+  {
     id: 'WORK_EXECUTION',
     name: 'Work Execution (Projects)',
     icon: Layers,
-    category: 'CRM',
+    category: 'WORKSPACE',
     description: 'Post-sales project delivery, milestone progress, and sign-offs',
     permissions: [
       { key: 'employee.work_execution.view', module: 'WORK_EXECUTION', action: 'VIEW', label: 'View Work Execution', description: 'Display Work Execution delivery view' },
@@ -184,22 +257,10 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
       { key: 'employee.work_execution.reopen', module: 'WORK_EXECUTION', action: 'REOPEN', label: 'Reopen Job', description: 'Reopen completed job for revisions' },
     ],
   },
-  {
-    id: 'CUSTOMERS',
-    name: 'Customer Directory',
-    icon: Building2,
-    category: 'CRM',
-    description: 'Client master accounts, plan quotas, and profiles',
-    permissions: [
-      { key: 'employee.customers.view', module: 'CUSTOMERS', action: 'VIEW', label: 'View Customers', description: 'Display Customers directory in drawer' },
-      { key: 'employee.customers.create', module: 'CUSTOMERS', action: 'CREATE', label: 'Add Customer', description: 'Create new company client account' },
-      { key: 'employee.customers.edit', module: 'CUSTOMERS', action: 'EDIT', label: 'Edit Customer', description: 'Update client profile details' },
-      { key: 'employee.customers.delete', module: 'CUSTOMERS', action: 'DELETE', label: 'Delete Customer', description: 'Remove or archive customer' },
-      { key: 'employee.customers.export', module: 'CUSTOMERS', action: 'EXPORT', label: 'Export Customers', description: 'Export customer list' },
-    ],
-  },
 
-  // 2. CALENDAR
+  // =========================================================================
+  // 3. CALENDAR
+  // =========================================================================
   {
     id: 'CALENDAR',
     name: 'Calendar & Schedules',
@@ -217,49 +278,15 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
     ],
   },
 
-  // 3. WORKSPACE (MY WORK & TASKS)
-  {
-    id: 'MY_WORK',
-    name: 'My Work (Creative Execution)',
-    icon: Briefcase,
-    category: 'WORKSPACE',
-    description: 'Core creative workspace for Designers, Editors, Photographers, SMM',
-    permissions: [
-      { key: 'employee.my_work.view', module: 'MY_WORK', action: 'VIEW', label: 'View My Work', description: 'Display My Work in bottom navigation and drawer' },
-      { key: 'employee.my_work.open', module: 'MY_WORK', action: 'OPEN', label: 'Open Deliverable', description: 'Open detailed deliverable bottom sheet' },
-      { key: 'employee.my_work.start', module: 'MY_WORK', action: 'START', label: 'Start Work', description: 'Transition deliverable to In Progress' },
-      { key: 'employee.my_work.update_progress', module: 'MY_WORK', action: 'UPDATE_PROGRESS', label: 'Update Progress', description: 'Log percentage and work notes' },
-      { key: 'employee.my_work.upload', module: 'MY_WORK', action: 'UPLOAD', label: 'Upload Asset', description: 'Upload media files, photos, or draft links' },
-      { key: 'employee.my_work.submit', module: 'MY_WORK', action: 'SUBMIT', label: 'Submit for Review', description: 'Submit creative for approval' },
-      { key: 'employee.my_work.complete', module: 'MY_WORK', action: 'COMPLETE', label: 'Mark Complete', description: 'Mark work deliverable finished' },
-    ],
-  },
-  {
-    id: 'TASKS',
-    name: 'Assigned Tasks',
-    icon: CheckCheck,
-    category: 'WORKSPACE',
-    description: 'Operational tasks, photo proofs, and checklists',
-    permissions: [
-      { key: 'employee.tasks.view', module: 'TASKS', action: 'VIEW', label: 'View Tasks', description: 'Display Tasks in drawer and view board' },
-      { key: 'employee.tasks.create', module: 'TASKS', action: 'CREATE', label: 'Create Task', description: 'Assign new task to team or self' },
-      { key: 'employee.tasks.start', module: 'TASKS', action: 'START', label: 'Start Task', description: 'Clock in on assigned task' },
-      { key: 'employee.tasks.update', module: 'TASKS', action: 'UPDATE', label: 'Update Task', description: 'Update task checklist and notes' },
-      { key: 'employee.tasks.submit_proof', module: 'TASKS', action: 'SUBMIT_PROOF', label: 'Submit Photo Proof', description: 'Upload camera proof of completion' },
-      { key: 'employee.tasks.complete', module: 'TASKS', action: 'COMPLETE', label: 'Complete Task', description: 'Mark task done' },
-      { key: 'employee.tasks.approve', module: 'TASKS', action: 'APPROVE', label: 'Approve Task', description: 'Manager sign-off on completed task' },
-      { key: 'employee.tasks.edit', module: 'TASKS', action: 'EDIT', label: 'Edit Task', description: 'Modify task deadlines and priority' },
-      { key: 'employee.tasks.delete', module: 'TASKS', action: 'DELETE', label: 'Delete Task', description: 'Remove task' },
-    ],
-  },
-
+  // =========================================================================
   // 4. CREATIVE / SSM WORK
+  // =========================================================================
   {
     id: 'CREATIVE_WORK',
-    name: 'Social Media & Creative Work',
+    name: 'Creative & Social Media Work',
     icon: Share2,
     category: 'CREATIVE',
-    description: 'SSM post publishing, reel scheduling, approvals, and review',
+    description: 'SSM post briefs, reel scheduling, approvals, and media review',
     permissions: [
       { key: 'employee.creative_work.view', module: 'CREATIVE_WORK', action: 'VIEW', label: 'View Creative Work', description: 'Display Social Media Work section in drawer' },
       { key: 'employee.creative_work.open', module: 'CREATIVE_WORK', action: 'OPEN', label: 'Open Creative Asset', description: 'Open post brief and captions' },
@@ -275,7 +302,9 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
     ],
   },
 
+  // =========================================================================
   // 5. HRM & WORKPLACE
+  // =========================================================================
   {
     id: 'ATTENDANCE',
     name: 'Attendance & Time Tracking',
@@ -308,6 +337,30 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
     ],
   },
   {
+    id: 'REMOTE_WORK',
+    name: 'Remote Work (WFH)',
+    icon: Smartphone,
+    category: 'HRM',
+    description: 'Work-from-home applications and management',
+    permissions: [
+      { key: 'employee.remote_work.view', module: 'REMOTE_WORK', action: 'VIEW', label: 'View Remote Work', description: 'Display Remote Work in drawer and tab' },
+      { key: 'employee.remote_work.create', module: 'REMOTE_WORK', action: 'CREATE', label: 'Apply Remote Work', description: 'Submit work-from-home application' },
+      { key: 'employee.remote_work.edit', module: 'REMOTE_WORK', action: 'EDIT', label: 'Edit Remote Request', description: 'Modify pending remote application' },
+      { key: 'employee.remote_work.cancel', module: 'REMOTE_WORK', action: 'CANCEL', label: 'Cancel Remote Request', description: 'Withdraw remote application' },
+    ],
+  },
+  {
+    id: 'SALARY',
+    name: 'Salary & Slips',
+    icon: DollarSign,
+    category: 'HRM',
+    description: 'Monthly salary slips and payroll summaries',
+    permissions: [
+      { key: 'employee.salary.view', module: 'SALARY', action: 'VIEW', label: 'View Salary & Slips', description: 'Display Salary in drawer and view slips' },
+      { key: 'employee.salary.download', module: 'SALARY', action: 'DOWNLOAD', label: 'Download Payslip PDF', description: 'Download monthly payslip document' },
+    ],
+  },
+  {
     id: 'EXPENSES',
     name: 'Expenses & Reimbursements',
     icon: DollarSign,
@@ -333,32 +386,10 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
       { key: 'employee.loans.reject', module: 'LOAN', action: 'REJECT', label: 'Reject Loan', description: 'Decline advance request' },
     ],
   },
-  {
-    id: 'REMOTE_WORK',
-    name: 'Remote Work (WFH)',
-    icon: Smartphone,
-    category: 'HRM',
-    description: 'Work-from-home applications and management',
-    permissions: [
-      { key: 'employee.remote_work.view', module: 'REMOTE_WORK', action: 'VIEW', label: 'View Remote Work', description: 'Display Remote Work in drawer and tab' },
-      { key: 'employee.remote_work.create', module: 'REMOTE_WORK', action: 'CREATE', label: 'Apply Remote Work', description: 'Submit work-from-home application' },
-      { key: 'employee.remote_work.edit', module: 'REMOTE_WORK', action: 'EDIT', label: 'Edit Remote Request', description: 'Modify pending remote application' },
-      { key: 'employee.remote_work.cancel', module: 'REMOTE_WORK', action: 'CANCEL', label: 'Cancel Remote Request', description: 'Withdraw remote application' },
-    ],
-  },
-  {
-    id: 'SALARY',
-    name: 'Salary & Slips',
-    icon: DollarSign,
-    category: 'HRM',
-    description: 'Monthly salary slips and payroll summaries',
-    permissions: [
-      { key: 'employee.salary.view', module: 'SALARY', action: 'VIEW', label: 'View Salary & Slips', description: 'Display Salary in drawer and view slips' },
-      { key: 'employee.salary.download', module: 'SALARY', action: 'DOWNLOAD', label: 'Download Payslip PDF', description: 'Download monthly payslip document' },
-    ],
-  },
 
+  // =========================================================================
   // 6. SYSTEM & UTILITIES
+  // =========================================================================
   {
     id: 'DASHBOARD',
     name: 'Dashboard Cards & Widgets',
@@ -423,210 +454,32 @@ function toKey(mod: string, act: string): string {
 interface RoleItem {
   id: string;
   name: string;
+  rawName?: string;
   type: string;
   description: string;
   permissionsCount: number;
   usersCount: number;
   isSystem: boolean;
+  isActive: boolean;
   permissions?: { module: string; action: string; key?: string; description?: string }[];
 }
-
-interface MobileModuleMeta {
-  key: string;
-  label: string;
-  category: 'CRM' | 'WORKSPACE' | 'CALENDAR' | 'CREATIVE' | 'HRM' | 'SYSTEM';
-  description: string;
-}
-
-const STANDARD_MOBILE_MODULES: MobileModuleMeta[] = [
-  { key: 'DASHBOARD', label: 'Dashboard', category: 'SYSTEM', description: 'Main home view, summary metrics and KPI cards' },
-  { key: 'CALENDAR', label: 'Calendar', category: 'CALENDAR', description: 'Personal & team schedule, shoots, visits' },
-  { key: 'MY_WORK', label: 'My Work', category: 'WORKSPACE', description: 'SSM assigned tasks and creative deliverables' },
-  { key: 'LEADS', label: 'Leads & CRM', category: 'CRM', description: 'Inbound inquiries and lead management pipeline' },
-  { key: 'FOLLOW_UP', label: 'Follow Ups', category: 'CRM', description: 'Scheduled client and prospect callback reminders' },
-  { key: 'VISITS', label: 'Field Visits', category: 'CRM', description: 'On-ground client physical meetings and check-ins' },
-  { key: 'PROPOSALS', label: 'Proposals', category: 'CRM', description: 'Commercial quotes and contract proposals' },
-  { key: 'PACKAGES', label: 'Packages', category: 'CRM', description: 'Service catalog packages and client pricing' },
-  { key: 'PAYMENTS', label: 'Payments', category: 'CRM', description: 'Customer transaction records and receipts' },
-  { key: 'WORK_EXECUTION', label: 'Work Execution', category: 'WORKSPACE', description: 'Daily production tasks & shoot delivery' },
-  { key: 'CREATIVE_WORK', label: 'Creative Work', category: 'CREATIVE', description: 'Graphics, video edits, reels & social campaigns' },
-  { key: 'ATTENDANCE', label: 'Attendance', category: 'HRM', description: 'Daily check-in / check-out with GPS & shifts' },
-  { key: 'LEAVE', label: 'Leave', category: 'HRM', description: 'Leave requests and balance tracking' },
-  { key: 'REMOTE_WORK', label: 'Remote Work', category: 'HRM', description: 'Work from home / remote status' },
-  { key: 'TASKS', label: 'Tasks', category: 'WORKSPACE', description: 'General company & project to-dos' },
-  { key: 'SALARY', label: 'Salary & Payslips', category: 'HRM', description: 'Monthly payroll records and compensation' },
-  { key: 'NOTIFICATIONS', label: 'Notifications', category: 'SYSTEM', description: 'Push notifications & activity inbox' },
-  { key: 'PROFILE', label: 'Profile', category: 'SYSTEM', description: 'Employee personal profile details' },
-  { key: 'SETTINGS', label: 'Settings', category: 'SYSTEM', description: 'App preferences and account settings' },
-];
 
 export default function RolesPermissionsPage() {
   const queryClient = useQueryClient();
 
-  // Mode Switcher: 'employees' (Individual Employee Access - Default) vs. 'roles' (Role Defaults & Templates)
-  const [activeManagementMode, setActiveManagementMode] = useState<'employees' | 'roles'>('employees');
-
-  // Employee-Specific Management State
-  const [employeeSearch, setEmployeeSearch] = useState('');
-  const [selectedEmpId, setSelectedEmpId] = useState<string>('');
-  const [empOverrideEdits, setEmpOverrideEdits] = useState<Record<string, 'INHERIT' | 'ALLOW' | 'DENY'>>({});
-  const [isSavingEmpPerms, setIsSavingEmpPerms] = useState(false);
-  const [empCategoryFilter, setEmpCategoryFilter] = useState<string>('ALL');
-  const [empModuleSearch, setEmpModuleSearch] = useState<string>('');
-
-  // Fetch Employees List
-  const { data: employeesRes, isLoading: isEmployeesLoading } = useQuery({
-    queryKey: ['admin-rbac-employees-list'],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/employees', { params: { limit: 100 } });
-        return Array.isArray(res?.data)
-          ? res.data
-          : Array.isArray(res?.employees)
-          ? res.employees
-          : Array.isArray(res?.items)
-          ? res.items
-          : Array.isArray(res)
-          ? res
-          : [];
-      } catch {
-        return [];
-      }
-    },
-  });
-
-  const filteredEmployees = useMemo(() => {
-    const list = employeesRes || [];
-    if (!employeeSearch.trim()) return list;
-    const q = employeeSearch.toLowerCase();
-    return list.filter((e: any) => {
-      const name = `${e.firstName || e.name || ''} ${e.lastName || ''}`.toLowerCase();
-      const code = (e.employeeCode || '').toLowerCase();
-      const desig = (e.designation?.name || e.designation || e.designationName || '').toLowerCase();
-      const email = (e.email || '').toLowerCase();
-      return name.includes(q) || code.includes(q) || desig.includes(q) || email.includes(q);
-    });
-  }, [employeesRes, employeeSearch]);
-
-  const selectedEmployee = useMemo(() => {
-    return filteredEmployees.find((e: any) => String(e.id) === selectedEmpId) ||
-      (employeesRes && employeesRes.find((e: any) => String(e.id) === selectedEmpId)) ||
-      filteredEmployees[0] ||
-      null;
-  }, [filteredEmployees, employeesRes, selectedEmpId]);
-
-  useEffect(() => {
-    if (filteredEmployees.length > 0 && !selectedEmpId) {
-      setSelectedEmpId(String(filteredEmployees[0].id));
-    }
-  }, [filteredEmployees, selectedEmpId]);
-
-  // Fetch Selected Employee Permissions & Overrides
-  const {
-    data: empPermsData,
-    isLoading: isEmpPermsLoading,
-    refetch: refetchEmpPerms,
-  } = useQuery({
-    queryKey: ['admin-employee-permissions', selectedEmployee?.id],
-    enabled: Boolean(selectedEmployee?.id),
-    queryFn: async () => {
-      try {
-        const res: any = await api.get(`/employees/${selectedEmployee!.id}/permissions`);
-        return res?.data || res;
-      } catch {
-        return null;
-      }
-    },
-  });
-
-  const initialEmpOverrides = useMemo(() => {
-    const map: Record<string, 'INHERIT' | 'ALLOW' | 'DENY'> = {};
-    if (empPermsData?.modules) {
-      empPermsData.modules.forEach((m: any) => {
-        map[m.moduleKey] = m.override || 'INHERIT';
-      });
-    }
-    return map;
-  }, [empPermsData]);
-
-  const getEmpModuleOverride = (key: string): 'INHERIT' | 'ALLOW' | 'DENY' => {
-    if (empOverrideEdits[key] !== undefined) return empOverrideEdits[key];
-    return initialEmpOverrides[key] || 'INHERIT';
-  };
-
-  const getEmpEffectiveStatus = (m: any): boolean => {
-    const key = typeof m === 'string' ? m : m?.moduleKey;
-    if (!key) return false;
-    const ov = getEmpModuleOverride(key);
-    if (ov === 'ALLOW') return true;
-    if (ov === 'DENY') return false;
-    if (typeof m === 'object' && m !== null && m.roleDefault !== undefined) {
-      return Boolean(m.roleDefault);
-    }
-    const found = empPermsData?.modules?.find((item: any) => item.moduleKey === key);
-    return Boolean(found?.roleDefault);
-  };
-
-  const hasUnsavedEmpChanges = useMemo(() => {
-    return Object.keys(empOverrideEdits).some(
-      (k) => empOverrideEdits[k] !== (initialEmpOverrides[k] || 'INHERIT')
-    );
-  }, [empOverrideEdits, initialEmpOverrides]);
-
-  const handleSetEmpOverride = (key: string, val: 'INHERIT' | 'ALLOW' | 'DENY') => {
-    setEmpOverrideEdits((prev) => ({ ...prev, [key]: val }));
-  };
-
-  const handleResetEmpToDefault = () => {
-    const reset: Record<string, 'INHERIT' | 'ALLOW' | 'DENY'> = {};
-    if (empPermsData?.modules) {
-      empPermsData.modules.forEach((m: any) => {
-        reset[m.moduleKey] = 'INHERIT';
-      });
-    }
-    setEmpOverrideEdits(reset);
-    toast.success('All module overrides reset to INHERIT (Role Defaults)');
-  };
-
-  const handleSaveEmpPermissions = async () => {
-    if (!selectedEmployee) return;
-    setIsSavingEmpPerms(true);
-    try {
-      const modules = empPermsData?.modules || [];
-      const overridesPayload = modules.map((m: any) => ({
-        moduleKey: m.moduleKey,
-        override: getEmpModuleOverride(m.moduleKey),
-      }));
-
-      await api.put(`/employees/${selectedEmployee.id}/permissions`, { overrides: overridesPayload });
-      toast.success(`Permissions updated for ${selectedEmployee.firstName || selectedEmployee.name || 'employee'}!`);
-      setEmpOverrideEdits({});
-      await refetchEmpPerms();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to save employee permissions');
-    } finally {
-      setIsSavingEmpPerms(false);
-    }
-  };
-
-  // Top-level Navigation: Main RBAC Tree vs. Work Modules Matrix vs. Overrides vs. Requests
-  const [mainViewTab, setMainViewTab] = useState<'rbac-tree' | 'work-matrix' | 'overrides' | 'requests'>('rbac-tree');
-
-  // Selected Role & Search
+  // Role Search & Selection State
   const [roleSearch, setRoleSearch] = useState('');
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
-
-  // Permission Search & Category Filter
-  const [permSearch, setPermSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [permSearch, setPermSearch] = useState<string>('');
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
 
-  // Active role permissions (Set of keys: e.g. "employee.leads.view")
+  // Local Permissions Set
   const [localPerms, setLocalPerms] = useState<Set<string>>(new Set());
   const [serverPerms, setServerPerms] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
 
-  // Role Drawer (Create / Edit metadata)
+  // Role Drawer State
   const [isRoleDrawerOpen, setIsRoleDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
   const [roleFormData, setRoleFormData] = useState({ name: '', description: '', templateRole: 'TELECALLER' });
@@ -647,33 +500,51 @@ export default function RolesPermissionsPage() {
     return (rolesData || []).map((r: any) => ({
       id: String(r.id),
       name: r.name,
+      rawName: r.rawName || r.name,
       type: r.type || 'CUSTOM',
-      description: r.description || '',
+      description: r.description || 'Employee mobile application role',
       permissionsCount: r.permissionsCount || r.permissions?.length || 0,
       usersCount: r.usersCount || 0,
       isSystem: Boolean(r.isSystem),
+      isActive: r.isActive !== undefined ? Boolean(r.isActive) : true,
       permissions: r.permissions || [],
     }));
   }, [rolesData]);
 
+  // Filter out non-employee portal roles (e.g. CUSTOMER)
+  const employeeRoles = useMemo(() => {
+    return roles.filter(
+      (r) => !['CUSTOMER'].includes(r.rawName?.toUpperCase() || r.name.toUpperCase())
+    );
+  }, [roles]);
+
   // Filtered Roles for Sidebar
   const filteredRoles = useMemo(() => {
-    if (!roleSearch.trim()) return roles;
+    if (!roleSearch.trim()) return employeeRoles;
     const q = roleSearch.toLowerCase();
-    return roles.filter((r) => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
-  }, [roles, roleSearch]);
+    return employeeRoles.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.description.toLowerCase().includes(q) ||
+        (r.rawName && r.rawName.toLowerCase().includes(q))
+    );
+  }, [employeeRoles, roleSearch]);
 
   // Selected Role Item
   const selectedRole = useMemo(() => {
-    return roles.find((r) => r.id === selectedRoleId) || roles[0] || null;
-  }, [roles, selectedRoleId]);
+    return (
+      employeeRoles.find((r) => r.id === selectedRoleId) ||
+      employeeRoles[0] ||
+      null
+    );
+  }, [employeeRoles, selectedRoleId]);
 
   // Auto-select first role on load
   useEffect(() => {
-    if (roles.length > 0 && !selectedRoleId) {
-      setSelectedRoleId(roles[0].id);
+    if (employeeRoles.length > 0 && !selectedRoleId) {
+      setSelectedRoleId(employeeRoles[0].id);
     }
-  }, [roles, selectedRoleId]);
+  }, [employeeRoles, selectedRoleId]);
 
   // 2. Fetch Permissions for the selected role
   const { data: rolePermsData, isLoading: isPermsLoading, refetch: refetchRolePerms } = useQuery({
@@ -752,10 +623,8 @@ export default function RolesPermissionsPage() {
     setLocalPerms((prev) => {
       const next = new Set(prev);
       if (allChecked) {
-        // Deselect all
         allKeys.forEach((k) => next.delete(k));
       } else {
-        // Select all
         allKeys.forEach((k) => next.add(k));
       }
       return next;
@@ -801,7 +670,7 @@ export default function RolesPermissionsPage() {
   // Reset to default template based on role name
   const handleResetToTemplate = () => {
     if (!selectedRole) return;
-    const upper = selectedRole.name.toUpperCase().replace(/\s+/g, '_');
+    const upper = (selectedRole.rawName || selectedRole.name).toUpperCase().replace(/\s+/g, '_');
     const templateName = upper.includes('TELECALL')
       ? 'TELECALLER'
       : upper.includes('DESIGN')
@@ -812,6 +681,8 @@ export default function RolesPermissionsPage() {
       ? 'SOCIAL_MEDIA_MANAGER'
       : upper.includes('PHOTO') || upper.includes('SHOOT')
       ? 'PHOTOGRAPHER'
+      : upper.includes('SALES')
+      ? 'SALES_EXECUTIVE'
       : 'TELECALLER';
 
     const templateKeys = new Set<string>();
@@ -820,24 +691,27 @@ export default function RolesPermissionsPage() {
         if (templateName === 'TELECALLER') {
           // Calendar & My Work & Creative OFF
           if (['CALENDAR', 'MY_WORK', 'CREATIVE_WORK'].includes(p.module)) return;
-          if (['LEADS', 'FOLLOW_UP', 'VISITS', 'ATTENDANCE', 'LEAVE', 'PROFILE', 'DASHBOARD'].includes(p.module)) {
+          if (['LEADS', 'FOLLOW_UP', 'VISITS', 'ATTENDANCE', 'LEAVE', 'PROFILE', 'DASHBOARD', 'NOTIFICATIONS', 'SETTINGS'].includes(p.module)) {
             templateKeys.add(p.key);
           }
         } else if (['DESIGNER', 'EDITOR', 'PHOTOGRAPHER'].includes(templateName)) {
           // Calendar & My Work & Creative ON, CRM OFF
-          if (['LEADS', 'FOLLOW_UP', 'VISITS', 'PROPOSALS', 'PACKAGES', 'PAYMENTS', 'WORK_EXECUTION'].includes(p.module)) return;
-          if (['CALENDAR', 'MY_WORK', 'CREATIVE_WORK', 'ATTENDANCE', 'TASKS', 'SALARY', 'PROFILE', 'DASHBOARD'].includes(p.module)) {
+          if (['LEADS', 'FOLLOW_UP', 'VISITS', 'PROPOSALS', 'PACKAGES', 'PAYMENTS', 'WORK_EXECUTION', 'CUSTOMERS'].includes(p.module)) return;
+          if (['CALENDAR', 'MY_WORK', 'CREATIVE_WORK', 'ATTENDANCE', 'TASKS', 'SALARY', 'PROFILE', 'DASHBOARD', 'NOTIFICATIONS', 'SETTINGS'].includes(p.module)) {
             templateKeys.add(p.key);
           }
         } else if (templateName === 'SOCIAL_MEDIA_MANAGER') {
-          if (['LEADS', 'FOLLOW_UP', 'VISITS', 'PROPOSALS', 'PACKAGES', 'PAYMENTS'].includes(p.module)) return;
+          if (['LEADS', 'FOLLOW_UP', 'VISITS', 'PROPOSALS', 'PACKAGES', 'PAYMENTS', 'CUSTOMERS'].includes(p.module)) return;
+          templateKeys.add(p.key);
+        } else if (templateName === 'SALES_EXECUTIVE') {
+          if (['MY_WORK', 'CREATIVE_WORK'].includes(p.module)) return;
           templateKeys.add(p.key);
         }
       });
     });
 
     setLocalPerms(templateKeys);
-    toast.success(`Reset to ${templateName} template presets!`);
+    toast.success(`Reset to ${selectedRole.name} template presets!`);
   };
 
   // Save Permissions to Backend
@@ -858,6 +732,26 @@ export default function RolesPermissionsPage() {
       toast.error(err?.response?.data?.message || 'Failed to save permissions');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Toggle Role Active / Inactive
+  const handleToggleRoleActive = async () => {
+    if (!selectedRole) return;
+    try {
+      const nextActive = !selectedRole.isActive;
+      await api.put(`/auth/roles/${selectedRole.id}`, {
+        isActive: nextActive,
+      });
+      toast.success(
+        nextActive
+          ? `Role "${selectedRole.name}" activated!`
+          : `Role "${selectedRole.name}" deactivated!`
+      );
+      await queryClient.invalidateQueries({ queryKey: ['admin-rbac-roles'] });
+      await refetchRoles();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update role status');
     }
   };
 
@@ -888,6 +782,7 @@ export default function RolesPermissionsPage() {
         const created = res?.data || res;
         toast.success(`Role "${roleFormData.name}" created!`);
         setIsRoleDrawerOpen(false);
+        await queryClient.invalidateQueries({ queryKey: ['admin-rbac-roles'] });
         await refetchRoles();
         if (created?.id) setSelectedRoleId(String(created.id));
       } else {
@@ -897,49 +792,166 @@ export default function RolesPermissionsPage() {
         });
         toast.success('Role updated successfully!');
         setIsRoleDrawerOpen(false);
+        await queryClient.invalidateQueries({ queryKey: ['admin-rbac-roles'] });
         await refetchRoles();
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Operation failed');
-    }
-  };
-
-  const handleDeleteRole = async () => {
-    if (!selectedRole) return;
-    if (selectedRole.isSystem) {
-      toast.error('System roles cannot be deleted');
-      return;
-    }
-    if (!confirm(`Are you sure you want to deactivate role "${selectedRole.name}"?`)) return;
-
-    try {
-      await api.delete(`/auth/roles/${selectedRole.id}`);
-      toast.success(`Role "${selectedRole.name}" deactivated`);
-      await refetchRoles();
-      setSelectedRoleId('');
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to delete role');
+      toast.error(err?.response?.data?.message || 'Failed to save role');
     }
   };
 
   // Filter modules by Category and Search
   const filteredModules = useMemo(() => {
     return PERMISSION_MODULE_GROUPS.filter((group) => {
-      // Category filter
       if (selectedCategory !== 'ALL' && group.category !== selectedCategory) {
         return false;
       }
-      // Search filter
       if (!permSearch.trim()) return true;
       const q = permSearch.toLowerCase();
       const matchGroupName = group.name.toLowerCase().includes(q);
       const matchDesc = group.description.toLowerCase().includes(q);
       const matchPerms = group.permissions.some(
-        (p) => p.label.toLowerCase().includes(q) || p.key.toLowerCase().includes(q) || p.description.toLowerCase().includes(q),
+        (p) =>
+          p.label.toLowerCase().includes(q) ||
+          p.key.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q)
       );
       return matchGroupName || matchDesc || matchPerms;
     });
   }, [selectedCategory, permSearch]);
+
+  // Render a single module group card
+  const renderModuleCard = (group: ModuleGroup) => {
+    const isExpanded = Boolean(expandedModules[group.id]);
+    const checkState = getModuleCheckState(group);
+    const totalCount = group.permissions.length;
+    const checkedCount = group.permissions.filter((p) => localPerms.has(p.key)).length;
+
+    return (
+      <div
+        key={group.id}
+        className={`rounded-2xl border transition-all ${
+          checkState === 'checked'
+            ? 'border-emerald-200/80 bg-white shadow-xs'
+            : checkState === 'indeterminate'
+            ? 'border-emerald-200/50 bg-white shadow-xs'
+            : 'border-slate-200 bg-white'
+        }`}
+      >
+        {/* Module Header Bar */}
+        <div className="p-4 flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Custom Master Checkbox / Toggle */}
+            <button
+              type="button"
+              onClick={() => handleToggleModule(group)}
+              className={`w-5 h-5 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+                checkState === 'checked'
+                  ? 'bg-[#23C45E] text-slate-950 font-black'
+                  : checkState === 'indeterminate'
+                  ? 'bg-[#23C45E]/30 text-emerald-900'
+                  : 'border-2 border-slate-300 bg-white hover:border-slate-400'
+              }`}
+              title={
+                checkState === 'checked'
+                  ? 'Disable all permissions in this module'
+                  : 'Enable all permissions in this module'
+              }
+            >
+              {checkState === 'checked' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+              {checkState === 'indeterminate' && <Minus className="w-3.5 h-3.5 stroke-[3]" />}
+            </button>
+
+            <div className="w-8 h-8 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+              <group.icon className="w-4 h-4 text-[#1AA14D]" />
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-xs font-black text-slate-900 tracking-tight">
+                  {group.name}
+                </h4>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                  {group.category}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium line-clamp-1">
+                {group.description}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Active Counter Badge */}
+            <span
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-xl transition-colors ${
+                checkedCount === totalCount
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : checkedCount > 0
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-slate-100 text-slate-400'
+              }`}
+            >
+              {checkedCount} / {totalCount} active
+            </span>
+
+            {/* Expand / Collapse Chevron */}
+            <button
+              type="button"
+              onClick={() =>
+                setExpandedModules((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
+              }
+              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Granular Permission Rows */}
+        {isExpanded && (
+          <div className="p-3 divide-y divide-slate-100 bg-white rounded-b-2xl">
+            {group.permissions.map((perm) => {
+              const isChecked = localPerms.has(perm.key);
+              return (
+                <div
+                  key={perm.key}
+                  className="py-2.5 px-3 flex items-center justify-between gap-4 hover:bg-slate-50/70 rounded-xl transition-colors"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-800">{perm.label}</span>
+                      <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                        {perm.key}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      {perm.description}
+                    </p>
+                  </div>
+
+                  {/* Individual Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleKey(perm.key)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isChecked ? 'bg-[#23C45E]' : 'bg-slate-200'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        isChecked ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5 pb-12">
@@ -951,58 +963,41 @@ export default function RolesPermissionsPage() {
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-black text-slate-900 tracking-tight">Roles & UI Permissions</h1>
+              <h1 className="text-lg font-black text-slate-900 tracking-tight">
+                Employee Roles & UI Permissions
+              </h1>
               <p className="text-xs text-slate-500 font-medium">
-                Manage individual employee access overrides, mobile app screen visibility, and role defaults.
+                Configure default mobile application permissions for employee roles & designations.
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          {/* View Mode Switcher */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setActiveManagementMode('employees')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeManagementMode === 'employees'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5 text-[#1AA14D]" />
-              <span>Employees Access</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveManagementMode('roles')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeManagementMode === 'roles'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-              <span>Role Defaults</span>
-            </button>
-          </div>
+          {/* Quick link to individual employee overrides */}
+          <Link
+            href="/employees"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+            title="Configure individual employee overrides (ALLOW / DENY)"
+          >
+            <Users className="w-3.5 h-3.5 text-blue-600" />
+            <span>Manage Employee Overrides</span>
+            <ExternalLink className="w-3 h-3 text-slate-400" />
+          </Link>
 
-          {activeManagementMode === 'roles' && (
-            <button
-              type="button"
-              onClick={handleOpenCreateRole}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Role</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleOpenCreateRole}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Role</span>
+          </button>
         </div>
       </div>
 
       {/* 2. Unsaved Changes Sticky Notification Banner */}
-      {activeManagementMode === 'employees' && hasUnsavedEmpChanges && (
+      {hasUnsavedChanges && selectedRole && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs animate-in fade-in">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
@@ -1010,47 +1005,11 @@ export default function RolesPermissionsPage() {
             </div>
             <div>
               <p className="text-xs font-bold text-amber-900">
-                You have unsaved permission overrides for <span className="underline">{selectedEmployee?.firstName || selectedEmployee?.name}</span>.
+                You have unsaved permission changes for{' '}
+                <span className="underline">{selectedRole.name}</span>.
               </p>
               <p className="text-[11px] text-amber-700">
-                Overrides will not take effect on the employee's mobile app until saved.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setEmpOverrideEdits({})}
-              className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-amber-100/60 rounded-xl transition-colors cursor-pointer"
-            >
-              Discard
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveEmpPermissions}
-              disabled={isSavingEmpPerms}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer"
-            >
-              {isSavingEmpPerms ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              <span>{isSavingEmpPerms ? 'Saving...' : 'Save Permissions'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {activeManagementMode === 'roles' && hasUnsavedChanges && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs animate-in fade-in">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-              <AlertCircle className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-amber-900">
-                You have unsaved permission changes for <span className="underline">{selectedRole?.name}</span>.
-              </p>
-              <p className="text-[11px] text-amber-700">
-                Changes will not take effect on employee mobile devices until saved.
+                Changes represent default permissions and will not affect mobile devices until saved.
               </p>
             </div>
           </div>
@@ -1077,789 +1036,384 @@ export default function RolesPermissionsPage() {
       )}
 
       {/* 3. Main Two-Panel Layout */}
-      {activeManagementMode === 'employees' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* ========================================================= */}
-          {/* LEFT SIDEBAR: EMPLOYEES LIST (Cols: 4) */}
-          {/* ========================================================= */}
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-black text-slate-900 uppercase tracking-wider">EMPLOYEES</span>
-                <p className="text-[10px] text-slate-400 font-bold mt-0.5">Individual Access Control</p>
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-700">
-                {filteredEmployees.length} Staff
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* ========================================================= */}
+        {/* LEFT SIDEBAR: EMPLOYEE ROLES (Cols: 4)                   */}
+        {/* ========================================================= */}
+        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#1AA14D]" />
+              <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                EMPLOYEE ROLES
               </span>
             </div>
-
-            {/* Search employees... */}
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={employeeSearch}
-                onChange={(e) => setEmployeeSearch(e.target.value)}
-                placeholder="Search employees..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#23C45E]"
-              />
-            </div>
-
-            {/* Employee Cards List */}
-            <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-              {isEmployeesLoading ? (
-                <div className="p-8 text-center text-xs text-slate-400">Loading staff directory...</div>
-              ) : filteredEmployees.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-400">No employees found</div>
-              ) : (
-                filteredEmployees.map((emp: any) => {
-                  const isSelected = String(selectedEmployee?.id) === String(emp.id);
-                  const fullName = `${emp.firstName || emp.name || 'Staff'} ${emp.lastName || ''}`.trim();
-                  const roleName = emp.designation?.name || emp.designation || emp.designationName || 'Staff';
-                  const activePermCount =
-                    isSelected && empPermsData?.modules
-                      ? `${empPermsData.modules.filter((m: any) => getEmpEffectiveStatus(m)).length} Permissions`
-                      : `${emp.permissionsCount || (roleName === 'Designer' ? '8 Permissions' : roleName === 'Telecaller' ? '5 Permissions' : 'Access Configured')}`;
-
-                  return (
-                    <div
-                      key={emp.id}
-                      onClick={() => {
-                        if (hasUnsavedEmpChanges) {
-                          if (confirm('You have unsaved changes for the current employee. Discard and switch?')) {
-                            setSelectedEmpId(String(emp.id));
-                            setEmpOverrideEdits({});
-                          }
-                        } else {
-                          setSelectedEmpId(String(emp.id));
-                          setEmpOverrideEdits({});
-                        }
-                      }}
-                      className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
-                        isSelected
-                          ? 'bg-emerald-50/70 border-[#23C45E] shadow-xs'
-                          : 'bg-white border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-slate-900">{fullName}</span>
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                          {emp.employeeCode || `EMP-${emp.id}`}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-slate-600 font-bold">{roleName}</span>
-                        <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-100/60 px-2 py-0.5 rounded-md">
-                          {activePermCount}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-semibold">
-                        <span>{emp.department?.name || emp.department || 'Workspace'}</span>
-                        <span className="text-[#1AA14D] font-bold">Configure Access →</span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+            <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+              {filteredRoles.length} Roles
+            </span>
           </div>
 
-          {/* ========================================================= */}
-          {/* RIGHT PANEL: EMPLOYEE PERMISSIONS MATRIX (Cols: 8) */}
-          {/* ========================================================= */}
-          <div className="lg:col-span-8 space-y-4">
-            {selectedEmployee ? (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-5">
-                {/* Employee Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-black text-slate-900">
-                        {`${selectedEmployee.firstName || selectedEmployee.name || 'Staff'} ${selectedEmployee.lastName || ''}`.trim()}
-                      </h2>
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        {empPermsData?.roleName || selectedEmployee.designation?.name || selectedEmployee.designation || 'Staff'}
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-400">
-                        {selectedEmployee.employeeCode || `EMP-${selectedEmployee.id}`}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      Individual permission overrides. Role defaults provide baseline access; overrides take precedence for this employee.
-                    </p>
-                  </div>
+          {/* Search Role */}
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={roleSearch}
+              onChange={(e) => setRoleSearch(e.target.value)}
+              placeholder="Search roles..."
+              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#23C45E]"
+            />
+          </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsPreviewOpen(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                    >
-                      <Smartphone className="w-3.5 h-3.5 text-[#1AA14D]" />
-                      <span>Preview Mobile UI</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleResetEmpToDefault}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                      title="Reset all modules to INHERIT (Role Defaults)"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reset Defaults</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSaveEmpPermissions}
-                      disabled={isSavingEmpPerms}
-                      className={`flex items-center gap-1.5 px-4 py-1.5 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer ${
-                        hasUnsavedEmpChanges
-                          ? 'bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 animate-pulse'
-                          : 'bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950'
-                      }`}
-                    >
-                      {isSavingEmpPerms ? (
-                        <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Save className="w-3.5 h-3.5" />
-                      )}
-                      <span>{isSavingEmpPerms ? 'Saving...' : hasUnsavedEmpChanges ? 'Save Changes *' : 'Save Permissions'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3-Tier Summary Status Banner */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-                  <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                      1. Role Defaults
-                    </span>
-                    <div className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-purple-600" />
-                      <span>{empPermsData?.roleName || selectedEmployee.designation || 'Staff'}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      {empPermsData?.modules
-                        ? `${empPermsData.modules.filter((m: any) => m.roleDefault).length} modules enabled by default`
-                        : 'Loading defaults...'}
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                      2. Employee Overrides
-                    </span>
-                    <div className="font-extrabold text-xs text-indigo-700 flex items-center gap-1.5">
-                      <Sliders className="w-4 h-4 text-indigo-600" />
-                      <span>
-                        {empPermsData?.modules
-                          ? `${empPermsData.modules.filter((m: any) => getEmpModuleOverride(m.moduleKey) !== 'INHERIT').length} Custom Overrides`
-                          : '0 Overrides'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Takes priority over role baseline
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                      3. Effective Mobile Access
-                    </span>
-                    <div className="font-extrabold text-xs text-emerald-700 flex items-center gap-1.5">
-                      <Smartphone className="w-4 h-4 text-emerald-600" />
-                      <span>
-                        {empPermsData?.modules
-                          ? `${empPermsData.modules.filter((m: any) => getEmpEffectiveStatus(m)).length} of ${empPermsData.modules.length} Modules Active`
-                          : 'Calculating...'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Visible on employee device
-                    </p>
-                  </div>
-                </div>
-
-                {/* Toolbar: Category Filters & Search */}
-                <div className="space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                      {[
-                        { id: 'ALL', label: 'All Modules' },
-                        { id: 'CRM', label: 'CRM Workflow' },
-                        { id: 'WORKSPACE', label: 'My Work & Tasks' },
-                        { id: 'CALENDAR', label: 'Calendar' },
-                        { id: 'CREATIVE', label: 'Creative / SSM' },
-                        { id: 'HRM', label: 'HRM Suite' },
-                        { id: 'SYSTEM', label: 'System' },
-                      ].map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setEmpCategoryFilter(c.id)}
-                          className={`px-3 py-1 text-xs font-bold rounded-lg transition-all whitespace-nowrap cursor-pointer ${
-                            empCategoryFilter === c.id
-                              ? 'bg-[#23C45E] text-slate-950 shadow-xs'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          {c.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="text-xs font-extrabold text-slate-700 shrink-0">
-                      Active on Mobile: <span className="text-[#1AA14D] font-black">{empPermsData?.modules ? empPermsData.modules.filter((m: any) => getEmpEffectiveStatus(m)).length : 0}</span> modules
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={empModuleSearch}
-                      onChange={(e) => setEmpModuleSearch(e.target.value)}
-                      placeholder="Search modules or features (e.g. Calendar, Leads, My Work)..."
-                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#23C45E]"
-                    />
-                  </div>
-                </div>
-
-                {/* Module Permissions Matrix */}
-                <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                  {isEmpPermsLoading ? (
-                    <div className="p-8 text-center text-xs text-slate-400">Loading employee permissions...</div>
-                  ) : !empPermsData?.modules?.length ? (
-                    <div className="p-8 text-center text-xs text-slate-400">No permissions data found</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider">
-                            <th className="py-3.5 px-5">Module / Mobile Feature</th>
-                            <th className="py-3.5 px-3 text-center">Category</th>
-                            <th className="py-3.5 px-4 text-center">Role Default</th>
-                            <th className="py-3.5 px-5 text-center">Individual Override</th>
-                            <th className="py-3.5 px-5 text-center">Effective Mobile Access</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-xs">
-                          {empPermsData.modules
-                            .filter((mod: any) => {
-                              const matchCat = empCategoryFilter === 'ALL' || mod.category === empCategoryFilter;
-                              const q = empModuleSearch.toLowerCase();
-                              const matchSearch =
-                                !q ||
-                                mod.label?.toLowerCase().includes(q) ||
-                                mod.moduleKey?.toLowerCase().includes(q) ||
-                                mod.description?.toLowerCase().includes(q);
-                              return matchCat && matchSearch;
-                            })
-                            .map((mod: any) => {
-                              const currentOverride = getEmpModuleOverride(mod.moduleKey);
-                              const effective = getEmpEffectiveStatus(mod);
-
-                              return (
-                                <tr
-                                  key={mod.moduleKey}
-                                  className={`hover:bg-slate-50/60 transition-colors ${
-                                    currentOverride !== 'INHERIT' ? 'bg-indigo-50/20' : ''
-                                  }`}
-                                >
-                                  <td className="py-3.5 px-5">
-                                    <div className="flex items-center gap-3">
-                                      <div
-                                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-[11px] ${
-                                          effective
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-slate-100 text-slate-400'
-                                        }`}
-                                      >
-                                        {mod.label.slice(0, 2).toUpperCase()}
-                                      </div>
-                                      <div>
-                                        <div className="font-extrabold text-slate-900 flex items-center gap-1.5">
-                                          {mod.label}
-                                          <span className="text-[10px] font-mono text-slate-400 font-normal">
-                                            ({mod.moduleKey})
-                                          </span>
-                                        </div>
-                                        <p className="text-[11px] text-slate-500 line-clamp-1">{mod.description}</p>
-                                      </div>
-                                    </div>
-                                  </td>
-
-                                  <td className="py-3.5 px-3 text-center">
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
-                                      {mod.category}
-                                    </span>
-                                  </td>
-
-                                  <td className="py-3.5 px-4 text-center">
-                                    {mod.roleDefault ? (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                        <CheckCircle className="w-3 h-3 text-emerald-600" />
-                                        ON
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-500 border border-slate-200">
-                                        <XCircle className="w-3 h-3 text-slate-400" />
-                                        OFF
-                                      </span>
-                                    )}
-                                  </td>
-
-                                  <td className="py-3.5 px-5 text-center">
-                                    <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSetEmpOverride(mod.moduleKey, 'INHERIT')}
-                                        className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
-                                          currentOverride === 'INHERIT'
-                                            ? 'bg-white text-slate-900 shadow-xs font-black'
-                                            : 'text-slate-500 hover:text-slate-800'
-                                        }`}
-                                        title="Inherit default setting from employee's assigned role"
-                                      >
-                                        Inherit
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSetEmpOverride(mod.moduleKey, 'ALLOW')}
-                                        className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
-                                          currentOverride === 'ALLOW'
-                                            ? 'bg-emerald-600 text-white shadow-xs font-black'
-                                            : 'text-emerald-700 hover:text-emerald-900'
-                                        }`}
-                                        title="Explicitly grant access to this module"
-                                      >
-                                        Allow
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSetEmpOverride(mod.moduleKey, 'DENY')}
-                                        className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
-                                          currentOverride === 'DENY'
-                                            ? 'bg-rose-600 text-white shadow-xs font-black'
-                                            : 'text-rose-700 hover:text-rose-900'
-                                        }`}
-                                        title="Explicitly deny/block access to this module"
-                                      >
-                                        Deny
-                                      </button>
-                                    </div>
-                                  </td>
-
-                                  <td className="py-3.5 px-5 text-center">
-                                    {effective ? (
-                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs">
-                                        <Unlock className="w-3.5 h-3.5 text-emerald-600" />
-                                        Visible & Allowed
-                                        {currentOverride === 'ALLOW' && (
-                                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-200 text-emerald-900 font-black">
-                                            Override
-                                          </span>
-                                        )}
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-50 text-rose-800 border border-rose-200 shadow-2xs">
-                                        <Lock className="w-3.5 h-3.5 text-rose-600" />
-                                        Hidden / Blocked
-                                        {currentOverride === 'DENY' && (
-                                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-rose-200 text-rose-900 font-black">
-                                            Override
-                                          </span>
-                                        )}
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
+          {/* Role Cards List */}
+          <div className="space-y-2.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+            {isRolesLoading ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                <RotateCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1AA14D]" />
+                Loading employee roles...
+              </div>
+            ) : filteredRoles.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No employee roles matching "{roleSearch}"
               </div>
             ) : (
-              <div className="p-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
-                Select an employee from the left column to configure individual permissions.
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* ========================================================= */}
-          {/* LEFT SIDEBAR: ROLES LIST (Cols: 4) */}
-          {/* ========================================================= */}
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-900 uppercase tracking-wider">Employee Roles</span>
-              <span className="text-[11px] font-bold text-slate-400">{filteredRoles.length} Roles</span>
-            </div>
-
-            {/* Search Role */}
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={roleSearch}
-                onChange={(e) => setRoleSearch(e.target.value)}
-                placeholder="Search roles..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#23C45E]"
-              />
-            </div>
-
-            {/* Role Cards List */}
-            <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-              {filteredRoles.map((role) => {
+              filteredRoles.map((role) => {
                 const isSelected = selectedRole?.id === role.id;
                 return (
                   <div
                     key={role.id}
                     onClick={() => handleSelectRole(role.id)}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative ${
                       isSelected
-                        ? 'bg-emerald-50/60 border-[#23C45E] shadow-xs'
-                        : 'bg-white border-slate-200 hover:border-slate-300'
+                        ? 'bg-emerald-50/70 border-[#23C45E] shadow-sm ring-1 ring-[#23C45E]'
+                        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-900">{role.name}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-black text-slate-900 tracking-tight truncate">
+                            {role.name}
+                          </h4>
+                          {isSelected && (
+                            <span className="w-2 h-2 rounded-full bg-[#23C45E] shrink-0 animate-pulse" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-medium line-clamp-1 mt-0.5">
+                          {role.description || 'Employee mobile application role'}
+                        </p>
+                      </div>
+
                       <span
-                        className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                          role.isSystem ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-800'
+                        className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                          role.isActive
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-slate-100 text-slate-500'
                         }`}
                       >
-                        {role.isSystem ? 'System' : 'Custom'}
+                        {role.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-500 font-medium line-clamp-1">
-                      {role.description || 'Employee role'}
-                    </p>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] font-bold">
+                      <span className="flex items-center gap-1 text-slate-700">
+                        <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                        <span>
+                          {isSelected ? `${localPerms.size} Permissions` : `${role.permissionsCount} Permissions`}
+                        </span>
+                      </span>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-semibold">
-                      <span>{role.permissionsCount} Permissions</span>
-                      <span>{role.usersCount} Staff</span>
+                      <span className="flex items-center gap-1 text-slate-500">
+                        <Users className="w-3.5 h-3.5 text-blue-500" />
+                        <span>{role.usersCount} Staff</span>
+                      </span>
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              })
+            )}
           </div>
+        </div>
 
         {/* ========================================================= */}
-        {/* RIGHT PANEL: PERMISSION TREE & PREVIEW (Cols: 8) */}
+        {/* RIGHT PANEL: SELECTED ROLE PERMISSIONS (Cols: 8)         */}
         {/* ========================================================= */}
         <div className="lg:col-span-8 space-y-4">
           {selectedRole ? (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-5">
-              {/* Role Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-black text-slate-900">{selectedRole.name}</h2>
-                    <span
-                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        selectedRole.isSystem ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-800'
-                      }`}
-                    >
-                      {selectedRole.isSystem ? 'System Role' : 'Custom Role'}
-                    </span>
+            <div className="space-y-4">
+              {/* Role Header & Actions Card */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h2 className="text-base font-black text-slate-900 tracking-tight">
+                        {selectedRole.name}
+                      </h2>
+                      <span
+                        className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                          selectedRole.isActive
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {selectedRole.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        {selectedRole.usersCount} Assigned Staff
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-1">
+                      {selectedRole.description || 'Employee mobile application role'}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    {selectedRole.description || 'Configured permissions govern mobile navigation, tabs, and actions.'}
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsPreviewOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                  >
-                    <Smartphone className="w-3.5 h-3.5 text-[#1AA14D]" />
-                    <span>Preview Mobile UI</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEditRole(selectedRole)}
-                    className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-                    title="Edit Role Info"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-
-                  {!selectedRole.isSystem && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Preview Mobile UI Simulator Button */}
                     <button
                       type="button"
-                      onClick={handleDeleteRole}
-                      className="p-2 text-red-400 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
-                      title="Deactivate Role"
+                      onClick={() => setIsPreviewOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                      title="Preview how Employee Mobile App will render for this role"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Smartphone className="w-3.5 h-3.5 text-[#1AA14D]" />
+                      <span>Preview Mobile UI</span>
                     </button>
-                  )}
+
+                    {/* Edit Role Metadata */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditRole(selectedRole)}
+                      className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors cursor-pointer"
+                      title="Edit role title & description"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Activate / Deactivate Toggle */}
+                    <button
+                      type="button"
+                      onClick={handleToggleRoleActive}
+                      className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                        selectedRole.isActive
+                          ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      }`}
+                      title={selectedRole.isActive ? 'Deactivate this role' : 'Activate this role'}
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Reset to Presets */}
+                    <button
+                      type="button"
+                      onClick={handleResetToTemplate}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                      title="Reset permissions to standard presets for this role"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Defaults</span>
+                    </button>
+
+                    {/* Save Permissions */}
+                    <button
+                      type="button"
+                      onClick={handleSavePermissions}
+                      disabled={isSaving || !hasUnsavedChanges}
+                      className={`flex items-center gap-1.5 px-4 py-1.5 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer ${
+                        hasUnsavedChanges
+                          ? 'bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 animate-pulse'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {isSaving ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      <span>{isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes *' : 'Save Permissions'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Metrics Summary Banner */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200/70">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-[#1AA14D] flex items-center justify-center font-bold">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-slate-400 block">
+                        Enabled Permissions
+                      </span>
+                      <span className="text-xs font-black text-slate-900">
+                        Active: {localPerms.size} permissions
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-slate-400 block">
+                        Module Coverage
+                      </span>
+                      <span className="text-xs font-black text-slate-900">
+                        {
+                          PERMISSION_MODULE_GROUPS.filter((g) =>
+                            g.permissions.some((p) => localPerms.has(p.key))
+                          ).length
+                        }{' '}
+                        of {PERMISSION_MODULE_GROUPS.length} Modules Active
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-slate-400 block">
+                        Staff Impact
+                      </span>
+                      <span className="text-xs font-black text-slate-900">
+                        {selectedRole.usersCount} Employees
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Toolbar: Category Filters & Search */}
-              <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  {/* Category Pills */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                    {(
-                      [
-                        { id: 'ALL', label: 'All Modules' },
-                        { id: 'CRM', label: 'CRM Workflow' },
-                        { id: 'WORKSPACE', label: 'My Work & Tasks' },
-                        { id: 'CALENDAR', label: 'Calendar' },
-                        { id: 'CREATIVE', label: 'Creative / SSM' },
-                        { id: 'HRM', label: 'HRM Suite' },
-                        { id: 'SYSTEM', label: 'System' },
-                      ] as const
-                    ).map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setSelectedCategory(c.id)}
-                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all whitespace-nowrap cursor-pointer ${
-                          selectedCategory === c.id
-                            ? 'bg-[#23C45E] text-slate-950 shadow-xs'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Active Count */}
-                  <div className="text-xs font-extrabold text-slate-700 shrink-0">
-                    Active: <span className="text-[#1AA14D] font-black">{localPerms.size}</span> permissions
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {/* Toolbar: Category Tabs, Search & Bulk Actions */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-3">
+                {/* Top Row: Search & Bulk Buttons */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="relative flex-1">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
                       value={permSearch}
                       onChange={(e) => setPermSearch(e.target.value)}
-                      placeholder="Search permissions or module..."
-                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#23C45E]"
+                      placeholder="Search permissions or modules..."
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#23C45E]"
                     />
                   </div>
 
-                  {/* Quick Action Buttons */}
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
                     <button
                       type="button"
                       onClick={handleExpandAll}
-                      className="px-2 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer"
+                      className="px-2.5 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                     >
                       Expand All
                     </button>
                     <button
                       type="button"
                       onClick={handleCollapseAll}
-                      className="px-2 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer"
+                      className="px-2.5 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                     >
                       Collapse All
                     </button>
                     <button
                       type="button"
                       onClick={handleSelectAll}
-                      className="px-2 py-1 text-[11px] font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg cursor-pointer"
+                      className="px-2.5 py-1.5 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors cursor-pointer"
                     >
                       Select All
                     </button>
                     <button
                       type="button"
                       onClick={handleClearAll}
-                      className="px-2 py-1 text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer"
+                      className="px-2.5 py-1.5 text-[11px] font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer"
                     >
                       Clear All
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleResetToTemplate}
-                      className="px-2 py-1 text-[11px] font-bold bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg cursor-pointer"
-                      title="Reset to recommended default template"
-                    >
-                      Reset Defaults
-                    </button>
                   </div>
                 </div>
-              </div>
 
-              {/* 4. Grouped Permission Tree */}
-              <div className="space-y-3 pt-2">
-                {filteredModules.map((group) => {
-                  const checkState = getModuleCheckState(group);
-                  const isExpanded = expandedModules[group.id] ?? true;
-                  const Icon = group.icon;
-
-                  return (
-                    <div
-                      key={group.id}
-                      className="border border-slate-200 rounded-2xl overflow-hidden bg-white transition-all shadow-2xs"
-                    >
-                      {/* Module Header with Indeterminate / Tri-state Checkbox */}
-                      <div className="p-3.5 bg-slate-50/80 hover:bg-slate-50 flex items-center justify-between gap-3 border-b border-slate-100">
-                        <div className="flex items-center gap-3">
-                          {/* Tri-state Checkbox Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleToggleModule(group)}
-                            className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all cursor-pointer ${
-                              checkState === 'checked'
-                                ? 'bg-[#23C45E] border-[#23C45E] text-slate-950'
-                                : checkState === 'indeterminate'
-                                ? 'bg-[#23C45E]/20 border-[#23C45E] text-[#1AA14D]'
-                                : 'bg-white border-slate-300 hover:border-slate-400'
-                            }`}
-                            title={
-                              checkState === 'checked'
-                                ? 'Deselect all in module'
-                                : checkState === 'indeterminate'
-                                ? 'Select remaining in module'
-                                : 'Select all in module'
-                            }
-                          >
-                            {checkState === 'checked' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                            {checkState === 'indeterminate' && <Minus className="w-3.5 h-3.5 stroke-[3]" />}
-                          </button>
-
-                          <div className="flex items-center gap-2">
-                            <Icon className="w-4 h-4 text-slate-500" />
-                            <span className="text-xs font-black text-slate-900">{group.name}</span>
-                            <span className="text-[10px] font-bold text-slate-400">
-                              ({group.permissions.filter((p) => localPerms.has(p.key)).length}/{group.permissions.length})
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
-                            {group.description}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedModules((prev) => ({ ...prev, [group.id]: !isExpanded }))
-                            }
-                            className="p-1 text-slate-400 hover:text-slate-800 rounded-lg transition-colors cursor-pointer"
-                          >
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Child Actions Checkboxes */}
-                      {isExpanded && (
-                        <div className="p-3.5 grid grid-cols-1 md:grid-cols-2 gap-2.5 bg-white">
-                          {group.permissions.map((perm) => {
-                            const isChecked = localPerms.has(perm.key);
-                            return (
-                              <div
-                                key={perm.key}
-                                onClick={() => handleToggleKey(perm.key)}
-                                className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start justify-between gap-2.5 ${
-                                  isChecked
-                                    ? 'bg-[#E8F9EE] border-[#23C45E]/40 shadow-xs'
-                                    : 'bg-white border-slate-200/80 hover:border-slate-300'
-                                }`}
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-extrabold text-slate-900">{perm.label}</span>
-                                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
-                                      {perm.action}
-                                    </span>
-                                  </div>
-                                  <p className="text-[10.5px] text-slate-500 font-medium mt-0.5 line-clamp-1">
-                                    {perm.description}
-                                  </p>
-                                  <span className="text-[9px] font-mono text-slate-400 block mt-0.5">
-                                    {perm.key}
-                                  </span>
-                                </div>
-
-                                <div
-                                  className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 border mt-0.5 transition-colors ${
-                                    isChecked
-                                      ? 'bg-[#23C45E] border-[#23C45E] text-slate-950'
-                                      : 'border-slate-300 bg-white'
-                                  }`}
-                                >
-                                  {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Bottom Sticky Action Bar */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <div className="text-xs text-slate-500 font-medium">
-                  {hasUnsavedChanges ? (
-                    <span className="text-amber-600 font-bold">Unsaved changes ready to apply</span>
-                  ) : (
-                    <span className="text-emerald-700 font-bold">All permissions synchronized with server</span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
+                {/* Bottom Row: Category Filter Tabs */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => setIsPreviewOpen(true)}
-                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-                  >
-                    Preview Mobile UI
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSavePermissions}
-                    disabled={isSaving || !hasUnsavedChanges}
-                    className={`flex items-center gap-1.5 px-5 py-2 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer ${
-                      hasUnsavedChanges
-                        ? 'bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    onClick={() => setSelectedCategory('ALL')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer shrink-0 ${
+                      selectedCategory === 'ALL'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    {isSaving ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    <span>{isSaving ? 'Saving...' : 'Save Permissions'}</span>
+                    All Modules
                   </button>
+
+                  {CATEGORY_DEFINITIONS.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                        selectedCategory === cat.id
+                          ? 'bg-[#23C45E] text-slate-950 shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      <cat.icon className="w-3.5 h-3.5" />
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              {/* Grouped Permission Modules Tree */}
+              <div className="space-y-6">
+                {isPermsLoading ? (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-xs text-slate-400">
+                    <RotateCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1AA14D]" />
+                    Loading permissions for {selectedRole.name}...
+                  </div>
+                ) : filteredModules.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-xs text-slate-400">
+                    No permissions match your search or filter.
+                  </div>
+                ) : selectedCategory === 'ALL' ? (
+                  // Group by Categories when viewing ALL
+                  CATEGORY_DEFINITIONS.map((cat) => {
+                    const catModules = filteredModules.filter((m) => m.category === cat.id);
+                    if (catModules.length === 0) return null;
+                    return (
+                      <div key={cat.id} className="space-y-3">
+                        <div className="flex items-center gap-2 pb-1.5 border-b border-slate-200">
+                          <cat.icon className="w-4 h-4 text-[#1AA14D]" />
+                          <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                            {cat.name}
+                          </h3>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                            {catModules.length} Modules
+                          </span>
+                        </div>
+                        <div className="space-y-3">
+                          {catModules.map((module) => renderModuleCard(module))}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  // Single Category View
+                  <div className="space-y-3">
+                    {filteredModules.map((module) => renderModuleCard(module))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
-              Select a role from the left sidebar to configure its permissions.
+              Select an employee role from the left sidebar to configure its permissions.
             </div>
           )}
         </div>
       </div>
-    )}
 
       {/* ========================================================= */}
-      {/* 4. MOBILE UI PREVIEW SIMULATOR MODAL */}
+      {/* 4. MOBILE UI PREVIEW SIMULATOR MODAL                     */}
       {/* ========================================================= */}
-      {isPreviewOpen && (activeManagementMode === 'employees' ? Boolean(selectedEmployee) : Boolean(selectedRole)) && (
+      {isPreviewOpen && selectedRole && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95">
             {/* Modal Header */}
@@ -1870,20 +1424,8 @@ export default function RolesPermissionsPage() {
                   <h3 className="text-sm font-black">Employee Mobile App Preview</h3>
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  {activeManagementMode === 'employees' ? (
-                    <>
-                      Simulated navigation for employee:{' '}
-                      <span className="text-[#23C45E] font-bold">
-                        {selectedEmployee?.firstName || selectedEmployee?.name}
-                      </span>{' '}
-                      ({empPermsData?.roleName || selectedEmployee?.designation || 'Staff'})
-                    </>
-                  ) : (
-                    <>
-                      Simulated navigation for role:{' '}
-                      <span className="text-[#23C45E] font-bold">{selectedRole?.name}</span>
-                    </>
-                  )}
+                  Simulated navigation for role:{' '}
+                  <span className="text-[#23C45E] font-bold">{selectedRole.name}</span>
                 </p>
               </div>
 
@@ -1919,9 +1461,7 @@ export default function RolesPermissionsPage() {
                     <span className="text-xs font-black text-slate-900">QuikBoom CRM</span>
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                    {activeManagementMode === 'employees'
-                      ? `${selectedEmployee?.firstName || selectedEmployee?.name}`
-                      : selectedRole?.name}
+                    {selectedRole.name}
                   </span>
                 </div>
 
@@ -1934,49 +1474,49 @@ export default function RolesPermissionsPage() {
                     </span>
 
                     <div className="space-y-1">
-                      {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.leads.view') : localPerms.has('employee.leads.view')) && (
+                      {localPerms.has('employee.leads.view') && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
                           <Users className="w-3.5 h-3.5 text-blue-500" />
                           <span>Leads Pipeline</span>
                         </div>
                       )}
-                      {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.followups.view') : localPerms.has('employee.followups.view')) && (
+                      {localPerms.has('employee.followups.view') && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
                           <Phone className="w-3.5 h-3.5 text-emerald-500" />
                           <span>Follow-ups</span>
                         </div>
                       )}
-                      {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.visits.view') : localPerms.has('employee.visits.view')) && (
+                      {localPerms.has('employee.visits.view') && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
                           <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
                           <span>Field Visits</span>
                         </div>
                       )}
-                      {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.my_work.view') : localPerms.has('employee.my_work.view')) && (
+                      {localPerms.has('employee.my_work.view') && (
                         <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-800 flex items-center gap-2">
                           <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
                           <span>My Work (Creative)</span>
                         </div>
                       )}
-                      {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.creative_work.view') : localPerms.has('employee.creative_work.view')) && (
+                      {localPerms.has('employee.creative_work.view') && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
                           <Share2 className="w-3.5 h-3.5 text-purple-500" />
                           <span>Social Media Work</span>
                         </div>
                       )}
-                      {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.packages.view') : localPerms.has('employee.packages.view')) && (
+                      {localPerms.has('employee.packages.view') && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
                           <Package className="w-3.5 h-3.5 text-amber-500" />
                           <span>Packages</span>
                         </div>
                       )}
-                      {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.attendance.view') : localPerms.has('employee.attendance.view')) && (
+                      {localPerms.has('employee.attendance.view') && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
                           <Clock3 className="w-3.5 h-3.5 text-teal-500" />
                           <span>Attendance Punch</span>
                         </div>
                       )}
-                      {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.tasks.view') : localPerms.has('employee.tasks.view')) && (
+                      {localPerms.has('employee.tasks.view') && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
                           <CheckCheck className="w-3.5 h-3.5 text-cyan-500" />
                           <span>Assigned Tasks</span>
@@ -1992,19 +1532,19 @@ export default function RolesPermissionsPage() {
                     </span>
 
                     <div className="space-y-1">
-                      {!(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.calendar.view') : localPerms.has('employee.calendar.view')) && (
+                      {!localPerms.has('employee.calendar.view') && (
                         <div className="p-1.5 rounded-lg bg-red-50/60 border border-red-200/60 text-[11px] font-medium text-red-700 flex items-center justify-between">
                           <span>Calendar</span>
                           <span className="text-[9px] font-bold uppercase text-red-500">Restricted</span>
                         </div>
                       )}
-                      {!(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.my_work.view') : localPerms.has('employee.my_work.view')) && (
+                      {!localPerms.has('employee.my_work.view') && (
                         <div className="p-1.5 rounded-lg bg-red-50/60 border border-red-200/60 text-[11px] font-medium text-red-700 flex items-center justify-between">
                           <span>My Work</span>
                           <span className="text-[9px] font-bold uppercase text-red-500">Restricted</span>
                         </div>
                       )}
-                      {!(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.leads.view') : localPerms.has('employee.leads.view')) && (
+                      {!localPerms.has('employee.leads.view') && (
                         <div className="p-1.5 rounded-lg bg-red-50/60 border border-red-200/60 text-[11px] font-medium text-red-700 flex items-center justify-between">
                           <span>CRM Leads</span>
                           <span className="text-[9px] font-bold uppercase text-red-500">Restricted</span>
@@ -2023,7 +1563,7 @@ export default function RolesPermissionsPage() {
                   </div>
 
                   {/* Calendar: Visible only if calendar.view is ON */}
-                  {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.calendar.view') : localPerms.has('employee.calendar.view')) ? (
+                  {localPerms.has('employee.calendar.view') ? (
                     <div className="flex flex-col items-center gap-0.5 text-slate-600">
                       <Calendar className="w-4 h-4" />
                       <span className="text-[9px] font-bold">Calendar</span>
@@ -2031,7 +1571,7 @@ export default function RolesPermissionsPage() {
                   ) : null}
 
                   {/* My Work: Visible only if my_work.view is ON */}
-                  {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.my_work.view') : localPerms.has('employee.my_work.view')) ? (
+                  {localPerms.has('employee.my_work.view') ? (
                     <div className="flex flex-col items-center gap-0.5 text-slate-600">
                       <Briefcase className="w-4 h-4" />
                       <span className="text-[9px] font-bold">My Work</span>
@@ -2039,7 +1579,7 @@ export default function RolesPermissionsPage() {
                   ) : null}
 
                   {/* Attendance: Visible if attendance.view is ON */}
-                  {(activeManagementMode === 'employees' ? getEmpEffectiveStatus('employee.attendance.view') : localPerms.has('employee.attendance.view')) ? (
+                  {localPerms.has('employee.attendance.view') ? (
                     <div className="flex flex-col items-center gap-0.5 text-slate-600">
                       <Clock3 className="w-4 h-4" />
                       <span className="text-[9px] font-bold">Attendance</span>
@@ -2070,13 +1610,13 @@ export default function RolesPermissionsPage() {
       )}
 
       {/* ========================================================= */}
-      {/* 5. CREATE / EDIT ROLE DRAWER */}
+      {/* 5. CREATE / EDIT ROLE DRAWER                              */}
       {/* ========================================================= */}
       <AdminFormDrawer
         isOpen={isRoleDrawerOpen}
         onClose={() => setIsRoleDrawerOpen(false)}
-        title={drawerMode === 'create' ? 'Create Security Role' : `Edit Role: ${selectedRole?.name}`}
-        subtitle="Specify role title and descriptive purpose for employee access"
+        title={drawerMode === 'create' ? 'Create Employee Role' : `Edit Role: ${selectedRole?.name}`}
+        subtitle="Specify role title and descriptive purpose for employee mobile access"
         isSubmitting={false}
         maxWidth="sm:max-w-[500px]"
         showFooter={true}
@@ -2089,7 +1629,7 @@ export default function RolesPermissionsPage() {
               type="text"
               value={roleFormData.name}
               onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
-              placeholder="e.g. Telecaller, Designer, Video Editor..."
+              placeholder="e.g. Telecaller, Designer, Editor, Social Media Manager..."
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#23C45E]"
             />
           </div>
@@ -2100,7 +1640,7 @@ export default function RolesPermissionsPage() {
               rows={3}
               value={roleFormData.description}
               onChange={(e) => setRoleFormData({ ...roleFormData, description: e.target.value })}
-              placeholder="Scope of work and permissions granted to staff holding this role..."
+              placeholder="Scope of work and mobile permissions granted to staff holding this role..."
               className="w-full p-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-[#23C45E]"
             />
           </div>
