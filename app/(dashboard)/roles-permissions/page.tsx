@@ -521,7 +521,7 @@ export default function RolesPermissionsPage() {
       name: r.name,
       rawName: r.rawName || r.name,
       type: r.type || 'CUSTOM',
-      description: r.description || 'Employee mobile application role',
+      description: r.description || `${r.name} role`,
       permissionsCount: r.permissionsCount || r.permissions?.length || 0,
       usersCount: r.usersCount || 0,
       isSystem: Boolean(r.isSystem),
@@ -530,11 +530,25 @@ export default function RolesPermissionsPage() {
     }));
   }, [rolesData]);
 
-  // Filter out non-employee portal roles (e.g. CUSTOMER)
+  // Filter out non-employee portal roles (e.g. CUSTOMER) and obsolete generic EMPLOYEE roles
   const employeeRoles = useMemo(() => {
-    return roles.filter(
-      (r) => !['CUSTOMER'].includes(r.rawName?.toUpperCase() || r.name.toUpperCase())
-    );
+    const excludedNames = ['CUSTOMER', 'EMPLOYEE', 'EMPLOYEE ROLE'];
+    const seen = new Set<string>();
+    const result: RoleItem[] = [];
+
+    for (const r of roles) {
+      const raw = (r.rawName || r.name || '').trim().toUpperCase();
+      const norm = (r.name || '').trim().toLowerCase();
+      if (excludedNames.includes(raw) || norm === 'employee') {
+        continue;
+      }
+      if (seen.has(norm)) {
+        continue;
+      }
+      seen.add(norm);
+      result.push(r);
+    }
+    return result;
   }, [roles]);
 
   const filteredRoles = useMemo(() => {
@@ -1295,7 +1309,7 @@ export default function RolesPermissionsPage() {
                               )}
                             </div>
                             <p className="text-[11px] text-slate-500 font-medium line-clamp-1 mt-0.5">
-                              {role.description || 'Employee mobile application role'}
+                              {role.description || `${role.name} role`}
                             </p>
                           </div>
 
@@ -1356,7 +1370,7 @@ export default function RolesPermissionsPage() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 font-medium mt-1">
-                          {selectedRole.description || 'Employee mobile application role'}
+                          {selectedRole.description || `${selectedRole.name} role`}
                         </p>
                       </div>
 
