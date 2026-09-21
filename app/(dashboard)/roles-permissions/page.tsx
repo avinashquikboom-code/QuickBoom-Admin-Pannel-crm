@@ -504,6 +504,12 @@ export default function RolesPermissionsPage() {
   // Mobile Preview Modal State (shared)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  // Employee-specific Reset & Restrict All Modals State
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isRestrictAllModalOpen, setIsRestrictAllModalOpen] = useState(false);
+  const [isResettingPerms, setIsResettingPerms] = useState(false);
+  const [isRestrictingAllPerms, setIsRestrictingAllPerms] = useState(false);
+
   // -------------------------------------------------------------------------
   // 1. FETCH ROLES (Backend API)
   // -------------------------------------------------------------------------
@@ -705,16 +711,42 @@ export default function RolesPermissionsPage() {
   };
 
   const getEmpEffectiveStatus = (m: any): boolean => {
-    const key = typeof m === 'string' ? m : m?.moduleKey;
-    if (!key) return false;
-    const ov = getEmpModuleOverride(key);
+    const rawKey = typeof m === 'string' ? m : m?.moduleKey;
+    if (!rawKey) return false;
+
+    // Direct override check
+    const ov = getEmpModuleOverride(rawKey);
     if (ov === 'ALLOW') return true;
     if (ov === 'DENY') return false;
+
+    // If it's a granular key like employee.calendar.view, also check module override 'CALENDAR'
+    if (rawKey.includes('.')) {
+      const parts = rawKey.split('.');
+      const modName = parts[1]?.toUpperCase();
+      if (modName) {
+        const modOv = getEmpModuleOverride(modName);
+        if (modOv === 'ALLOW') return true;
+        if (modOv === 'DENY') return false;
+      }
+    }
+
     if (typeof m === 'object' && m !== null && m.roleDefault !== undefined) {
       return Boolean(m.roleDefault);
     }
-    const found = empPermsData?.modules?.find((item: any) => item.moduleKey === key);
-    return Boolean(found?.roleDefault);
+
+    // Lookup in modules
+    const modKey = rawKey.includes('.') ? rawKey.split('.')[1]?.toUpperCase() : rawKey.toUpperCase();
+    const found = empPermsData?.modules?.find(
+      (item: any) => item.moduleKey.toUpperCase() === modKey
+    );
+    if (found) {
+      const foundOv = getEmpModuleOverride(found.moduleKey);
+      if (foundOv === 'ALLOW') return true;
+      if (foundOv === 'DENY') return false;
+      return Boolean(found.roleDefault);
+    }
+
+    return false;
   };
 
   const hasUnsavedEmpChanges = useMemo(() => {
@@ -762,6 +794,46 @@ export default function RolesPermissionsPage() {
     }
     setEmpOverrideEdits(reset);
     toast.success('All overrides reset to INHERIT (Role Defaults)');
+  };
+
+  // Handle Confirmed Reset of Employee Permissions to Role Defaults
+  const handleConfirmResetPermissions = async () => {
+    if (!selectedEmployee) return;
+    setIsResettingPerms(true);
+    try {
+      await api.delete(`/employees/${selectedEmployee.id}/permissions`);
+      toast.success('Permissions reset successfully. Employee is now using role defaults.');
+      setEmpOverrideEdits({});
+      setIsResetModalOpen(false);
+      await queryClient.invalidateQueries({
+        queryKey: ['admin-employee-permissions', selectedEmployee.id],
+      });
+      await refetchEmpPerms();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to reset employee permissions');
+    } finally {
+      setIsResettingPerms(false);
+    }
+  };
+
+  // Handle Confirmed Restrict All Modules for Employee
+  const handleConfirmRestrictAllPermissions = async () => {
+    if (!selectedEmployee) return;
+    setIsRestrictingAllPerms(true);
+    try {
+      await api.post(`/employees/${selectedEmployee.id}/permissions/restrict-all`);
+      toast.success('All Employee Mobile permissions have been restricted.');
+      setEmpOverrideEdits({});
+      setIsRestrictAllModalOpen(false);
+      await queryClient.invalidateQueries({
+        queryKey: ['admin-employee-permissions', selectedEmployee.id],
+      });
+      await refetchEmpPerms();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to restrict all employee permissions');
+    } finally {
+      setIsRestrictingAllPerms(false);
+    }
   };
 
   // Save Employee Overrides
@@ -1697,7 +1769,11 @@ export default function RolesPermissionsPage() {
                 ) : (
                   filteredEmployees.map((emp: any) => {
                     const isSelected = selectedEmployee?.id === emp.id;
-                    const roleTitle = emp.roleName || emp.designation?.name || emp.designation || 'Staff';
+                    const desigTitle = emp.designation?.name || emp.designation || 'Staff';
+                    const roleTitle = emp.roleName || desigTitle;
+                    const effectiveCount = isSelected && empPermsData?.modules
+                      ? empPermsData.modules.filter((m: any) => getEmpEffectiveStatus(m)).length
+                      : emp.effectivePermissionsCount;
                     return (
                       <div
                         key={emp.id}
@@ -1720,7 +1796,7 @@ export default function RolesPermissionsPage() {
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-bold text-slate-500">
                               <Briefcase className="w-3 h-3 text-slate-400" />
-                              <span className="truncate">{roleTitle}</span>
+                              <span className="truncate">{desigTitle}</span>
                             </div>
                           </div>
 
@@ -1737,7 +1813,11 @@ export default function RolesPermissionsPage() {
 
                           <span className="flex items-center gap-1 text-purple-700 shrink-0">
                             <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                            <span>Custom Access</span>
+                            <span>
+                              {effectiveCount !== undefined
+                                ? `${effectiveCount} Effective Permissions`
+                                : 'Role Defaults'}
+                            </span>
                           </span>
                         </div>
                       </div>
@@ -1761,11 +1841,17 @@ export default function RolesPermissionsPage() {
                               ? `${selectedEmployee.firstName} ${selectedEmployee.lastName || ''}`.trim()
                               : selectedEmployee.name || 'Employee'}
                           </h2>
+                          <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                            Designation: {selectedEmployee.designation?.name || empPermsData?.designationName || 'Staff'}
+                          </span>
                           <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                            Role: {empPermsData?.roleName || selectedEmployee.designation?.name || selectedEmployee.designation || 'Staff'}
+                            Employee Role: {empPermsData?.roleName || selectedEmployee.designation?.name || 'Staff'}
                           </span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                             ID: {selectedEmployee.employeeCode || `#${selectedEmployee.id}`}
+                          </span>
+                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            Active: {empPermsData?.modules ? empPermsData.modules.filter((m: any) => getEmpEffectiveStatus(m)).length : 0} permissions
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 font-medium mt-1">
@@ -1785,26 +1871,26 @@ export default function RolesPermissionsPage() {
                           <span>Preview Mobile UI</span>
                         </button>
 
-                        {/* Remove All Restrictions Button */}
+                        {/* Reset Permissions Button */}
                         <button
                           type="button"
-                          onClick={handleRemoveAllRestrictions}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                          title="Remove all DENY overrides and reset to INHERIT (Restores role defaults)"
+                          onClick={() => setIsResetModalOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer border border-slate-300"
+                          title="Reset employee-specific overrides to inherit role defaults"
                         >
-                          <Unlock className="w-3.5 h-3.5" />
-                          <span>Remove Restrictions</span>
+                          <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Reset Permissions</span>
                         </button>
 
-                        {/* Reset All to Defaults */}
+                        {/* Restrict All Button */}
                         <button
                           type="button"
-                          onClick={handleResetEmpToRoleDefaults}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                          title="Reset all modules to INHERIT"
+                          onClick={() => setIsRestrictAllModalOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl transition-colors cursor-pointer border border-rose-200"
+                          title="Restrict all module access to DENY for this employee only"
                         >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Reset All</span>
+                          <Ban className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Restrict All</span>
                         </button>
 
                         {/* Save Permissions */}
@@ -2060,6 +2146,138 @@ export default function RolesPermissionsPage() {
                   Select an employee from the left column to configure individual permission overrides.
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 2.5. RESET PERMISSIONS CONFIRMATION MODAL                  */}
+      {/* ========================================================= */}
+      {isResetModalOpen && selectedEmployee && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900">Reset Employee Permissions?</h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Employee:{' '}
+                  <span className="font-bold text-slate-800">
+                    {selectedEmployee.firstName
+                      ? `${selectedEmployee.firstName} ${selectedEmployee.lastName || ''}`.trim()
+                      : selectedEmployee.name || 'Employee'}
+                  </span>{' '}
+                  ({empPermsData?.roleName || selectedEmployee.designation?.name || 'Role Defaults'})
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-600 space-y-2.5">
+              <p>
+                This will remove all custom permission overrides for this employee and restore the permissions inherited from the employee's role.
+              </p>
+
+              {hasUnsavedEmpChanges && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 font-semibold flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>You have unsaved permission changes. Resetting permissions will discard them.</span>
+                </div>
+              )}
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500">
+                ℹ️ Other employees assigned to this role will NOT be affected.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isResettingPerms}
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isResettingPerms}
+                onClick={handleConfirmResetPermissions}
+                className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                {isResettingPerms ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                <span>{isResettingPerms ? 'Resetting...' : 'Reset Permissions'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 2.6. RESTRICT ALL PERMISSIONS CONFIRMATION MODAL           */}
+      {/* ========================================================= */}
+      {isRestrictAllModalOpen && selectedEmployee && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Ban className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900">Restrict All Permissions?</h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Employee:{' '}
+                  <span className="font-bold text-slate-800">
+                    {selectedEmployee.firstName
+                      ? `${selectedEmployee.firstName} ${selectedEmployee.lastName || ''}`.trim()
+                      : selectedEmployee.name || 'Employee'}
+                  </span>{' '}
+                  ({empPermsData?.roleName || selectedEmployee.designation?.name || 'Role Defaults'})
+                </p>
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-600 space-y-2.5">
+              <p>
+                This will remove mobile access to all configured Employee modules for this employee.
+              </p>
+              <p className="text-slate-500">
+                The employee will remain active, but their Employee Mobile App access will be restricted.
+              </p>
+
+              {hasUnsavedEmpChanges && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 font-semibold flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>You have unsaved permission changes. Restricting permissions will overwrite them.</span>
+                </div>
+              )}
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500">
+                ℹ️ This restriction applies ONLY to this employee. Other{' '}
+                <span className="font-bold">{empPermsData?.roleName || selectedEmployee.designation?.name || 'staff'}</span> members and the role defaults remain completely unaffected.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isRestrictingAllPerms}
+                onClick={() => setIsRestrictAllModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isRestrictingAllPerms}
+                onClick={handleConfirmRestrictAllPermissions}
+                className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                {isRestrictingAllPerms ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                <span>{isRestrictingAllPerms ? 'Restricting...' : 'Restrict All'}</span>
+              </button>
             </div>
           </div>
         </div>
