@@ -154,9 +154,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Notification Bell */}
             <Link
-              href="/notifications"
+              href="/settings/notifications"
               className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 relative cursor-pointer block"
-              title="View All Notifications"
+              title="Notification Center"
             >
               <Bell className="w-5 h-5" />
               <span className="w-2 h-2 bg-[#23C45E] rounded-full absolute top-2 right-2" />

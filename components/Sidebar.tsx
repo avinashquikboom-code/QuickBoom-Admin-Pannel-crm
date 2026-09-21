@@ -154,6 +154,11 @@ export function getActiveNavHref(
           ) {
             score = 400;
           } else if (
+            (itemPath === '/settings/notifications' || itemPath === '/notifications') &&
+            (currentPath === '/settings/notifications' || currentPath === '/notifications')
+          ) {
+            score = 500;
+          } else if (
             (itemPath === '/teams' || itemPath === '/team-management') &&
             (currentPath === '/teams' || currentPath === '/team-management')
           ) {
@@ -215,11 +220,22 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
     }
   };
 
-  // ACCORDION SINGLE SOURCE OF TRUTH: Only ONE expandable parent section open at a time
-  const [openSection, setOpenSection] = useState<string | null>(null);
-
   // Get filtered navigation sections based on user role, permissions, and subscription features
   const accessibleSections = filterNavigation(CENTRAL_NAVIGATION, user);
+
+  // ACCORDION SINGLE SOURCE OF TRUTH: Only ONE expandable parent section open at a time
+  const [openSection, setOpenSection] = useState<string | null>(() => {
+    if (!pathname) return null;
+    const initialMatch = accessibleSections.find((section) =>
+      section.items.some(
+        (item) =>
+          item.href === pathname ||
+          (item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
+          (item.href === '/settings/notifications' && (pathname === '/notifications' || pathname.startsWith('/notifications')))
+      )
+    );
+    return initialMatch?.id ?? null;
+  });
 
   // Single active item href derived dynamically from current route
   const activeHref = React.useMemo(() => {

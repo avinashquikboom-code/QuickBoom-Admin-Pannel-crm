@@ -22,7 +22,7 @@ export function FcmProvider() {
 
     const title = payload.title || 'System Alert';
     const body = payload.body || 'New update received.';
-    const route = payload.route || '/notifications';
+    const route = payload.route || '/settings/notifications';
 
     toast(
       (t) => (

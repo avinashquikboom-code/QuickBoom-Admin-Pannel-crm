@@ -365,30 +365,7 @@ export const adminNavigation: {
       ],
     },
 
-    // 7. Reports
-    {
-      id: 'reports',
-      category: 'Reports',
-      sectionIcon: BarChart3,
-      feature: 'reports',
-      roles: ['Super Admin'],
-      items: [
-        { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
-      ],
-    },
-
-    // 8. Notifications
-    {
-      id: 'notifications',
-      category: 'Notifications',
-      sectionIcon: Bell,
-      roles: ['Super Admin'],
-      items: [
-        { name: 'Notifications', href: '/notifications', icon: Bell, permission: 'notifications.view' },
-      ],
-    },
-
-    // 9. Influencer Management
+    // 7. Influencer Management
     {
       id: 'influencer-management',
       category: 'Influencer Management',
@@ -401,7 +378,7 @@ export const adminNavigation: {
       ],
     },
 
-    // 10. AI & Social
+    // 8. AI & Social
     {
       id: 'ai-social',
       category: 'AI & Social',
@@ -414,7 +391,7 @@ export const adminNavigation: {
       ],
     },
 
-    // 11. Content Management
+    // 9. Content Management
     {
       id: 'content-management',
       category: 'Content Management',
@@ -427,7 +404,7 @@ export const adminNavigation: {
       ],
     },
 
-    // 9. Data Management
+    // 10. Data Management
     {
       id: 'data-management',
       category: 'Data Management',
@@ -442,13 +419,26 @@ export const adminNavigation: {
       ],
     },
 
-    // 10. Settings
+    // 11. Reports (Positioned directly above Settings)
+    {
+      id: 'reports',
+      category: 'Reports',
+      sectionIcon: BarChart3,
+      feature: 'reports',
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
+      ],
+    },
+
+    // 12. Settings
     {
       id: 'settings',
       category: 'Settings',
       sectionIcon: Settings,
       roles: ['Super Admin'],
       items: [
+        { name: 'Notification Center', href: '/settings/notifications', icon: Bell, permission: 'notifications.view' },
         { name: 'Roles & Permissions', href: '/roles-permissions', icon: ShieldCheck, permission: 'roles.manage' },
         { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
         { name: 'Email Templates', href: '/settings/email-templates', icon: Mail, permission: 'settings.global' },
@@ -618,14 +608,14 @@ export const adminNavigation: {
       ],
     },
 
-    // 12. Notifications
+    // 12. Settings
     {
-      id: 'notifications',
-      category: 'Notifications',
-      sectionIcon: Bell,
+      id: 'settings',
+      category: 'Settings',
+      sectionIcon: Settings,
       roles: ['HR'],
       items: [
-        { name: 'Notifications', href: '/notifications', icon: Bell, permission: 'notifications.view' },
+        { name: 'Notification Center', href: '/settings/notifications', icon: Bell, permission: 'notifications.view' },
       ],
     },
   ],
@@ -844,6 +834,7 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
       const matches =
         pathname === item.href ||
         (item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
+        (item.href === '/settings/notifications' && (pathname === '/notifications' || pathname.startsWith('/notifications'))) ||
         (item.href === '/hrms/offices' && (pathname === '/offices' || pathname === '/hrm/offices')) ||
         (item.href === '/hrm/live-dashboard' && pathname === '/live-dashboard') ||
         (item.href === '/teams' && pathname === '/team-management');

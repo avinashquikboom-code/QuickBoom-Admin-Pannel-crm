@@ -312,7 +312,7 @@ class FcmWebService {
         payload.data?.body ||
         payload.data?.message ||
         'New update received.';
-      const route = payload.data?.route || payload.data?.click_action || '/notifications';
+      const route = payload.data?.route || payload.data?.click_action || '/settings/notifications';
 
       const parsedNotification: FcmNotificationPayload = {
         title,

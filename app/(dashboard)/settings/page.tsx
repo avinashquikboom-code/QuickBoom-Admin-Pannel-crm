@@ -3116,9 +3116,18 @@ export default function SettingsPage() {
       {/* 5. NOTIFICATIONS TAB */}
       {activeTab === 'NOTIFICATIONS' && (
         <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
-          <div>
-            <h2 className="text-base font-black text-slate-900">Notification & Alert Channels</h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">Configure automated email, WhatsApp, and in-app alert triggers.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-black text-slate-900">Notification & Alert Channels</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Configure automated email, WhatsApp, and in-app alert triggers.</p>
+            </div>
+            <Link
+              href="/settings/notifications"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#E8F9EE] text-[#1AA14D] hover:bg-[#23C45E] hover:text-white rounded-xl text-xs font-black transition-all border border-[#23C45E]/30"
+            >
+              <Bell className="w-4 h-4" />
+              <span>Go to Notification Center</span>
+            </Link>
           </div>
 
           <form onSubmit={handleSaveNotifications} className="space-y-4 pt-4 border-t border-slate-100 text-xs">
