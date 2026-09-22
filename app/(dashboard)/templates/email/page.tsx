@@ -30,7 +30,6 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { TemplatesHeaderTabs } from '@/components/templates/TemplatesHeaderTabs';
 
 interface EmailTemplate {
   id: number;
@@ -129,25 +128,7 @@ export default function TemplatesEmailPage() {
     },
   });
 
-  // Also query meta template count for badge
-  const { data: metaStats } = useQuery({
-    queryKey: ['meta-templates-stats'],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/templates/meta/stats');
-        return res?.data || res || { total: 0 };
-      } catch {
-        return { total: 0 };
-      }
-    },
-    retry: (failureCount, error: any) => {
-      const status = error?.response?.status;
-      if (status && status >= 400 && status < 500) return false;
-      return failureCount < 2;
-    },
-    staleTime: 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+
 
   // Toggle Active Mutation
   const toggleMutation = useMutation({
@@ -423,8 +404,6 @@ export default function TemplatesEmailPage() {
         </div>
       </div>
 
-      {/* Navigation Switcher Tabs */}
-      <TemplatesHeaderTabs emailCount={totalCount} metaCount={metaStats?.total} />
 
       {/* KPI Summary Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

@@ -33,7 +33,6 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { TemplatesHeaderTabs } from '@/components/templates/TemplatesHeaderTabs';
 
 interface MetaTemplate {
   id: number;
@@ -155,7 +154,8 @@ export default function TemplatesMetaPage() {
       if (searchQuery.trim()) params.search = searchQuery.trim();
 
       const res: any = await api.get('/templates/meta', { params });
-      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      const rawList = res?.data?.items || res?.items || res?.data?.data || res?.data || res;
+      return Array.isArray(rawList) ? rawList : [];
     },
   });
 
@@ -200,18 +200,7 @@ export default function TemplatesMetaPage() {
 
   const stats = statsData || { total: 0, active: 0, approved: 0, pending: 0, rejected: 0 };
 
-  // Query email templates count for switcher tab
-  const { data: emailTemplates = [] } = useQuery({
-    queryKey: ['templates-email-count'],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/templates/email').catch(() => api.get('/email/templates'));
-        return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      } catch {
-        return [];
-      }
-    },
-  });
+
 
   // Sync from Meta mutation
   const syncFromMetaMutation = useMutation({
@@ -465,8 +454,6 @@ export default function TemplatesMetaPage() {
         </div>
       </div>
 
-      {/* Navigation Switcher Tabs */}
-      <TemplatesHeaderTabs emailCount={emailTemplates.length} metaCount={stats.total} />
 
       {/* Error state if stats endpoint fails */}
       {isStatsError && (
