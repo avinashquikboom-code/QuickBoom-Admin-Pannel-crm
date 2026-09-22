@@ -826,10 +826,29 @@ export default function LeadsPage() {
     },
     onSuccess: (res: any) => {
       const emailNotif = res?.data?.emailNotification || res?.emailNotification;
-      if (emailNotif?.sent) {
+      const whatsappNotif = res?.data?.whatsappNotification || res?.whatsappNotification;
+
+      const emailSent = Boolean(emailNotif?.sent);
+      const whatsappSent = Boolean(whatsappNotif?.sent);
+      const emailFailed = Boolean(emailNotif && emailNotif.sent === false && emailNotif.status === 'FAILED');
+      const whatsappFailed = Boolean(whatsappNotif && whatsappNotif.sent === false && whatsappNotif.status === 'FAILED');
+
+      if (emailSent && whatsappSent) {
+        toast.success('Lead stage updated! Customer email & WhatsApp message sent.', { id: 'lead-status-update' });
+      } else if (emailSent && whatsappFailed) {
+        toast.success(`Lead stage updated! Customer email sent (WhatsApp failed: ${whatsappNotif.error || 'Check WhatsApp configuration'}).`, { id: 'lead-status-update' });
+      } else if (whatsappSent && emailFailed) {
+        toast.success(`Lead stage updated! WhatsApp message sent (Email failed: ${emailNotif.error || 'Check SMTP configuration'}).`, { id: 'lead-status-update' });
+      } else if (emailSent) {
         toast.success(`Lead stage updated! Customer email sent to ${emailNotif.recipient || 'customer'}.`, { id: 'lead-status-update' });
-      } else if (emailNotif && emailNotif.sent === false && emailNotif.status === 'FAILED') {
+      } else if (whatsappSent) {
+        toast.success(`Lead stage updated! WhatsApp message sent to ${whatsappNotif.recipient || 'customer'}.`, { id: 'lead-status-update' });
+      } else if (emailFailed && whatsappFailed) {
+        toast.error('Lead stage updated, but email & WhatsApp dispatches failed.', { id: 'lead-status-update' });
+      } else if (emailFailed) {
         toast.error(`Lead stage updated, but customer email failed: ${emailNotif.error || 'Check SMTP configuration'}.`, { id: 'lead-status-update' });
+      } else if (whatsappFailed) {
+        toast.error(`Lead stage updated, but WhatsApp message failed: ${whatsappNotif.error || 'Check WhatsApp configuration'}.`, { id: 'lead-status-update' });
       } else {
         toast.success('Lead stage updated successfully.', { id: 'lead-status-update' });
       }

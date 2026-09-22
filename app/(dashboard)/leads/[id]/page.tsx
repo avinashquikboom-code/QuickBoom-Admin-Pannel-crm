@@ -234,10 +234,29 @@ function isDetailsSendStage(lead: any): boolean {
     },
     onSuccess: (res: any) => {
       const emailNotif = res?.data?.emailNotification || res?.emailNotification;
-      if (emailNotif?.sent) {
+      const whatsappNotif = res?.data?.whatsappNotification || res?.whatsappNotification;
+
+      const emailSent = Boolean(emailNotif?.sent);
+      const whatsappSent = Boolean(whatsappNotif?.sent);
+      const emailFailed = Boolean(emailNotif && emailNotif.sent === false && emailNotif.status === 'FAILED');
+      const whatsappFailed = Boolean(whatsappNotif && whatsappNotif.sent === false && whatsappNotif.status === 'FAILED');
+
+      if (emailSent && whatsappSent) {
+        toast.success('Lead stage updated! Customer email & WhatsApp message sent.');
+      } else if (emailSent && whatsappFailed) {
+        toast.success(`Lead stage updated! Customer email sent (WhatsApp failed: ${whatsappNotif.error || 'Check WhatsApp configuration'}).`);
+      } else if (whatsappSent && emailFailed) {
+        toast.success(`Lead stage updated! WhatsApp message sent (Email failed: ${emailNotif.error || 'Check SMTP configuration'}).`);
+      } else if (emailSent) {
         toast.success(`Lead stage updated! Customer email sent to ${emailNotif.recipient || 'customer'}.`);
-      } else if (emailNotif && emailNotif.sent === false && emailNotif.status === 'FAILED') {
+      } else if (whatsappSent) {
+        toast.success(`Lead stage updated! WhatsApp message sent to ${whatsappNotif.recipient || 'customer'}.`);
+      } else if (emailFailed && whatsappFailed) {
+        toast.error('Lead stage updated, but email & WhatsApp dispatches failed.');
+      } else if (emailFailed) {
         toast.error(`Lead stage updated, but customer email failed: ${emailNotif.error || 'Check SMTP configuration'}.`);
+      } else if (whatsappFailed) {
+        toast.error(`Lead stage updated, but WhatsApp message failed: ${whatsappNotif.error || 'Check WhatsApp configuration'}.`);
       } else {
         toast.success('Lead stage updated successfully.');
       }
