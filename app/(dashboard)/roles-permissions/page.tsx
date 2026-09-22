@@ -2620,6 +2620,14 @@ export default function RolesPermissionsPage() {
                         </div>
                       )}
                       {(activeTab === 'roles'
+                        ? localPerms.has('employee.data_capture.view')
+                        : getEmpEffectiveStatus('employee.data_capture.view')) && (
+                        <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
+                          <Target className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Data Capture</span>
+                        </div>
+                      )}
+                      {(activeTab === 'roles'
                         ? localPerms.has('employee.my_work.view')
                         : getEmpEffectiveStatus('employee.my_work.view')) && (
                         <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-800 flex items-center gap-2">
@@ -2690,6 +2698,14 @@ export default function RolesPermissionsPage() {
                         : getEmpEffectiveStatus('employee.leads.view')) && (
                         <div className="p-1.5 rounded-lg bg-red-50/60 border border-red-200/60 text-[11px] font-medium text-red-700 flex items-center justify-between">
                           <span>CRM Leads</span>
+                          <span className="text-[9px] font-bold uppercase text-red-500">Restricted</span>
+                        </div>
+                      )}
+                      {!(activeTab === 'roles'
+                        ? localPerms.has('employee.data_capture.view')
+                        : getEmpEffectiveStatus('employee.data_capture.view')) && (
+                        <div className="p-1.5 rounded-lg bg-red-50/60 border border-red-200/60 text-[11px] font-medium text-red-700 flex items-center justify-between">
+                          <span>Data Capture</span>
                           <span className="text-[9px] font-bold uppercase text-red-500">Restricted</span>
                         </div>
                       )}

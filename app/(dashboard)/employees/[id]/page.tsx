@@ -1056,6 +1056,31 @@ export default function EmployeeDetailPage() {
                   </div>
                 )}
 
+                {/* 5. Data Capture */}
+                {getEffectiveStatus({
+                  moduleKey: 'DATA_CAPTURE',
+                  roleDefault: permissionsData?.modules?.find((m: any) => m.moduleKey === 'DATA_CAPTURE')?.roleDefault,
+                }) ? (
+                  <div className="p-3 bg-blue-950/40 rounded-xl border border-blue-500/30 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-300">
+                        ✓ Data Capture & Prospects
+                      </span>
+                      <span className="text-[9px] text-emerald-400 font-bold">Enabled</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300">
+                      Google Places discovery, extraction history, and lead capture.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-2.5 bg-rose-950/20 rounded-xl border border-rose-500/20 flex items-center justify-between">
+                    <span className="text-[10px] text-rose-400 font-bold">✕ Data Capture Module</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-900/50 text-rose-300 font-mono">
+                      Hidden
+                    </span>
+                  </div>
+                )}
+
                 {/* 5. Attendance & HRM */}
                 {getEffectiveStatus({
                   moduleKey: 'ATTENDANCE',
