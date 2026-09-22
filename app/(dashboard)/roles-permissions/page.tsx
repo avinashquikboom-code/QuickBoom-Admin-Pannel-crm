@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck,
+  Target,
   Plus,
   Edit,
   Trash2,
@@ -115,6 +116,19 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
       { key: 'employee.leads.follow_up', module: 'LEADS', action: 'FOLLOW_UP', label: 'Create Follow-up', description: 'Schedule follow-up reminder from lead details' },
       { key: 'employee.leads.schedule_visit', module: 'LEADS', action: 'SCHEDULE_VISIT', label: 'Schedule Visit', description: 'Book client demo or on-site meeting' },
       { key: 'employee.leads.export', module: 'LEADS', action: 'EXPORT', label: 'Export Leads', description: 'Export filtered lead lists to CSV/Excel' },
+    ],
+  },
+  {
+    id: 'DATA_CAPTURE',
+    name: 'Data Capture & Places',
+    icon: Target,
+    category: 'CRM',
+    description: 'Prospect extraction from Google Places, manual lead capture, and bulk CRM imports',
+    permissions: [
+      { key: 'employee.data_capture.view', module: 'DATA_CAPTURE', action: 'VIEW', label: 'View Data Capture', description: 'Display Data Capture screen, search places, and view extraction history' },
+      { key: 'employee.data_capture.create', module: 'DATA_CAPTURE', action: 'CREATE', label: 'Create / Extract Records', description: 'Execute new Google Places extraction or manual entry' },
+      { key: 'employee.data_capture.edit', module: 'DATA_CAPTURE', action: 'EDIT', label: 'Edit / Validate / Import', description: 'Edit captured records, validate status, or import to CRM Leads' },
+      { key: 'employee.data_capture.delete', module: 'DATA_CAPTURE', action: 'DELETE', label: 'Delete Records', description: 'Remove captured prospects or extraction jobs' },
     ],
   },
   {

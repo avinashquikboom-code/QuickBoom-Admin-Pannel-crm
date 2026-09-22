@@ -42,6 +42,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { hasPermission } from '@/lib/access-control';
 import {
   AdminPageHero,
   AdminStatCard,
@@ -119,6 +121,12 @@ const STATUS_CONFIG: Record<
 
 export default function DataCapturePage() {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+
+  // Button-level permissions
+  const canCreate = hasPermission(user, ['data_capture.create', 'DATA_CAPTURE:CREATE', 'employee.data_capture.create', 'data_capture.manage']);
+  const canEdit = hasPermission(user, ['data_capture.edit', 'DATA_CAPTURE:EDIT', 'employee.data_capture.edit', 'data_capture.manage']);
+  const canDelete = hasPermission(user, ['data_capture.delete', 'DATA_CAPTURE:DELETE', 'employee.data_capture.delete', 'data_capture.manage']);
 
   // Filters & Pagination State
   const [activeTab, setActiveTab] = useState<StatusTab>('ALL');
@@ -564,24 +572,28 @@ export default function DataCapturePage() {
               <span>Usage & Quota</span>
             </Link>
 
-            <AdminButton
-              variant="outline"
-              size="sm"
-              icon={Plus}
-              onClick={() => setCreateModalOpen(true)}
-              className="bg-white text-slate-900 border-white hover:bg-slate-50"
-            >
-              Add Record
-            </AdminButton>
+            {canCreate && (
+              <>
+                <AdminButton
+                  variant="outline"
+                  size="sm"
+                  icon={Plus}
+                  onClick={() => setCreateModalOpen(true)}
+                  className="bg-white text-slate-900 border-white hover:bg-slate-50"
+                >
+                  Add Record
+                </AdminButton>
 
-            <AdminButton
-              variant="primary"
-              size="sm"
-              icon={Search}
-              onClick={() => setExtractModalOpen(true)}
-            >
-              Extract Places
-            </AdminButton>
+                <AdminButton
+                  variant="primary"
+                  size="sm"
+                  icon={Search}
+                  onClick={() => setExtractModalOpen(true)}
+                >
+                  Extract Places
+                </AdminButton>
+              </>
+            )}
           </div>
         }
       />
@@ -709,40 +721,46 @@ export default function DataCapturePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'validate' })}
-              disabled={bulkActionMutation.isPending}
-              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-            >
-              <Check className="w-3.5 h-3.5" />
-              <span>Validate All</span>
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'validate' })}
+                  disabled={bulkActionMutation.isPending}
+                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Validate All</span>
+                </button>
 
-            <button
-              onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'import_leads' })}
-              disabled={bulkActionMutation.isPending}
-              className="px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1 shadow-xs"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Import to CRM Leads</span>
-            </button>
+                <button
+                  onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'import_leads' })}
+                  disabled={bulkActionMutation.isPending}
+                  className="px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Import to CRM Leads</span>
+                </button>
 
-            <button
-              onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'mark_duplicate' })}
-              disabled={bulkActionMutation.isPending}
-              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-            >
-              <span>Mark Duplicate</span>
-            </button>
+                <button
+                  onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'mark_duplicate' })}
+                  disabled={bulkActionMutation.isPending}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <span>Mark Duplicate</span>
+                </button>
+              </>
+            )}
 
-            <button
-              onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'delete' })}
-              disabled={bulkActionMutation.isPending}
-              className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
-            </button>
+            {canDelete && (
+              <button
+                onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'delete' })}
+                disabled={bulkActionMutation.isPending}
+                className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            )}
 
             <button
               onClick={() => setSelectedIds([])}
@@ -802,24 +820,26 @@ export default function DataCapturePage() {
                 No prospect records match your current status or search filter. Extract prospects from Google Places or create a manual entry.
               </p>
             </div>
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <AdminButton
-                variant="primary"
-                size="sm"
-                icon={Search}
-                onClick={() => setExtractModalOpen(true)}
-              >
-                Extract from Google Places
-              </AdminButton>
-              <AdminButton
-                variant="outline"
-                size="sm"
-                icon={Plus}
-                onClick={() => setCreateModalOpen(true)}
-              >
-                Manual Entry
-              </AdminButton>
-            </div>
+            {canCreate && (
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <AdminButton
+                  variant="primary"
+                  size="sm"
+                  icon={Search}
+                  onClick={() => setExtractModalOpen(true)}
+                >
+                  Extract from Google Places
+                </AdminButton>
+                <AdminButton
+                  variant="outline"
+                  size="sm"
+                  icon={Plus}
+                  onClick={() => setCreateModalOpen(true)}
+                >
+                  Manual Entry
+                </AdminButton>
+              </div>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto custom-scrollbar">
@@ -932,7 +952,7 @@ export default function DataCapturePage() {
                             <Eye className="w-4 h-4 text-emerald-600" />
                           </button>
 
-                          {place.status !== 'LEAD_CREATED' && !place.isImported && (
+                          {canEdit && place.status !== 'LEAD_CREATED' && !place.isImported && (
                             <button
                               onClick={() => {
                                 setSelectedRecord(place);
@@ -948,18 +968,20 @@ export default function DataCapturePage() {
                             </button>
                           )}
 
-                          <button
-                            onClick={() => {
-                              if (place.id) {
-                                setRecordToDelete(place.id);
-                                setDeleteConfirmOpen(true);
-                              }
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete record"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => {
+                                if (place.id) {
+                                  setRecordToDelete(place.id);
+                                  setDeleteConfirmOpen(true);
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete record"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -996,7 +1018,7 @@ export default function DataCapturePage() {
         footer={
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
-              {selectedRecord?.id && (
+              {canDelete && selectedRecord?.id && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1032,11 +1054,13 @@ export default function DataCapturePage() {
                 </>
               ) : (
                 <>
-                  <AdminButton variant="secondary" size="sm" icon={Edit} onClick={() => setIsEditing(true)}>
-                    Edit
-                  </AdminButton>
+                  {canEdit && (
+                    <AdminButton variant="secondary" size="sm" icon={Edit} onClick={() => setIsEditing(true)}>
+                      Edit
+                    </AdminButton>
+                  )}
 
-                  {selectedRecord?.status !== 'VALIDATED' && (
+                  {canEdit && selectedRecord?.status !== 'VALIDATED' && (
                     <AdminButton
                       variant="outline"
                       size="sm"
@@ -1050,7 +1074,7 @@ export default function DataCapturePage() {
                     </AdminButton>
                   )}
 
-                  {selectedRecord?.status !== 'REJECTED' && (
+                  {canEdit && selectedRecord?.status !== 'REJECTED' && (
                     <AdminButton
                       variant="outline"
                       size="sm"
@@ -1062,15 +1086,17 @@ export default function DataCapturePage() {
                   )}
 
                   {selectedRecord?.status !== 'LEAD_CREATED' && !selectedRecord?.isImported ? (
-                    <AdminButton
-                      variant="primary"
-                      size="sm"
-                      icon={UserPlus}
-                      loading={createLeadMutation.isPending}
-                      onClick={handleCreateLeadClick}
-                    >
-                      Create Lead
-                    </AdminButton>
+                    canEdit && (
+                      <AdminButton
+                        variant="primary"
+                        size="sm"
+                        icon={UserPlus}
+                        loading={createLeadMutation.isPending}
+                        onClick={handleCreateLeadClick}
+                      >
+                        Create Lead
+                      </AdminButton>
+                    )
                   ) : (
                     <span className="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-extrabold text-xs border border-purple-200 flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />

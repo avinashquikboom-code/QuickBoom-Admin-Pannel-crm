@@ -84,7 +84,14 @@ const SUPER_ADMIN_PERMISSIONS: string[] = [
   'tasks.view',
   'activities.view',
   'data_capture.view',
+  'data_capture.create',
+  'data_capture.edit',
+  'data_capture.delete',
   'data_capture.manage',
+  'templates.view',
+  'templates.create',
+  'templates.edit',
+  'templates.delete',
   'hrm.all',
   'hrm.manage',
   'employee.view',
@@ -320,7 +327,7 @@ export const adminNavigation: {
       category: 'Data Capture',
       sectionIcon: Target,
       feature: 'data_capture',
-      roles: ['Super Admin'],
+      roles: ['Super Admin', 'SUPER_ADMIN', 'Customer Owner', 'Customer Admin', 'Manager'],
       items: [
         { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
         { name: 'Capture History', href: '/data-capture/history', icon: History, permission: 'data_capture.view' },
@@ -673,6 +680,17 @@ export function isFeatureEnabled(
   return !!features[feature];
 }
 
+export function normalizePermissionKey(perm: string): string[] {
+  if (!perm || typeof perm !== 'string') return [];
+  const clean = perm.trim().toLowerCase();
+  const withoutEmployee = clean.replace(/^employee\./, '');
+  const colonFormat = withoutEmployee.replace(/\./g, ':');
+  const dotFormat = withoutEmployee.replace(/:/g, '.');
+  const upperColon = withoutEmployee.toUpperCase().replace(/\./g, ':');
+  const upperDot = withoutEmployee.toUpperCase().replace(/:/g, '.');
+  return Array.from(new Set([clean, withoutEmployee, colonFormat, dotFormat, upperColon, upperDot]));
+}
+
 export function hasPermission(
   user: UserType | null,
   requiredPermission?: string | string[]
@@ -681,12 +699,29 @@ export function hasPermission(
   const userPerms = getUserPermissions(user);
 
   // Super Admin wildcard
-  if (userPerms.includes('platform.all')) return true;
+  if (userPerms.includes('platform.all') || userPerms.includes('PLATFORM.ALL')) return true;
+
+  const normalizedUserPerms = new Set<string>();
+  for (const p of userPerms) {
+    if (typeof p === 'string') {
+      normalizePermissionKey(p).forEach((k) => normalizedUserPerms.add(k));
+    } else if (p && typeof p === 'object' && (p as any).module && (p as any).action) {
+      const k = `${(p as any).module}:${(p as any).action}`;
+      normalizePermissionKey(k).forEach((item) => normalizedUserPerms.add(item));
+    }
+  }
+
+  const checkSingle = (perm: string): boolean => {
+    if (!perm) return true;
+    if (userPerms.includes(perm)) return true;
+    const variants = normalizePermissionKey(perm);
+    return variants.some((v) => normalizedUserPerms.has(v));
+  };
 
   if (Array.isArray(requiredPermission)) {
-    return requiredPermission.some((perm) => userPerms.includes(perm));
+    return requiredPermission.some((perm) => checkSingle(perm));
   }
-  return userPerms.includes(requiredPermission);
+  return checkSingle(requiredPermission);
 }
 
 export function canAccessItem(user: UserType | null, item: NavItemConfig): boolean {
