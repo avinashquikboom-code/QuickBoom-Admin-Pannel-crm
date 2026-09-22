@@ -690,7 +690,20 @@ export default function LeadsPage() {
         value: leadForm.value ? parseFloat(leadForm.value) : 0,
         nextFollowUpDate: leadForm.nextFollowUpDate ? new Date(leadForm.nextFollowUpDate) : undefined,
         nextFollowUpTime: cleanOptionalString(leadForm.nextFollowUpTime),
+        captureRequestId: (leadForm as any).captureRequestId || undefined,
+        sourceRecordId: (leadForm as any).sourceRecordId || cleanOptionalString(leadForm.googlePlaceId) || undefined,
       };
+
+      console.log(
+        `[DATA CAPTURE REQUEST]\n` +
+        `captureRequestId: ${(leadForm as any).captureRequestId || 'N/A'}\n` +
+        `source: ${payload.source}\n` +
+        `sourceResultId: ${payload.sourceRecordId || payload.googlePlaceId || 'N/A'}\n` +
+        `companyName: ${payload.companyName || payload.title}\n` +
+        `website: ${payload.website || 'N/A'}\n` +
+        `phone: ${payload.phone || 'none'}\n` +
+        `email: ${payload.email || 'none'}`
+      );
 
       if (leadForm.id) {
         return api.patch(`/leads/${leadForm.id}`, payload);
@@ -1034,7 +1047,6 @@ export default function LeadsPage() {
             <button
               onClick={() => {
                 setIsPlacesDrawerOpen(true);
-                if (placesResults.length === 0) handleSearchGooglePlaces();
               }}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs flex items-center gap-2 transition-all border border-white/20 cursor-pointer active:scale-95"
             >
@@ -2862,30 +2874,51 @@ export default function LeadsPage() {
                     '';
 
                   const newStage = allStagesForDropdown.find((s: any) => s.key === 'NEW') || allStagesForDropdown[0];
+                  const captureRequestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                  const sourceRecordId = cleanOptionalString(place.googlePlaceId) || cleanOptionalString(place.id) || '';
 
-                  setLeadForm((prev) => ({
-                    ...prev,
-                    title: cleanOptionalString(displayName) || prev.title,
-                    businessName: cleanOptionalString(displayName) || prev.businessName,
-                    firstName: resolvedFirstName || prev.firstName,
-                    lastName: resolvedLastName || prev.lastName,
-                    category: cleanOptionalString(place.category) || prev.category,
-                    phone: resolvedPhone || prev.phone,
-                    email: resolvedEmail || prev.email,
+                  console.log(
+                    `[DATA CAPTURE REQUEST]\n` +
+                    `captureRequestId: ${captureRequestId}\n` +
+                    `source: Google Discovery\n` +
+                    `sourceResultId: ${sourceRecordId || 'N/A'}\n` +
+                    `companyName: ${cleanOptionalString(displayName) || 'N/A'}\n` +
+                    `website: ${cleanOptionalString(place.website) || 'N/A'}\n` +
+                    `phone: ${resolvedPhone || 'none'}\n` +
+                    `email: ${resolvedEmail || 'none'}`
+                  );
+
+                  setLeadForm({
+                    id: '',
+                    title: cleanOptionalString(displayName) || 'New Prospect',
+                    businessName: cleanOptionalString(displayName) || 'New Prospect',
+                    firstName: resolvedFirstName || 'Business',
+                    lastName: resolvedLastName || 'Prospect',
+                    category: cleanOptionalString(place.category) || '',
+                    phone: resolvedPhone || '',
+                    email: resolvedEmail || '',
                     website: cleanOptionalString(place.website) || '',
                     address: cleanOptionalString(place.address) || '',
-                    city: extractedCity,
+                    city: extractedCity || '',
                     state: cleanOptionalString(place.state) || '',
-                    country: cleanOptionalString(place.country) || prev.country,
-                    latitude: place.latitude ? String(place.latitude) : prev.latitude,
-                    longitude: place.longitude ? String(place.longitude) : prev.longitude,
-                    googlePlaceId: cleanOptionalString(place.googlePlaceId) || cleanOptionalString(place.placeId) || prev.googlePlaceId,
-                    rating: place.rating ? String(place.rating) : prev.rating,
-                    reviewCount: place.reviewCount ? String(place.reviewCount) : prev.reviewCount,
+                    country: cleanOptionalString(place.country) || 'India',
+                    latitude: place.latitude ? String(place.latitude) : '',
+                    longitude: place.longitude ? String(place.longitude) : '',
+                    googlePlaceId: cleanOptionalString(place.googlePlaceId) || cleanOptionalString(place.placeId) || '',
+                    rating: place.rating ? String(place.rating) : '',
+                    reviewCount: place.reviewCount ? String(place.reviewCount) : '',
                     source: 'Google Discovery',
                     status: 'NEW',
                     stageId: newStage ? String(newStage.id) : '',
-                  }));
+                    priority: 'MEDIUM',
+                    assignedToId: '',
+                    value: '0',
+                    nextFollowUpDate: '',
+                    nextFollowUpTime: '',
+                    notes: '',
+                    captureRequestId,
+                    sourceRecordId,
+                  } as any);
                   setIsPlacesDrawerOpen(false);
                   setIsAddDrawerOpen(true);
                 }}

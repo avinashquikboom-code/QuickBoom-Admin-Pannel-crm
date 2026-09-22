@@ -38,6 +38,7 @@ import {
   Zap,
   Activity,
   History,
+  Loader2,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
@@ -318,11 +319,15 @@ export default function DataCapturePage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const [capturingId, setCapturingId] = useState<number | null>(null);
+
   const createLeadMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return api.post(`/data-capture/${id}/create-lead`);
+    mutationFn: async ({ id, captureRequestId }: { id: number; captureRequestId?: string }) => {
+      setCapturingId(id);
+      return api.post(`/data-capture/${id}/create-lead`, { captureRequestId });
     },
     onSuccess: (res: any) => {
+      setCapturingId(null);
       const data = res?.data || res;
       toast.success(data?.message || 'Lead created successfully in CRM!', { icon: '🎯' });
       setDrawerOpen(false);
@@ -330,7 +335,10 @@ export default function DataCapturePage() {
       queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
       queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: (err) => {
+      setCapturingId(null);
+      toast.error(getErrorMessage(err));
+    },
   });
 
   const validateMutation = useMutation({
@@ -521,14 +529,33 @@ export default function DataCapturePage() {
     toast.success(`Exported ${exportPlaces.length} records to CSV!`);
   };
 
-  const handleCreateLeadClick = () => {
-    if (!selectedRecord?.id) return;
-    const hasLeadDuplicates = (selectedRecord.duplicateMatches || []).some((m) => m.type === 'LEAD');
+  const handleCaptureLead = (place: CapturedPlace) => {
+    if (!place?.id) return;
+    const captureRequestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    console.log(
+      `[DATA CAPTURE REQUEST]\n` +
+      `captureRequestId: ${captureRequestId}\n` +
+      `source: ${place.source || 'GOOGLE_PLACES'}\n` +
+      `sourceResultId: ${place.googlePlaceId || place.id}\n` +
+      `companyName: ${place.businessName}\n` +
+      `website: ${place.website || 'N/A'}\n` +
+      `phone: ${place.phone || 'none'}\n` +
+      `email: ${place.email || 'none'}`
+    );
+
+    setSelectedRecord(place);
+    const hasLeadDuplicates = (place.duplicateMatches || []).some((m) => m.type === 'LEAD');
     if (hasLeadDuplicates) {
       setLeadDuplicateConfirmOpen(true);
     } else {
-      createLeadMutation.mutate(selectedRecord.id);
+      createLeadMutation.mutate({ id: place.id, captureRequestId });
     }
+  };
+
+  const handleCreateLeadClick = () => {
+    if (!selectedRecord) return;
+    handleCaptureLead(selectedRecord);
   };
 
   return (
@@ -900,13 +927,15 @@ export default function DataCapturePage() {
                               {place.phone}
                             </span>
                           ) : (
-                            <span className="text-slate-400 text-[11px]">No phone</span>
+                            <span className="text-slate-400 text-[11px]">Not found</span>
                           )}
-                          {place.email && (
+                          {place.email && place.email !== 'N/A' ? (
                             <span className="flex items-center gap-1.5 text-slate-600 text-[11px]">
                               <Mail className="w-3 h-3 text-slate-400" />
                               {place.email}
                             </span>
+                          ) : (
+                            <span className="text-slate-400 text-[10px] block">No email</span>
                           )}
                         </div>
                       </td>
@@ -954,17 +983,16 @@ export default function DataCapturePage() {
 
                           {canEdit && place.status !== 'LEAD_CREATED' && !place.isImported && (
                             <button
-                              onClick={() => {
-                                setSelectedRecord(place);
-                                if (place.id) {
-                                  createLeadMutation.mutate(place.id);
-                                }
-                              }}
-                              disabled={createLeadMutation.isPending}
-                              className="p-1.5 text-slate-500 hover:text-[#1AA14D] hover:bg-[#E8F9EE] rounded-lg transition-colors cursor-pointer"
+                              onClick={() => handleCaptureLead(place)}
+                              disabled={capturingId === place.id || createLeadMutation.isPending}
+                              className="p-1.5 text-slate-500 hover:text-[#1AA14D] hover:bg-[#E8F9EE] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                               title="Convert directly to CRM Lead"
                             >
-                              <UserPlus className="w-4 h-4 text-[#1AA14D]" />
+                              {capturingId === place.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-[#1AA14D]" />
+                              ) : (
+                                <UserPlus className="w-4 h-4 text-[#1AA14D]" />
+                              )}
                             </button>
                           )}
 
@@ -1091,7 +1119,7 @@ export default function DataCapturePage() {
                         variant="primary"
                         size="sm"
                         icon={UserPlus}
-                        loading={createLeadMutation.isPending}
+                        loading={capturingId === selectedRecord?.id || createLeadMutation.isPending}
                         onClick={handleCreateLeadClick}
                       >
                         Create Lead
@@ -1636,7 +1664,8 @@ export default function DataCapturePage() {
         onClose={() => setLeadDuplicateConfirmOpen(false)}
         onConfirm={() => {
           if (selectedRecord?.id) {
-            createLeadMutation.mutate(selectedRecord.id);
+            const captureRequestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            createLeadMutation.mutate({ id: selectedRecord.id, captureRequestId });
           }
         }}
         title="Possible Duplicate Detected"
