@@ -1815,6 +1815,13 @@ export default function SettingsPage() {
                       </>
                     )}
                   </button>
+
+                  <Link
+                    href="/templates/meta"
+                    className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all border border-emerald-200"
+                  >
+                    <MessageSquare className="w-4 h-4 text-[#25D366]" /> Manage Meta Templates →
+                  </Link>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -2892,7 +2899,7 @@ export default function SettingsPage() {
                   </button>
 
                   <Link
-                    href="/settings/email-templates"
+                    href="/templates/email"
                     className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all border border-blue-200"
                   >
                     <Mail className="w-4 h-4 text-blue-600" /> Manage Email Templates →

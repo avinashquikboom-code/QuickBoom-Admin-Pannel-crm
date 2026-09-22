@@ -40,6 +40,8 @@ import {
   Video,
   Coins,
   Mail,
+  MessageSquare,
+  Copy,
 } from 'lucide-react';
 import { User as UserType } from './store';
 
@@ -345,7 +347,6 @@ export const adminNavigation: {
       items: [
         { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
         { name: 'Lead Limits', href: '/leads/limits', icon: ShieldCheck, permission: 'leads.view' },
-        { name: 'Email Templates', href: '/crm/email-templates', icon: Mail, permission: 'leads.view' },
         { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
         { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
         { name: 'Deals', href: '/deals', icon: Kanban, permission: 'deals.view' },
@@ -355,7 +356,19 @@ export const adminNavigation: {
       ],
     },
 
-    // 6. Customers & Subscriptions
+    // 6. Templates (Dedicated Top-Level Section)
+    {
+      id: 'templates',
+      category: 'Templates',
+      sectionIcon: Copy,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'Email Templates', href: '/templates/email', icon: Mail, permission: 'templates.view' },
+        { name: 'Meta Templates', href: '/templates/meta', icon: MessageSquare, permission: 'templates.view' },
+      ],
+    },
+
+    // 7. Customers & Subscriptions
     {
       id: 'customers',
       category: 'Customers',
@@ -448,7 +461,6 @@ export const adminNavigation: {
         { name: 'Notification Center', href: '/settings/notifications', icon: Bell, permission: 'notifications.view' },
         { name: 'Roles & Permissions', href: '/roles-permissions', icon: ShieldCheck, permission: 'roles.manage' },
         { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
-        { name: 'Email Templates', href: '/settings/email-templates', icon: Mail, permission: 'settings.global' },
         { name: 'Integrations', href: '/settings', icon: Zap, permission: 'settings.global' },
         { name: 'Activity Logs', href: '/activity-logs', icon: Activity, permission: 'audit_logs.view' },
       ],
