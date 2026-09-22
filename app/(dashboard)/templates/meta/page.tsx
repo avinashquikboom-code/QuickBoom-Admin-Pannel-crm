@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import { TemplatesHeaderTabs } from '@/components/templates/TemplatesHeaderTabs';
 
 interface MetaTemplate {
@@ -103,6 +104,7 @@ const POPULAR_VARIABLES = [
 
 export default function TemplatesMetaPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -157,14 +159,46 @@ export default function TemplatesMetaPage() {
     },
   });
 
-  // Query statistics
-  const { data: stats = { total: 0, active: 0, approved: 0, pending: 0, rejected: 0 } } = useQuery({
+  // Query statistics with loop prevention and safe debug logging
+  const {
+    data: statsData,
+    isError: isStatsError,
+    refetch: refetchStats,
+  } = useQuery({
     queryKey: ['meta-templates-stats'],
     queryFn: async () => {
-      const res: any = await api.get('/templates/meta/stats');
-      return res?.data || res || { total: 0, active: 0, approved: 0, pending: 0, rejected: 0 };
+      try {
+        const res: any = await api.get('/templates/meta/stats');
+        const data = res?.data || res || { total: 0, active: 0, approved: 0, pending: 0, rejected: 0 };
+        console.log('[META TEMPLATE STATS DEBUG]', {
+          URL: '/templates/meta/stats',
+          QueryParams: 'none',
+          TenantCustomerId: user?.customerId ?? 'auto-from-auth',
+          HttpStatus: 200,
+          Response: data,
+        });
+        return data;
+      } catch (err: any) {
+        console.error('[META TEMPLATE STATS DEBUG]', {
+          URL: '/templates/meta/stats',
+          QueryParams: 'none',
+          TenantCustomerId: user?.customerId ?? 'auto-from-auth',
+          HttpStatus: err?.response?.status || 'network-error',
+          Response: err?.response?.data || err?.message,
+        });
+        throw err;
+      }
     },
+    retry: (failureCount, error: any) => {
+      const status = error?.response?.status;
+      if (status && status >= 400 && status < 500) return false;
+      return failureCount < 2;
+    },
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
+
+  const stats = statsData || { total: 0, active: 0, approved: 0, pending: 0, rejected: 0 };
 
   // Query email templates count for switcher tab
   const { data: emailTemplates = [] } = useQuery({
@@ -433,6 +467,22 @@ export default function TemplatesMetaPage() {
 
       {/* Navigation Switcher Tabs */}
       <TemplatesHeaderTabs emailCount={emailTemplates.length} metaCount={stats.total} />
+
+      {/* Error state if stats endpoint fails */}
+      {isStatsError && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl flex items-center justify-between text-xs font-semibold">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>Unable to load Meta template statistics. Please verify backend connection.</span>
+          </div>
+          <button
+            onClick={() => refetchStats()}
+            className="px-3 py-1.5 bg-white hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold cursor-pointer transition-all"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* KPI Stats Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">

@@ -140,6 +140,13 @@ export default function TemplatesEmailPage() {
         return { total: 0 };
       }
     },
+    retry: (failureCount, error: any) => {
+      const status = error?.response?.status;
+      if (status && status >= 400 && status < 500) return false;
+      return failureCount < 2;
+    },
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Toggle Active Mutation
