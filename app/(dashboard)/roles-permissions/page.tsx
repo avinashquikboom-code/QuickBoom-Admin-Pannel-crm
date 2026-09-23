@@ -499,6 +499,8 @@ export default function RolesPermissionsPage() {
 
   const [localPerms, setLocalPerms] = useState<Set<string>>(new Set());
   const [serverPerms, setServerPerms] = useState<Set<string>>(new Set());
+  const [localCrmAccess, setLocalCrmAccess] = useState<boolean>(false);
+  const [serverCrmAccess, setServerCrmAccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Role Drawer State — no longer used for creating roles (use Designations page)
@@ -618,16 +620,23 @@ export default function RolesPermissionsPage() {
           else if (p.module && p.action) keys.push(toKey(p.module, p.action));
         });
       }
-      return keys;
+      return {
+        keys,
+        crmMobileAccess: payload?.crmMobileAccess !== undefined
+          ? Boolean(payload.crmMobileAccess)
+          : Boolean((selectedRole as any)?.crmMobileAccess),
+      };
     },
     retry: 1,
   });
 
   useEffect(() => {
     if (rolePermsData) {
-      const newSet = new Set(rolePermsData);
+      const newSet = new Set(rolePermsData.keys);
       setServerPerms(newSet);
       setLocalPerms(new Set(newSet));
+      setServerCrmAccess(rolePermsData.crmMobileAccess);
+      setLocalCrmAccess(rolePermsData.crmMobileAccess);
     }
   }, [rolePermsData, selectedRole?.id]);
 
@@ -640,12 +649,13 @@ export default function RolesPermissionsPage() {
   }, []);
 
   const hasUnsavedRoleChanges = useMemo(() => {
+    if (localCrmAccess !== serverCrmAccess) return true;
     if (localPerms.size !== serverPerms.size) return true;
     for (const k of localPerms) {
       if (!serverPerms.has(k)) return true;
     }
     return false;
-  }, [localPerms, serverPerms]);
+  }, [localPerms, serverPerms, localCrmAccess, serverCrmAccess]);
 
   // -------------------------------------------------------------------------
   // 2. FETCH EMPLOYEES & INDIVIDUAL OVERRIDES (Backend API)
@@ -1138,8 +1148,10 @@ export default function RolesPermissionsPage() {
       // PUT /designations/:designationId/permissions — emits real-time events to affected employees
       await api.put(`/designations/${selectedRole.id}/permissions`, {
         permissions: keysList,
+        crmMobileAccess: localCrmAccess,
       });
       setServerPerms(new Set(localPerms));
+      setServerCrmAccess(localCrmAccess);
       toast.success(`Permissions saved successfully for ${selectedRole.name}!`);
       await queryClient.invalidateQueries({ queryKey: ['admin-rbac-roles'] });
       await refetchRoles();
@@ -1477,7 +1489,10 @@ export default function RolesPermissionsPage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setLocalPerms(new Set(serverPerms))}
+                  onClick={() => {
+                    setLocalPerms(new Set(serverPerms));
+                    setLocalCrmAccess(serverCrmAccess);
+                  }}
                   className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-amber-100/60 rounded-xl transition-colors cursor-pointer"
                 >
                   Discard
@@ -1553,6 +1568,11 @@ export default function RolesPermissionsPage() {
                               <h4 className="text-xs font-black text-slate-900 tracking-tight truncate">
                                 {role.name}
                               </h4>
+                              {(role as any)?.crmMobileAccess && (
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 tracking-wider">
+                                  CRM
+                                </span>
+                              )}
                               {isSelected && (
                                 <span className="w-2 h-2 rounded-full bg-[#23C45E] shrink-0 animate-pulse" />
                               )}
@@ -1727,6 +1747,58 @@ export default function RolesPermissionsPage() {
                           </span>
                           <span className="text-xs font-black text-slate-900">
                             {selectedRole.usersCount} Employees
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CRM Mobile Section Eligibility Toggle */}
+                    <div className={`p-4 rounded-2xl border transition-all ${
+                      localCrmAccess
+                        ? 'bg-emerald-50/70 border-emerald-300 shadow-2xs'
+                        : 'bg-slate-50/80 border-slate-200'
+                    }`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            localCrmAccess ? 'bg-[#23C45E] text-slate-950 font-bold' : 'bg-slate-200 text-slate-500'
+                          }`}>
+                            <Layers className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-900 tracking-tight">
+                                CRM Mobile Navigation Section
+                              </span>
+                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                localCrmAccess ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                              }`}>
+                                {localCrmAccess ? 'Enabled' : 'Disabled'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5 max-w-xl">
+                              Enables the dedicated <strong className="text-slate-700">CRM</strong> section in Employee Mobile App sidebar (Dashboard, Data Capture, Leads, Customers) for employees with this designation (e.g. Telesales, BPO, Telecallers).
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Toggle Switch */}
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => setLocalCrmAccess(!localCrmAccess)}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              localCrmAccess ? 'bg-[#23C45E]' : 'bg-slate-300'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                                localCrmAccess ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                          <span className="text-xs font-bold text-slate-700 select-none">
+                            {localCrmAccess ? 'Access Enabled' : 'Access Disabled'}
                           </span>
                         </div>
                       </div>
