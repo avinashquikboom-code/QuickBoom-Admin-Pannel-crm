@@ -23,6 +23,8 @@ import {
   Bell,
   X,
   Check,
+  AlertCircle,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -147,6 +149,8 @@ export default function DataManagementPage() {
   const [isLoadingCustomerSummary, setIsLoadingCustomerSummary] = useState(false);
   const [showCustomerSearchDropdown, setShowCustomerSearchDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
+  const [hasSearchedCustomers, setHasSearchedCustomers] = useState(false);
   const [isResettingCustomer, setIsResettingCustomer] = useState(false);
   const [showCustomerResetModal, setShowCustomerResetModal] = useState(false);
   const customerSearchDropdownRef = useRef<HTMLDivElement>(null);
@@ -182,6 +186,8 @@ export default function DataManagementPage() {
   const [isLoadingEmployeeSummary, setIsLoadingEmployeeSummary] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeSummary | null>(null);
+  const [employeeSearchError, setEmployeeSearchError] = useState<string | null>(null);
+  const [hasSearchedEmployees, setHasSearchedEmployees] = useState(false);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
@@ -202,9 +208,13 @@ export default function DataManagementPage() {
     if (!query.trim() || query.trim().length < 2) {
       setEmployeeSearchResults([]);
       setShowSearchDropdown(false);
+      setHasSearchedEmployees(false);
+      setEmployeeSearchError(null);
       return;
     }
     setIsSearchingEmployees(true);
+    setEmployeeSearchError(null);
+    setHasSearchedEmployees(true);
     try {
       const res: any = await api.get('/admin/data-management/employees', {
         params: { search: query.trim(), limit: 10, page: 1 },
@@ -214,7 +224,7 @@ export default function DataManagementPage() {
         });
       });
       const data = res?.data || res;
-      const rawEmployees = Array.isArray(data) ? data : (data?.data || data?.employees || []);
+      const rawEmployees = Array.isArray(data) ? data : (data?.data || data?.employees || data?.items || []);
       // Additional safety check: strictly ensure Super Admin or Admin never appears in employee list
       const employees = rawEmployees.filter((emp: any) => {
         const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim().toLowerCase();
@@ -225,9 +235,11 @@ export default function DataManagementPage() {
       });
       setEmployeeSearchResults(employees);
       setShowSearchDropdown(employees.length > 0);
-    } catch {
+    } catch (err: any) {
       setEmployeeSearchResults([]);
       setShowSearchDropdown(false);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to search employees. Please try again.';
+      setEmployeeSearchError(msg);
     } finally {
       setIsSearchingEmployees(false);
     }
@@ -252,11 +264,13 @@ export default function DataManagementPage() {
 
   const handleEmployeeSearchChange = (value: string) => {
     setEmployeeSearch(value);
+    setEmployeeSearchError(null);
     if (value.trim().length >= 2) {
       searchEmployees(value);
     } else {
       setEmployeeSearchResults([]);
       setShowSearchDropdown(false);
+      setHasSearchedEmployees(false);
     }
   };
 
@@ -304,9 +318,13 @@ export default function DataManagementPage() {
     if (!query.trim() || query.trim().length < 2) {
       setCustomerSearchResults([]);
       setShowCustomerSearchDropdown(false);
+      setHasSearchedCustomers(false);
+      setCustomerSearchError(null);
       return;
     }
     setIsSearchingCustomers(true);
+    setCustomerSearchError(null);
+    setHasSearchedCustomers(true);
     try {
       const res: any = await api.get('/admin/data-management/customers', {
         params: { search: query.trim(), limit: 10, page: 1 },
@@ -316,7 +334,7 @@ export default function DataManagementPage() {
         });
       });
       const data = res?.data || res;
-      const rawCustomers = Array.isArray(data) ? data : (data?.data || data?.customers || []);
+      const rawCustomers = Array.isArray(data) ? data : (data?.data || data?.customers || data?.items || []);
       // Additional safety check: strictly ensure Super Admin or Admin never appears in customer list
       const customers = rawCustomers.filter((cust: any) => {
         const name = (cust.name || '').trim().toLowerCase();
@@ -328,8 +346,11 @@ export default function DataManagementPage() {
       });
       setCustomerSearchResults(customers);
       setShowCustomerSearchDropdown(customers.length > 0);
-    } catch {
+    } catch (err: any) {
       setCustomerSearchResults([]);
+      setShowCustomerSearchDropdown(false);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to search customers. Please try again.';
+      setCustomerSearchError(msg);
     } finally {
       setIsSearchingCustomers(false);
     }
@@ -353,10 +374,15 @@ export default function DataManagementPage() {
 
   const handleCustomerSearchChange = (value: string) => {
     setCustomerSearch(value);
+    setCustomerSearchError(null);
     if (!value) {
       setSelectedCustomer(null);
+      setCustomerSearchResults([]);
+      setShowCustomerSearchDropdown(false);
+      setHasSearchedCustomers(false);
+    } else if (value.trim().length >= 2) {
+      searchCustomers(value);
     }
-    searchCustomers(value);
   };
 
   const handleExecuteCustomerReset = async () => {
@@ -1089,44 +1115,177 @@ export default function DataManagementPage() {
         <div className="space-y-6">
           {/* Employee Search Box */}
           <AdminCard title="Select Employee for Isolated Data Purge" description="Search employee by Name, Employee Code, or Email">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1" ref={searchDropdownRef}>
-                <AdminSearchInput
-                  value={employeeSearch}
-                  onChange={handleEmployeeSearchChange}
-                  placeholder="Type employee name or EMP code (min. 2 chars)..."
-                />
-                {showSearchDropdown && employeeSearchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 overflow-hidden max-h-64 overflow-y-auto">
-                    {employeeSearchResults.map((emp: any) => (
-                      <button
-                        key={emp.id}
-                        onClick={() => handleSelectEmployee(emp)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100 last:border-0"
-                      >
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#23C45E] to-[#1AA14D] text-white flex items-center justify-center font-black text-xs shrink-0">
-                          {(emp.firstName?.[0] || '?').toUpperCase()}
+            <div className="space-y-4">
+              {/* Responsive Search Controls: Desktop horizontal row, Mobile stacked */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  searchEmployees(employeeSearch);
+                }}
+                className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
+              >
+                <div className="flex-1 w-full" ref={searchDropdownRef}>
+                  <AdminSearchInput
+                    value={employeeSearch}
+                    onChange={handleEmployeeSearchChange}
+                    placeholder="Search by employee name, EMP code, or email (min. 2 chars)..."
+                    className="w-full"
+                  />
+                </div>
+                <AdminButton
+                  variant="primary"
+                  type="submit"
+                  loading={isSearchingEmployees || isLoadingEmployeeSummary}
+                  className="w-full sm:w-auto shrink-0 justify-center"
+                >
+                  Search
+                </AdminButton>
+              </form>
+
+              {/* In-flow Search Results / States (Card naturally expands to contain this) */}
+              {/* 1. Loading State */}
+              {isSearchingEmployees && (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#23C45E]" />
+                    <span>Searching employees...</span>
+                  </div>
+                  <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50/40">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-3.5 flex items-center justify-between gap-4 animate-pulse">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div className="h-3.5 bg-slate-200 rounded w-1/3" />
+                            <div className="h-2.5 bg-slate-200 rounded w-1/2" />
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">
-                            {emp.firstName} {emp.lastName}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-semibold">
-                            {emp.employeeCode || emp.empCode || ''} • {emp.department?.name || emp.designation?.name || ''}
-                          </p>
-                        </div>
-                      </button>
+                        <div className="h-8 w-16 bg-slate-200 rounded-xl shrink-0" />
+                      </div>
                     ))}
                   </div>
-                )}
-              </div>
-              <AdminButton
-                variant="primary"
-                loading={isSearchingEmployees || isLoadingEmployeeSummary}
-                onClick={() => searchEmployees(employeeSearch)}
-              >
-                Search
-              </AdminButton>
+                </div>
+              )}
+
+              {/* 2. Error State with Retry */}
+              {!isSearchingEmployees && employeeSearchError && (
+                <div className="p-4 rounded-2xl bg-rose-50/90 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
+                    <div>
+                      <p className="text-xs font-bold">{employeeSearchError}</p>
+                      <p className="text-[11px] text-rose-600 font-medium">Please check your query or network connection and try again.</p>
+                    </div>
+                  </div>
+                  <AdminButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => searchEmployees(employeeSearch)}
+                    className="w-full sm:w-auto shrink-0 border-rose-200 hover:bg-rose-100 text-rose-900 justify-center"
+                  >
+                    Retry
+                  </AdminButton>
+                </div>
+              )}
+
+              {/* 3. Empty State (Searched but 0 results) */}
+              {!isSearchingEmployees && !employeeSearchError && hasSearchedEmployees && employeeSearchResults.length === 0 && (
+                <div className="p-6 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-center flex flex-col items-center justify-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                    <UserX className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">No employees found</p>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      No active employee matches &ldquo;{employeeSearch}&rdquo;. Try searching by name, employee code, or email.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Search Results List (Scrollable if many results: max-h-80 = 320px) */}
+              {!isSearchingEmployees && !employeeSearchError && employeeSearchResults.length > 0 && (
+                <div className="border border-slate-200/90 rounded-2xl bg-white shadow-xs overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-600">
+                    <span>Matching Employees ({employeeSearchResults.length})</span>
+                    <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">Click an employee to select</span>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                    {employeeSearchResults.map((emp: any) => {
+                      const isSelected = selectedEmployee?.employee?.id === emp.id;
+                      const empCode = emp.employeeCode || emp.empCode || '';
+                      const roleOrDept = [emp.designation?.name, emp.department?.name].filter(Boolean).join(' • ');
+
+                      return (
+                        <div
+                          key={emp.id}
+                          onClick={() => handleSelectEmployee(emp)}
+                          className={`w-full p-3.5 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left transition-colors cursor-pointer group ${
+                            isSelected ? 'bg-emerald-50/70 border-l-4 border-l-[#23C45E]' : 'hover:bg-slate-50/80'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#23C45E] to-[#1AA14D] text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
+                              {(emp.firstName?.[0] || '?').toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                                  {emp.firstName} {emp.lastName}
+                                </p>
+                                {empCode && (
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px] font-bold">
+                                    {empCode}
+                                  </span>
+                                )}
+                                {isSelected && (
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Selected
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-slate-500">
+                                {roleOrDept && (
+                                  <span className="font-semibold text-slate-600 truncate max-w-[200px]">
+                                    {roleOrDept}
+                                  </span>
+                                )}
+                                {emp.email && (
+                                  <span className="text-slate-400 truncate max-w-[220px]">
+                                    {roleOrDept ? '• ' : ''}{emp.email}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-center sm:justify-end">
+                            <button
+                              type="button"
+                              className={`w-full sm:w-auto px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-700 group-hover:bg-[#23C45E] group-hover:text-white'
+                              }`}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  Active
+                                </>
+                              ) : (
+                                <>
+                                  Select
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </AdminCard>
 
@@ -1354,44 +1513,174 @@ export default function DataManagementPage() {
         <div className="space-y-6">
           {/* Customer Search Box */}
           <AdminCard title="Select Customer for Data Reset" description="Search customer by Company Name, Contact Name, or Email">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1" ref={customerSearchDropdownRef}>
-                <AdminSearchInput
-                  value={customerSearch}
-                  onChange={handleCustomerSearchChange}
-                  placeholder="Type customer or company name (min. 2 chars)..."
-                />
-                {showCustomerSearchDropdown && customerSearchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-30 overflow-hidden max-h-64 overflow-y-auto">
-                    {customerSearchResults.map((cust: any) => (
-                      <button
-                        key={cust.id}
-                        onClick={() => handleSelectCustomer(cust)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100 last:border-0"
-                      >
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-black text-xs shrink-0">
-                          {(cust.companyName?.[0] || cust.name?.[0] || '?').toUpperCase()}
+            <div className="space-y-4">
+              {/* Responsive Search Controls */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  searchCustomers(customerSearch);
+                }}
+                className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
+              >
+                <div className="flex-1 w-full" ref={customerSearchDropdownRef}>
+                  <AdminSearchInput
+                    value={customerSearch}
+                    onChange={handleCustomerSearchChange}
+                    placeholder="Search by customer name, company, or email (min. 2 chars)..."
+                    className="w-full"
+                  />
+                </div>
+                <AdminButton
+                  variant="primary"
+                  type="submit"
+                  loading={isSearchingCustomers || isLoadingCustomerSummary}
+                  className="w-full sm:w-auto shrink-0 justify-center"
+                >
+                  Search
+                </AdminButton>
+              </form>
+
+              {/* In-flow Customer Search Results / States */}
+              {/* 1. Loading State */}
+              {isSearchingCustomers && (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                    <span>Searching customers...</span>
+                  </div>
+                  <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50/40">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-3.5 flex items-center justify-between gap-4 animate-pulse">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div className="h-3.5 bg-slate-200 rounded w-1/3" />
+                            <div className="h-2.5 bg-slate-200 rounded w-1/2" />
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">
-                            {cust.companyName || cust.name}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-semibold truncate">
-                            {cust.email || 'No email'} {cust.phone ? `• ${cust.phone}` : ''}
-                          </p>
-                        </div>
-                      </button>
+                        <div className="h-8 w-16 bg-slate-200 rounded-xl shrink-0" />
+                      </div>
                     ))}
                   </div>
-                )}
-              </div>
-              <AdminButton
-                variant="primary"
-                loading={isSearchingCustomers || isLoadingCustomerSummary}
-                onClick={() => searchCustomers(customerSearch)}
-              >
-                Search
-              </AdminButton>
+                </div>
+              )}
+
+              {/* 2. Error State with Retry */}
+              {!isSearchingCustomers && customerSearchError && (
+                <div className="p-4 rounded-2xl bg-rose-50/90 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
+                    <div>
+                      <p className="text-xs font-bold">{customerSearchError}</p>
+                      <p className="text-[11px] text-rose-600 font-medium">Please check your query or network connection and try again.</p>
+                    </div>
+                  </div>
+                  <AdminButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => searchCustomers(customerSearch)}
+                    className="w-full sm:w-auto shrink-0 border-rose-200 hover:bg-rose-100 text-rose-900 justify-center"
+                  >
+                    Retry
+                  </AdminButton>
+                </div>
+              )}
+
+              {/* 3. Empty State */}
+              {!isSearchingCustomers && !customerSearchError && hasSearchedCustomers && customerSearchResults.length === 0 && (
+                <div className="p-6 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-center flex flex-col items-center justify-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                    <UserX className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">No customers found</p>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      No active customer matches &ldquo;{customerSearch}&rdquo;. Try searching by name, company, or email.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Results List (Scrollable if many results: max-h-80 = 320px) */}
+              {!isSearchingCustomers && !customerSearchError && customerSearchResults.length > 0 && (
+                <div className="border border-slate-200/90 rounded-2xl bg-white shadow-xs overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-600">
+                    <span>Matching Customers ({customerSearchResults.length})</span>
+                    <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">Click a customer to select</span>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                    {customerSearchResults.map((cust: any) => {
+                      const isSelected = selectedCustomer?.customer?.id === cust.id;
+                      return (
+                        <div
+                          key={cust.id}
+                          onClick={() => handleSelectCustomer(cust)}
+                          className={`w-full p-3.5 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left transition-colors cursor-pointer group ${
+                            isSelected ? 'bg-indigo-50/70 border-l-4 border-l-indigo-600' : 'hover:bg-slate-50/80'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
+                              {(cust.companyName?.[0] || cust.name?.[0] || '?').toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">
+                                  {cust.companyName || cust.name}
+                                </p>
+                                {isSelected && (
+                                  <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-extrabold flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Selected
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-slate-500">
+                                {cust.name && cust.companyName && (
+                                  <span className="font-semibold text-slate-600 truncate max-w-[200px]">
+                                    {cust.name}
+                                  </span>
+                                )}
+                                {cust.email && (
+                                  <span className="text-slate-400 truncate max-w-[220px]">
+                                    {cust.name && cust.companyName ? '• ' : ''}{cust.email}
+                                  </span>
+                                )}
+                                {cust.phone && (
+                                  <span className="text-slate-400 truncate">
+                                    • {cust.phone}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-center sm:justify-end">
+                            <button
+                              type="button"
+                              className={`w-full sm:w-auto px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-700 group-hover:bg-indigo-600 group-hover:text-white'
+                              }`}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  Active
+                                </>
+                              ) : (
+                                <>
+                                  Select
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </AdminCard>
 
