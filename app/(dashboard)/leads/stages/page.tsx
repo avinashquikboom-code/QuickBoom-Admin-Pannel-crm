@@ -11,6 +11,8 @@ import {
   GripVertical,
   ArrowUpDown,
   Kanban,
+  Mail,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -37,6 +39,22 @@ interface LeadStageItem {
   isActive: boolean;
   isSystem?: boolean;
   leadsCount: number;
+  emailEnabled?: boolean;
+  emailTemplateId?: number | null;
+  emailTemplate?: {
+    id: number;
+    name: string;
+    key?: string;
+  } | null;
+  whatsappEnabled?: boolean;
+  whatsappTemplateId?: number | null;
+  whatsappTemplate?: {
+    id: number;
+    name: string;
+    templateName: string;
+    status: string;
+    language?: string;
+  } | null;
 }
 
 const PRESET_COLORS = [
@@ -67,6 +85,10 @@ export default function LeadStagesPage() {
     borderColor: '#BAE6FD',
     sortOrder: 1,
     isActive: true,
+    emailEnabled: true,
+    emailTemplateId: null as number | null,
+    whatsappEnabled: true,
+    whatsappTemplateId: null as number | null,
   });
 
   // Drag-and-drop state
@@ -92,6 +114,40 @@ export default function LeadStagesPage() {
       return items as LeadStageItem[];
     },
     staleTime: 0,
+  });
+
+  // ── Fetch WhatsApp Meta Templates ───────────────────────────────────
+  const { data: whatsappTemplatesData = [] } = useQuery({
+    queryKey: ['admin-meta-templates-approved'],
+    queryFn: async () => {
+      const res: any = await api.get('/templates/meta?status=APPROVED&limit=100').catch(() => null);
+      const items = Array.isArray(res?.data?.items)
+        ? res.data.items
+        : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+        ? res
+        : [];
+      return items as Array<{ id: number; name: string; templateName: string; language: string; status: string }>;
+    },
+    staleTime: 60000,
+  });
+
+  // ── Fetch Email Templates ───────────────────────────────────────────
+  const { data: emailTemplatesData = [] } = useQuery({
+    queryKey: ['admin-email-templates'],
+    queryFn: async () => {
+      const res: any = await api.get('/email/templates?limit=100').catch(() => null);
+      const items = Array.isArray(res?.data?.items)
+        ? res.data.items
+        : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+        ? res
+        : [];
+      return items as Array<{ id: number; name: string; key?: string; subject?: string }>;
+    },
+    staleTime: 60000,
   });
 
   // Sorted list — prefer local optimistic state during drag
@@ -205,7 +261,18 @@ export default function LeadStagesPage() {
   const handleOpenCreate = () => {
     setEditingStage(null);
     const nextOrder = stages.length > 0 ? Math.max(...stages.map((s) => s.sortOrder)) + 1 : 1;
-    setFormData({ name: '', color: '#0284C7', bgColor: '#E0F2FE', borderColor: '#BAE6FD', sortOrder: nextOrder, isActive: true });
+    setFormData({
+      name: '',
+      color: '#0284C7',
+      bgColor: '#E0F2FE',
+      borderColor: '#BAE6FD',
+      sortOrder: nextOrder,
+      isActive: true,
+      emailEnabled: true,
+      emailTemplateId: null,
+      whatsappEnabled: true,
+      whatsappTemplateId: null,
+    });
     setDrawerOpen(true);
   };
 
@@ -218,6 +285,10 @@ export default function LeadStagesPage() {
       borderColor: stage.borderColor || '#BAE6FD',
       sortOrder: stage.sortOrder ?? 1,
       isActive: stage.isActive ?? true,
+      emailEnabled: stage.emailEnabled ?? true,
+      emailTemplateId: stage.emailTemplateId ?? stage.emailTemplate?.id ?? null,
+      whatsappEnabled: stage.whatsappEnabled ?? true,
+      whatsappTemplateId: stage.whatsappTemplateId ?? stage.whatsappTemplate?.id ?? null,
     });
     setDrawerOpen(true);
   };
@@ -322,13 +393,15 @@ export default function LeadStagesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
+              <table className="w-full text-left border-collapse min-w-[850px]">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
                     <th className="py-4 px-3 w-10"></th>
                     <th className="py-4 px-3 w-10 text-center">#</th>
                     <th className="py-4 px-4">Stage Name</th>
                     <th className="py-4 px-4">Status</th>
+                    <th className="py-4 px-4">Email Automation</th>
+                    <th className="py-4 px-4">WhatsApp Automation</th>
                     <th className="py-4 px-4">Color</th>
                     <th className="py-4 px-4 text-center">Leads</th>
                     <th className="py-4 px-5 text-right">Actions</th>
@@ -402,6 +475,44 @@ export default function LeadStagesPage() {
                             <span className={`w-2 h-2 rounded-full ${stage.isActive ? 'bg-[#23C45E] shadow-xs' : 'bg-slate-400'}`} />
                             {stage.isActive ? 'Active' : 'Inactive'}
                           </button>
+                        </td>
+
+                        {/* Email Automation Badge */}
+                        <td className="py-4 px-4">
+                          {stage.emailEnabled === false ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-400 border border-slate-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              Disabled
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200" title={stage.emailTemplate?.name || (stage.emailTemplateId ? `Template #${stage.emailTemplateId}` : 'Auto-match')}>
+                                <Mail className="w-3 h-3 text-blue-500" />
+                                <span className="truncate max-w-[130px]">
+                                  {stage.emailTemplate?.name || (stage.emailTemplateId ? `Template #${stage.emailTemplateId}` : 'Auto-match')}
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* WhatsApp Automation Badge */}
+                        <td className="py-4 px-4">
+                          {stage.whatsappEnabled === false ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-400 border border-slate-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              Disabled
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-[#128C7E] border border-emerald-200" title={stage.whatsappTemplate?.templateName || (stage.whatsappTemplateId ? `Template #${stage.whatsappTemplateId}` : 'Auto-match')}>
+                                <MessageSquare className="w-3 h-3 text-[#23C45E]" />
+                                <span className="truncate max-w-[140px]">
+                                  {stage.whatsappTemplate?.templateName || stage.whatsappTemplate?.name || (stage.whatsappTemplateId ? `Template #${stage.whatsappTemplateId}` : 'Auto-match')}
+                                </span>
+                              </span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Color */}
@@ -537,6 +648,110 @@ export default function LeadStagesPage() {
               onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
             />
           </AdminFormField>
+
+          {/* Automatic Messaging Configurations */}
+          <div className="pt-4 border-t border-slate-200 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-700">Stage Automations</span>
+              <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full">Automatic Dispatch</span>
+            </div>
+
+            {/* Email Automation Card */}
+            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">Email Automation</span>
+                    <span className="text-[11px] text-slate-500 block">Send automatic email to customer on entering this stage</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, emailEnabled: !formData.emailEnabled })}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                    formData.emailEnabled
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : 'bg-slate-100 text-slate-500 border-slate-200'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${formData.emailEnabled ? 'bg-blue-600' : 'bg-slate-400'}`} />
+                  {formData.emailEnabled ? 'Enabled' : 'Disabled'}
+                </button>
+              </div>
+
+              {formData.emailEnabled && (
+                <div className="pt-2 border-t border-slate-200/60">
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Select Email Template</label>
+                  <select
+                    value={formData.emailTemplateId || ''}
+                    onChange={(e) => setFormData({ ...formData, emailTemplateId: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  >
+                    <option value="">Default (Auto-matched by stage key)</option>
+                    {emailTemplatesData?.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.name} {tpl.key ? `(${tpl.key})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* WhatsApp Automation Card */}
+            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-[#128C7E]">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">WhatsApp Automation</span>
+                    <span className="text-[11px] text-slate-500 block">Send specific WhatsApp template on entering this stage</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, whatsappEnabled: !formData.whatsappEnabled })}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                    formData.whatsappEnabled
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-slate-100 text-slate-500 border-slate-200'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${formData.whatsappEnabled ? 'bg-[#23C45E]' : 'bg-slate-400'}`} />
+                  {formData.whatsappEnabled ? 'Enabled' : 'Disabled'}
+                </button>
+              </div>
+
+              {formData.whatsappEnabled && (
+                <div className="pt-2 border-t border-slate-200/60">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-700 block">Configured WhatsApp Meta Template</label>
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">Meta APPROVED Only</span>
+                  </div>
+                  <select
+                    value={formData.whatsappTemplateId || ''}
+                    onChange={(e) => setFormData({ ...formData, whatsappTemplateId: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  >
+                    <option value="">Default (Auto-matched by stage key)</option>
+                    {whatsappTemplatesData?.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.name || tpl.templateName} ({tpl.templateName}) [{tpl.language || 'en'}]
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Selected template will be delivered via Meta Cloud API when a lead transitions to this stage.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Active Status */}
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between">

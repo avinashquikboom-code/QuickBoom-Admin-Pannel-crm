@@ -39,10 +39,13 @@ export interface EmailTemplateItem {
 }
 
 export interface WhatsAppStageTemplate {
+  id?: number;
   key: string;
   templateName: string;
   title: string;
   name?: string;
+  language?: string;
+  status?: string;
   body: string;
 }
 
@@ -76,6 +79,11 @@ export interface LeadStageEmailDrawerProps {
     color?: string;
     bgColor?: string;
     borderColor?: string;
+    emailEnabled?: boolean;
+    emailTemplateId?: number | null;
+    whatsappEnabled?: boolean;
+    whatsappTemplateId?: number | null;
+    whatsappTemplate?: any | null;
   } | null;
   initialChannel?: 'EMAIL' | 'WHATSAPP';
   isDirectSend?: boolean;
@@ -87,6 +95,7 @@ export interface LeadStageEmailDrawerProps {
     customBody?: string;
     whatsappMessage?: string;
     whatsappTemplateName?: string;
+    whatsappTemplateId?: number;
   }) => Promise<void> | void;
   isSubmitting?: boolean;
 }
@@ -278,10 +287,16 @@ export function findMatchingEmailTemplate(
  */
 export function findMatchingWhatsAppTemplate(
   templates: WhatsAppStageTemplate[],
-  stage?: { id?: number | string; name?: string; key?: string } | null,
+  stage?: { id?: number | string; name?: string; key?: string; whatsappTemplateId?: number | null } | null,
   leadStatus?: string | null
 ): WhatsAppStageTemplate | null {
   if (!templates || templates.length === 0) return null;
+
+  // 0. If stage has a configured whatsappTemplateId, match by ID directly
+  if ((stage as any)?.whatsappTemplateId) {
+    const idMatch = templates.find((t) => t.id === Number((stage as any).whatsappTemplateId));
+    if (idMatch) return idMatch;
+  }
 
   const stageKey = normalizeStageKey(stage?.key);
   const stageName = normalizeStageKey(stage?.name);
@@ -802,6 +817,7 @@ export function LeadStageEmailDrawer({
         message: finalWhatsAppText.trim(),
         templateName: activeWhatsAppTemplate?.templateName,
         stageName: effectiveStage.name,
+        whatsappTemplateId: activeWhatsAppTemplate?.id,
       });
       const data = res?.data || res;
       if (data?.success !== false) {
@@ -850,6 +866,7 @@ export function LeadStageEmailDrawer({
             message: finalWhatsAppText.trim(),
             templateName: activeWhatsAppTemplate.templateName,
             stageName: effectiveStage.name,
+            whatsappTemplateId: activeWhatsAppTemplate.id,
           });
           const data = res?.data || res;
           if (data?.success !== false) {
@@ -963,6 +980,7 @@ export function LeadStageEmailDrawer({
                         sendWhatsapp: true,
                         whatsappMessage: finalWhatsAppText,
                         whatsappTemplateName: activeWhatsAppTemplate.templateName,
+                        whatsappTemplateId: activeWhatsAppTemplate.id,
                       })
                     }
                     disabled={isBusy}
@@ -994,6 +1012,7 @@ export function LeadStageEmailDrawer({
                         customBody: finalBodyHtml,
                         whatsappMessage: finalWhatsAppText,
                         whatsappTemplateName: activeWhatsAppTemplate.templateName,
+                        whatsappTemplateId: activeWhatsAppTemplate.id,
                       })
                     }
                     disabled={isBusy}
