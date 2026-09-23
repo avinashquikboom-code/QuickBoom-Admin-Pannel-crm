@@ -512,6 +512,7 @@ export default function RolesPermissionsPage() {
   const [empSearch, setEmpSearch] = useState('');
   const [selectedEmpId, setSelectedEmpId] = useState<string>('');
   const [empOverrideEdits, setEmpOverrideEdits] = useState<Record<string, 'INHERIT' | 'ALLOW' | 'DENY'>>({});
+  const [inheritOverride, setInheritOverride] = useState<boolean | null>(null);
   const [isSavingEmpPerms, setIsSavingEmpPerms] = useState(false);
   const [empCategoryFilter, setEmpCategoryFilter] = useState<string>('ALL');
   const [empModuleSearch, setEmpModuleSearch] = useState<string>('');
@@ -735,6 +736,7 @@ export default function RolesPermissionsPage() {
   useEffect(() => {
     setEmpOverrideEdits({});
     setExpandedEmpModules({});
+    setInheritOverride(null);
   }, [selectedEmployee?.id]);
 
   const toggleEmpModuleExpand = (moduleKey: string) => {
@@ -823,14 +825,80 @@ export default function RolesPermissionsPage() {
     return false;
   };
 
+  const isInheritingRoleDefaults = useMemo(() => {
+    if (inheritOverride !== null) return inheritOverride;
+    const editKeys = Object.keys(empOverrideEdits);
+    if (editKeys.length > 0) {
+      return !editKeys.some((k) => empOverrideEdits[k] === 'ALLOW' || empOverrideEdits[k] === 'DENY');
+    }
+    if (empPermsData?.customPermissionsEnabled !== undefined) {
+      return !empPermsData.customPermissionsEnabled;
+    }
+    return !Object.values(initialEmpOverrides).some((v) => v === 'ALLOW' || v === 'DENY');
+  }, [inheritOverride, empOverrideEdits, empPermsData, initialEmpOverrides]);
+
   const hasUnsavedEmpChanges = useMemo(() => {
+    if (inheritOverride !== null) {
+      const serverInheriting = empPermsData?.customPermissionsEnabled !== undefined
+        ? !empPermsData.customPermissionsEnabled
+        : !Object.values(initialEmpOverrides).some((v) => v === 'ALLOW' || v === 'DENY');
+      if (inheritOverride !== serverInheriting) return true;
+    }
     return Object.keys(empOverrideEdits).some(
       (k) => empOverrideEdits[k] !== (initialEmpOverrides[k] || 'INHERIT')
     );
-  }, [empOverrideEdits, initialEmpOverrides]);
+  }, [inheritOverride, empOverrideEdits, initialEmpOverrides, empPermsData]);
 
   const handleSetEmpOverride = (key: string, val: 'INHERIT' | 'ALLOW' | 'DENY') => {
     setEmpOverrideEdits((prev) => ({ ...prev, [key]: val }));
+    if (val === 'ALLOW' || val === 'DENY') {
+      setInheritOverride(false);
+    }
+  };
+
+  const handleToggleMasterInherit = () => {
+    const nextState = !isInheritingRoleDefaults;
+    setInheritOverride(nextState);
+
+    if (nextState) {
+      const reset: Record<string, 'INHERIT' | 'ALLOW' | 'DENY'> = {};
+      empPermsData?.modules?.forEach((m: any) => {
+        reset[m.moduleKey] = 'INHERIT';
+      });
+      empPermsData?.granularPermissions?.forEach((g: any) => {
+        reset[g.key] = 'INHERIT';
+      });
+      setEmpOverrideEdits(reset);
+      toast.success('Enabled Designation Inheritance. Module switches are now locked to role defaults.');
+    } else {
+      toast('Custom overrides enabled. You can now toggle individual module switches.', {
+        icon: '⚙️',
+      });
+    }
+  };
+
+  const handleToggleModuleSwitch = (mod: any) => {
+    if (isInheritingRoleDefaults) {
+      toast('Turn off "Inherit from Designation / Role" switch above to customize individual module permissions.', {
+        icon: '🔒',
+      });
+      return;
+    }
+    const currentEffective = getEmpEffectiveStatus(mod);
+    const nextOverride = currentEffective ? 'DENY' : 'ALLOW';
+    handleSetEmpOverride(mod.moduleKey, nextOverride);
+  };
+
+  const handleToggleGranularSwitch = (p: any) => {
+    if (isInheritingRoleDefaults) {
+      toast('Turn off "Inherit from Designation / Role" switch above to customize individual actions.', {
+        icon: '🔒',
+      });
+      return;
+    }
+    const currentEffective = getEmpEffectiveStatus(p);
+    const nextOverride = currentEffective ? 'DENY' : 'ALLOW';
+    handleSetEmpOverride(p.key, nextOverride);
   };
 
   // "Remove Restriction" behavior: Resets DENY -> INHERIT so role default becomes active again
@@ -920,26 +988,34 @@ export default function RolesPermissionsPage() {
     if (!selectedEmployee || !empPermsData?.modules) return;
     setIsSavingEmpPerms(true);
     try {
-      const moduleOverrides = empPermsData.modules.map((m: any) => ({
-        moduleKey: m.moduleKey,
-        override: getEmpModuleOverride(m.moduleKey),
-      }));
-
-      const granularOverrides = (empPermsData.granularPermissions || [])
-        .filter((g: any) => empOverrideEdits[g.key] !== undefined)
-        .map((g: any) => ({
-          moduleKey: g.key,
-          override: getEmpModuleOverride(g.key),
+      if (isInheritingRoleDefaults && inheritOverride === true) {
+        await api.delete(`/employees/${selectedEmployee.id}/permissions`);
+        toast.success(
+          `Inheriting designation defaults for ${selectedEmployee.firstName || selectedEmployee.name}!`
+        );
+      } else {
+        const moduleOverrides = empPermsData.modules.map((m: any) => ({
+          moduleKey: m.moduleKey,
+          override: getEmpModuleOverride(m.moduleKey),
         }));
 
-      await api.put(`/employees/${selectedEmployee.id}/permissions`, {
-        overrides: [...moduleOverrides, ...granularOverrides],
-      });
+        const granularOverrides = (empPermsData.granularPermissions || [])
+          .filter((g: any) => empOverrideEdits[g.key] !== undefined)
+          .map((g: any) => ({
+            moduleKey: g.key,
+            override: getEmpModuleOverride(g.key),
+          }));
 
-      toast.success(
-        `Permissions updated successfully for ${selectedEmployee.firstName || selectedEmployee.name}!`
-      );
+        await api.put(`/employees/${selectedEmployee.id}/permissions`, {
+          overrides: [...moduleOverrides, ...granularOverrides],
+        });
+
+        toast.success(
+          `Permissions updated successfully for ${selectedEmployee.firstName || selectedEmployee.name}!`
+        );
+      }
       setEmpOverrideEdits({});
+      setInheritOverride(null);
       await queryClient.invalidateQueries({
         queryKey: ['admin-employee-permissions', selectedEmployee.id],
       });
@@ -2031,6 +2107,64 @@ export default function RolesPermissionsPage() {
                     </div>
                   </div>
 
+                  {/* MASTER INHERIT FROM DESIGNATION / ROLE SWITCH CARD */}
+                  <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-5 transition-all">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                            isInheritingRoleDefaults
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-emerald-100 text-[#1AA14D]'
+                          }`}
+                        >
+                          {isInheritingRoleDefaults ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-black text-slate-900">
+                              Inherit from Designation / Role
+                            </h3>
+                            <span
+                              className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                                isInheritingRoleDefaults
+                                  ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              }`}
+                            >
+                              {isInheritingRoleDefaults ? 'Inheriting Defaults' : 'Custom Overrides Active'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">
+                            {isInheritingRoleDefaults
+                              ? `Employee uses default permissions from ${selectedEmployee.designation?.name || empPermsData?.designationName || 'Designation'}. Module switches below are locked.`
+                              : `Custom overrides are enabled for this employee. Use the switches below to enable or disable specific modules.`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                        <span className="text-xs font-bold text-slate-600">
+                          {isInheritingRoleDefaults ? 'Inherit: ON' : 'Inherit: OFF'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleToggleMasterInherit}
+                          className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            isInheritingRoleDefaults ? 'bg-purple-600' : 'bg-slate-300 hover:bg-slate-400'
+                          }`}
+                          title={isInheritingRoleDefaults ? 'Turn off inheritance to customize permissions' : 'Turn on inheritance to restore defaults'}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                              isInheritingRoleDefaults ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* 3-State Module Permission Matrix */}
                   <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
                     <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
@@ -2039,7 +2173,9 @@ export default function RolesPermissionsPage() {
                           Mobile Application Module Permissions
                         </h3>
                         <p className="text-[11px] text-slate-500">
-                          Set 3-state overrides: INHERIT (Use Role Default), ALLOW (Force enable), or DENY (Force disable).
+                          {isInheritingRoleDefaults
+                            ? 'Switches reflect designation defaults (locked). Turn off inheritance above to toggle.'
+                            : 'Toggle module switches [Enabled / Disabled] to customize permissions for this employee.'}
                         </p>
                       </div>
 
@@ -2082,9 +2218,10 @@ export default function RolesPermissionsPage() {
                           <thead className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
                             <tr>
                               <th className="py-3 px-5">Module / Action</th>
-                              <th className="py-3 px-5 text-center">1. Role Default</th>
-                              <th className="py-3 px-5 text-center">2. Employee Override</th>
-                              <th className="py-3 px-5 text-center">3. Effective Access</th>
+                              <th className="py-3 px-4 text-center">1. Role Default</th>
+                              <th className="py-3 px-4 text-center">Permission Switch</th>
+                              <th className="py-3 px-4 text-center">2. Employee Override</th>
+                              <th className="py-3 px-4 text-center">3. Effective Access</th>
                               <th className="py-3 px-4 text-center">Actions</th>
                             </tr>
                           </thead>
@@ -2151,7 +2288,7 @@ export default function RolesPermissionsPage() {
                                         </div>
                                       </td>
 
-                                      <td className="py-3 px-5 text-center">
+                                      <td className="py-3 px-4 text-center">
                                         {mod.roleDefault ? (
                                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
                                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -2165,48 +2302,92 @@ export default function RolesPermissionsPage() {
                                         )}
                                       </td>
 
-                                      <td className="py-3 px-5 text-center">
-                                        <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
+                                      {/* PERMISSION SWITCH [ Enabled / Disabled ] */}
+                                      <td className="py-3 px-4 text-center">
+                                        <div className="flex items-center justify-center gap-2">
                                           <button
                                             type="button"
-                                            onClick={() => handleSetEmpOverride(mod.moduleKey, 'INHERIT')}
-                                            className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
-                                              currentOverride === 'INHERIT'
-                                                ? 'bg-white text-slate-900 shadow-xs font-black'
-                                                : 'text-slate-500 hover:text-slate-800'
+                                            onClick={() => handleToggleModuleSwitch(mod)}
+                                            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                              isInheritingRoleDefaults
+                                                ? effective
+                                                  ? 'bg-emerald-400/60 cursor-not-allowed opacity-75'
+                                                  : 'bg-slate-300/60 cursor-not-allowed opacity-75'
+                                                : effective
+                                                ? 'bg-[#23C45E] cursor-pointer hover:bg-[#1AA14D]'
+                                                : 'bg-slate-300 cursor-pointer hover:bg-slate-400'
                                             }`}
-                                            title="Inherit default from role"
+                                            title={
+                                              isInheritingRoleDefaults
+                                                ? `Inheriting from Designation (${mod.roleDefault ? 'Enabled' : 'Disabled'}). Turn off Inherit above to customize.`
+                                                : effective
+                                                ? 'Click to Disable (DENY)'
+                                                : 'Click to Enable (ALLOW)'
+                                            }
                                           >
-                                            Inherit
+                                            <span
+                                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out flex items-center justify-center ${
+                                                effective ? 'translate-x-5' : 'translate-x-0'
+                                              }`}
+                                            >
+                                              {isInheritingRoleDefaults && <Lock className="w-2.5 h-2.5 text-slate-400" />}
+                                            </span>
                                           </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleSetEmpOverride(mod.moduleKey, 'ALLOW')}
-                                            className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
-                                              currentOverride === 'ALLOW'
-                                                ? 'bg-emerald-600 text-white shadow-xs font-black'
-                                                : 'text-emerald-700 hover:text-emerald-900'
-                                            }`}
-                                            title="Explicitly allow this module"
-                                          >
-                                            Allow
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleSetEmpOverride(mod.moduleKey, 'DENY')}
-                                            className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
-                                              currentOverride === 'DENY'
-                                                ? 'bg-rose-600 text-white shadow-xs font-black'
-                                                : 'text-rose-700 hover:text-rose-900'
-                                            }`}
-                                            title="Explicitly deny/block this module"
-                                          >
-                                            Deny
-                                          </button>
+                                          <span className="text-[11px] font-bold text-slate-700 w-14 text-left">
+                                            {effective ? 'Enabled' : 'Disabled'}
+                                          </span>
                                         </div>
                                       </td>
 
-                                      <td className="py-3 px-5 text-center">
+                                      <td className="py-3 px-4 text-center">
+                                        {isInheritingRoleDefaults ? (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                            <Lock className="w-3 h-3 text-purple-500" />
+                                            Inherited
+                                          </span>
+                                        ) : (
+                                          <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSetEmpOverride(mod.moduleKey, 'INHERIT')}
+                                              className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
+                                                currentOverride === 'INHERIT'
+                                                  ? 'bg-white text-slate-900 shadow-xs font-black'
+                                                  : 'text-slate-500 hover:text-slate-800'
+                                              }`}
+                                              title="Inherit default from role"
+                                            >
+                                              Inherit
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSetEmpOverride(mod.moduleKey, 'ALLOW')}
+                                              className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
+                                                currentOverride === 'ALLOW'
+                                                  ? 'bg-emerald-600 text-white shadow-xs font-black'
+                                                  : 'text-emerald-700 hover:text-emerald-900'
+                                              }`}
+                                              title="Explicitly allow this module"
+                                            >
+                                              Allow
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSetEmpOverride(mod.moduleKey, 'DENY')}
+                                              className={`px-2.5 py-1 text-[11px] font-extrabold rounded-lg transition-all cursor-pointer ${
+                                                currentOverride === 'DENY'
+                                                  ? 'bg-rose-600 text-white shadow-xs font-black'
+                                                  : 'text-rose-700 hover:text-rose-900'
+                                              }`}
+                                              title="Explicitly deny/block this module"
+                                            >
+                                              Deny
+                                            </button>
+                                          </div>
+                                        )}
+                                      </td>
+
+                                      <td className="py-3 px-4 text-center">
                                         {effective ? (
                                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs">
                                             <Unlock className="w-3.5 h-3.5 text-emerald-600" />
@@ -2272,7 +2453,7 @@ export default function RolesPermissionsPage() {
                                               </div>
                                             </td>
 
-                                            <td className="py-2 px-5 text-center">
+                                            <td className="py-2 px-4 text-center">
                                               {p.roleDefault ? (
                                                 <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800">
                                                   <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
@@ -2286,48 +2467,88 @@ export default function RolesPermissionsPage() {
                                               )}
                                             </td>
 
-                                            <td className="py-2 px-5 text-center">
-                                              <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
+                                            {/* Action Toggle Switch */}
+                                            <td className="py-2 px-4 text-center">
+                                              <div className="flex items-center justify-center gap-1.5">
                                                 <button
                                                   type="button"
-                                                  onClick={() => handleSetEmpOverride(p.key, 'INHERIT')}
-                                                  className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
-                                                    permOverride === 'INHERIT'
-                                                      ? 'bg-white text-slate-900 shadow-xs font-black'
-                                                      : 'text-slate-500 hover:text-slate-800'
+                                                  onClick={() => handleToggleGranularSwitch(p)}
+                                                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                    isInheritingRoleDefaults
+                                                      ? permEffective
+                                                        ? 'bg-emerald-400/60 cursor-not-allowed opacity-75'
+                                                        : 'bg-slate-300/60 cursor-not-allowed opacity-75'
+                                                      : permEffective
+                                                      ? 'bg-[#23C45E] cursor-pointer hover:bg-[#1AA14D]'
+                                                      : 'bg-slate-300 cursor-pointer hover:bg-slate-400'
                                                   }`}
-                                                  title="Inherit from module/role"
+                                                  title={
+                                                    isInheritingRoleDefaults
+                                                      ? 'Inherited from Designation. Turn off Inherit above to customize.'
+                                                      : permEffective
+                                                      ? 'Click to Disable action'
+                                                      : 'Click to Enable action'
+                                                  }
                                                 >
-                                                  Inherit
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleSetEmpOverride(p.key, 'ALLOW')}
-                                                  className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
-                                                    permOverride === 'ALLOW'
-                                                      ? 'bg-emerald-600 text-white shadow-xs font-black'
-                                                      : 'text-emerald-700 hover:text-emerald-900'
-                                                  }`}
-                                                  title="Explicitly allow this action"
-                                                >
-                                                  Allow
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleSetEmpOverride(p.key, 'DENY')}
-                                                  className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
-                                                    permOverride === 'DENY'
-                                                      ? 'bg-rose-600 text-white shadow-xs font-black'
-                                                      : 'text-rose-700 hover:text-rose-900'
-                                                  }`}
-                                                  title="Explicitly deny/block this action"
-                                                >
-                                                  Deny
+                                                  <span
+                                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out flex items-center justify-center ${
+                                                      permEffective ? 'translate-x-4' : 'translate-x-0'
+                                                    }`}
+                                                  >
+                                                    {isInheritingRoleDefaults && <Lock className="w-2 h-2 text-slate-400" />}
+                                                  </span>
                                                 </button>
                                               </div>
                                             </td>
 
-                                            <td className="py-2 px-5 text-center">
+                                            <td className="py-2 px-4 text-center">
+                                              {isInheritingRoleDefaults ? (
+                                                <span className="text-[10px] font-bold text-slate-400">
+                                                  Inherited
+                                                </span>
+                                              ) : (
+                                                <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleSetEmpOverride(p.key, 'INHERIT')}
+                                                    className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
+                                                      permOverride === 'INHERIT'
+                                                        ? 'bg-white text-slate-900 shadow-xs font-black'
+                                                        : 'text-slate-500 hover:text-slate-800'
+                                                    }`}
+                                                    title="Inherit from module/role"
+                                                  >
+                                                    Inherit
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleSetEmpOverride(p.key, 'ALLOW')}
+                                                    className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
+                                                      permOverride === 'ALLOW'
+                                                        ? 'bg-emerald-600 text-white shadow-xs font-black'
+                                                        : 'text-emerald-700 hover:text-emerald-900'
+                                                    }`}
+                                                    title="Explicitly allow this action"
+                                                  >
+                                                    Allow
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleSetEmpOverride(p.key, 'DENY')}
+                                                    className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
+                                                      permOverride === 'DENY'
+                                                        ? 'bg-rose-600 text-white shadow-xs font-black'
+                                                        : 'text-rose-700 hover:text-rose-900'
+                                                    }`}
+                                                    title="Explicitly deny/block this action"
+                                                  >
+                                                    Deny
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </td>
+
+                                            <td className="py-2 px-4 text-center">
                                               {permEffective ? (
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-300">
                                                   <Unlock className="w-3 h-3 text-emerald-600" />
