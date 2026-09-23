@@ -33,6 +33,7 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 interface MetaTemplate {
   id: number;
@@ -401,58 +402,52 @@ export default function TemplatesMetaPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-emerald-950/40 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#25D366]/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-              <span>Templates</span>
-              <span>/</span>
-              <span className="text-white">Meta Templates</span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              <MessageSquare className="w-7 h-7 text-[#25D366]" /> Meta / WhatsApp Templates
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl">
-              Manage WhatsApp Business message templates synchronized with Meta Cloud API. Automatically dispatched as leads advance through your CRM pipeline.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+      {/* Standard Page Header */}
+      <AdminPageHeader
+        title="Meta / WhatsApp Templates"
+        description="Manage WhatsApp Business message templates synchronized with Meta Cloud API. Automatically dispatched as leads advance through your CRM pipeline."
+        icon={MessageSquare}
+        iconColor="text-[#25D366]"
+        breadcrumbs={[
+          { label: 'Templates', href: '/templates/meta' },
+          { label: 'Meta Templates' },
+        ]}
+        actions={
+          <div className="flex items-center gap-2.5 flex-wrap">
             {/* Sync from Meta Button */}
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              loading={syncFromMetaMutation.isPending}
               onClick={() => syncFromMetaMutation.mutate()}
-              disabled={syncFromMetaMutation.isPending}
-              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2.5 rounded-2xl font-bold text-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50"
               title="Pull latest approved templates directly from Meta WhatsApp Business Account"
             >
-              <RefreshCw className={`w-4 h-4 text-[#25D366] ${syncFromMetaMutation.isPending ? 'animate-spin' : ''}`} />
-              <span>{syncFromMetaMutation.isPending ? 'Syncing...' : 'Sync from Meta'}</span>
-            </button>
+              {syncFromMetaMutation.isPending ? 'Syncing...' : 'Sync from Meta'}
+            </AdminButton>
 
             {/* Refresh local view */}
             <button
               onClick={() => refetch()}
               disabled={isRefetching}
-              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              className="p-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
               title="Refresh"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin text-emerald-300' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
 
             {/* Create Template */}
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={handleOpenCreate}
-              className="inline-flex items-center gap-2 bg-[#1AA14D] hover:bg-[#168940] text-white px-5 py-2.5 rounded-2xl font-black text-xs shadow-lg shadow-emerald-900/30 transition-all cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" /> Create Meta Template
-            </button>
+              Create Meta Template
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
 
       {/* Error state if stats endpoint fails */}
