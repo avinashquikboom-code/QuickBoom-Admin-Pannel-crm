@@ -45,7 +45,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer, LeadStageEmailDrawer, WhatsAppIcon } from '@/components/admin';
+import { AdminFormDrawer, LeadStageEmailDrawer, WhatsAppIcon, LeadImageGalleryModal } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -134,8 +134,11 @@ export default function LeadDetailPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [imageCaption, setImageCaption] = useState('');
+  const [imageIsPrimary, setImageIsPrimary] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; caption?: string } | null>(null);
   const [deletingImageId, setDeletingImageId] = useState<number | null>(null);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   // Social Media state
   const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
@@ -317,6 +320,7 @@ function isDetailsSendStage(lead: any): boolean {
         const formData = new FormData();
         formData.append('file', imageFile);
         if (imageCaption.trim()) formData.append('caption', imageCaption.trim());
+        if (imageIsPrimary) formData.append('isPrimary', 'true');
         return api.post(`/leads/${id}/images`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -324,6 +328,7 @@ function isDetailsSendStage(lead: any): boolean {
         return api.post(`/leads/${id}/images`, {
           url: imageUrlInput.trim(),
           caption: imageCaption.trim() || undefined,
+          isPrimary: imageIsPrimary,
         });
       } else {
         throw new Error('Please select an image file or enter an image URL');
@@ -335,6 +340,21 @@ function isDetailsSendStage(lead: any): boolean {
       setImageFile(null);
       setImageUrlInput('');
       setImageCaption('');
+      setImageIsPrimary(false);
+      refetch();
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Set Primary Lead Image Mutation
+  const setPrimaryImageMutation = useMutation({
+    mutationFn: async (imageId: number) => {
+      return api.put(`/leads/${id}/images/${imageId}/primary`);
+    },
+    onSuccess: () => {
+      toast.success('Primary image updated successfully!');
       refetch();
     },
     onError: (err: any) => {
@@ -946,89 +966,124 @@ function isDetailsSendStage(lead: any): boolean {
           </div>
 
           {/* Lead Images & Photos Card */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-purple-600" /> Lead Images & Photos
-              </h3>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-[10px] font-black">
-                  {lead.images?.length || 0}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsAddImageModalOpen(true)}
-                  className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                >
-                  <Plus className="w-3 h-3" /> Add
-                </button>
-              </div>
-            </div>
+          {(() => {
+            const leadImages: any[] = Array.isArray(lead.images) ? lead.images : [];
+            const primaryImage = leadImages.find((img: any) => img.isPrimary) || leadImages[0] || null;
 
-            {Array.isArray(lead.images) && lead.images.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3">
-                {lead.images.map((img: any) => (
-                  <div
-                    key={img.id}
-                    className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 aspect-video shadow-2xs hover:shadow-md transition"
-                  >
-                    <img
-                      src={img.url}
-                      alt={img.caption || 'Lead Photo'}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                    />
-                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 p-2">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewImage({ url: img.url, caption: img.caption })}
-                        className="p-1.5 bg-white/90 hover:bg-white text-slate-900 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
-                        title="Preview Image"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
+            return (
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-purple-600" /> Lead Images & Photos
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {leadImages.length > 0 && (
                       <button
                         type="button"
                         onClick={() => {
-                          if (confirm('Delete this lead image?')) {
-                            deleteImageMutation.mutate(img.id);
-                          }
+                          const pIdx = leadImages.findIndex((img: any) => img.id === primaryImage?.id);
+                          setGalleryIndex(pIdx >= 0 ? pIdx : 0);
+                          setIsGalleryOpen(true);
                         }}
-                        disabled={deletingImageId === img.id}
-                        className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
-                        title="Delete Image"
+                        className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-full text-[10px] font-black flex items-center gap-1 cursor-pointer transition"
                       >
-                        {deletingImageId === img.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" />
-                        )}
+                        {leadImages.length} {leadImages.length === 1 ? 'Image' : 'Images'} →
                       </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsAddImageModalOpen(true)}
+                      className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                    >
+                      <Plus className="w-3 h-3" /> Add
+                    </button>
+                  </div>
+                </div>
+
+                {leadImages.length > 0 && primaryImage ? (
+                  <div className="space-y-3">
+                    {/* Primary Image Prominent Display */}
+                    <div
+                      onClick={() => {
+                        const pIdx = leadImages.findIndex((img: any) => img.id === primaryImage.id);
+                        setGalleryIndex(pIdx >= 0 ? pIdx : 0);
+                        setIsGalleryOpen(true);
+                      }}
+                      className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 aspect-video shadow-xs hover:shadow-md transition cursor-pointer"
+                    >
+                      <img
+                        src={primaryImage.url}
+                        alt={primaryImage.caption || 'Primary Lead Image'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      />
+
+                      {/* Primary badge */}
+                      <div className="absolute top-3 left-3 bg-emerald-600/90 text-white text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-md backdrop-blur-xs">
+                        <Star className="w-3 h-3 fill-current" /> PRIMARY IMAGE
+                      </div>
+
+                      {/* View Gallery Prompt Button */}
+                      <div className="absolute bottom-3 right-3 bg-black/70 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-md backdrop-blur-xs transition">
+                        <ZoomIn className="w-3.5 h-3.5" /> View Gallery ({leadImages.length})
+                      </div>
+
+                      {primaryImage.caption && (
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 pr-32">
+                          <p className="text-xs text-white font-medium truncate">{primaryImage.caption}</p>
+                        </div>
+                      )}
                     </div>
-                    {img.caption && (
-                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1.5">
-                        <p className="text-[10px] text-white font-medium truncate">{img.caption}</p>
+
+                    {/* Secondary thumbnails strip */}
+                    {leadImages.length > 1 && (
+                      <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin">
+                        {leadImages.map((img: any, idx: number) => {
+                          const isCurPrimary = img.id === primaryImage.id;
+                          return (
+                            <button
+                              key={img.id}
+                              type="button"
+                              onClick={() => {
+                                setGalleryIndex(idx);
+                                setIsGalleryOpen(true);
+                              }}
+                              className={`relative w-16 h-12 rounded-xl overflow-hidden border-2 transition shrink-0 cursor-pointer ${
+                                isCurPrimary
+                                  ? 'border-emerald-500 ring-2 ring-emerald-500/30'
+                                  : 'border-slate-200 hover:border-slate-400 opacity-80 hover:opacity-100'
+                              }`}
+                              title={img.caption || `Image ${idx + 1}`}
+                            >
+                              <img src={img.url} alt="" className="w-full h-full object-cover" />
+                              {img.isPrimary && (
+                                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white" />
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-                ))}
+                ) : (
+                  /* Clean Empty State */
+                  <div className="p-6 rounded-2xl border border-dashed border-slate-200 text-center space-y-2 bg-slate-50/50">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
+                      <ImageIcon className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">No image available</p>
+                    <p className="text-[11px] text-slate-500">Storefront, office, visiting card or product photos</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddImageModalOpen(true)}
+                      className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Upload Image
+                    </button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="p-4 rounded-2xl border border-dashed border-slate-200 text-center space-y-2">
-                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
-                  <ImageIcon className="w-5 h-5" />
-                </div>
-                <p className="text-xs font-bold text-slate-700">No images uploaded yet</p>
-                <p className="text-[11px] text-slate-500">Storefront, office, visiting card or product photos</p>
-                <button
-                  type="button"
-                  onClick={() => setIsAddImageModalOpen(true)}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition"
-                >
-                  <Upload className="w-3.5 h-3.5" /> Upload Image
-                </button>
-              </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Location & Geographic Coordinates Card */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
@@ -1660,6 +1715,19 @@ function isDetailsSendStage(lead: any): boolean {
             />
           </div>
 
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="setPrimaryCheckbox"
+              checked={imageIsPrimary}
+              onChange={(e) => setImageIsPrimary(e.target.checked)}
+              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+            />
+            <label htmlFor="setPrimaryCheckbox" className="text-xs font-bold text-slate-700 cursor-pointer">
+              Set as Primary / Cover Photo
+            </label>
+          </div>
+
           <div className="pt-2 flex justify-end gap-2">
             <button
               type="button"
@@ -1668,6 +1736,7 @@ function isDetailsSendStage(lead: any): boolean {
                 setImageFile(null);
                 setImageUrlInput('');
                 setImageCaption('');
+                setImageIsPrimary(false);
               }}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
             >
@@ -1691,6 +1760,23 @@ function isDetailsSendStage(lead: any): boolean {
           </div>
         </form>
       </AdminFormDrawer>
+
+      {/* FULL-SCREEN IMAGE GALLERY MODAL */}
+      <LeadImageGalleryModal
+        isOpen={isGalleryOpen}
+        onClose={() => setIsGalleryOpen(false)}
+        images={Array.isArray(lead.images) ? lead.images : []}
+        leadTitle={company || name || 'Lead Gallery'}
+        initialIndex={galleryIndex}
+        onSetPrimary={(imgId) => setPrimaryImageMutation.mutate(imgId)}
+        onDelete={(imgId) => deleteImageMutation.mutate(imgId)}
+        onUploadNew={() => {
+          setIsGalleryOpen(false);
+          setIsAddImageModalOpen(true);
+        }}
+        isSettingPrimary={setPrimaryImageMutation.isPending}
+        deletingImageId={deletingImageId}
+      />
 
       {/* EDIT SOCIAL MEDIA DRAWER */}
       <AdminFormDrawer

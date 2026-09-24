@@ -61,6 +61,7 @@ import {
   AdminPagination,
   LeadStageEmailDrawer,
   WhatsAppIcon,
+  LeadImageGalleryModal,
 } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
@@ -411,6 +412,9 @@ export default function LeadsPage() {
     initialChannel?: 'EMAIL' | 'WHATSAPP';
     isDirectSend?: boolean;
   } | null>(null);
+
+  // Image gallery modal state for list
+  const [galleryModalLead, setGalleryModalLead] = useState<any | null>(null);
 
   // 1. Fetch Real Leads List
   const { data: leadsResponse, isLoading: isLoadingLeads, refetch } = useQuery({
@@ -1249,9 +1253,38 @@ export default function LeadsPage() {
                       {/* Lead & Business Name */}
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 flex items-center justify-center font-black shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                            {lead.googlePlaceId ? <Globe className="w-4 h-4 text-blue-600" /> : <Building className="w-4 h-4" />}
-                          </div>
+                          {(() => {
+                            const primaryImg = (lead as any).images?.find((img: any) => img.isPrimary) || (lead as any).images?.[0];
+                            if (primaryImg?.url) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setGalleryModalLead(lead);
+                                  }}
+                                  className="relative w-11 h-11 rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-2xs group/img shrink-0 hover:ring-2 hover:ring-[#1AA14D] transition cursor-pointer"
+                                  title="View Image Gallery"
+                                >
+                                  <img
+                                    src={primaryImg.url}
+                                    alt="Primary Lead Image"
+                                    className="w-full h-full object-cover group-hover/img:scale-110 transition duration-300"
+                                  />
+                                  {(lead as any).images && (lead as any).images.length > 1 && (
+                                    <span className="absolute bottom-0 right-0 bg-black/80 text-white text-[9px] font-black px-1 rounded-tl">
+                                      {(lead as any).images.length}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            }
+                            return (
+                              <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 flex items-center justify-center font-black shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                                {lead.googlePlaceId ? <Globe className="w-4 h-4 text-blue-600" /> : <Building className="w-4 h-4" />}
+                              </div>
+                            );
+                          })()}
                           <div className="min-w-0">
                             <span className="font-extrabold text-slate-900 group-hover:text-[#1AA14D] text-sm truncate block transition-colors">
                               {compName}
@@ -2995,6 +3028,14 @@ export default function LeadsPage() {
             // error handled by mutation onError
           }
         }}
+      />
+
+      <LeadImageGalleryModal
+        isOpen={Boolean(galleryModalLead)}
+        onClose={() => setGalleryModalLead(null)}
+        images={Array.isArray(galleryModalLead?.images) ? galleryModalLead.images : []}
+        leadTitle={galleryModalLead?.companyName || galleryModalLead?.title || 'Lead Gallery'}
+        initialIndex={0}
       />
     </div>
   );
