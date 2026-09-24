@@ -47,6 +47,12 @@ import {
   AlertCircle,
   Kanban,
   Loader2,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Youtube,
+  Twitter,
+  Share2,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -132,6 +138,22 @@ function toCanonicalLeadStatus(val?: string | null): string {
     CONVERT: 'CONVERTED',
   };
   return mapping[normalized] || normalized;
+}
+
+function normalizeSocialLink(platform: string, rawVal?: string | null): string {
+  if (!rawVal) return '#';
+  const val = String(rawVal).trim();
+  if (!val || val === 'N/A' || val === 'null') return '#';
+  if (val.startsWith('http://') || val.startsWith('https://')) return val;
+  const clean = val.replace(/^@/, '');
+  switch (platform.toLowerCase()) {
+    case 'instagram': return `https://instagram.com/${clean}`;
+    case 'facebook': return `https://facebook.com/${clean}`;
+    case 'linkedin': return clean.includes('/') ? `https://linkedin.com/${clean}` : `https://linkedin.com/in/${clean}`;
+    case 'youtube': return `https://youtube.com/@${clean}`;
+    case 'twitter': return `https://x.com/${clean}`;
+    default: return `https://${clean}`;
+  }
 }
 
 /** Resolves stage display config from the Stage Management API list.
@@ -238,6 +260,8 @@ interface LeadItem {
   convertedToCompanyId?: number | null;
   convertedToContactId?: number | null;
   convertedToDealId?: number | null;
+  socialMedia?: Record<string, any> | null;
+  images?: Array<{ id: number; url: string; isPrimary?: boolean; caption?: string }>;
   createdAt: string;
 }
 
@@ -380,6 +404,11 @@ export default function LeadsPage() {
     nextFollowUpDate: '',
     nextFollowUpTime: '',
     notes: '',
+    instagram: '',
+    facebook: '',
+    linkedin: '',
+    youtube: '',
+    twitter: '',
   });
 
   
@@ -703,6 +732,14 @@ export default function LeadsPage() {
         nextFollowUpTime: cleanOptionalString(leadForm.nextFollowUpTime),
         captureRequestId: (leadForm as any).captureRequestId || undefined,
         sourceRecordId: (leadForm as any).sourceRecordId || cleanOptionalString(leadForm.googlePlaceId) || undefined,
+        socialMedia: {
+          instagram: cleanOptionalString(leadForm.instagram),
+          facebook: cleanOptionalString(leadForm.facebook),
+          linkedin: cleanOptionalString(leadForm.linkedin),
+          youtube: cleanOptionalString(leadForm.youtube),
+          twitter: cleanOptionalString(leadForm.twitter),
+          website: cleanOptionalString(leadForm.website),
+        },
       };
 
       console.log(
@@ -938,6 +975,11 @@ export default function LeadsPage() {
       nextFollowUpDate: '',
       nextFollowUpTime: '',
       notes: '',
+      instagram: '',
+      facebook: '',
+      linkedin: '',
+      youtube: '',
+      twitter: '',
     });
   };
 
@@ -976,6 +1018,11 @@ export default function LeadsPage() {
       nextFollowUpDate: lead.nextFollowUpDate ? lead.nextFollowUpDate.split('T')[0] : '',
       nextFollowUpTime: cleanOptionalString(lead.nextFollowUpTime) || '',
       notes: '',
+      instagram: cleanOptionalString(lead.socialMedia?.instagram) || cleanOptionalString(lead.instagram) || '',
+      facebook: cleanOptionalString(lead.socialMedia?.facebook) || cleanOptionalString(lead.facebook) || '',
+      linkedin: cleanOptionalString(lead.socialMedia?.linkedin) || cleanOptionalString(lead.linkedin) || '',
+      youtube: cleanOptionalString(lead.socialMedia?.youtube) || cleanOptionalString(lead.youtube) || '',
+      twitter: cleanOptionalString(lead.socialMedia?.twitter) || cleanOptionalString(lead.twitter) || '',
     });
     setIsAddDrawerOpen(true);
   };
@@ -1229,6 +1276,7 @@ export default function LeadsPage() {
               <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
                 <th className="py-4 px-5">Lead / Business</th>
                 <th className="py-4 px-4">Contact Info</th>
+                <th className="py-4 px-4">Social Media</th>
                 <th className="py-4 px-4">Source & Place</th>
                 <th className="py-4 px-4">Stage Status</th>
                 <th className="py-4 px-4">Est. Value</th>
@@ -1239,13 +1287,13 @@ export default function LeadsPage() {
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoadingLeads ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                  <td colSpan={8} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading CRM leads from database...
                   </td>
                 </tr>
               ) : isLeadsError ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center">
+                  <td colSpan={8} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <p className="font-bold text-sm text-rose-600">Unable to load leads. Please try again.</p>
                       <button
@@ -1338,6 +1386,45 @@ export default function LeadsPage() {
                             </p>
                           )}
                         </div>
+                      </td>
+
+                      {/* Social Media Column */}
+                      <td className="py-4 px-4" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const social = (lead.socialMedia && typeof lead.socialMedia === 'object') ? lead.socialMedia : {};
+                          const platforms = [
+                            { key: 'instagram', label: 'Instagram', val: social.instagram || (lead as any).instagram, icon: Instagram, color: 'text-pink-600 bg-pink-50 hover:bg-pink-100 border-pink-200' },
+                            { key: 'facebook', label: 'Facebook', val: social.facebook || (lead as any).facebook, icon: Facebook, color: 'text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-200' },
+                            { key: 'linkedin', label: 'LinkedIn', val: social.linkedin || (lead as any).linkedin, icon: Linkedin, color: 'text-sky-600 bg-sky-50 hover:bg-sky-100 border-sky-200' },
+                            { key: 'youtube', label: 'YouTube', val: social.youtube || (lead as any).youtube, icon: Youtube, color: 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200' },
+                            { key: 'twitter', label: 'X / Twitter', val: social.twitter || (lead as any).twitter, icon: Twitter, color: 'text-slate-800 bg-slate-100 hover:bg-slate-200 border-slate-300' },
+                          ].filter((p) => Boolean(p.val && String(p.val).trim() !== '' && String(p.val).trim() !== 'N/A' && String(p.val).trim() !== 'null'));
+
+                          if (platforms.length === 0) {
+                            return <span className="text-slate-400 font-mono text-[11px]">—</span>;
+                          }
+
+                          return (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {platforms.map((p) => {
+                                const IconComponent = p.icon;
+                                const targetUrl = normalizeSocialLink(p.key, p.val);
+                                return (
+                                  <a
+                                    key={p.key}
+                                    href={targetUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={`${p.label}: ${p.val}`}
+                                    className={`inline-flex items-center justify-center w-6 h-6 rounded-md border transition shadow-2xs ${p.color}`}
+                                  >
+                                    <IconComponent className="w-3 h-3" />
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Source & Place ID */}
@@ -1493,7 +1580,7 @@ export default function LeadsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400">
+                  <td colSpan={8} className="py-16 text-center text-slate-400">
                     <p className="font-bold text-sm text-slate-600">No leads found in this view</p>
                     <p className="text-xs text-slate-400 mt-1">Try switching filters or search using Google Places</p>
                     <button
@@ -2601,6 +2688,88 @@ export default function LeadsPage() {
                 placeholder="e.g. Mumbai"
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
               />
+            </div>
+
+            {/* Social Media Section */}
+            <div className="col-span-full border-t border-slate-100 pt-3 mt-1">
+              <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2 flex items-center gap-1.5">
+                <Share2 className="w-3.5 h-3.5 text-[#1AA14D]" />
+                Social Media Links
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center gap-1">
+                    <Instagram className="w-3 h-3 text-pink-600" /> Instagram Handle / URL
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.instagram}
+                    onChange={(e) => setLeadForm({ ...leadForm, instagram: e.target.value })}
+                    placeholder="https://instagram.com/... or @handle"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center gap-1">
+                    <Facebook className="w-3 h-3 text-blue-600" /> Facebook Page / URL
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.facebook}
+                    onChange={(e) => setLeadForm({ ...leadForm, facebook: e.target.value })}
+                    placeholder="https://facebook.com/..."
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center gap-1">
+                    <Linkedin className="w-3 h-3 text-sky-600" /> LinkedIn Profile / URL
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.linkedin}
+                    onChange={(e) => setLeadForm({ ...leadForm, linkedin: e.target.value })}
+                    placeholder="https://linkedin.com/in/..."
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center gap-1">
+                    <Youtube className="w-3 h-3 text-red-600" /> YouTube Channel / URL
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.youtube}
+                    onChange={(e) => setLeadForm({ ...leadForm, youtube: e.target.value })}
+                    placeholder="https://youtube.com/@..."
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center gap-1">
+                    <Twitter className="w-3 h-3 text-slate-700" /> X / Twitter Handle / URL
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.twitter}
+                    onChange={(e) => setLeadForm({ ...leadForm, twitter: e.target.value })}
+                    placeholder="https://x.com/... or @handle"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center gap-1">
+                    <Globe className="w-3 h-3 text-emerald-600" /> Website URL
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.website}
+                    onChange={(e) => setLeadForm({ ...leadForm, website: e.target.value })}
+                    placeholder="https://..."
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
