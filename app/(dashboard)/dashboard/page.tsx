@@ -347,70 +347,64 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
       {/* =========================================================================
-          1. EXECUTIVE HERO HEADER & REAL-TIME CONTROLS
+          1. EXECUTIVE HEADER & REAL-TIME CONTROLS
           ========================================================================= */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        {/* Ambient Glows */}
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                Live Operations Center
-              </span>
-              <span className="text-slate-400 text-xs font-mono font-medium">
-                {currentTime || 'Synchronizing platform clock...'}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              {greeting}, {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Administrator'}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Real-time enterprise overview across multi-branch attendance geofences, platform revenue, and organizational operations.
-            </p>
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
+              Live Operations Center
+            </span>
+            <span className="text-slate-400 text-xs font-mono font-medium">
+              {currentTime || 'Synchronizing platform clock...'}
+            </span>
           </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            {greeting}, {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Administrator'}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl leading-relaxed">
+            Real-time enterprise overview across multi-branch attendance geofences, platform revenue, and organizational operations.
+          </p>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Date Range Selector */}
-            <div className="flex items-center p-1 bg-slate-800/90 rounded-2xl border border-slate-700/80 text-xs font-bold shadow-inner">
-              {(['7d', '30d', '90d', '1y'] as DateRangeOption[]).map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => setDateRange(opt)}
-                  className={`px-3 py-1.5 rounded-xl transition-all capitalize cursor-pointer ${
-                    dateRange === opt
-                      ? 'bg-[#23C45E] text-slate-950 font-black shadow-md'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-                  }`}
-                >
-                  {opt === '7d'
-                    ? '7D'
-                    : opt === '30d'
-                    ? '30D'
-                    : opt === '90d'
-                    ? '90D'
-                    : '1Y'}
-                </button>
-              ))}
-            </div>
-
-            {/* Quick Sync Button */}
-            <button
-              onClick={handleManualRefresh}
-              disabled={isAnyFetching}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 text-[#23C45E] ${
-                  isAnyFetching ? 'animate-spin' : ''
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Date Range Selector */}
+          <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold shadow-2xs">
+            {(['7d', '30d', '90d', '1y'] as DateRangeOption[]).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setDateRange(opt)}
+                className={`px-3 py-1.5 rounded-xl transition-all capitalize cursor-pointer ${
+                  dateRange === opt
+                    ? 'bg-[#23C45E] text-white font-black shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                 }`}
-              />
-              <span>Sync Live</span>
-            </button>
+              >
+                {opt === '7d'
+                  ? '7D'
+                  : opt === '30d'
+                  ? '30D'
+                  : opt === '90d'
+                  ? '90D'
+                  : '1Y'}
+              </button>
+            ))}
           </div>
+
+          {/* Quick Sync Button */}
+          <button
+            onClick={handleManualRefresh}
+            disabled={isAnyFetching}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl border border-slate-200 text-xs font-black transition-all cursor-pointer shadow-2xs disabled:opacity-50 active:scale-95"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-[#1AA14D] ${
+                isAnyFetching ? 'animate-spin' : ''
+              }`}
+            />
+            <span>Sync Live</span>
+          </button>
         </div>
       </div>
 

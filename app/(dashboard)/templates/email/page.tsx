@@ -30,6 +30,7 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 interface EmailTemplate {
   id: number;
@@ -364,45 +365,45 @@ export default function TemplatesEmailPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
-              <span>Templates</span>
-              <span>/</span>
-              <span className="text-white">Email Templates</span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              Email Templates
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl">
-              Configure rich HTML and plain text email communications dispatched automatically upon lead pipeline stage changes and transactional events.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <button
+      {/* Header */}
+      <AdminPageHeader
+        title="Email Templates"
+        description="Configure rich HTML and plain text email communications dispatched automatically upon lead pipeline stage changes and transactional events."
+        icon={Mail}
+        iconColor="text-blue-600"
+        badge={{
+          text: 'CRM & AUTOMATION',
+          icon: Mail,
+          variant: 'blue',
+        }}
+        breadcrumbs={[
+          { label: 'Templates', href: '/templates/email' },
+          { label: 'Email Templates' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              loading={isRefetching}
               onClick={() => refetch()}
-              disabled={isRefetching}
-              className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
               title="Refresh Templates"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin text-blue-300' : ''}`} />
-            </button>
+              Refresh
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={handleOpenCreate}
-              className="inline-flex items-center gap-2 bg-[#1AA14D] hover:bg-[#168940] text-white px-5 py-3 rounded-2xl font-black text-xs shadow-lg shadow-emerald-900/30 transition-all cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" /> Create Template
-            </button>
+              Create Template
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
 
       {/* KPI Summary Bar */}

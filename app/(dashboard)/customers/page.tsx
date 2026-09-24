@@ -42,7 +42,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
-import { AdminPagination, AdminFormDrawer, CustomerDetailsDrawer, ResetCustomerDataModal } from '@/components/admin';
+import {
+  AdminPageHeader,
+  AdminButton,
+  AdminPagination,
+  AdminFormDrawer,
+  CustomerDetailsDrawer,
+  ResetCustomerDataModal,
+} from '@/components/admin';
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
@@ -481,39 +488,35 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#23C45E]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5" />
-                Customer CRM & Account Hub
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Customer Master Management</h1>
-            <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-2xl">
-              Track client organizations, assign relationship managers, monitor open deals, and manage customer account lifecycle.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => {
-                resetForm();
-                setIsCreateOpen(true);
-              }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Customer</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* 1. PAGE HEADER */}
+      <AdminPageHeader
+        title="Customer Master Management"
+        description="Track client organizations, assign relationship managers, monitor open deals, and manage customer account lifecycle."
+        icon={Building2}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'CUSTOMER CRM & ACCOUNT HUB',
+          icon: Building2,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Customers' },
+        ]}
+        actions={
+          <AdminButton
+            variant="primary"
+            size="md"
+            icon={Plus}
+            onClick={() => {
+              resetForm();
+              setIsCreateOpen(true);
+            }}
+          >
+            Add Customer
+          </AdminButton>
+        }
+      />
 
       {/* 2. 5 KPI STAT CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
