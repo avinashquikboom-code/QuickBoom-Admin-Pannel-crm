@@ -28,6 +28,19 @@ import {
   Plus,
   RefreshCw,
   Loader2,
+  ImageIcon,
+  Upload,
+  X,
+  Share2,
+  Compass,
+  Navigation,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Youtube,
+  Twitter,
+  ZoomIn,
+  Eye,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -115,6 +128,36 @@ export default function LeadDetailPage() {
   const [convertDealTitle, setConvertDealTitle] = useState('');
   const [convertDealValue, setConvertDealValue] = useState('150000');
   const [convertNotes, setConvertNotes] = useState('');
+
+  // Lead Images state
+  const [isAddImageModalOpen, setIsAddImageModalOpen] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [imageCaption, setImageCaption] = useState('');
+  const [previewImage, setPreviewImage] = useState<{ url: string; caption?: string } | null>(null);
+  const [deletingImageId, setDeletingImageId] = useState<number | null>(null);
+
+  // Social Media state
+  const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
+  const [socialForm, setSocialForm] = useState({
+    instagram: '',
+    facebook: '',
+    linkedin: '',
+    youtube: '',
+    twitter: '',
+  });
+
+  const openSocialModal = () => {
+    const social = (lead?.socialMedia && typeof lead.socialMedia === 'object') ? lead.socialMedia : {};
+    setSocialForm({
+      instagram: social.instagram || lead?.instagram || '',
+      facebook: social.facebook || lead?.facebook || '',
+      linkedin: social.linkedin || lead?.linkedin || '',
+      youtube: social.youtube || lead?.youtube || '',
+      twitter: social.twitter || lead?.twitter || '',
+    });
+    setIsSocialModalOpen(true);
+  };
 
   // Fetch Full Lead Details
   const { data: lead, isLoading, isError, refetch } = useQuery({
@@ -266,6 +309,93 @@ function isDetailsSendStage(lead: any): boolean {
       toast.error(getErrorMessage(err));
     },
   });
+
+  // Upload Lead Image Mutation
+  const uploadImageMutation = useMutation({
+    mutationFn: async () => {
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        if (imageCaption.trim()) formData.append('caption', imageCaption.trim());
+        return api.post(`/leads/${id}/images`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else if (imageUrlInput.trim()) {
+        return api.post(`/leads/${id}/images`, {
+          url: imageUrlInput.trim(),
+          caption: imageCaption.trim() || undefined,
+        });
+      } else {
+        throw new Error('Please select an image file or enter an image URL');
+      }
+    },
+    onSuccess: () => {
+      toast.success('Lead image added successfully!');
+      setIsAddImageModalOpen(false);
+      setImageFile(null);
+      setImageUrlInput('');
+      setImageCaption('');
+      refetch();
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Delete Lead Image Mutation
+  const deleteImageMutation = useMutation({
+    mutationFn: async (imageId: number) => {
+      setDeletingImageId(imageId);
+      return api.delete(`/leads/${id}/images/${imageId}`);
+    },
+    onSuccess: () => {
+      toast.success('Lead image deleted');
+      setDeletingImageId(null);
+      refetch();
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+      setDeletingImageId(null);
+    },
+  });
+
+  // Update Social Media Mutation
+  const updateSocialMutation = useMutation({
+    mutationFn: async () => {
+      return api.patch(`/leads/${id}`, {
+        socialMedia: {
+          instagram: socialForm.instagram.trim(),
+          facebook: socialForm.facebook.trim(),
+          linkedin: socialForm.linkedin.trim(),
+          youtube: socialForm.youtube.trim(),
+          twitter: socialForm.twitter.trim(),
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success('Social media channels updated!');
+      setIsSocialModalOpen(false);
+      refetch();
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  const normalizeSocialLink = (platform: string, rawVal: string): string => {
+    if (!rawVal) return '#';
+    const val = rawVal.trim();
+    if (val.startsWith('http://') || val.startsWith('https://')) return val;
+    const clean = val.replace(/^@/, '');
+    switch (platform) {
+      case 'instagram': return `https://instagram.com/${clean}`;
+      case 'facebook': return `https://facebook.com/${clean}`;
+      case 'linkedin': return clean.includes('/') ? `https://linkedin.com/${clean}` : `https://linkedin.com/in/${clean}`;
+      case 'youtube': return `https://youtube.com/@${clean}`;
+      case 'twitter': return `https://x.com/${clean}`;
+      default: return `https://${clean}`;
+    }
+  };
 
   // Add Note Mutation
   const addNoteMutation = useMutation({
@@ -815,15 +945,108 @@ function isDetailsSendStage(lead: any): boolean {
             </div>
           </div>
 
-          {/* Location & Google Places Card */}
+          {/* Lead Images & Photos Card */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-blue-600" /> Location & Place Data
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-purple-600" /> Lead Images & Photos
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-[10px] font-black">
+                  {lead.images?.length || 0}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsAddImageModalOpen(true)}
+                  className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                >
+                  <Plus className="w-3 h-3" /> Add
+                </button>
+              </div>
+            </div>
+
+            {Array.isArray(lead.images) && lead.images.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {lead.images.map((img: any) => (
+                  <div
+                    key={img.id}
+                    className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 aspect-video shadow-2xs hover:shadow-md transition"
+                  >
+                    <img
+                      src={img.url}
+                      alt={img.caption || 'Lead Photo'}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    />
+                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 p-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImage({ url: img.url, caption: img.caption })}
+                        className="p-1.5 bg-white/90 hover:bg-white text-slate-900 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                        title="Preview Image"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('Delete this lead image?')) {
+                            deleteImageMutation.mutate(img.id);
+                          }
+                        }}
+                        disabled={deletingImageId === img.id}
+                        className="p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+                        title="Delete Image"
+                      >
+                        {deletingImageId === img.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    {img.caption && (
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1.5">
+                        <p className="text-[10px] text-white font-medium truncate">{img.caption}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl border border-dashed border-slate-200 text-center space-y-2">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-bold text-slate-700">No images uploaded yet</p>
+                <p className="text-[11px] text-slate-500">Storefront, office, visiting card or product photos</p>
+                <button
+                  type="button"
+                  onClick={() => setIsAddImageModalOpen(true)}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Upload Image
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Location & Geographic Coordinates Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-blue-600" /> Location & Geographic Data
+              </h3>
+              <Link
+                href={`/leads/${id}/edit`}
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <Edit className="w-3 h-3" /> Edit
+              </Link>
+            </div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="text-slate-400 text-[10px] font-bold uppercase block">Address</span>
+                <span className="text-slate-400 text-[10px] font-bold uppercase block">Street Address</span>
                 <p className="font-bold text-slate-800 mt-0.5">{lead.address || 'Address not specified'}</p>
               </div>
 
@@ -834,9 +1057,44 @@ function isDetailsSendStage(lead: any): boolean {
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] font-bold uppercase block">State / Country</span>
-                  <p className="font-bold text-slate-800">{lead.state || 'Maharashtra'}, {lead.country || 'India'}</p>
+                  <p className="font-bold text-slate-800">{lead.state || 'N/A'}, {lead.country || 'India'}</p>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">Pincode</span>
+                  <p className="font-bold text-slate-800">{lead.pincode || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">GPS Coordinates</span>
+                  <p className="font-mono text-[11px] text-slate-700">
+                    {lead.latitude && lead.longitude
+                      ? `${lead.latitude}, ${lead.longitude}`
+                      : 'Not set'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Open in Google Maps Action */}
+              {((lead.latitude && lead.longitude) || lead.address || lead.city) ? (
+                <div className="pt-1">
+                  <a
+                    href={
+                      lead.latitude && lead.longitude
+                        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lead.latitude},${lead.longitude}`)}`
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([lead.address, lead.city, lead.state, lead.pincode].filter(Boolean).join(', '))}`
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 transition"
+                  >
+                    <Navigation className="w-3.5 h-3.5" />
+                    Open in Google Maps
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              ) : null}
 
               {lead.googlePlaceId && (
                 <div className="p-3 bg-blue-50/80 rounded-2xl border border-blue-200 space-y-1">
@@ -852,6 +1110,80 @@ function isDetailsSendStage(lead: any): boolean {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Social Media Channels Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-emerald-600" /> Social Media & Web
+              </h3>
+              <button
+                type="button"
+                onClick={openSocialModal}
+                className="text-[11px] font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+              >
+                <Edit className="w-3 h-3" /> Edit
+              </button>
+            </div>
+
+            {(() => {
+              const social = (lead.socialMedia && typeof lead.socialMedia === 'object') ? lead.socialMedia : {};
+              const platforms = [
+                { key: 'instagram', label: 'Instagram', val: social.instagram || lead.instagram, icon: Instagram, color: 'text-pink-600 bg-pink-50 border-pink-200' },
+                { key: 'facebook', label: 'Facebook', val: social.facebook || lead.facebook, icon: Facebook, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+                { key: 'linkedin', label: 'LinkedIn', val: social.linkedin || lead.linkedin, icon: Linkedin, color: 'text-sky-600 bg-sky-50 border-sky-200' },
+                { key: 'youtube', label: 'YouTube', val: social.youtube || lead.youtube, icon: Youtube, color: 'text-red-600 bg-red-50 border-red-200' },
+                { key: 'twitter', label: 'X (Twitter)', val: social.twitter || lead.twitter, icon: Twitter, color: 'text-slate-800 bg-slate-100 border-slate-200' },
+                { key: 'website', label: 'Website', val: lead.website || social.website, icon: Globe, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+              ].filter(p => Boolean(p.val));
+
+              if (platforms.length === 0) {
+                return (
+                  <div className="p-4 rounded-2xl border border-dashed border-slate-200 text-center space-y-2">
+                    <p className="text-xs font-bold text-slate-600">No social media details available</p>
+                    <button
+                      type="button"
+                      onClick={openSocialModal}
+                      className="px-3 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition"
+                    >
+                      <Plus className="w-3 h-3" /> Add Social Handles
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  {platforms.map((p) => {
+                    const IconComponent = p.icon;
+                    const targetUrl = normalizeSocialLink(p.key, p.val);
+                    return (
+                      <a
+                        key={p.key}
+                        href={targetUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-50 border border-slate-100 transition group"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`p-1.5 rounded-xl border ${p.color}`}>
+                            <IconComponent className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{p.label}</p>
+                            <p className="text-xs font-bold text-slate-800 truncate group-hover:text-blue-600 transition">
+                              {p.val}
+                            </p>
+                          </div>
+                        </div>
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition shrink-0 ml-2" />
+                      </a>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Customer Conversion Card if Converted */}
@@ -1264,6 +1596,247 @@ function isDetailsSendStage(lead: any): boolean {
           }
         }}
       />
+
+      {/* UPLOAD LEAD IMAGE DRAWER */}
+      <AdminFormDrawer
+        isOpen={isAddImageModalOpen}
+        onClose={() => {
+          setIsAddImageModalOpen(false);
+          setImageFile(null);
+          setImageUrlInput('');
+          setImageCaption('');
+        }}
+        title="Upload Lead Photo"
+        subtitle={`Add business photo, visiting card, or storefront for ${company}`}
+        size="md"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            uploadImageMutation.mutate();
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Upload Image File</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setImageFile(file);
+                if (file) setImageUrlInput('');
+              }}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-px bg-slate-200 flex-1" />
+            <span className="text-[10px] font-black uppercase text-slate-400">OR</span>
+            <div className="h-px bg-slate-200 flex-1" />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Image URL</label>
+            <input
+              type="url"
+              placeholder="https://example.com/photo.jpg"
+              value={imageUrlInput}
+              disabled={Boolean(imageFile)}
+              onChange={(e) => setImageUrlInput(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 disabled:bg-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Photo Caption (Optional)</label>
+            <input
+              type="text"
+              placeholder="e.g. Store Entrance, Visiting Card, Office Front"
+              value={imageCaption}
+              onChange={(e) => setImageCaption(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400"
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddImageModalOpen(false);
+                setImageFile(null);
+                setImageUrlInput('');
+                setImageCaption('');
+              }}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={uploadImageMutation.isPending || (!imageFile && !imageUrlInput.trim())}
+              className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-xs cursor-pointer shadow-md shadow-purple-600/20 disabled:opacity-50 transition flex items-center gap-1.5"
+            >
+              {uploadImageMutation.isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-3.5 h-3.5" /> Upload Image
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
+
+      {/* EDIT SOCIAL MEDIA DRAWER */}
+      <AdminFormDrawer
+        isOpen={isSocialModalOpen}
+        onClose={() => setIsSocialModalOpen(false)}
+        title="Edit Social Media Channels"
+        subtitle={`Configure public social links for ${company}`}
+        size="md"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            updateSocialMutation.mutate();
+          }}
+          className="space-y-3"
+        >
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+              <Instagram className="w-3.5 h-3.5 text-pink-600" /> Instagram Handle or URL
+            </label>
+            <input
+              type="text"
+              placeholder="https://instagram.com/business or @business"
+              value={socialForm.instagram}
+              onChange={(e) => setSocialForm({ ...socialForm, instagram: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+              <Facebook className="w-3.5 h-3.5 text-blue-600" /> Facebook Page URL
+            </label>
+            <input
+              type="text"
+              placeholder="https://facebook.com/business"
+              value={socialForm.facebook}
+              onChange={(e) => setSocialForm({ ...socialForm, facebook: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+              <Linkedin className="w-3.5 h-3.5 text-sky-600" /> LinkedIn Profile / Company
+            </label>
+            <input
+              type="text"
+              placeholder="https://linkedin.com/company/business"
+              value={socialForm.linkedin}
+              onChange={(e) => setSocialForm({ ...socialForm, linkedin: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+              <Youtube className="w-3.5 h-3.5 text-red-600" /> YouTube Channel
+            </label>
+            <input
+              type="text"
+              placeholder="https://youtube.com/@channel"
+              value={socialForm.youtube}
+              onChange={(e) => setSocialForm({ ...socialForm, youtube: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+              <Twitter className="w-3.5 h-3.5 text-slate-800" /> X (Twitter) Profile
+            </label>
+            <input
+              type="text"
+              placeholder="https://x.com/business or @business"
+              value={socialForm.twitter}
+              onChange={(e) => setSocialForm({ ...socialForm, twitter: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsSocialModalOpen(false)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={updateSocialMutation.isPending}
+              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20 transition flex items-center gap-1.5"
+            >
+              {updateSocialMutation.isPending ? 'Saving...' : 'Save Handles'}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
+
+      {/* FULLSCREEN IMAGE PREVIEW MODAL */}
+      {previewImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/80 text-white">
+              <p className="text-xs font-bold text-slate-300 truncate pr-4">
+                {previewImage.caption || 'Lead Image Preview'}
+              </p>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewImage.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition"
+                  title="Open original"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage(null)}
+                  className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="p-2 flex items-center justify-center bg-black/60 overflow-auto max-h-[calc(90vh-100px)]">
+              <img
+                src={previewImage.url}
+                alt={previewImage.caption || 'Full view'}
+                className="max-h-[75vh] w-auto object-contain rounded-xl"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

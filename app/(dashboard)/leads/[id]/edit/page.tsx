@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { UserCheck, Mail, Phone, Building2, DollarSign, Globe, Tag, MapPin } from 'lucide-react';
+import { UserCheck, Mail, Phone, Building2, DollarSign, Globe, Tag, MapPin, Share2, Compass, Instagram, Facebook, Linkedin, Youtube, Twitter } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   AdminFormPage,
@@ -36,6 +36,14 @@ export default function EditLeadPage() {
     city: '',
     state: '',
     country: 'India',
+    pincode: '',
+    latitude: '',
+    longitude: '',
+    instagram: '',
+    facebook: '',
+    linkedin: '',
+    youtube: '',
+    twitter: '',
     source: 'WEBSITE',
     status: 'NEW',
     stageId: '',
@@ -87,6 +95,7 @@ export default function EditLeadPage() {
 
   useEffect(() => {
     if (lead) {
+      const social = (lead.socialMedia && typeof lead.socialMedia === 'object') ? lead.socialMedia : {};
       setFormData({
         title: lead.title || '',
         firstName: lead.firstName || '',
@@ -100,6 +109,14 @@ export default function EditLeadPage() {
         city: lead.city || lead.location || '',
         state: lead.state || '',
         country: lead.country || 'India',
+        pincode: lead.pincode || '',
+        latitude: lead.latitude != null ? String(lead.latitude) : '',
+        longitude: lead.longitude != null ? String(lead.longitude) : '',
+        instagram: social.instagram || lead.instagram || '',
+        facebook: social.facebook || lead.facebook || '',
+        linkedin: social.linkedin || lead.linkedin || '',
+        youtube: social.youtube || lead.youtube || '',
+        twitter: social.twitter || lead.twitter || '',
         source: lead.source || 'WEBSITE',
         status: lead.status || 'NEW',
         stageId: lead.stageId ? String(lead.stageId) : '',
@@ -136,6 +153,17 @@ export default function EditLeadPage() {
         location: cleanVal(formData.city),
         state: cleanVal(formData.state),
         country: cleanVal(formData.country) || 'India',
+        pincode: cleanVal(formData.pincode),
+        latitude: formData.latitude !== '' && !isNaN(Number(formData.latitude)) ? Number(formData.latitude) : undefined,
+        longitude: formData.longitude !== '' && !isNaN(Number(formData.longitude)) ? Number(formData.longitude) : undefined,
+        socialMedia: {
+          instagram: cleanVal(formData.instagram) || '',
+          facebook: cleanVal(formData.facebook) || '',
+          linkedin: cleanVal(formData.linkedin) || '',
+          youtube: cleanVal(formData.youtube) || '',
+          twitter: cleanVal(formData.twitter) || '',
+          website: cleanVal(formData.website) || '',
+        },
         source: formData.source,
         status: formData.status,
         stageId: formData.stageId ? Number(formData.stageId) : undefined,
@@ -234,6 +262,7 @@ export default function EditLeadPage() {
               type="text"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="e.g. 123 Business Boulevard, Andheri East"
             />
           </AdminFormField>
 
@@ -242,6 +271,7 @@ export default function EditLeadPage() {
               type="text"
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              placeholder="e.g. Mumbai"
             />
           </AdminFormField>
 
@@ -250,6 +280,97 @@ export default function EditLeadPage() {
               type="text"
               value={formData.state}
               onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+              placeholder="e.g. Maharashtra"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Pincode / Postal Code">
+            <AdminInput
+              type="text"
+              value={formData.pincode}
+              onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+              placeholder="e.g. 400069"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Country">
+            <AdminInput
+              type="text"
+              value={formData.country}
+              onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+              placeholder="e.g. India"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Latitude (GPS Coordinates)">
+            <AdminInput
+              type="number"
+              step="any"
+              value={formData.latitude}
+              onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+              placeholder="e.g. 19.1136"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Longitude (GPS Coordinates)">
+            <AdminInput
+              type="number"
+              step="any"
+              value={formData.longitude}
+              onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+              placeholder="e.g. 72.8697"
+            />
+          </AdminFormField>
+        </AdminFormSection>
+
+        <AdminFormSection title="Social Media Handles" description="Social profiles and public web channels" icon={Share2} columns={2}>
+          <AdminFormField label="Instagram Profile / Handle">
+            <AdminInput
+              type="text"
+              icon={Instagram}
+              value={formData.instagram}
+              onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+              placeholder="https://instagram.com/business or @business"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Facebook Page URL">
+            <AdminInput
+              type="text"
+              icon={Facebook}
+              value={formData.facebook}
+              onChange={(e) => setFormData({ ...formData, facebook: e.target.value })}
+              placeholder="https://facebook.com/business"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="LinkedIn Company / Profile">
+            <AdminInput
+              type="text"
+              icon={Linkedin}
+              value={formData.linkedin}
+              onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
+              placeholder="https://linkedin.com/company/business"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="YouTube Channel">
+            <AdminInput
+              type="text"
+              icon={Youtube}
+              value={formData.youtube}
+              onChange={(e) => setFormData({ ...formData, youtube: e.target.value })}
+              placeholder="https://youtube.com/@channel"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="X / Twitter Handle or URL">
+            <AdminInput
+              type="text"
+              icon={Twitter}
+              value={formData.twitter}
+              onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
+              placeholder="https://x.com/business or @business"
             />
           </AdminFormField>
         </AdminFormSection>
