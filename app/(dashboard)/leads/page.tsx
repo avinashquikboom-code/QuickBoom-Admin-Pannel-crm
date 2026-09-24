@@ -670,8 +670,9 @@ export default function LeadsPage() {
       }
 
       const payload: any = {
-        title: cleanOptionalString(leadForm.title) || cleanOptionalString(leadForm.businessName) || `${cleanOptionalString(leadForm.firstName) || ''} ${cleanOptionalString(leadForm.lastName) || ''}`.trim() || 'Direct Lead',
+        title: cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || `${cleanOptionalString(leadForm.firstName) || ''} ${cleanOptionalString(leadForm.lastName) || ''}`.trim() || 'Unnamed Business',
         companyName: cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || undefined,
+        businessName: cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || undefined,
         category: cleanOptionalString(leadForm.category),
         source: leadForm.source || 'WEBSITE',
         firstName: cleanOptionalString(leadForm.firstName) || undefined,
@@ -1003,6 +1004,7 @@ export default function LeadsPage() {
     if (!googleQuery.trim()) return;
 
     setIsSearchingPlaces(true);
+    setPlaceResults([]);
     try {
       const res: any = await api.post('/data-capture/extract', {
         keyword: googleQuery.trim(),
@@ -2863,7 +2865,18 @@ export default function LeadsPage() {
             </div>
           )}
           {!isSearchingPlaces && placesResults.map((place: any, i: number) => {
-            const displayName = place.businessName || place.title || place.name || null;
+            const displayName =
+              (typeof place.displayName === 'object' && place.displayName?.text ? place.displayName.text.trim() : null) ||
+              (typeof place.displayName === 'string' && place.displayName.trim() ? place.displayName.trim() : null) ||
+              (typeof place.businessName === 'string' && place.businessName.trim() ? place.businessName.trim() : null) ||
+              (typeof place.companyName === 'string' && place.companyName.trim() ? place.companyName.trim() : null) ||
+              (typeof place.placeName === 'string' && place.placeName.trim() ? place.placeName.trim() : null) ||
+              (typeof place.establishmentName === 'string' && place.establishmentName.trim() ? place.establishmentName.trim() : null) ||
+              (typeof place.organizationName === 'string' && place.organizationName.trim() ? place.organizationName.trim() : null) ||
+              (typeof place.formattedName === 'string' && place.formattedName.trim() ? place.formattedName.trim() : null) ||
+              (typeof place.title === 'string' && place.title.trim() && place.title.trim() !== 'Business Lead' ? place.title.trim() : null) ||
+              (typeof place.name === 'string' && place.name.trim() && !place.name.startsWith('places/') && place.name.trim() !== 'Business Lead' ? place.name.trim() : null) ||
+              null;
             return (
               <div
                 key={i}
