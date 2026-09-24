@@ -417,7 +417,12 @@ export default function LeadsPage() {
   const [galleryModalLead, setGalleryModalLead] = useState<any | null>(null);
 
   // 1. Fetch Real Leads List
-  const { data: leadsResponse, isLoading: isLoadingLeads, refetch } = useQuery({
+  const {
+    data: leadsResponse,
+    isLoading: isLoadingLeads,
+    isError: isLeadsError,
+    refetch,
+  } = useQuery({
     queryKey: ['admin-leads-list', search, activeTab, sourceFilter, priorityFilter, assignedFilter, page, pageSize],
     queryFn: async () => {
       try {
@@ -451,9 +456,10 @@ export default function LeadsPage() {
         if (msg && msg !== 'Something went wrong') {
           toast.error(msg, { id: 'leads-fetch-error' });
         }
-        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
+        throw err;
       }
     },
+    retry: 1,
   });
 
   const rawLeads: LeadItem[] = leadsResponse?.items || [];
@@ -1233,6 +1239,21 @@ export default function LeadsPage() {
                 <tr>
                   <td colSpan={7} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading CRM leads from database...
+                  </td>
+                </tr>
+              ) : isLeadsError ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <p className="font-bold text-sm text-rose-600">Unable to load leads. Please try again.</p>
+                      <button
+                        type="button"
+                        onClick={() => refetch()}
+                        className="mt-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors shadow-xs cursor-pointer"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : filteredLeads.length > 0 ? (
