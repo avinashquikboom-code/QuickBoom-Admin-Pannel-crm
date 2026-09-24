@@ -666,10 +666,13 @@ export function getUserRole(user: UserType | null): string {
 
 export function getUserPermissions(user: UserType | null): string[] {
   if (!user) return [];
+  const role = getUserRole(user);
+  if (role === 'Super Admin') {
+    return Array.from(new Set([...SUPER_ADMIN_PERMISSIONS, ...(user.permissions || [])]));
+  }
   if (user.permissions && user.permissions.length > 0) {
     return user.permissions;
   }
-  const role = getUserRole(user);
   return ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS['Employee'];
 }
 
@@ -688,6 +691,8 @@ export function isFeatureEnabled(
   feature?: keyof SubscriptionFeatures
 ): boolean {
   if (!feature) return true;
+  const role = getUserRole(user);
+  if (role === 'Super Admin') return true;
   const features = getUserFeatures(user);
   return !!features[feature];
 }
@@ -708,10 +713,19 @@ export function hasPermission(
   requiredPermission?: string | string[]
 ): boolean {
   if (!requiredPermission) return true;
+  const role = getUserRole(user);
+  if (role === 'Super Admin') return true;
   const userPerms = getUserPermissions(user);
 
   // Super Admin wildcard
-  if (userPerms.includes('platform.all') || userPerms.includes('PLATFORM.ALL')) return true;
+  if (
+    userPerms.includes('platform.all') ||
+    userPerms.includes('PLATFORM.ALL') ||
+    userPerms.includes('platform:all') ||
+    userPerms.includes('PLATFORM:ALL') ||
+    userPerms.includes('*') ||
+    userPerms.includes('all')
+  ) return true;
 
   const normalizedUserPerms = new Set<string>();
   for (const p of userPerms) {

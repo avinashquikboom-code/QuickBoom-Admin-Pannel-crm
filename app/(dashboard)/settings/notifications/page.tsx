@@ -5,7 +5,13 @@ import { Bell, CheckCircle2, Clock, Check, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AdminPageHero, AdminStatCard, AdminPagination, AdminStatusTabs } from '@/components/admin';
+import {
+  AdminPageHeader,
+  AdminStatCard,
+  AdminPagination,
+  AdminStatusTabs,
+  AdminButton,
+} from '@/components/admin';
 
 interface NotificationItem {
   id: string;
@@ -22,7 +28,13 @@ export default function NotificationCenterPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const { data: notificationsResponse, isLoading, isFetching, refetch } = useQuery({
+  const {
+    data: notificationsResponse,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['admin-notifications', activeTab, page, pageSize],
     queryFn: async () => {
       try {
@@ -45,7 +57,7 @@ export default function NotificationCenterPage() {
             totalPages: Number(pagination.totalPages) || 1,
           },
         };
-      } catch {
+      } catch (err) {
         return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
       }
     },
@@ -81,7 +93,9 @@ export default function NotificationCenterPage() {
           title: typeof n.title === 'string' ? n.title : (n.title?.message || 'System Notification'),
           message: typeof n.message === 'string' ? n.message : (n.message?.text || 'Notification update received'),
           time: n.createdAt && !isNaN(new Date(n.createdAt).getTime())
-            ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            ? new Date(n.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) +
+              ' ' +
+              new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : 'Recent',
           isRead: Boolean(n.isRead),
           type: n.type === 'PAYMENT_RECEIVED' ? 'PAYROLL' : 'CRM',
@@ -103,34 +117,43 @@ export default function NotificationCenterPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      <AdminPageHero
+      <AdminPageHeader
+        title="Notification Center"
+        description="Manage and monitor system, employee and operational notifications in real time."
+        icon={Bell}
+        iconColor="text-[#1AA14D]"
         badge={{
-          text: 'SETTINGS • NOTIFICATION CENTER',
+          text: 'SYSTEM ALERTS',
           icon: Bell,
           variant: 'emerald',
         }}
-        title="Notification Center"
-        description="Manage and monitor system, employee and operational notifications in real time."
+        breadcrumbs={[
+          { label: 'Settings', href: '/settings' },
+          { label: 'Notification Center' },
+        ]}
         actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              loading={isFetching}
               onClick={() => refetch()}
-              disabled={isFetching}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
               title="Refresh notifications"
             >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
+              Refresh
+            </AdminButton>
 
             {unreadCount > 0 && (
-              <button
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={Check}
+                loading={markAllReadMutation.isPending}
                 onClick={markAllRead}
-                disabled={markAllReadMutation.isPending}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
               >
-                <Check className="w-4 h-4" />
-                <span>Mark All Read</span>
-              </button>
+                Mark All Read
+              </AdminButton>
             )}
           </div>
         }
@@ -139,7 +162,7 @@ export default function NotificationCenterPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <AdminStatCard
           title="Total Notifications"
-          value={isLoading ? '...' : items.length}
+          value={isLoading ? '...' : (pagination.total || items.length)}
           description="In-app alerts and notifications"
           icon={Bell}
           iconBg="primary"
@@ -172,6 +195,15 @@ export default function NotificationCenterPage() {
             ]}
           />
         </div>
+
+        {isError && (
+          <div className="p-4 bg-rose-50 border-b border-rose-100 flex items-center justify-between gap-3 text-xs text-rose-700 font-bold">
+            <span>Failed to load notifications from server. Please retry.</span>
+            <AdminButton variant="outline" size="sm" icon={RefreshCw} onClick={() => refetch()}>
+              Retry
+            </AdminButton>
+          </div>
+        )}
 
         <div className="divide-y divide-slate-100">
           {isLoading ? (
@@ -210,13 +242,14 @@ export default function NotificationCenterPage() {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[11px] font-mono text-slate-400 font-medium">
+                  <span className="text-[11px] font-mono text-slate-400 font-medium whitespace-nowrap">
                     {n.time}
                   </span>
                   {!n.isRead && (
                     <button
                       onClick={() => markSingleReadMutation.mutate(n.id)}
-                      className="p-1.5 hover:bg-white text-slate-400 hover:text-[#1AA14D] rounded-xl border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+                      disabled={markSingleReadMutation.isPending}
+                      className="p-1.5 hover:bg-white text-slate-400 hover:text-[#1AA14D] rounded-xl border border-transparent hover:border-slate-200 transition-all cursor-pointer disabled:opacity-50"
                       title="Mark as read"
                     >
                       <Check className="w-4 h-4" />
@@ -226,8 +259,9 @@ export default function NotificationCenterPage() {
               </div>
             ))
           ) : (
-            <div className="p-12 text-center text-slate-400 text-xs font-bold">
-              No notifications in this view.
+            <div className="p-12 text-center text-slate-400 text-xs font-bold flex flex-col items-center justify-center gap-2">
+              <Bell className="w-8 h-8 text-slate-300" />
+              <span>No notifications in this view.</span>
             </div>
           )}
         </div>
