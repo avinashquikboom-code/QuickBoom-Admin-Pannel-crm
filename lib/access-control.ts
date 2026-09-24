@@ -318,6 +318,7 @@ export const adminNavigation: {
         { name: 'Remote Work', href: '/remote-work', icon: Laptop, permission: 'remote.view_all' },
         { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, feature: 'geo_tracking', permission: 'geo_tracking.view' },
         { name: 'Payroll', href: '/payroll', icon: Banknote, feature: 'payroll', permission: 'payroll.view' },
+        { name: 'Commissions', href: '/commissions', icon: Coins, feature: 'payroll', permission: 'payroll.view' },
         { name: 'Loans', href: '/loans', icon: DollarSign, feature: 'payroll', permission: 'payroll.view' },
         { name: 'Claims & Expenses', href: '/claims', icon: CreditCard, feature: 'payroll', permission: 'payroll.view' },
       ],
@@ -459,6 +460,7 @@ export const adminNavigation: {
       roles: ['Super Admin'],
       items: [
         { name: 'Notification Center', href: '/settings/notifications', icon: Bell, permission: 'notifications.view' },
+        { name: 'Commission Settings', href: '/commissions?tab=settings', icon: Coins, permission: 'settings.view' },
         { name: 'Roles & Permissions', href: '/roles-permissions', icon: ShieldCheck, permission: 'roles.manage' },
         { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
         { name: 'Integrations', href: '/settings', icon: Zap, permission: 'settings.global' },
