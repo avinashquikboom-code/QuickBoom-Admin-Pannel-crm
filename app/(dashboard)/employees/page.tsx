@@ -44,7 +44,7 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AdminPagination } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminPagination } from '@/components/admin';
 
 export interface EmployeeMaster {
   id: string;
@@ -956,49 +956,45 @@ export default function EmployeesPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800">
-      {/* =========================================================================
-          1. PAGE HERO HEADER CARD
-          ========================================================================= */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                Workforce Directory
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Employee Master
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Manage complete employee profiles, assigned branch geofences, and organizational directory.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Employee Master"
+        description="Manage complete employee profiles, assigned branch geofences, and organizational directory."
+        icon={Users}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'WORKFORCE DIRECTORY',
+          icon: Users,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Workforce', href: '/employees' },
+          { label: 'Employees' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              loading={isFetching}
               onClick={() => refetch()}
-              disabled={isFetching}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
               title="Refresh employees"
             >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
+              Refresh
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={UserPlus}
               onClick={handleOpenCreate}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer group active:scale-[0.98]"
             >
-              <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span>+ Add Employee</span>
-            </button>
+              Add Employee
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* =========================================================================
           2. SUMMARY KPI CARDS (Only Employee Master Statistics)

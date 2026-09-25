@@ -24,6 +24,7 @@ import { toast } from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import api, { getPersistedAuthSession } from '@/lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 interface EmployeeLocationData {
   id: string;
@@ -393,45 +394,41 @@ export default function GeoTrackingPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Card */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                Live 25-Second GPS Streaming
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Workforce Geo-Tracking & Maps
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Real-time employee GPS tracking with 25-second telemetry updates, automatic geofence checks, and live WebSocket telemetry.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-800/80 border border-slate-700 text-xs font-bold text-slate-300 shadow-inner">
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Workforce Geo-Tracking & Maps"
+        description="Real-time employee GPS tracking with 25-second telemetry updates, automatic geofence checks, and live WebSocket telemetry."
+        icon={Navigation}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'LIVE 25-SECOND GPS STREAMING',
+          icon: Navigation,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Workforce', href: '/employees' },
+          { label: 'Geo-Tracking' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700">
               <span className={`w-2.5 h-2.5 rounded-full ${isLiveConnected ? 'bg-[#23C45E] animate-pulse' : 'bg-rose-500'}`} />
               <span>{isLiveConnected ? 'WebSocket Live' : 'Connecting...'}</span>
             </div>
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={RefreshCw}
               onClick={() => {
                 refetchLiveLocations();
                 toast.success('Refreshing live employee GPS streams...');
               }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
-              <RefreshCw className="w-4 h-4" />
-              <span>Refresh Map</span>
-            </button>
+              Refresh Map
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main Tab Navigation Bar */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">

@@ -26,7 +26,8 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminPagination,
   AdminStatCard,
   AdminFormDrawer,
@@ -323,8 +324,8 @@ export default function ActivityLogsPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Card */}
-      <AdminPageHero
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
         badge={{
           text: 'CENTRALIZED ACTIVITY LOGS',
           icon: Activity,
@@ -332,18 +333,25 @@ export default function ActivityLogsPage() {
         }}
         title="Activity Logs"
         description="Single centralized view of all actions performed from Customer Mobile App, Employee Mobile App, and Admin Panel."
+        icon={Activity}
+        iconColor="text-indigo-600"
+        breadcrumbs={[
+          { label: 'Settings', href: '/settings' },
+          { label: 'Activity Logs' },
+        ]}
         actions={
-          <button
+          <AdminButton
+            variant="outline"
+            size="md"
+            icon={RefreshCw}
+            loading={isFetching}
             onClick={() => {
               refetch();
               refetchStats();
             }}
-            disabled={isFetching}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-xs"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-indigo-600' : ''}`} />
             Refresh
-          </button>
+          </AdminButton>
         }
       />
 

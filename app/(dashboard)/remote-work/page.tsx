@@ -28,7 +28,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
 import { getErrorMessage, formatTimeIST } from '@/lib/utils';
 
 type RequestTab = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
@@ -299,41 +299,34 @@ export default function RemoteWorkPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* =========================================================================
-          1. HEADER & PRIMARY ACTIONS HERO CARD
-          ========================================================================= */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                Remote Work
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Remote Work Management
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Review and manage employee remote work requests and approvals.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleManualRefreshAll}
-              disabled={isAnyFetching}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
-              title="Refresh all data"
-            >
-              <RefreshCw className={`w-4 h-4 ${isAnyFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Remote Work Management"
+        description="Review and manage employee remote work requests and approvals."
+        icon={Laptop}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'REMOTE WORK',
+          icon: Laptop,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Workforce', href: '/employees' },
+          { label: 'Remote Work' },
+        ]}
+        actions={
+          <AdminButton
+            variant="outline"
+            size="md"
+            icon={RefreshCw}
+            loading={isAnyFetching}
+            onClick={handleManualRefreshAll}
+            title="Refresh all data"
+          >
+            Refresh
+          </AdminButton>
+        }
+      />
 
       {/* =========================================================================
           2. TOP SUMMARY 5 KPI CARDS

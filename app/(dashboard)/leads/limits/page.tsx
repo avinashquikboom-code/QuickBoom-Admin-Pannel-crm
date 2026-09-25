@@ -27,7 +27,8 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminStatCard,
   AdminCard,
   AdminFormDrawer,
@@ -241,10 +242,12 @@ export default function LeadGenerationLimitsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Hero Header */}
-      <AdminPageHero
+      {/* Standard Header */}
+      <AdminPageHeader
         title="Lead Generation Limits"
         description="Manage daily and monthly lead generation quotas role-wise and configure custom employee overrides."
+        icon={ShieldCheck}
+        iconColor="text-blue-600"
         badge={{ text: 'Quotas & Limits', icon: ShieldCheck, variant: 'blue' }}
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
@@ -252,23 +255,26 @@ export default function LeadGenerationLimitsPage() {
           { label: 'Lead Limits' },
         ]}
         actions={
-          <div className="flex items-center gap-2">
-            <button
+          <div className="flex items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => {
                 refetchRoles();
                 refetchEmployees();
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition shadow-xs"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
               Refresh
-            </button>
-            <Link
-              href="/leads"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition shadow-xs"
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              Back to Leads
+            </AdminButton>
+            <Link href="/leads">
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={UserCheck}
+              >
+                Back to Leads
+              </AdminButton>
             </Link>
           </div>
         }

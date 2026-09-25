@@ -24,6 +24,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+import { AdminPageHeader, AdminButton } from '@/components/admin';
+
 export default function MasterHubPage() {
   const { data: summaryRes, isLoading, refetch } = useQuery({
     queryKey: ['master-summary'],
@@ -181,34 +183,32 @@ export default function MasterHubPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Top Header Banner */}
-      <div className="p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-3xl text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-[11px] font-black uppercase tracking-wider text-emerald-400">
-              <Database className="w-3.5 h-3.5" />
-              Master Data Registry
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-              System Master Reference Data
-            </h1>
-            <p className="text-xs md:text-sm text-slate-300 font-medium max-w-2xl">
-              Centralized single source of truth for all reusable master records, categories, workflows, and system policies used across HRM, CRM, Production, and Billing.
-            </p>
-          </div>
-
-          <button
-            type="button"
+      <AdminPageHeader
+        title="System Master Reference Data"
+        description="Centralized single source of truth for all reusable master records, categories, workflows, and system policies used across HRM, CRM, Production, and Billing."
+        icon={Database}
+        iconColor="text-indigo-600"
+        badge={{
+          text: 'Master Data Registry',
+          icon: Database,
+          variant: 'indigo',
+        }}
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Master Data' },
+        ]}
+        actions={
+          <AdminButton
+            variant="outline"
+            size="md"
+            icon={RefreshCw}
             onClick={() => refetch()}
-            className="self-start md:self-auto inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-xs font-bold rounded-xl border border-white/10"
+            disabled={isLoading}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh Counts
-          </button>
-        </div>
-
-        {/* Decorative corner glow */}
-        <div className="absolute -top-12 -right-12 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-      </div>
+          </AdminButton>
+        }
+      />
 
       {/* Grid of 14 Master Modules */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

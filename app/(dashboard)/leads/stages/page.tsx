@@ -19,7 +19,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
 import {
-  AdminPageHero,
+  AdminPageHeader,
   AdminButton,
   AdminFormDrawer,
   AdminConfirmDialog,
@@ -323,32 +323,40 @@ export default function LeadStagesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Hero Header */}
-      <AdminPageHero
+      {/* Page Header */}
+      <AdminPageHeader
         title="Stage Management"
         description="Drag rows to reorder stages. Reordering instantly updates Admin Panel, Pipeline, and Mobile App — no code change required."
+        icon={Kanban}
+        iconColor="text-emerald-600"
         badge={{ text: 'Lead Stages Master', icon: Kanban, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Leads', href: '/leads' },
+          { label: 'Stage Management' },
+        ]}
         actions={
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
+          <div className="flex items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => {
                 setLocalStages(null);
                 refetch();
               }}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95"
-              title="Refresh"
+              disabled={isFetching}
             >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              type="button"
+              Refresh
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={handleOpenCreate}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Add Stage</span>
-            </button>
+              Add Stage
+            </AdminButton>
           </div>
         }
       />

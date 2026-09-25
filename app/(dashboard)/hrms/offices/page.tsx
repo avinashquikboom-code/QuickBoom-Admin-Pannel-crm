@@ -29,7 +29,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminFormDrawer } from '@/components/admin';
 import { MapLocationPicker } from '@/components/admin/maps/MapLocationPicker';
 
 interface Office {
@@ -278,47 +278,45 @@ export default function OfficeManagementPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                HRMS • Geo-Fencing & Branches
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              Office & Geofence Management
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Configure office branches, exact GPS coordinates, and allowed punch radius in meters for authoritative mobile attendance validation.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Office & Geofence Management"
+        description="Configure office branches, exact GPS coordinates, and allowed punch radius in meters for authoritative mobile attendance validation."
+        icon={Building2}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'HRMS • GEO-FENCING & BRANCHES',
+          icon: Building2,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Workforce', href: '/employees' },
+          { label: 'Offices' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              loading={isFetching}
               onClick={() => refetch()}
-              disabled={isFetching}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-bold transition-all shadow-sm cursor-pointer"
+              title="Refresh"
             >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
+              Refresh
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={handleOpenAdd}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#23C45E] hover:bg-[#1fa951] text-white text-xs sm:text-sm font-black transition-all shadow-lg shadow-[#23C45E]/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add New Office</span>
-            </button>
+              Add New Office
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 4 Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

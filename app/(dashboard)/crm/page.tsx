@@ -6,6 +6,7 @@ import { Plus, MoreHorizontal, DollarSign, Building2, Calendar, CheckCircle2, Ar
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 interface Deal {
   id: string;
@@ -121,38 +122,33 @@ export default function PipelinePage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Card */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                Visual Sales Pipeline Kanban
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Deals & Revenue Pipeline
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Visual Deal Kanban board with real-time stage transitions, revenue forecasting, and deal advancing.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/deals/create"
-              className="inline-flex items-center justify-center gap-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 px-5 py-2.5 rounded-2xl font-black text-xs transition-all shadow-md shadow-[#23C45E]/20 cursor-pointer active:scale-95"
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Deals & Revenue Pipeline"
+        description="Visual Deal Kanban board with real-time stage transitions, revenue forecasting, and deal advancing."
+        icon={Kanban}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'VISUAL SALES PIPELINE KANBAN',
+          icon: Kanban,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Pipeline' },
+        ]}
+        actions={
+          <Link href="/deals/create">
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
             >
-              <Plus className="w-4 h-4" />
-              <span>+ Add New Deal</span>
-            </Link>
-          </div>
-        </div>
-      </div>
+              Add New Deal
+            </AdminButton>
+          </Link>
+        }
+      />
 
       {/* Kanban Board Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

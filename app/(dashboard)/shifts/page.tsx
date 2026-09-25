@@ -34,7 +34,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
-import { AdminFormDrawer, AdminStatusTabs } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminFormDrawer, AdminStatusTabs } from '@/components/admin';
 
 export default function ShiftsPage() {
   const queryClient = useQueryClient();
@@ -222,44 +222,44 @@ export default function ShiftsPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. TOP HERO HEADER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#23C45E]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                HRM Workforce Roster
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Shifts & Shift Guidance</h1>
-            <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-2xl">
-              Configure daily work schedules, grace periods, late-mark rules, break allowances, and overtime guidance for your organization.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/settings/policies"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer border border-white/10"
-            >
-              <BookOpen className="w-4 h-4 text-[#23C45E]" />
-              <span>Company Policies</span>
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Shifts & Shift Guidance"
+        description="Configure daily work schedules, grace periods, late-mark rules, break allowances, and overtime guidance for your organization."
+        icon={Clock}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'HRM WORKFORCE ROSTER',
+          icon: Clock,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Workforce', href: '/employees' },
+          { label: 'Shifts' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link href="/settings/policies">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={BookOpen}
+              >
+                Company Policies
+              </AdminButton>
             </Link>
 
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20"
             >
-              <Plus className="w-4 h-4" />
-              <span>Create Shift</span>
-            </button>
+              Create Shift
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. KPI STAT CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

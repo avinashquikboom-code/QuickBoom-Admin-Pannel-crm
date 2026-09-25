@@ -29,7 +29,8 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
@@ -313,33 +314,42 @@ export default function ContactsPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO CARD */}
-      <AdminPageHero
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Contacts"
+        description="Manage customer contacts, communication details, relationships and CRM activities."
+        icon={Users}
+        iconColor="text-[#1AA14D]"
         badge={{
           text: 'CONTACT MANAGEMENT',
           icon: Users,
           variant: 'emerald',
         }}
-        title="Contacts"
-        description="Manage customer contacts, communication details, relationships and CRM activities."
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Contacts' },
+        ]}
         actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              loading={isFetching}
               onClick={() => refetch()}
-              disabled={isFetching}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
               title="Refresh contacts"
             >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
+              Refresh
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={handleOpenCreate}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" />
-              <span>+ Add Contact</span>
-            </button>
+              Add Contact
+            </AdminButton>
           </div>
         }
       />
