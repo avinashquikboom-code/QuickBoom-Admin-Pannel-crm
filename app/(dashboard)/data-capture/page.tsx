@@ -43,6 +43,7 @@ import {
   Maximize2,
   Camera,
   Image as ImageIcon,
+  AlertCircle,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
@@ -326,6 +327,130 @@ const STATUS_CONFIG: Record<
   LEAD_CREATED: { label: 'Lead Created', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
 };
 
+/**
+ * Resolves relative backend photo URLs against configured API origin
+ */
+const resolveDisplayUrl = (url?: string): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/api/v1')) {
+    const apiOrigin = (
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'https://api.qbapp.online/api/v1'
+    ).replace(/\/api\/v1\/?$/, '');
+    return `${apiOrigin}${trimmed}`;
+  }
+  return trimmed;
+};
+
+/**
+ * Robust photo thumbnail component for Data Capture table:
+ * - Shows genuine primary Google business photo (48px square cover)
+ * - Shows small skeleton while image is loading (no premature "No image")
+ * - Logs [PHOTO LOAD ERROR] and renders compact error fallback on network error
+ * - Renders "No image" only when genuinely no photo exists
+ */
+function DataCapturePhotoThumbnail({
+  placeId,
+  businessName,
+  source,
+  photos,
+  onOpenGallery,
+}: {
+  placeId?: number | string;
+  businessName: string;
+  source?: string;
+  photos: { name?: string; url: string; width?: number; height?: number }[];
+  onOpenGallery: (e: React.MouseEvent) => void;
+}) {
+  const [loadState, setLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
+
+  const primary = photos && photos.length > 0 ? photos[0] : null;
+  const photoCount = photos?.length || 0;
+  const rawUrl = primary?.url;
+  const resolvedUrl = resolveDisplayUrl(rawUrl);
+
+  if (!primary || !resolvedUrl) {
+    return (
+      <div
+        className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center mx-auto text-slate-400 p-0.5 select-none"
+        title="No image available for this business"
+      >
+        <ImageIcon className="w-4 h-4 text-slate-400" />
+        <span className="text-[8px] font-bold text-slate-400 mt-0.5 leading-none">No image</span>
+      </div>
+    );
+  }
+
+  const handleImgError = () => {
+    setLoadState('error');
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `[PHOTO LOAD ERROR]\n` +
+        `recordId: ${placeId || 'N/A'}\n` +
+        `businessName: ${businessName}\n` +
+        `photoSource: ${source || 'GOOGLE_PLACES'}\n` +
+        `photoUrl/domain: ${resolvedUrl}`
+      );
+    }
+  };
+
+  return (
+    <div
+      onClick={onOpenGallery}
+      className="relative inline-block group cursor-pointer"
+      title={`Click to view ${photoCount} Google Places ${photoCount === 1 ? 'photo' : 'photos'}`}
+    >
+      <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 shadow-2xs group-hover:border-[#23C45E] group-hover:shadow-md transition-all bg-slate-100 flex items-center justify-center relative">
+        {/* Loading skeleton */}
+        {loadState === 'loading' && (
+          <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center">
+            <span className="w-3 h-3 rounded-full border-2 border-slate-300 border-t-emerald-500 animate-spin" />
+          </div>
+        )}
+
+        {/* Loaded Image */}
+        {loadState !== 'error' ? (
+          <img
+            key={`thumb-${placeId}-${resolvedUrl}`}
+            src={resolvedUrl}
+            alt={businessName}
+            loading="lazy"
+            onLoad={() => setLoadState('loaded')}
+            onError={handleImgError}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 ${
+              loadState === 'loading' ? 'opacity-0' : 'opacity-100'
+            }`}
+          />
+        ) : (
+          /* Error placeholder - distinct from "No image" */
+          <div
+            className="w-full h-full flex flex-col items-center justify-center bg-rose-50/60 text-rose-400 p-0.5 select-none"
+            title="Image load failed. Click to view gallery."
+          >
+            <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+            <span className="text-[7.5px] font-bold text-rose-500 mt-0.5 leading-none">Unavailable</span>
+          </div>
+        )}
+      </div>
+
+      {photoCount > 1 && (
+        <span className="absolute -bottom-1 -right-1 bg-slate-900/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-xs">
+          +{photoCount - 1}
+        </span>
+      )}
+
+      {loadState !== 'error' && (
+        <span className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-white">
+          <Maximize2 className="w-3.5 h-3.5" />
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function DataCapturePage() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
@@ -373,7 +498,13 @@ export default function DataCapturePage() {
   ) => {
     e.stopPropagation();
     if (!photos || photos.length === 0) return;
-    const normalizedList = photos.map((p) => (typeof p === 'string' ? { url: p } : p));
+    const normalizedList = photos.map((p) => {
+      const u = typeof p === 'string' ? p : p.url;
+      return {
+        ...(typeof p === 'object' ? p : {}),
+        url: resolveDisplayUrl(u),
+      };
+    });
     setGalleryModal({
       isOpen: true,
       businessName,
@@ -1191,55 +1322,15 @@ export default function DataCapturePage() {
                           const placePhotos = place.googlePhotos && place.googlePhotos.length > 0
                             ? place.googlePhotos
                             : (place.photos && place.photos.length > 0 ? place.photos.map((u) => ({ url: u })) : []);
-                          const primary = placePhotos[0];
-                          const photoCount = placePhotos.length;
-
-                          if (primary?.url) {
-                            return (
-                              <div
-                                onClick={(e) => openGalleryModal(e, place.businessName, placePhotos, 0)}
-                                className="relative inline-block group cursor-pointer"
-                                title={`Click to view ${photoCount} Google Places ${photoCount === 1 ? 'photo' : 'photos'}`}
-                              >
-                                <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 shadow-2xs group-hover:border-[#23C45E] group-hover:shadow-md transition-all bg-slate-100 flex items-center justify-center">
-                                  <img
-                                    key={`thumb-${place.id || place.googlePlaceId}-${primary.url}`}
-                                    src={primary.url}
-                                    alt={place.businessName}
-                                    loading="lazy"
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLElement;
-                                      target.style.display = 'none';
-                                      const next = target.nextElementSibling as HTMLElement;
-                                      if (next) next.classList.remove('hidden');
-                                    }}
-                                  />
-                                  <div className="hidden w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-400 p-0.5">
-                                    <ImageIcon className="w-4 h-4 text-slate-400" />
-                                    <span className="text-[8px] font-bold text-slate-400 mt-0.5 leading-none">No image</span>
-                                  </div>
-                                </div>
-                                {photoCount > 1 && (
-                                  <span className="absolute -bottom-1 -right-1 bg-slate-900/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-xs">
-                                    +{photoCount - 1}
-                                  </span>
-                                )}
-                                <span className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-white">
-                                  <Maximize2 className="w-3.5 h-3.5" />
-                                </span>
-                              </div>
-                            );
-                          }
 
                           return (
-                            <div
-                              className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center mx-auto text-slate-400 p-0.5 select-none"
-                              title="No image"
-                            >
-                              <ImageIcon className="w-4 h-4 text-slate-400" />
-                              <span className="text-[8px] font-bold text-slate-400 mt-0.5 leading-none">No image</span>
-                            </div>
+                            <DataCapturePhotoThumbnail
+                              placeId={place.id || place.googlePlaceId}
+                              businessName={place.businessName}
+                              source={place.source}
+                              photos={placePhotos}
+                              onOpenGallery={(e) => openGalleryModal(e, place.businessName, placePhotos, 0)}
+                            />
                           );
                         })()}
                       </td>
@@ -1939,7 +2030,7 @@ export default function DataCapturePage() {
                               onClick={(e) => openGalleryModal(e, selectedRecord.businessName, drawerPhotos, pIdx)}
                               className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 hover:border-[#23C45E] shadow-2xs hover:shadow-md transition-all group cursor-pointer"
                             >
-                              <img src={photo.url} alt={`Photo ${pIdx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                              <img src={resolveDisplayUrl(photo.url)} alt={`Photo ${pIdx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                               {pIdx === 0 && (
                                 <span className="absolute top-1 left-1 bg-black/70 text-white text-[8px] font-black px-1 rounded">
                                   Primary
@@ -2395,7 +2486,7 @@ export default function DataCapturePage() {
             <div className="relative my-4 w-full flex items-center justify-center max-h-[65vh] overflow-hidden rounded-2xl bg-black">
               {galleryModal.photos[galleryModal.currentIndex]?.url ? (
                 <img
-                  src={galleryModal.photos[galleryModal.currentIndex].url}
+                  src={resolveDisplayUrl(galleryModal.photos[galleryModal.currentIndex].url)}
                   alt={`${galleryModal.businessName} photo ${galleryModal.currentIndex + 1}`}
                   className="max-h-[65vh] w-auto object-contain rounded-2xl select-none"
                 />
