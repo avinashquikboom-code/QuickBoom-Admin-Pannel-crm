@@ -39,7 +39,7 @@ import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { formatDurationHoursMinutes } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPageHeader, AdminButton } from '@/components/admin';
 
 type EmployeeTab = 'overview' | 'attendance' | 'breaks' | 'leave' | 'payroll' | 'permissions';
 
@@ -229,39 +229,41 @@ export default function EmployeeDetailPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* 1. Top Navigation Bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/employees"
-            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Employee Profile</h1>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">Employee Code: {emp.employeeId}</p>
+      {/* 1. Standard Colored Page Header */}
+      <AdminPageHeader
+        title={emp.name || 'Employee Profile'}
+        description={`Employee Code: ${emp.employeeId || id} • ${emp.designation || 'Staff'} • ${emp.branch || 'Headquarters'}`}
+        breadcrumbs={[
+          { label: 'Employees', href: '/employees' },
+          { label: emp.name || `Employee #${id}` },
+        ]}
+        badge={{
+          text: emp.status || 'ACTIVE',
+          variant: emp.status === 'ACTIVE' ? 'emerald' : 'rose',
+        }}
+        actions={
+          <div className="flex items-center gap-2">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              loading={isFetching}
+              onClick={() => refetch()}
+              title="Refresh"
+            >
+              Refresh
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Edit}
+              onClick={handleOpenEdit}
+            >
+              Edit Profile
+            </AdminButton>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors cursor-pointer"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-emerald-600' : ''}`} />
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenEdit}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
-          >
-            <Edit className="w-4 h-4" /> Edit Profile
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. Header Profile Card */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">

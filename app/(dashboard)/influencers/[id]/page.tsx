@@ -22,6 +22,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 import {
   InfluencerAdminService,
   InfluencerItem,
@@ -214,24 +215,32 @@ export default function InfluencerDetailPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Top Navigation & Profile Summary */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => router.push('/influencers')}
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to All Influencers
-        </button>
-
-        <Link
-          href={`/influencers/bookings?search=${encodeURIComponent(influencer.name)}`}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-        >
-          View Bookings ({influencer._count?.bookings || 0})
-          <ExternalLink className="w-3.5 h-3.5" />
-        </Link>
-      </div>
+      {/* Standard Colored Page Header */}
+      <AdminPageHeader
+        title={influencer.name}
+        description={`@${influencer.handle || 'creator'} • ${influencer.categoryName || 'General Creator'} • ${influencer.city || 'India'}`}
+        breadcrumbs={[
+          { label: 'Influencers', href: '/influencers' },
+          { label: influencer.name },
+        ]}
+        badge={{
+          text: influencer.verificationStatus || 'VERIFIED CREATOR',
+          variant: 'emerald',
+        }}
+        actions={
+          <Link
+            href={`/influencers/bookings?search=${encodeURIComponent(influencer.name)}`}
+          >
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={ExternalLink}
+            >
+              View Bookings ({influencer._count?.bookings || 0})
+            </AdminButton>
+          </Link>
+        }
+      />
 
       {/* Hero Card */}
       <div className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

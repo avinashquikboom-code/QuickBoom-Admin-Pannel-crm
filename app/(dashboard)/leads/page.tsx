@@ -699,24 +699,22 @@ export default function LeadsPage() {
         resolvedStatus = 'NEW';
       }
 
+      const resolvedLeadName = cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || `${cleanOptionalString(leadForm.firstName) || ''} ${cleanOptionalString(leadForm.lastName) || ''}`.trim() || 'Unnamed Business';
+      const resolvedCompanyName = cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || undefined;
+
       const payload: any = {
-        title: cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || `${cleanOptionalString(leadForm.firstName) || ''} ${cleanOptionalString(leadForm.lastName) || ''}`.trim() || 'Unnamed Business',
-        companyName: cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || undefined,
-        businessName: cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || undefined,
+        title: resolvedLeadName,
+        name: resolvedLeadName,
+        companyName: resolvedCompanyName,
         category: cleanOptionalString(leadForm.category),
         source: leadForm.source || 'WEBSITE',
         firstName: cleanOptionalString(leadForm.firstName) || undefined,
-        first_name: cleanOptionalString(leadForm.firstName) || undefined,
         lastName: cleanOptionalString(leadForm.lastName) || undefined,
-        last_name: cleanOptionalString(leadForm.lastName) || undefined,
         phone: cleanOptionalString(leadForm.phone),
-        mobile: cleanOptionalString(leadForm.phone),
         email: cleanOptionalString(leadForm.email),
-        emailAddress: cleanOptionalString(leadForm.email),
         website: cleanOptionalString(leadForm.website),
         address: cleanOptionalString(leadForm.address),
         city: cleanOptionalString(leadForm.city),
-        location: cleanOptionalString(leadForm.city),
         state: cleanOptionalString(leadForm.state),
         country: cleanOptionalString(leadForm.country) || 'India',
         latitude: leadForm.latitude ? parseFloat(leadForm.latitude) : undefined,

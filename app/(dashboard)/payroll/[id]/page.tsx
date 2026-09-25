@@ -3,23 +3,24 @@
 import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Download, CheckCircle2 } from 'lucide-react';
+import { Banknote, Download, CheckCircle2 } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin';
 
 export default function PayrollBatchDetailPage() {
   const params = useParams();
   const id = params?.id || 'batch-2026-08';
 
   return (
-    <div className="space-y-8 max-w-4xl">
-      <div className="flex items-center gap-4">
-        <Link href="/payroll" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Payroll Batch Audit (#{id})</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Detailed bank disbursement statement & tax deductions.</p>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-4xl">
+      <AdminPageHeader
+        title={`Payroll Batch Audit (#${id})`}
+        description="Detailed bank disbursement statement & tax deductions."
+        icon={Banknote}
+        breadcrumbs={[
+          { label: 'Payroll', href: '/payroll' },
+          { label: `Batch #${id}` },
+        ]}
+      />
 
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8 space-y-6 text-xs">
         <div className="flex justify-between items-center pb-4 border-b border-slate-100">

@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { AdminPageHeader } from '@/components/admin';
 
 export default function BulkImportEmployeesPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -18,16 +19,16 @@ export default function BulkImportEmployeesPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl">
-      <div className="flex items-center gap-4">
-        <Link href="/employees" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Bulk Import Employees</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Upload a CSV or Excel file to batch import staff records.</p>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-2xl">
+      <AdminPageHeader
+        title="Bulk Import Employees"
+        description="Upload a CSV or Excel file to batch import staff records."
+        icon={Upload}
+        breadcrumbs={[
+          { label: 'Employees', href: '/employees' },
+          { label: 'Bulk Import' },
+        ]}
+      />
 
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8">
         <form onSubmit={handleUpload} className="space-y-6">

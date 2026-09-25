@@ -49,22 +49,38 @@ export function AdminFormPage({
         </div>
 
         {/* Page Header Banner */}
-        <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {badge && (
-              <span className="px-2.5 py-0.5 bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/30 rounded-full text-[10px] font-black uppercase tracking-wider">
-                {badge}
-              </span>
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-7 rounded-3xl border border-slate-700/60 shadow-xl space-y-2">
+          {/* Ambient Glows */}
+          <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 space-y-2">
+            {breadcrumbContext && (
+              <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1">
+                {breadcrumbContext}
+              </div>
             )}
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {title}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              {Icon && (
+                <div className="w-9 h-9 rounded-xl bg-white/10 text-white border border-white/15 flex items-center justify-center font-bold shadow-xs shrink-0">
+                  <Icon className="w-5 h-5 text-[#23C45E]" />
+                </div>
+              )}
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight break-words">
+                {title}
+              </h1>
+              {badge && (
+                <span className="px-2.5 py-0.5 bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 rounded-full text-[10px] font-black uppercase tracking-wider">
+                  {badge}
+                </span>
+              )}
+            </div>
+            {description && (
+              <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed mt-1">
+                {description}
+              </p>
+            )}
           </div>
-          {description && (
-            <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl leading-relaxed">
-              {description}
-            </p>
-          )}
         </div>
 
         {/* Main Form Body */}

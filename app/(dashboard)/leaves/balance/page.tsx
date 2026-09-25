@@ -2,14 +2,20 @@
 
 import React from 'react';
 import { Calendar } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin';
 
 export default function LeaveBalancePage() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Employee Leave Balances</h1>
-        <p className="text-xs text-slate-500 mt-1 font-medium">Real-time breakdown of remaining vs availed leave quotas per staff member.</p>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Employee Leave Balances"
+        description="Real-time breakdown of remaining vs availed leave quotas per staff member."
+        icon={Calendar}
+        breadcrumbs={[
+          { label: 'Leaves', href: '/leaves' },
+          { label: 'Leave Balances' },
+        ]}
+      />
 
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 text-xs">
         <p className="font-bold text-slate-900">Rahul Sharma (EMP001) - Leave Balance 2026</p>

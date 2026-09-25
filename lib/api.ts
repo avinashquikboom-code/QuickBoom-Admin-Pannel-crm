@@ -136,7 +136,7 @@ api.interceptors.request.use(
     }
 
     if (typeof window !== 'undefined') {
-      const { token, customerId } = getPersistedAuthSession();
+      const { token, customerId, user } = getPersistedAuthSession();
 
       if (token) {
         const cleanToken = token.replace(/^["']|["']$/g, '').trim();
@@ -168,12 +168,38 @@ api.interceptors.request.use(
         }
       }
 
+      let tokenExpired = false;
+      let jwtUserId: any = null;
+      let jwtEmployeeId: any = null;
+      let jwtCompanyId: any = null;
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(typeof window !== 'undefined' ? atob(parts[1]) : Buffer.from(parts[1], 'base64').toString('utf8'));
+            if (payload.exp) {
+              tokenExpired = payload.exp * 1000 <= Date.now();
+            }
+            jwtUserId = payload.sub || payload.id || payload.userId || null;
+            jwtEmployeeId = payload.employeeId || null;
+            jwtCompanyId = payload.customerId || payload.companyId || payload.tenantId || null;
+          }
+        } catch {
+          // ignore decode error
+        }
+      }
+
       if (process.env.NODE_ENV !== 'production') {
-        console.log('[AUTH_DEBUG]', {
-          endpoint: config.url,
-          hasToken: Boolean(token),
-          tokenPrefix: token ? token.substring(0, 15) : null,
-        });
+        console.log(
+          `[AUTH DEBUG]\n` +
+          `endpoint: ${config.url}\n` +
+          `hasAccessToken: ${Boolean(token)}\n` +
+          `tokenLength: ${token ? token.length : 0}\n` +
+          `tokenExpired: ${tokenExpired}\n` +
+          `userId: ${jwtUserId || user?.id || 'none'}\n` +
+          `employeeId: ${jwtEmployeeId || (user as any)?.employeeId || 'none'}\n` +
+          `companyId: ${jwtCompanyId || customerId || 'none'}`
+        );
 
         console.debug(
           `[ADMIN_API_REQUEST] ${config.method?.toUpperCase()} ${config.url}`,

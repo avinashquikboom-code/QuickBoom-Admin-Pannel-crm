@@ -2,14 +2,20 @@
 
 import React from 'react';
 import { FileCheck, Check, X } from 'lucide-react';
+import { AdminPageHeader } from '@/components/admin';
 
 export default function AttendanceCorrectionsPage() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Attendance Correction Requests</h1>
-        <p className="text-xs text-slate-500 mt-1 font-medium">Review and resolve employee check-in/out adjustment applications.</p>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Attendance Correction Requests"
+        description="Review and resolve employee check-in/out adjustment applications."
+        icon={FileCheck}
+        breadcrumbs={[
+          { label: 'Attendance', href: '/attendance' },
+          { label: 'Correction Requests' },
+        ]}
+      />
 
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6">
         <div className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-2 text-xs">

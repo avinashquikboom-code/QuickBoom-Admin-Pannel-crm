@@ -4,7 +4,7 @@ import React from 'react';
 import { LucideIcon, Loader2 } from 'lucide-react';
 
 export interface AdminButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost' | 'glass';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   icon?: LucideIcon;
@@ -29,7 +29,8 @@ export function AdminButton({
       'bg-[#23C45E] hover:bg-[#1AA14D] text-white shadow-md shadow-[#23C45E]/20 border-transparent',
     secondary: 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-transparent',
     danger: 'bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/20 border-transparent',
-    outline: 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-2xs',
+    outline: 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200 shadow-2xs',
+    glass: 'bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-xs backdrop-blur-xs',
     ghost: 'bg-transparent hover:bg-slate-100 text-slate-600 border-transparent',
   };
 

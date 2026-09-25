@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
+import { AdminPageHeader } from '@/components/admin';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -52,16 +53,17 @@ export default function BulkGenerateSalarySlipsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-xl">
-      <div className="flex items-center gap-4">
-        <Link href="/payroll?tab=slips" className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Bulk Generate Monthly Payslips</h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">Batch generate salary slips for all active employees for the selected period.</p>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-xl">
+      <AdminPageHeader
+        title="Bulk Generate Monthly Payslips"
+        description="Batch generate salary slips for all active employees for the selected period."
+        icon={Zap}
+        breadcrumbs={[
+          { label: 'Payroll', href: '/payroll' },
+          { label: 'Salary Slips', href: '/payroll?tab=slips' },
+          { label: 'Bulk Generate' },
+        ]}
+      />
 
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-8">
         <form onSubmit={handleBulk} className="space-y-6 text-xs">
