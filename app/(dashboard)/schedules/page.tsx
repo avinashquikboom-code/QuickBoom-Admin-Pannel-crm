@@ -77,8 +77,13 @@ export default function SchedulesPage() {
       try {
         const params: any = { month: selectedMonth, year: selectedYear };
         if (statusFilter !== 'ALL') params.status = statusFilter;
-        const res: any = await api.get('/schedules/calendar', { params });
-        const items = res?.data?.data || res?.data || (Array.isArray(res) ? res : []);
+        let res: any;
+        try {
+          res = await api.get('/works/calendar', { params });
+        } catch {
+          res = await api.get('/schedules/calendar', { params });
+        }
+        const items = res?.data?.activities || res?.activities || res?.data?.data || res?.data || (Array.isArray(res) ? res : []);
         return Array.isArray(items) ? items : [];
       } catch {
         return [];

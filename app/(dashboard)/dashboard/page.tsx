@@ -216,6 +216,53 @@ export default function AdminDashboardPage() {
     },
   });
 
+  // 8. Fetch Subscription Calendar & Daily Production Activities (/works/calendar)
+  const [activities, setActivities] = useState<any[]>([]);
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  const {
+    data: activitiesData,
+    isLoading: isLoadingActivities,
+    refetch: refetchActivities,
+  } = useQuery({
+    queryKey: ['admin-dashboard-calendar-activities', todayStr],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/works/calendar', {
+          params: { date: todayStr },
+        });
+        const acts =
+          res?.data?.activities ||
+          res?.activities ||
+          (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
+        setActivities(acts);
+        return acts;
+      } catch {
+        return [];
+      }
+    },
+    refetchInterval: 30000,
+  });
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const res: any = await api.get('/works/calendar', {
+          params: { date: today },
+        });
+        const acts =
+          res?.data?.activities ||
+          res?.activities ||
+          (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
+        setActivities(acts);
+      } catch {
+        // Handled silently
+      }
+    };
+    loadDashboard();
+  }, []);
+
   const handleManualRefresh = () => {
     refetchMetrics();
     refetchAttendance();
@@ -223,6 +270,7 @@ export default function AdminDashboardPage() {
     refetchPlans();
     refetchAudit();
     refetchTasks();
+    refetchActivities();
     toast.success('Live database metrics synchronized', { icon: '⚡' });
   };
 
@@ -913,6 +961,117 @@ export default function AdminDashboardPage() {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          4.5. SUBSCRIPTION CALENDAR & PRODUCTION ACTIVITIES (/works/calendar)
+          ========================================================================= */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden space-y-4">
+        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-2xl bg-teal-50 text-teal-600 border border-teal-100">
+                <Calendar className="w-5 h-5 text-teal-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                  Subscription Calendar Activities
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  Live daily scheduled deliverables, shoots, edits, and visits from{' '}
+                  <code className="text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-mono text-[11px]">
+                    /api/v1/works/calendar
+                  </code>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200/60">
+              Today: {todayStr}
+            </span>
+            <Link
+              href="/schedules"
+              className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-black rounded-xl border border-teal-200 transition-colors"
+            >
+              Full Calendar →
+            </Link>
+          </div>
+        </div>
+
+        <div className="p-6 pt-0">
+          {isLoadingActivities ? (
+            <div className="py-12 text-center text-slate-400">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-teal-600" />
+              <p className="mt-2 text-xs font-bold">Querying calendar activities from backend...</p>
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl">
+              <Calendar className="w-8 h-8 mx-auto text-slate-300" />
+              <p className="mt-2 text-xs font-bold text-slate-600">
+                No subscription activities scheduled for today ({todayStr})
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Active customer deliverables and scheduled shoots will appear here in real-time.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activities.map((act: any, idx: number) => {
+                const actTitle = act.title || act.activity || act.workType || `Activity #${act.id}`;
+                const actTime = act.time || act.startTime || '09:00 AM';
+                const actStatus = act.status || 'SCHEDULED';
+                const isCompleted = actStatus.toUpperCase() === 'COMPLETED';
+                const isPending = actStatus.toUpperCase() === 'PENDING' || actStatus.toUpperCase() === 'SCHEDULED';
+                const assigned = act.assignedEmployee || act.assignedToName || 'Assigned Staff';
+                const client = act.customerName || act.businessName || `Customer #${act.customerId || ''}`;
+
+                return (
+                  <div
+                    key={act.id || idx}
+                    className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:shadow-xs transition-all space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-black text-slate-900 truncate">
+                        {actTitle}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                          isCompleted
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : isPending
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {actStatus}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-500 space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{actTime}</span>
+                        {act.date && <span className="text-slate-400">• {act.date}</span>}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="truncate">{assigned}</span>
+                        {client && <span className="text-slate-400 truncate">({client})</span>}
+                      </div>
+                    </div>
+
+                    {act.notes && (
+                      <p className="text-[11px] text-slate-600 line-clamp-1 italic bg-white p-1.5 rounded-lg border border-slate-100">
+                        {act.notes}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
