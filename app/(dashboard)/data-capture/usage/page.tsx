@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
+import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
 
 export default function DataCaptureUsagePage() {
   const { data: usage, isLoading, refetch } = useQuery({
@@ -58,40 +58,52 @@ export default function DataCaptureUsagePage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <AdminPageHero
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
         title="Google Places API Usage & Quota"
         description="Monitor monthly extraction allowance, Google Places API (New) call volume, cost efficiency metrics, and billing thresholds."
+        icon={Activity}
+        iconColor="text-[#1AA14D]"
         badge={{
           text: 'CONSUMPTION & QUOTA ANALYTICS',
           icon: Activity,
           variant: 'emerald',
         }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Data Capture', href: '/data-capture' },
+          { label: 'Usage & Quota' },
+        ]}
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => refetch()}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95 flex items-center gap-1.5"
               title="Refresh usage metrics"
             >
-              <RefreshCw className="w-4 h-4 text-[#23C45E]" />
-              <span className="text-xs">Refresh</span>
-            </button>
+              Refresh
+            </AdminButton>
 
-            <Link
-              href="/data-capture/history"
-              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-bold transition-all cursor-pointer backdrop-blur-xs flex items-center gap-1.5"
-            >
-              <History className="w-4 h-4 text-[#23C45E]" />
-              <span>Capture History</span>
+            <Link href="/data-capture/history">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={History}
+              >
+                Capture History
+              </AdminButton>
             </Link>
 
-            <Link
-              href="/data-capture"
-              className="px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20 flex items-center gap-1.5"
-            >
-              <Target className="w-4 h-4" />
-              <span>Data Capture Hub</span>
+            <Link href="/data-capture">
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={Target}
+              >
+                Data Capture Hub
+              </AdminButton>
             </Link>
           </div>
         }

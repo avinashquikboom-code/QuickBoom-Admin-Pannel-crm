@@ -156,3 +156,7 @@ export function AdminPageHero({
   );
 }
 
+// Aliases for standard Admin Panel Page Header
+export const PageHeader = AdminPageHeader;
+export type PageHeaderProps = AdminPageHeaderProps;
+

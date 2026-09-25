@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { AdminPageHeader } from '@/components/admin';
 
 function WhatsAppIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
@@ -1109,34 +1110,29 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Card */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                System Configuration & Integrations
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Settings & Integrations
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Manage payment gateways, Google Maps Platform APIs, workforce rules, and multi-customer security policies.
-            </p>
-          </div>
-
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Settings & Integrations"
+        description="Manage payment gateways, Google Maps Platform APIs, workforce rules, and multi-customer security policies."
+        icon={Settings}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'SYSTEM CONFIGURATION & INTEGRATIONS',
+          icon: Settings,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Settings', href: '/settings' },
+          { label: 'Integrations & Configuration' },
+        ]}
+        actions={
           <div className="flex flex-wrap items-center gap-3">
-            <span className="px-4 py-2 bg-slate-800/80 text-slate-300 font-mono font-black text-xs rounded-2xl border border-slate-700">
+            <span className="px-3.5 py-1.5 bg-slate-100 text-slate-700 font-mono font-bold text-xs rounded-xl border border-slate-200">
               Tenant ID: {customerId}
             </span>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Navigation Tabs */}
       <div className="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap gap-1.5">

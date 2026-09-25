@@ -28,6 +28,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+import { AdminPageHeader } from '@/components/admin';
 
 interface CommissionRecord {
   id: number;
@@ -292,54 +293,52 @@ function CommissionManagementContent() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl shadow-xs">
-              <Coins className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                Commission Management
-              </h1>
-              <p className="text-sm text-slate-500 mt-0.5">
-                BPO, Telecaller & Telesales Performance & Conversion Commissions
-              </p>
-            </div>
+      <AdminPageHeader
+        title="Commission Management"
+        description="BPO, Telecaller & Telesales Performance & Conversion Commissions"
+        icon={Coins}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'PERFORMANCE & CONVERSIONS',
+          icon: Coins,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Payroll', href: '/payroll' },
+          { label: 'Commissions' },
+        ]}
+        actions={
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl self-start md:self-auto border border-slate-200/80">
+            <button
+              onClick={() => handleTabChange('records')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'records'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Coins className="w-4 h-4 text-emerald-600" />
+              <span>Commission Records</span>
+              {meta.total > 0 && (
+                <span className="ml-1 px-2 py-0.5 text-xs font-bold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+                  {meta.total}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => handleTabChange('settings')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'settings'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Sliders className="w-4 h-4 text-indigo-600" />
+              <span>Eligibility & Rates</span>
+            </button>
           </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl self-start md:self-auto border border-slate-200/80">
-          <button
-            onClick={() => handleTabChange('records')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeTab === 'records'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Coins className="w-4 h-4 text-emerald-600" />
-            <span>Commission Records</span>
-            {meta.total > 0 && (
-              <span className="ml-1 px-2 py-0.5 text-xs font-bold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-                {meta.total}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => handleTabChange('settings')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeTab === 'settings'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Sliders className="w-4 h-4 text-indigo-600" />
-            <span>Eligibility & Rates</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {activeTab === 'records' ? (
         <>

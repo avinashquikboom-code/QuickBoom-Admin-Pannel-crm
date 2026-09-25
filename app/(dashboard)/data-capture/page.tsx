@@ -46,7 +46,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { hasPermission } from '@/lib/access-control';
 import {
-  AdminPageHero,
+  AdminPageHeader,
   AdminStatCard,
   AdminCard,
   AdminButton,
@@ -560,60 +560,70 @@ export default function DataCapturePage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <AdminPageHero
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
         title="Data Capture"
         description="Extract, verify, and convert business prospects into active CRM Leads with Google Places API integration."
+        icon={Globe}
+        iconColor="text-[#1AA14D]"
         badge={{
           text: 'DATA CAPTURE & PROSPECTION',
           icon: Globe,
           variant: 'emerald',
         }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Data Capture' },
+        ]}
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => {
                 refetchList();
                 refetchUsage();
               }}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95 flex items-center gap-1.5"
               title="Refresh capture list and quota"
             >
-              <RefreshCw className="w-4 h-4 text-[#23C45E]" />
-              <span className="hidden sm:inline text-xs">Sync</span>
-            </button>
+              Sync
+            </AdminButton>
 
-            <Link
-              href="/data-capture/history"
-              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-bold transition-all cursor-pointer backdrop-blur-xs flex items-center gap-1.5"
-            >
-              <History className="w-4 h-4 text-sky-400" />
-              <span>Job History</span>
+            <Link href="/data-capture/history">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={History}
+              >
+                Job History
+              </AdminButton>
             </Link>
 
-            <Link
-              href="/data-capture/usage"
-              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-bold transition-all cursor-pointer backdrop-blur-xs flex items-center gap-1.5"
-            >
-              <Activity className="w-4 h-4 text-purple-400" />
-              <span>Usage & Quota</span>
+            <Link href="/data-capture/usage">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={Activity}
+              >
+                Usage & Quota
+              </AdminButton>
             </Link>
 
             {canCreate && (
               <>
                 <AdminButton
                   variant="outline"
-                  size="sm"
+                  size="md"
                   icon={Plus}
                   onClick={() => setCreateModalOpen(true)}
-                  className="bg-white text-slate-900 border-white hover:bg-slate-50"
                 >
                   Add Record
                 </AdminButton>
 
                 <AdminButton
                   variant="primary"
-                  size="sm"
+                  size="md"
                   icon={Search}
                   onClick={() => setExtractModalOpen(true)}
                 >

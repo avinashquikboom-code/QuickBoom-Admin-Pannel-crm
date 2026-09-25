@@ -29,6 +29,7 @@ import ReportsService, {
   ExportReportPayload,
 } from '@/lib/services/reports.service';
 import { exportReportAsPdf } from '@/lib/utils/pdf-export';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 import { AdminDataTable, ColumnDef } from '@/components/admin/tables/AdminDataTable';
 import { AdminPagination } from '@/components/admin/tables/AdminPagination';
 import { AdminStatCard } from '@/components/admin/cards/AdminStatCard';
@@ -441,65 +442,61 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Card */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                Live Data & Audit Export Engine
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Reports & Data Export Center
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed">
-              Generate structured, audit-ready dataset exports across attendance records, payroll slips, leave requests, and employee rosters.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => handleExport(activeModule, 'CSV')}
-              disabled={downloadingType !== null}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-            >
-              {downloadingType === `${activeModule}-CSV` ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="w-4 h-4" />
-              )}
-              <span>Export CSV</span>
-            </button>
-            <button
-              onClick={() => handleExportPdf(activeModule)}
-              disabled={downloadingType !== null}
-              className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-            >
-              {downloadingType === `${activeModule}-PDF` ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <FileText className="w-4 h-4" />
-              )}
-              <span>Export PDF</span>
-            </button>
-            <button
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Reports & Data Export Center"
+        description="Generate structured, audit-ready dataset exports across attendance records, payroll slips, leave requests, and employee rosters."
+        icon={Layers}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'DATA & AUDIT EXPORT ENGINE',
+          icon: Layers,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Analytics', href: '/dashboard' },
+          { label: 'Reports' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              loading={isSummaryFetching || isDataFetching}
               onClick={() => {
                 refetchSummary();
                 refetchData();
               }}
-              className="p-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-2xl border border-slate-700 transition-all cursor-pointer"
               title="Refresh report data"
             >
-              <RefreshCw className={`w-4 h-4 ${(isSummaryFetching || isDataFetching) ? 'animate-spin' : ''}`} />
-            </button>
+              Refresh
+            </AdminButton>
+
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={FileSpreadsheet}
+              loading={downloadingType === `${activeModule}-CSV`}
+              onClick={() => handleExport(activeModule, 'CSV')}
+              disabled={downloadingType !== null}
+            >
+              Export CSV
+            </AdminButton>
+
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={FileText}
+              loading={downloadingType === `${activeModule}-PDF`}
+              onClick={() => handleExportPdf(activeModule)}
+              disabled={downloadingType !== null}
+            >
+              Export PDF
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Global Filter Bar: Date Range Presets & Custom Pickers */}
       <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">

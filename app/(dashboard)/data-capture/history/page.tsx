@@ -27,7 +27,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
-import { AdminPageHero, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
+import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
 
 export default function DataCaptureHistoryPage() {
   const queryClient = useQueryClient();
@@ -139,43 +139,55 @@ export default function DataCaptureHistoryPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <AdminPageHero
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
         title="Extraction History & Audit Trail"
         description="Inspect past Google Places extraction batches, review captured records, and import prospects directly into CRM Leads."
+        icon={History}
+        iconColor="text-[#1AA14D]"
         badge={{
           text: 'EXTRACTION AUDIT LOGS',
           icon: History,
           variant: 'emerald',
         }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Data Capture', href: '/data-capture' },
+          { label: 'Job History' },
+        ]}
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => {
                 refetch();
                 refetchUsage();
               }}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95 flex items-center gap-1.5"
               title="Refresh job history"
             >
-              <RefreshCw className="w-4 h-4 text-[#23C45E]" />
-              <span className="text-xs">Refresh</span>
-            </button>
+              Refresh
+            </AdminButton>
 
-            <Link
-              href="/data-capture/usage"
-              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-bold transition-all cursor-pointer backdrop-blur-xs flex items-center gap-1.5"
-            >
-              <Activity className="w-4 h-4 text-[#23C45E]" />
-              <span>Usage Analytics</span>
+            <Link href="/data-capture/usage">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={Activity}
+              >
+                Usage Analytics
+              </AdminButton>
             </Link>
 
-            <Link
-              href="/data-capture"
-              className="px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20 flex items-center gap-1.5"
-            >
-              <Target className="w-4 h-4" />
-              <span>Data Capture Hub</span>
+            <Link href="/data-capture">
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={Target}
+              >
+                Data Capture Hub
+              </AdminButton>
             </Link>
           </div>
         }

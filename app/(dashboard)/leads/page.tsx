@@ -58,7 +58,8 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminStatCard,
   AdminCard,
   AdminFormDrawer,
@@ -1081,46 +1082,62 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. HERO BANNER */}
-      <AdminPageHero
-        badge="CRM & Pipeline"
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
         title="Leads Management"
         description="Discover, assign, track and convert potential customers into sales deals."
+        icon={Layers}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'CRM & PIPELINE',
+          icon: Layers,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Leads' },
+        ]}
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
-            <Link
-              href="/leads/limits"
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs flex items-center gap-2 transition-all border border-white/20 cursor-pointer active:scale-95"
-            >
-              <ShieldCheck className="w-4 h-4 text-sky-300" />
-              <span>Lead Limits</span>
+            <Link href="/leads/limits">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={ShieldCheck}
+              >
+                Lead Limits
+              </AdminButton>
             </Link>
 
-            <Link
-              href="/master/lead-stages"
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs flex items-center gap-2 transition-all border border-white/20 cursor-pointer active:scale-95"
-            >
-              <Kanban className="w-4 h-4 text-amber-300" />
-              <span>Stage Management</span>
+            <Link href="/master/lead-stages">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={Kanban}
+              >
+                Stage Management
+              </AdminButton>
             </Link>
 
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={Globe}
               onClick={() => {
                 setIsPlacesDrawerOpen(true);
               }}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs flex items-center gap-2 transition-all border border-white/20 cursor-pointer active:scale-95"
             >
-              <Globe className="w-4 h-4 text-emerald-300" />
-              <span>Google Places Discovery</span>
-            </button>
+              Google Places Discovery
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={handleOpenCreate}
-              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs flex items-center gap-2 transition-all shadow-md shadow-[#23C45E]/20 cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Add New Lead</span>
-            </button>
+              Add New Lead
+            </AdminButton>
           </div>
         }
       />

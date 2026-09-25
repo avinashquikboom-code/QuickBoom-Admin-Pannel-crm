@@ -53,7 +53,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminFormDrawer } from '@/components/admin';
 
 // ---------------------------------------------------------------------------
 // PERMISSION TREE DEFINITIONS (Categorized & Normalized Granular Model)
@@ -1386,46 +1386,46 @@ export default function RolesPermissionsPage() {
 
   return (
     <div className="space-y-5 pb-12">
-      {/* 1. Header Banner & DUAL-TAB NAVIGATION */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-[#1AA14D] flex items-center justify-center font-bold shadow-2xs">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-lg font-black text-slate-900 tracking-tight">
-                Roles & UI Permissions
-              </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                Configure role defaults and manage individual employee mobile access overrides.
-              </p>
-            </div>
-          </div>
-
-          {/* Action buttons based on active tab */}
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="Roles & UI Permissions"
+        description="Configure role defaults and manage individual employee mobile access overrides."
+        icon={ShieldCheck}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'ACCESS CONTROL & SECURITY',
+          icon: ShieldCheck,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Settings', href: '/settings' },
+          { label: 'Roles & Permissions' },
+        ]}
+        actions={
           <div className="flex items-center gap-2.5 flex-wrap">
             {activeTab === 'roles' ? (
-              <button
-                type="button"
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={Plus}
                 onClick={handleOpenCreateRole}
-                className="flex items-center gap-1.5 px-4 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
-                <span>Create Role</span>
-              </button>
+                Create Role
+              </AdminButton>
             ) : (
-              <Link
-                href="/employees"
-                className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-              >
-                <Users className="w-3.5 h-3.5 text-blue-600" />
-                <span>Employee Directory</span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
+              <Link href="/employees">
+                <AdminButton
+                  variant="outline"
+                  size="md"
+                  icon={Users}
+                >
+                  Employee Directory
+                </AdminButton>
               </Link>
             )}
           </div>
-        </div>
+        }
+      />
 
         {/* PRIMARY DUAL TABS SWITCHER */}
         <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 w-full sm:w-fit">
