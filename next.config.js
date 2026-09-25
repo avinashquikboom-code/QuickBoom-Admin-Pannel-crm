@@ -10,6 +10,14 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: 'places.googleapis.com' },
+      { protocol: 'https', hostname: 'maps.googleapis.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+    ],
+  },
   webpack: (config, { dev }) => {
     if (dev) {
       // Prevent Webpack PackFileCacheStrategy filesystem corruption (.pack.gz ENOENT) in dev mode
