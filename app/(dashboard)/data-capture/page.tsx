@@ -2214,7 +2214,7 @@ export default function DataCapturePage() {
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         title="Add Manual Prospect"
-        subtitle="Manually create a new business lead in Data Capture"
+        subtitle="Manually create a new business record in Data Capture"
         icon={Plus}
         size="md"
         onSave={() => {

@@ -699,8 +699,11 @@ export default function LeadsPage() {
         resolvedStatus = 'NEW';
       }
 
-      const resolvedLeadName = cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || `${cleanOptionalString(leadForm.firstName) || ''} ${cleanOptionalString(leadForm.lastName) || ''}`.trim() || 'Unnamed Business';
-      const resolvedCompanyName = cleanOptionalString(leadForm.businessName) || cleanOptionalString(leadForm.title) || undefined;
+      const contactPerson = `${cleanOptionalString(leadForm.firstName) || ''} ${cleanOptionalString(leadForm.lastName) || ''}`.trim();
+      const resolvedBiz = cleanOptionalString(leadForm.businessName);
+      const resolvedTitle = cleanOptionalString(leadForm.title);
+      const resolvedLeadName = resolvedBiz || contactPerson || resolvedTitle || '';
+      const resolvedCompanyName = resolvedBiz || undefined;
 
       const payload: any = {
         title: resolvedLeadName,
@@ -1324,13 +1327,13 @@ export default function LeadsPage() {
                 </tr>
               ) : filteredLeads.length > 0 ? (
                 filteredLeads.map((lead) => {
+                  const rawContactName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
                   const compName =
                     (lead.companyName && lead.companyName !== 'Business Lead' && lead.companyName !== 'Direct Lead' && lead.companyName !== 'New Lead' ? lead.companyName.trim() : null) ||
                     ((lead as any).businessName && (lead as any).businessName !== 'Business Lead' && (lead as any).businessName !== 'Direct Lead' && (lead as any).businessName !== 'New Lead' ? (lead as any).businessName.trim() : null) ||
                     (lead.title && lead.title !== 'Business Lead' && lead.title !== 'Direct Lead' && lead.title !== 'New Lead' ? lead.title.trim() : null) ||
-                    'Unnamed Business';
-
-                  const rawContactName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+                    (rawContactName && rawContactName !== '.' && rawContactName !== 'Business Lead' && rawContactName !== 'Business Owner' && rawContactName !== 'Unknown Business' ? rawContactName : null) ||
+                    '';
                   const hasDistinctContact =
                     rawContactName &&
                     rawContactName !== '.' &&
@@ -1391,8 +1394,8 @@ export default function LeadsPage() {
                             );
                           })()}
                           <div className="min-w-0">
-                            <span className="font-extrabold text-slate-900 group-hover:text-[#1AA14D] text-sm truncate block transition-colors" title={compName}>
-                              {compName}
+                            <span className={`font-extrabold ${compName ? 'text-slate-900 group-hover:text-[#1AA14D]' : 'text-slate-400 italic'} text-sm truncate block transition-colors`} title={compName || 'No business name available'}>
+                              {compName || 'No business name available'}
                             </span>
                             <p className="text-slate-500 font-medium text-[11px] truncate flex items-center gap-1.5 mt-0.5">
                               <span className="font-bold text-slate-700">{subtitleText}</span>
@@ -1672,7 +1675,8 @@ export default function LeadsPage() {
                       {(leadDetail?.companyName && leadDetail.companyName !== 'Business Lead' ? leadDetail.companyName : null) ||
                        ((leadDetail as any)?.businessName && (leadDetail as any).businessName !== 'Business Lead' ? (leadDetail as any).businessName : null) ||
                        (leadDetail?.title && leadDetail.title !== 'Business Lead' ? leadDetail.title : null) ||
-                       'Lead Details'}
+                       (leadDetail?.firstName || leadDetail?.lastName ? `${leadDetail?.firstName || ''} ${leadDetail?.lastName || ''}`.trim() : null) ||
+                       'No business name available'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium truncate">
                       {(() => {
@@ -3168,9 +3172,8 @@ export default function LeadsPage() {
 
                   setLeadForm({
                     id: '',
-                    title: cleanOptionalString(displayName) || 'Unnamed Business',
-                    businessName: cleanOptionalString(displayName) || 'Unnamed Business',
-                    companyName: cleanOptionalString(displayName) || 'Unnamed Business',
+                    title: cleanOptionalString(displayName) || '',
+                    businessName: cleanOptionalString(displayName) || '',
                     firstName: resolvedFirstName || '',
                     lastName: resolvedLastName || '',
                     category: cleanOptionalString(place.category) || cleanOptionalString(googleQuery) || '',
