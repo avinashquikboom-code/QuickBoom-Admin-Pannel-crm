@@ -107,8 +107,199 @@ interface CapturedPlace {
     linkedin?: string;
     twitter?: string;
     youtube?: string;
+    tiktok?: string;
+    pinterest?: string;
     [key: string]: any;
   };
+}
+
+interface SocialItem {
+  platform: 'Instagram' | 'Facebook' | 'YouTube' | 'LinkedIn' | 'X' | 'TikTok' | 'Website' | 'Pinterest';
+  url: string;
+}
+
+function getDiscoveredSocialList(place: CapturedPlace): SocialItem[] {
+  const sm = place.socialMedia || (place.rawData as any)?.socialMedia;
+  const list: SocialItem[] = [];
+
+  const rawInstagram = sm?.instagram;
+  if (rawInstagram && typeof rawInstagram === 'string' && rawInstagram.trim()) {
+    list.push({ platform: 'Instagram', url: rawInstagram.trim() });
+  }
+
+  const rawFacebook = sm?.facebook;
+  if (rawFacebook && typeof rawFacebook === 'string' && rawFacebook.trim()) {
+    list.push({ platform: 'Facebook', url: rawFacebook.trim() });
+  }
+
+  const rawYoutube = sm?.youtube;
+  if (rawYoutube && typeof rawYoutube === 'string' && rawYoutube.trim()) {
+    list.push({ platform: 'YouTube', url: rawYoutube.trim() });
+  }
+
+  const rawLinkedin = sm?.linkedin;
+  if (rawLinkedin && typeof rawLinkedin === 'string' && rawLinkedin.trim()) {
+    list.push({ platform: 'LinkedIn', url: rawLinkedin.trim() });
+  }
+
+  const rawTwitter = sm?.twitter || sm?.x;
+  if (rawTwitter && typeof rawTwitter === 'string' && rawTwitter.trim()) {
+    list.push({ platform: 'X', url: rawTwitter.trim() });
+  }
+
+  const rawTiktok = sm?.tiktok;
+  if (rawTiktok && typeof rawTiktok === 'string' && rawTiktok.trim()) {
+    list.push({ platform: 'TikTok', url: rawTiktok.trim() });
+  }
+
+  const rawWebsite = sm?.website || (place.website && place.website !== 'N/A' ? place.website : undefined);
+  if (rawWebsite && typeof rawWebsite === 'string' && rawWebsite.trim() && rawWebsite !== 'N/A') {
+    list.push({ platform: 'Website', url: rawWebsite.trim() });
+  }
+
+  const rawPinterest = sm?.pinterest;
+  if (rawPinterest && typeof rawPinterest === 'string' && rawPinterest.trim()) {
+    list.push({ platform: 'Pinterest', url: rawPinterest.trim() });
+  }
+
+  return list;
+}
+
+function parseAddressDetails(place: CapturedPlace) {
+  let city = '';
+  let state = '';
+  let country = '';
+  let pincode = '';
+
+  const components = (place.rawData as any)?.addressComponents;
+  if (Array.isArray(components)) {
+    for (const c of components) {
+      const types: string[] = c.types || [];
+      if (types.includes('locality') || types.includes('administrative_area_level_2')) {
+        city = city || c.longText || c.shortText || '';
+      }
+      if (types.includes('administrative_area_level_1')) {
+        state = c.longText || c.shortText || '';
+      }
+      if (types.includes('country')) {
+        country = c.longText || c.shortText || '';
+      }
+      if (types.includes('postal_code')) {
+        pincode = c.longText || c.shortText || '';
+      }
+    }
+  }
+
+  // Fallback parsing from address string if components missing
+  if (!pincode && place.address) {
+    const pinMatch = place.address.match(/\b\d{6}\b/) || place.address.match(/\b\d{5}(-\d{4})?\b/);
+    if (pinMatch) pincode = pinMatch[0];
+  }
+
+  return {
+    fullAddress: place.address || 'N/A',
+    city: city || 'N/A',
+    state: state || 'N/A',
+    country: country || 'N/A',
+    pincode: pincode || 'N/A',
+    latitude: place.latitude,
+    longitude: place.longitude,
+    googleMapsUrl: place.googleMapsUrl,
+  };
+}
+
+function SocialMediaBadgeButton({
+  item,
+  size = 'sm',
+}: {
+  item: SocialItem;
+  size?: 'sm' | 'md';
+}) {
+  const getIcon = () => {
+    switch (item.platform) {
+      case 'Instagram':
+        return (
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+          </svg>
+        );
+      case 'Facebook':
+        return (
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+          </svg>
+        );
+      case 'YouTube':
+        return (
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+          </svg>
+        );
+      case 'LinkedIn':
+        return (
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.64a1.66 1.66 0 1 0-.01 3.32 1.66 1.66 0 0 0 .01-3.32z" />
+          </svg>
+        );
+      case 'X':
+        return (
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        );
+      case 'TikTok':
+        return (
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 2.89 3.5 2.75 1.57-.04 2.89-1.2 3.12-2.74.07-.5.08-1.01.08-1.51V.02z" />
+          </svg>
+        );
+      case 'Pinterest':
+        return (
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146 1.124.347 2.317.535 3.554.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z" />
+          </svg>
+        );
+      case 'Website':
+      default:
+        return <Globe className="w-3.5 h-3.5" />;
+    }
+  };
+
+  const getStyle = () => {
+    switch (item.platform) {
+      case 'Instagram':
+        return 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white hover:opacity-90';
+      case 'Facebook':
+        return 'bg-[#1877F2] text-white hover:bg-[#166fe5]';
+      case 'YouTube':
+        return 'bg-[#FF0000] text-white hover:bg-[#e60000]';
+      case 'LinkedIn':
+        return 'bg-[#0A66C2] text-white hover:bg-[#084e96]';
+      case 'X':
+        return 'bg-slate-900 text-white hover:bg-black';
+      case 'TikTok':
+        return 'bg-[#010101] text-white hover:bg-black';
+      case 'Pinterest':
+        return 'bg-[#E60023] text-white hover:bg-[#c9001f]';
+      case 'Website':
+      default:
+        return 'bg-sky-600 text-white hover:bg-sky-700';
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        window.open(item.url, '_blank', 'noopener,noreferrer');
+      }}
+      title={item.platform}
+      className={`${size === 'sm' ? 'w-7 h-7' : 'w-8 h-8'} rounded-full flex items-center justify-center shrink-0 shadow-2xs transition-all hover:scale-110 active:scale-95 cursor-pointer ${getStyle()}`}
+    >
+      {getIcon()}
+    </button>
+  );
 }
 
 interface UsageSummary {
@@ -544,6 +735,8 @@ export default function DataCapturePage() {
       'LinkedIn',
       'Twitter / X',
       'YouTube',
+      'TikTok',
+      'Pinterest',
       'Address',
       'Rating',
       'Review Count',
@@ -574,6 +767,8 @@ export default function DataCapturePage() {
         `"${sm.linkedin || ''}"`,
         `"${sm.twitter || ''}"`,
         `"${sm.youtube || ''}"`,
+        `"${sm.tiktok || ''}"`,
+        `"${sm.pinterest || ''}"`,
         `"${(p.address || '').replace(/"/g, '""')}"`,
         p.rating || '',
         p.reviewCount || '',
@@ -956,15 +1151,15 @@ export default function DataCapturePage() {
                       className="rounded text-[#23C45E] focus:ring-[#23C45E] cursor-pointer"
                     />
                   </th>
-                  <th className="p-3.5 w-14 text-center">Photo</th>
-                  <th className="p-3.5">Business Name & Category</th>
-                  <th className="p-3.5">Contact Info</th>
-                  <th className="p-3.5">Address</th>
-                  <th className="p-3.5">Rating & Reviews</th>
-                  <th className="p-3.5">Social Media</th>
-                  <th className="p-3.5">Status</th>
-                  <th className="p-3.5">Source</th>
-                  <th className="p-3.5 text-right">Actions</th>
+                  <th className="p-3.5 w-16 text-center">PHOTO</th>
+                  <th className="p-3.5">BUSINESS NAME & CATEGORY</th>
+                  <th className="p-3.5">CONTACT INFO</th>
+                  <th className="p-3.5">ADDRESS</th>
+                  <th className="p-3.5">RATING & REVIEWS</th>
+                  <th className="p-3.5">SOCIAL</th>
+                  <th className="p-3.5">STATUS</th>
+                  <th className="p-3.5">SOURCE</th>
+                  <th className="p-3.5 text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
@@ -1005,28 +1200,31 @@ export default function DataCapturePage() {
                                 className="relative inline-block group cursor-pointer"
                                 title={`Click to view ${photoCount} Google Places ${photoCount === 1 ? 'photo' : 'photos'}`}
                               >
-                                <div className="w-11 h-11 rounded-xl overflow-hidden border border-slate-200 shadow-2xs group-hover:border-[#23C45E] group-hover:shadow-md transition-all bg-slate-100 flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 shadow-2xs group-hover:border-[#23C45E] group-hover:shadow-md transition-all bg-slate-100 flex items-center justify-center">
                                   <img
+                                    key={`thumb-${place.id || place.googlePlaceId}-${primary.url}`}
                                     src={primary.url}
                                     alt={place.businessName}
                                     loading="lazy"
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                     onError={(e) => {
-                                      (e.target as HTMLElement).style.display = 'none';
-                                      const next = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                                      const target = e.target as HTMLElement;
+                                      target.style.display = 'none';
+                                      const next = target.nextElementSibling as HTMLElement;
                                       if (next) next.classList.remove('hidden');
                                     }}
                                   />
-                                  <div className="hidden w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
-                                    <Building2 className="w-5 h-5 text-slate-400" />
+                                  <div className="hidden w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-400 p-0.5">
+                                    <ImageIcon className="w-4 h-4 text-slate-400" />
+                                    <span className="text-[8px] font-bold text-slate-400 mt-0.5 leading-none">No image</span>
                                   </div>
                                 </div>
                                 {photoCount > 1 && (
-                                  <span className="absolute -bottom-1 -right-1 bg-slate-900/90 text-white text-[9px] font-black px-1 py-0.2 rounded-full border border-white shadow-xs">
+                                  <span className="absolute -bottom-1 -right-1 bg-slate-900/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-xs">
                                     +{photoCount - 1}
                                   </span>
                                 )}
-                                <span className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center text-white">
+                                <span className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-white">
                                   <Maximize2 className="w-3.5 h-3.5" />
                                 </span>
                               </div>
@@ -1035,10 +1233,11 @@ export default function DataCapturePage() {
 
                           return (
                             <div
-                              className="w-11 h-11 rounded-xl bg-slate-100/90 border border-slate-200/80 flex items-center justify-center mx-auto text-slate-400"
-                              title="No Google photo available"
+                              className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center mx-auto text-slate-400 p-0.5 select-none"
+                              title="No image"
                             >
-                              <Building2 className="w-5 h-5 text-slate-400" />
+                              <ImageIcon className="w-4 h-4 text-slate-400" />
+                              <span className="text-[8px] font-bold text-slate-400 mt-0.5 leading-none">No image</span>
                             </div>
                           );
                         })()}
@@ -1093,89 +1292,35 @@ export default function DataCapturePage() {
                         )}
                       </td>
 
-                      {/* SOCIAL MEDIA / LINKS COLUMN */}
+                      {/* SOCIAL COLUMN */}
                       <td className="p-3.5" onClick={(e) => e.stopPropagation()}>
                         {(() => {
-                          const sm = place.socialMedia || (place.rawData as any)?.socialMedia;
-                          const hasWeb = place.website && place.website !== 'N/A';
-                          const hasFb = sm?.facebook;
-                          const hasIg = sm?.instagram;
-                          const hasLi = sm?.linkedin;
-                          const hasTw = sm?.twitter;
-                          const hasYt = sm?.youtube;
+                          const socialList = getDiscoveredSocialList(place);
 
-                          if (!hasWeb && !hasFb && !hasIg && !hasLi && !hasTw && !hasYt) {
+                          if (socialList.length === 0) {
                             return <span className="text-slate-400 text-xs font-bold">—</span>;
                           }
 
+                          const visibleItems = socialList.slice(0, 3);
+                          const remainingCount = socialList.length - 3;
+
                           return (
-                            <div className="flex flex-wrap items-center gap-1 max-w-[170px]">
-                              {hasWeb && (
-                                <a
-                                  href={place.website}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 hover:bg-blue-100 text-[10px] font-black transition-colors"
-                                  title={`Website: ${place.website}`}
+                            <div className="flex items-center gap-1.5">
+                              {visibleItems.map((item) => (
+                                <SocialMediaBadgeButton key={item.platform} item={item} size="sm" />
+                              ))}
+                              {remainingCount > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDetailDrawer(place);
+                                  }}
+                                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center border border-slate-200 transition-colors cursor-pointer"
+                                  title={`+${remainingCount} more: Click to view all social platforms`}
                                 >
-                                  <Globe className="w-2.5 h-2.5" />
-                                  <span>WEB</span>
-                                </a>
-                              )}
-                              {hasFb && (
-                                <a
-                                  href={sm.facebook}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/25 hover:bg-[#1877F2]/20 text-[10px] font-black transition-colors"
-                                  title={`Facebook: ${sm.facebook}`}
-                                >
-                                  FB
-                                </a>
-                              )}
-                              {hasIg && (
-                                <a
-                                  href={sm.instagram}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-gradient-to-r from-[#F58529]/15 to-[#DD2A7B]/15 text-[#DD2A7B] border border-[#DD2A7B]/30 hover:opacity-90 text-[10px] font-black transition-opacity"
-                                  title={`Instagram: ${sm.instagram}`}
-                                >
-                                  IG
-                                </a>
-                              )}
-                              {hasLi && (
-                                <a
-                                  href={sm.linkedin}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/25 hover:bg-[#0A66C2]/20 text-[10px] font-black transition-colors"
-                                  title={`LinkedIn: ${sm.linkedin}`}
-                                >
-                                  IN
-                                </a>
-                              )}
-                              {hasTw && (
-                                <a
-                                  href={sm.twitter}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-900/10 text-slate-900 border border-slate-900/20 hover:bg-slate-900/20 text-[10px] font-black transition-colors"
-                                  title={`X (Twitter): ${sm.twitter}`}
-                                >
-                                  X
-                                </a>
-                              )}
-                              {hasYt && (
-                                <a
-                                  href={sm.youtube}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 text-[10px] font-black transition-colors"
-                                  title={`YouTube: ${sm.youtube}`}
-                                >
-                                  YT
-                                </a>
+                                  +{remainingCount}
+                                </button>
                               )}
                             </div>
                           );
@@ -1494,306 +1639,261 @@ export default function DataCapturePage() {
               </div>
             ) : (
               <div className="space-y-4 text-xs">
-                {/* Status & ID Badge */}
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] uppercase font-black text-slate-400 block">Record Status</span>
-                    <span className="text-xs font-black text-slate-900">
-                      {STATUS_CONFIG[selectedRecord.status || 'CAPTURED']?.label || selectedRecord.status}
+                {/* 1. BUSINESS SECTION */}
+                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Business Details
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                        STATUS_CONFIG[selectedRecord.status || 'CAPTURED']?.bg || 'bg-slate-100'
+                      } ${STATUS_CONFIG[selectedRecord.status || 'CAPTURED']?.text || 'text-slate-700'} ${
+                        STATUS_CONFIG[selectedRecord.status || 'CAPTURED']?.border || 'border-slate-200'
+                      }`}
+                    >
+                      {selectedRecord.businessStatus || selectedRecord.status || 'OPERATIONAL'}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-black text-slate-400 block">Google Place ID</span>
-                    <span className="text-[10px] font-mono font-bold text-slate-600 block max-w-[140px] truncate" title={selectedRecord.googlePlaceId}>
-                      {selectedRecord.googlePlaceId || 'N/A'}
-                    </span>
+
+                  <div className="flex items-start gap-3">
+                    {/* First Google Photo Thumbnail */}
+                    {(() => {
+                      const drawerPhotos = selectedRecord.googlePhotos && selectedRecord.googlePhotos.length > 0
+                        ? selectedRecord.googlePhotos
+                        : (selectedRecord.photos && selectedRecord.photos.length > 0 ? selectedRecord.photos.map((u) => ({ url: u })) : []);
+                      const primaryPhoto = drawerPhotos[0];
+
+                      if (primaryPhoto?.url) {
+                        return (
+                          <div
+                            onClick={(e) => openGalleryModal(e, selectedRecord.businessName, drawerPhotos, 0)}
+                            className="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100 relative group cursor-pointer shadow-2xs hover:border-[#23C45E] transition-all"
+                            title="Click to view full photo gallery"
+                          >
+                            <img
+                              key={`drawer-hero-${selectedRecord.id || selectedRecord.googlePlaceId}-${primaryPhoto.url}`}
+                              src={primaryPhoto.url}
+                              alt={selectedRecord.businessName}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <span className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center shrink-0 text-slate-400 p-1 select-none">
+                          <ImageIcon className="w-5 h-5 text-slate-400" />
+                          <span className="text-[8px] font-bold text-slate-400 mt-0.5 leading-none">No image</span>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base font-black text-slate-900 leading-tight">
+                        {selectedRecord.businessName}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
+                          {selectedRecord.category || 'General Business'}
+                        </span>
+                        {selectedRecord.businessStatus && (
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">
+                            Status: {selectedRecord.businessStatus}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Google Photos Hero Banner / Gallery */}
-                {(() => {
-                  const drawerPhotos = selectedRecord.googlePhotos && selectedRecord.googlePhotos.length > 0
-                    ? selectedRecord.googlePhotos
-                    : (selectedRecord.photos && selectedRecord.photos.length > 0
-                        ? selectedRecord.photos.map((u) => ({ url: u }))
-                        : []);
-                  const hasPhotos = drawerPhotos.length > 0;
+                {/* 2. CONTACT SECTION */}
+                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-2.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                    Contact Information
+                  </span>
 
-                  if (hasPhotos) {
-                    return (
-                      <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm relative group">
-                        <div className="relative h-44 sm:h-52 w-full overflow-hidden bg-slate-950">
-                          <img
-                            src={drawerPhotos[0].url}
-                            alt={selectedRecord.businessName}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20" />
-                          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
-                            <span className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-xs text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-white/20">
-                              <Camera className="w-3 h-3 text-[#23C45E]" />
-                              Google Places Photo ({drawerPhotos.length})
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => openGalleryModal(e, selectedRecord.businessName, drawerPhotos, 0)}
-                              className="px-2.5 py-1 rounded-xl bg-white/90 hover:bg-white text-slate-900 text-[11px] font-black flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                            >
-                              <Maximize2 className="w-3.5 h-3.5" />
-                              <span>View Gallery</span>
-                            </button>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span className="flex items-center gap-2 font-bold text-slate-500 text-xs">
+                        <Phone className="w-4 h-4 text-[#23C45E]" />
+                        Phone
+                      </span>
+                      {selectedRecord.phone && selectedRecord.phone !== 'N/A' ? (
+                        <a href={`tel:${selectedRecord.phone}`} className="font-bold text-slate-900 hover:text-[#1AA14D]">
+                          {selectedRecord.phone}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400">N/A</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span className="flex items-center gap-2 font-bold text-slate-500 text-xs">
+                        <Mail className="w-4 h-4 text-sky-500" />
+                        Email
+                      </span>
+                      {selectedRecord.email && selectedRecord.email !== 'N/A' ? (
+                        <a href={`mailto:${selectedRecord.email}`} className="font-bold text-sky-600 hover:underline">
+                          {selectedRecord.email}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400">N/A</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span className="flex items-center gap-2 font-bold text-slate-500 text-xs">
+                        <Globe className="w-4 h-4 text-blue-500" />
+                        Website
+                      </span>
+                      {selectedRecord.website && selectedRecord.website !== 'N/A' ? (
+                        <a
+                          href={selectedRecord.website}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-bold text-blue-600 hover:underline max-w-[200px] truncate"
+                        >
+                          {selectedRecord.website}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400">N/A</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. LOCATION SECTION */}
+                {(() => {
+                  const loc = parseAddressDetails(selectedRecord);
+                  return (
+                    <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                        Location & Address
+                      </span>
+
+                      <div className="space-y-2.5">
+                        <div className="flex items-start gap-2 text-slate-700">
+                          <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                          <span className="font-medium text-xs leading-relaxed text-slate-800">
+                            {loc.fullAddress}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+                          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] uppercase font-bold text-slate-400 block">City</span>
+                            <span className="font-bold text-slate-800">{loc.city}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] uppercase font-bold text-slate-400 block">State</span>
+                            <span className="font-bold text-slate-800">{loc.state}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] uppercase font-bold text-slate-400 block">Country</span>
+                            <span className="font-bold text-slate-800">{loc.country}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] uppercase font-bold text-slate-400 block">Pincode</span>
+                            <span className="font-bold text-slate-800">{loc.pincode}</span>
                           </div>
                         </div>
 
-                        {/* Thumbnail Strip if multiple photos */}
-                        {drawerPhotos.length > 1 && (
-                          <div className="p-2.5 bg-slate-900/90 border-t border-white/10 flex items-center gap-2 overflow-x-auto custom-scrollbar">
-                            {drawerPhotos.map((photo, pIdx) => (
-                              <button
-                                key={photo.url || pIdx}
-                                type="button"
-                                onClick={(e) => openGalleryModal(e, selectedRecord.businessName, drawerPhotos, pIdx)}
-                                className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/20 hover:border-[#23C45E] transition-all cursor-pointer"
-                              >
-                                <img src={photo.url} alt={`Photo ${pIdx + 1}`} className="w-full h-full object-cover" />
-                              </button>
-                            ))}
+                        {(loc.latitude !== undefined || loc.longitude !== undefined) && (
+                          <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 font-mono">
+                            <span>Coordinates:</span>
+                            <span>{loc.latitude?.toFixed(6) ?? '—'}, {loc.longitude?.toFixed(6) ?? '—'}</span>
                           </div>
                         )}
-                      </div>
-                    );
-                  }
 
-                  return (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
-                        <Building2 className="w-5 h-5 text-slate-400" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-slate-700 block">No Google Photos</span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          Google Places API did not return photo references for this location.
-                        </span>
+                        {loc.googleMapsUrl && (
+                          <a
+                            href={loc.googleMapsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-black transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Open in Google Maps</span>
+                          </a>
+                        )}
                       </div>
                     </div>
                   );
                 })()}
 
-                {/* Key Details Card */}
-                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-3 shadow-2xs">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-sm font-black text-slate-900">{selectedRecord.businessName}</h4>
-                      <p className="text-slate-500 font-bold mt-0.5">{selectedRecord.category || 'General Business'}</p>
-                    </div>
+                {/* 4. RATING SECTION */}
+                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                    Rating & Reviews
+                  </span>
 
-                    {selectedRecord.rating && (
-                      <span className="px-2 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl font-black text-xs flex items-center gap-1">
-                        <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                        {selectedRecord.rating} ({selectedRecord.reviewCount || 0})
+                  {selectedRecord.rating ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl font-black text-sm flex items-center gap-1">
+                          <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                          {selectedRecord.rating}
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">
+                          based on {selectedRecord.reviewCount || 0} reviews
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-black text-amber-600 uppercase">
+                        {selectedRecord.rating >= 4.5 ? 'Excellent' : selectedRecord.rating >= 4.0 ? 'Very Good' : 'Good'}
                       </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-2 text-slate-700">
-                      <Phone className="w-4 h-4 text-[#23C45E] shrink-0" />
-                      <span className="font-bold">{selectedRecord.phone || 'N/A'}</span>
                     </div>
-
-                    {selectedRecord.email && (
-                      <div className="flex items-center gap-2 text-slate-700">
-                        <Mail className="w-4 h-4 text-sky-500 shrink-0" />
-                        <span className="font-bold">{selectedRecord.email}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-start gap-2 text-slate-700">
-                      <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                      <span className="font-medium leading-relaxed">{selectedRecord.address || 'N/A'}</span>
-                    </div>
-
-                    {selectedRecord.website && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <Globe className="w-4 h-4 text-blue-500 shrink-0" />
-                        <a
-                          href={selectedRecord.website}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:underline font-bold truncate"
-                        >
-                          {selectedRecord.website}
-                        </a>
-                      </div>
-                    )}
-
-                    {selectedRecord.googleMapsUrl && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <ExternalLink className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <a
-                          href={selectedRecord.googleMapsUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-emerald-700 hover:underline font-bold truncate"
-                        >
-                          View in Google Maps
-                        </a>
-                      </div>
-                    )}
-                  </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 font-medium">No ratings recorded on Google Places.</p>
+                  )}
                 </div>
 
-                {/* Social Media & Online Handles Card */}
+                {/* 5. SOCIAL MEDIA SECTION */}
                 {(() => {
-                  const sm = selectedRecord.socialMedia || (selectedRecord.rawData as any)?.socialMedia;
-                  const hasWeb = selectedRecord.website && selectedRecord.website !== 'N/A';
-                  const hasFb = sm?.facebook;
-                  const hasIg = sm?.instagram;
-                  const hasLi = sm?.linkedin;
-                  const hasTw = sm?.twitter;
-                  const hasYt = sm?.youtube;
-                  const hasAny = hasWeb || hasFb || hasIg || hasLi || hasTw || hasYt;
-
+                  const socialList = getDiscoveredSocialList(selectedRecord);
                   return (
-                    <div className="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-3 shadow-2xs">
+                    <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                          Discovered Social Media & Handles
+                          Discovered Social Media Handles
                         </span>
-                        {hasAny && (
+                        {socialList.length > 0 && (
                           <span className="px-2 py-0.5 rounded-full bg-[#23C45E]/10 text-[#1AA14D] font-black text-[10px]">
-                            Verified
+                            {socialList.length} Discovered
                           </span>
                         )}
                       </div>
 
-                      {hasAny ? (
-                        <div className="space-y-2 pt-1">
-                          {hasWeb && (
-                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-black">
-                                  WEB
-                                </span>
-                                <span className="text-xs font-bold text-slate-800 truncate">
-                                  {selectedRecord.website}
-                                </span>
+                      {socialList.length > 0 ? (
+                        <div className="space-y-2">
+                          {socialList.map((item) => (
+                            <div
+                              key={item.platform}
+                              className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <SocialMediaBadgeButton item={item} size="sm" />
+                                <div className="min-w-0">
+                                  <span className="text-xs font-black text-slate-800 block">
+                                    {item.platform}
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 font-medium truncate block max-w-[200px]" title={item.url}>
+                                    {item.url}
+                                  </span>
+                                </div>
                               </div>
-                              <a
-                                href={selectedRecord.website}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black shrink-0 transition-colors"
-                              >
-                                Visit
-                              </a>
-                            </div>
-                          )}
-
-                          {hasFb && (
-                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="px-1.5 py-0.5 rounded bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/30 text-[10px] font-black">
-                                  FB
-                                </span>
-                                <span className="text-xs font-bold text-slate-800 truncate">
-                                  {sm.facebook}
-                                </span>
-                              </div>
-                              <a
-                                href={sm.facebook}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2 py-1 rounded-lg bg-[#1877F2] hover:bg-[#1567d3] text-white text-[10px] font-black shrink-0 transition-colors"
+                              <button
+                                type="button"
+                                onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+                                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-black text-white text-[10px] font-black shrink-0 transition-colors cursor-pointer"
                               >
                                 Open
-                              </a>
+                              </button>
                             </div>
-                          )}
-
-                          {hasIg && (
-                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="px-1.5 py-0.5 rounded bg-gradient-to-r from-[#F58529]/15 to-[#DD2A7B]/15 text-[#DD2A7B] border border-[#DD2A7B]/30 text-[10px] font-black">
-                                  IG
-                                </span>
-                                <span className="text-xs font-bold text-slate-800 truncate">
-                                  {sm.instagram}
-                                </span>
-                              </div>
-                              <a
-                                href={sm.instagram}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2 py-1 rounded-lg bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white text-[10px] font-black shrink-0 transition-opacity hover:opacity-90"
-                              >
-                                Open
-                              </a>
-                            </div>
-                          )}
-
-                          {hasLi && (
-                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="px-1.5 py-0.5 rounded bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/30 text-[10px] font-black">
-                                  IN
-                                </span>
-                                <span className="text-xs font-bold text-slate-800 truncate">
-                                  {sm.linkedin}
-                                </span>
-                              </div>
-                              <a
-                                href={sm.linkedin}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2 py-1 rounded-lg bg-[#0A66C2] hover:bg-[#084e96] text-white text-[10px] font-black shrink-0 transition-colors"
-                              >
-                                Open
-                              </a>
-                            </div>
-                          )}
-
-                          {hasTw && (
-                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="px-1.5 py-0.5 rounded bg-slate-900/10 text-slate-900 border border-slate-900/20 text-[10px] font-black">
-                                  X
-                                </span>
-                                <span className="text-xs font-bold text-slate-800 truncate">
-                                  {sm.twitter}
-                                </span>
-                              </div>
-                              <a
-                                href={sm.twitter}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-black text-white text-[10px] font-black shrink-0 transition-colors"
-                              >
-                                Open
-                              </a>
-                            </div>
-                          )}
-
-                          {hasYt && (
-                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-black">
-                                  YT
-                                </span>
-                                <span className="text-xs font-bold text-slate-800 truncate">
-                                  {sm.youtube}
-                                </span>
-                              </div>
-                              <a
-                                href={sm.youtube}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black shrink-0 transition-colors"
-                              >
-                                Open
-                              </a>
-                            </div>
-                          )}
+                          ))}
                         </div>
                       ) : (
                         <p className="text-xs text-slate-400 font-medium py-1">
@@ -1803,6 +1903,118 @@ export default function DataCapturePage() {
                     </div>
                   );
                 })()}
+
+                {/* 6. PHOTOS SECTION */}
+                {(() => {
+                  const drawerPhotos = selectedRecord.googlePhotos && selectedRecord.googlePhotos.length > 0
+                    ? selectedRecord.googlePhotos
+                    : (selectedRecord.photos && selectedRecord.photos.length > 0 ? selectedRecord.photos.map((u) => ({ url: u })) : []);
+                  const hasPhotos = drawerPhotos.length > 0;
+
+                  return (
+                    <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          Google Photos Gallery ({drawerPhotos.length})
+                        </span>
+                        {hasPhotos && (
+                          <button
+                            type="button"
+                            onClick={(e) => openGalleryModal(e, selectedRecord.businessName, drawerPhotos, 0)}
+                            className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                            <span>View Full Gallery</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {hasPhotos ? (
+                        <div className="grid grid-cols-4 gap-2 pt-1">
+                          {drawerPhotos.map((photo, pIdx) => (
+                            <button
+                              key={`drawer-photo-${photo.url || pIdx}`}
+                              type="button"
+                              onClick={(e) => openGalleryModal(e, selectedRecord.businessName, drawerPhotos, pIdx)}
+                              className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 hover:border-[#23C45E] shadow-2xs hover:shadow-md transition-all group cursor-pointer"
+                            >
+                              <img src={photo.url} alt={`Photo ${pIdx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                              {pIdx === 0 && (
+                                <span className="absolute top-1 left-1 bg-black/70 text-white text-[8px] font-black px-1 rounded">
+                                  Primary
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                            <ImageIcon className="w-4 h-4 text-slate-400" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-700 block">No Google Photos</span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              No photos returned by Google Places for this location.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 7. SOURCE & METADATA SECTION */}
+                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-2.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                    Source & Metadata
+                  </span>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-bold">Provider:</span>
+                      <span className="font-bold text-slate-800">{selectedRecord.provider || 'GOOGLE_PLACES'}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-bold">Google Place ID:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-[11px] text-slate-700 max-w-[140px] truncate" title={selectedRecord.googlePlaceId}>
+                          {selectedRecord.googlePlaceId || 'N/A'}
+                        </span>
+                        {selectedRecord.googlePlaceId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedRecord.googlePlaceId) {
+                                navigator.clipboard.writeText(selectedRecord.googlePlaceId);
+                                toast.success('Google Place ID copied');
+                              }
+                            }}
+                            className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
+                            title="Copy Place ID"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-bold">Source:</span>
+                      <span className="font-bold text-slate-800 uppercase px-2 py-0.5 bg-slate-100 rounded text-[10px]">
+                        {selectedRecord.source || 'GOOGLE_PLACES'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-bold">Captured At:</span>
+                      <span className="font-medium text-slate-700">
+                        {selectedRecord.capturedAt ? new Date(selectedRecord.capturedAt).toLocaleString() : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Notes Section */}
                 {selectedRecord.notes && (
