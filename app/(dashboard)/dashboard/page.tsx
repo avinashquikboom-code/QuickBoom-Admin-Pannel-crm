@@ -49,6 +49,7 @@ import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
 import { formatTimeIST } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 type DateRangeOption = '7d' | '30d' | '90d' | '1y';
 type AttendanceFilter = 'ALL' | 'PRESENT' | 'ON_BREAK' | 'ON_LEAVE' | 'LATE' | 'ABSENT';
@@ -349,64 +350,58 @@ export default function AdminDashboardPage() {
       {/* =========================================================================
           1. EXECUTIVE HEADER & REAL-TIME CONTROLS
           ========================================================================= */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="px-3 py-1 rounded-full bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-              Live Operations Center
-            </span>
-            <span className="text-slate-400 text-xs font-mono font-medium">
-              {currentTime || 'Synchronizing platform clock...'}
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {greeting}, {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Administrator'}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl leading-relaxed">
-            Real-time enterprise overview across multi-branch attendance geofences, platform revenue, and organizational operations.
-          </p>
-        </div>
+      {/* 1. EXECUTIVE HEADER & REAL-TIME CONTROLS */}
+      <AdminPageHeader
+        title={`${greeting}, ${user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Administrator'}`}
+        description="Real-time enterprise overview across multi-branch attendance geofences, platform revenue, and organizational operations."
+        icon={Activity}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `Live Operations Center • ${currentTime || 'Synchronizing platform clock...'}`,
+          icon: Activity,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Operations' },
+          { label: 'Dashboard' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Date Range Selector */}
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold shadow-2xs">
+              {(['7d', '30d', '90d', '1y'] as DateRangeOption[]).map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setDateRange(opt)}
+                  className={`px-3 py-1.5 rounded-lg transition-all capitalize cursor-pointer ${
+                    dateRange === opt
+                      ? 'bg-[#23C45E] text-white font-black shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  }`}
+                >
+                  {opt === '7d'
+                    ? '7D'
+                    : opt === '30d'
+                    ? '30D'
+                    : opt === '90d'
+                    ? '90D'
+                    : '1Y'}
+                </button>
+              ))}
+            </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Date Range Selector */}
-          <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold shadow-2xs">
-            {(['7d', '30d', '90d', '1y'] as DateRangeOption[]).map((opt) => (
-              <button
-                key={opt}
-                onClick={() => setDateRange(opt)}
-                className={`px-3 py-1.5 rounded-xl transition-all capitalize cursor-pointer ${
-                  dateRange === opt
-                    ? 'bg-[#23C45E] text-white font-black shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                }`}
-              >
-                {opt === '7d'
-                  ? '7D'
-                  : opt === '30d'
-                  ? '30D'
-                  : opt === '90d'
-                  ? '90D'
-                  : '1Y'}
-              </button>
-            ))}
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
+              onClick={handleManualRefresh}
+              disabled={isAnyFetching}
+            >
+              {isAnyFetching ? 'Syncing...' : 'Sync Live'}
+            </AdminButton>
           </div>
-
-          {/* Quick Sync Button */}
-          <button
-            onClick={handleManualRefresh}
-            disabled={isAnyFetching}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl border border-slate-200 text-xs font-black transition-all cursor-pointer shadow-2xs disabled:opacity-50 active:scale-95"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 text-[#1AA14D] ${
-                isAnyFetching ? 'animate-spin' : ''
-              }`}
-            />
-            <span>Sync Live</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* =========================================================================
           2. TOP 4 EXECUTIVE KPI CARDS

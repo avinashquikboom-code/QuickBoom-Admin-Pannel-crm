@@ -55,7 +55,7 @@ import { SocialMediaService, SocialMediaHandlerItem } from '@/lib/services/socia
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
-import { ResetCustomerDataModal } from '@/components/admin';
+import { ResetCustomerDataModal, AdminPageHeader, AdminButton } from '@/components/admin';
 
 function getCustomerDisplayName(customer: any): string {
   if (!customer) return 'Customer';
@@ -625,65 +625,44 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#23C45E]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/customers"
-                className="p-2 bg-white/10 hover:bg-white/15 rounded-xl text-white transition-colors cursor-pointer"
-                title="Back to Customers"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5" />
-                {customer?.customerId || `CUST-${String(customerId).padStart(4, '0')}`}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{getCustomerDisplayName(customer)}</h1>
-              {customer?.isActive || customer?.status === 'ACTIVE' ? (
-                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-black">
-                  Active
-                </span>
-              ) : (
-                <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-black">
-                  Inactive
-                </span>
-              )}
-            </div>
-
-            <p className="text-slate-300 text-xs sm:text-sm font-medium">
-              Company: <strong className="text-white">{customer?.companyName || customer?.legalCompanyName || customer?.company || customer?.name || '—'}</strong> • Active Plan:{' '}
-              <strong className="text-[#23C45E]">{currentSub?.planName || customer?.plan || 'No Active Plan'}</strong>
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
+      {/* 1. PAGE HEADER */}
+      <AdminPageHeader
+        title={getCustomerDisplayName(customer)}
+        description={`Company: ${customer?.companyName || customer?.legalCompanyName || customer?.company || customer?.name || '—'} • Active Plan: ${currentSub?.planName || customer?.plan || 'No Active Plan'}`}
+        icon={Building2}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `${customer?.customerId || `CUST-${String(customerId).padStart(4, '0')}`} • ${customer?.isActive || customer?.status === 'ACTIVE' ? 'Active' : 'Inactive'}`,
+          icon: Building2,
+          variant: customer?.isActive || customer?.status === 'ACTIVE' ? 'emerald' : 'slate',
+        }}
+        breadcrumbs={[
+          { label: 'Customers', href: '/customers' },
+          { label: getCustomerDisplayName(customer) },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RotateCcw}
               onClick={() => setIsResetDataModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 hover:text-white font-bold rounded-2xl text-xs transition-all cursor-pointer border border-rose-500/30 shadow-xs"
-              title="Reset all business and transactional data for this customer"
+              className="text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50"
             >
-              <RotateCcw className="w-4 h-4 text-rose-400" />
-              <span>Reset Customer Data</span>
-            </button>
+              Reset Customer Data
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-2xl text-xs transition-all cursor-pointer border border-white/10"
             >
-              <RefreshCw className="w-4 h-4 text-[#23C45E]" />
-              <span>Refresh</span>
-            </button>
+              Refresh
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. STAT CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

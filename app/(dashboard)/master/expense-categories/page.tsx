@@ -15,7 +15,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminFormDrawer,
   AdminConfirmDialog,
   AdminFormField,
@@ -147,28 +148,35 @@ export default function MasterExpenseCategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHero
+      <AdminPageHeader
         title="Expense Categories Master"
         description="Eligible reimbursement categories configured under HRM claim policies for travel, fuel, and business supplies."
+        icon={CreditCard}
+        iconColor="text-indigo-600"
         badge={{ text: 'HRM & Claims', icon: CreditCard, variant: 'indigo' }}
+        breadcrumbs={[
+          { label: 'Master Data', href: '/master' },
+          { label: 'Expense Categories' },
+        ]}
         actions={
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
+          <div className="flex items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => refetch()}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95"
-              title="Refresh"
+              disabled={isLoading}
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              type="button"
+              Refresh
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={handleOpenCreate}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add Category</span>
-            </button>
+              Add Category
+            </AdminButton>
           </div>
         }
       />

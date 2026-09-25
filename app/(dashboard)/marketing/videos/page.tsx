@@ -27,7 +27,8 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
@@ -349,19 +350,26 @@ export default function MarketingVideosPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Page Hero */}
-      <AdminPageHero
+      {/* 1. Header */}
+      <AdminPageHeader
         title="Marketing Videos"
         description="Manage dynamic video campaigns on the Customer Home Screen (positioned between QB Marketplace and Influencer Hub)."
+        icon={Video}
+        iconColor="text-emerald-600"
         badge={{ text: 'Customer Home Screen', icon: Video, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'Marketing', href: '/marketing/videos' },
+          { label: 'Marketing Videos' },
+        ]}
         actions={
-          <button
+          <AdminButton
+            variant="primary"
+            size="md"
+            icon={Plus}
             onClick={openCreateDrawer}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#23C45E] text-white text-xs font-bold hover:bg-[#1fa951] transition-all cursor-pointer shadow-md shadow-emerald-900/20 shrink-0"
           >
-            <Plus className="w-4 h-4" />
             Add Marketing Video
-          </button>
+          </AdminButton>
         }
       />
 

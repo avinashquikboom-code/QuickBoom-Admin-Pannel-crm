@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer, CustomerDetailsDrawer, AdminStatusTabs, PaymentReceiptModal, PaymentReceiptData } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminStatCard, AdminPagination, AdminFormDrawer, CustomerDetailsDrawer, AdminStatusTabs, PaymentReceiptModal, PaymentReceiptData } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
@@ -336,19 +336,27 @@ export default function OfflinePaymentRequestsPage() {
 
   return (
     <div className="space-y-6 pb-12 max-w-[1600px] mx-auto">
-      {/* 1. Header Hero */}
-      <AdminPageHero
+      {/* 1. Header */}
+      <AdminPageHeader
         title="Offline Payment Requests"
         description="Review, verify, and approve customer bank transfers, cash payments, and offline subscription orders."
+        icon={Receipt}
+        iconColor="text-emerald-600"
+        badge={{ text: 'Billing & Offline', icon: Receipt, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'Customers', href: '/customers' },
+          { label: 'Offline Requests' },
+        ]}
         actions={
-          <button
+          <AdminButton
+            variant="outline"
+            size="md"
+            icon={RefreshCw}
             onClick={() => refetch()}
             disabled={isLoading}
-            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl font-semibold text-sm transition-all flex items-center gap-2 shadow-sm"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
-          </button>
+          </AdminButton>
         }
       />
 

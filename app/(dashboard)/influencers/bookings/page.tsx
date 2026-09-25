@@ -26,7 +26,7 @@ import {
   BookingStats,
 } from '@/lib/services/influencer.service';
 import {
-  AdminPageHero,
+  AdminPageHeader,
   AdminStatCard,
   AdminFormDrawer,
   AdminConfirmDialog,
@@ -219,9 +219,16 @@ export default function InfluencerBookingsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <AdminPageHero
+      <AdminPageHeader
         title="Influencer Bookings"
         description="Manage end-to-end campaign bookings, approve requests, and verify payment settlements."
+        icon={Calendar}
+        iconColor="text-emerald-600"
+        badge={{ text: 'Campaign Bookings', icon: Calendar, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'Influencers', href: '/influencers' },
+          { label: 'Bookings' },
+        ]}
       />
 
       {/* KPI Cards */}

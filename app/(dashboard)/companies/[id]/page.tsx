@@ -23,7 +23,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPageHeader, AdminButton } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -166,74 +166,63 @@ export default function CompanyDetailPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/companies"
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-slate-300 hover:text-white transition-all backdrop-blur-xs"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-black uppercase tracking-wider">
-                Account #{company.id}
-              </span>
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] text-[10px] font-black uppercase tracking-wider">
-                {company.status || 'ACTIVE'}
-              </span>
-              {company.rating ? (
-                <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black">
-                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {company.rating} ({company.reviewCount || 0} reviews)
-                </span>
-              ) : null}
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{company.name}</h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium flex items-center gap-2">
-              <span>{company.industry || 'Commercial Enterprise'}</span>
-              {company.city && <span>• {company.city}, {company.state || 'India'}</span>}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+      {/* Top Header */}
+      <AdminPageHeader
+        title={company.name}
+        description={`${company.industry || 'Commercial Enterprise'}${company.city ? ` • ${company.city}, ${company.state || 'India'}` : ''}`}
+        icon={Building}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `Account #${company.id} • ${company.status || 'ACTIVE'}${company.rating ? ` • ★ ${company.rating}` : ''}`,
+          icon: Building,
+          variant: company.status === 'ACTIVE' ? 'emerald' : 'slate',
+        }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Companies', href: '/companies' },
+          { label: company.name },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
             {company.email && (
-              <button
-                type="button"
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={Mail}
                 onClick={() => setIsEmailModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-400/30 rounded-2xl text-xs font-black transition-all cursor-pointer active:scale-95"
               >
-                <Mail className="w-4 h-4 text-blue-300" />
-                <span>Send Email</span>
-              </button>
+                Send Email
+              </AdminButton>
             )}
 
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={Users}
               onClick={() => {
                 setContactForm({ firstName: '', lastName: '', email: '', phone: '', designation: '' });
                 setIsAddContactOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl text-xs font-black transition-all cursor-pointer"
             >
-              <Users className="w-4 h-4 text-emerald-400" />
-              <span>+ Add Contact</span>
-            </button>
+              Add Contact
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={DollarSign}
               onClick={() => {
                 setDealForm({ title: `${company.name} Enterprise Solution`, amount: 250000, expectedClosing: '', notes: '' });
                 setIsAddDealOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600/30 hover:bg-blue-600/40 text-blue-200 border border-blue-500/40 rounded-2xl text-xs font-black transition-all cursor-pointer"
             >
-              <DollarSign className="w-4 h-4 text-blue-400" />
-              <span>+ Add Deal</span>
-            </button>
+              Add Deal
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Calendar}
               onClick={() => {
                 setVisitForm({
                   purpose: 'Executive Consultation & Presentation',
@@ -245,26 +234,25 @@ export default function CompanyDetailPage() {
                 });
                 setIsVisitDrawerOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 rounded-2xl text-xs font-black transition-all cursor-pointer shadow-md shadow-[#23C45E]/20"
             >
-              <Calendar className="w-4 h-4" />
-              <span>Schedule Visit</span>
-            </button>
+              Schedule Visit
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="danger"
+              size="md"
+              icon={Trash2}
               onClick={() => {
                 if (confirm(`Archive company "${company.name}"?`)) {
                   deleteMutation.mutate();
                 }
               }}
-              className="p-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-2xl text-xs font-black transition-all cursor-pointer"
-              title="Archive Company"
             >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              Archive
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -29,7 +29,6 @@ import {
   InfluencerAvailabilityItem,
 } from '@/lib/services/influencer.service';
 import {
-  AdminPageHero,
   AdminFormDrawer,
   AdminConfirmDialog,
 } from '@/components/admin';

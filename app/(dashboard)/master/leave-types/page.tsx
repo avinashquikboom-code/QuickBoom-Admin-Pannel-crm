@@ -16,7 +16,8 @@ import { toast } from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminFormDrawer,
   AdminConfirmDialog,
   AdminFormField,
@@ -152,18 +153,25 @@ export default function MasterLeaveTypesPage() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHero
+      <AdminPageHeader
         title="Leave Types Master"
         description="Manage official workforce leave categories, annual day allocations, and carry-forward rules."
-        badge="HRM Master"
+        icon={Calendar}
+        iconColor="text-emerald-600"
+        badge={{ text: 'HRM Master', icon: Calendar, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'Master Data', href: '/master' },
+          { label: 'Leave Types' },
+        ]}
         actions={
-          <button
-            type="button"
+          <AdminButton
+            variant="primary"
+            size="md"
+            icon={Plus}
             onClick={handleOpenAdd}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-emerald-600 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all"
           >
-            <Plus className="w-4 h-4" /> Add Leave Type
-          </button>
+            Add Leave Type
+          </AdminButton>
         }
       />
 

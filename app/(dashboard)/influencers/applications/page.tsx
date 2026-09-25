@@ -26,7 +26,7 @@ import {
   InfluencerApplicationsResponse,
 } from '@/lib/services/influencer.service';
 import {
-  AdminPageHero,
+  AdminPageHeader,
   AdminStatCard,
   AdminFormDrawer,
   AdminStatusTabs,
@@ -175,11 +175,17 @@ export default function InfluencerApplicationsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header Hero */}
-      <AdminPageHero
+      {/* Header */}
+      <AdminPageHeader
         title="Influencer Applications"
         description="Review, verify, and approve creator self-registrations before they become visible in the customer Mobile Influencer Hub."
+        icon={UserCheck}
+        iconColor="text-emerald-600"
         badge={{ text: 'Approval Workflow', icon: UserCheck, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'Influencers', href: '/influencers' },
+          { label: 'Applications' },
+        ]}
       />
 
       {/* Metric Stat Cards */}

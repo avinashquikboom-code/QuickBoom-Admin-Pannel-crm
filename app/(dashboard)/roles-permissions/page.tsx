@@ -1461,7 +1461,6 @@ export default function RolesPermissionsPage() {
             </span>
           </button>
         </div>
-      </div>
 
       {/* =================================================================== */}
       {/* TAB 1: ROLE PERMISSIONS (DEFAULTS)                                  */}

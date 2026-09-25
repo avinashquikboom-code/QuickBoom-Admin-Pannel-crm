@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminPagination, CustomerDetailsDrawer } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminStatCard, AdminPagination, CustomerDetailsDrawer } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -207,8 +207,8 @@ export default function CustomerSubscriptionsPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <AdminPageHero
+      {/* 1. PAGE HEADER */}
+      <AdminPageHeader
         badge={{
           text: 'CONTRACT & LIFECYCLE',
           icon: CreditCard,
@@ -216,23 +216,32 @@ export default function CustomerSubscriptionsPage() {
         }}
         title="Active Tenant Subscriptions & Expiry Track"
         description="Live anchor-date expiry tracking, automatic 10-day/5-day/1-day reminder dispatchers, and renewals."
+        icon={CreditCard}
+        iconColor="text-emerald-600"
+        breadcrumbs={[
+          { label: 'Customers', href: '/customers' },
+          { label: 'Subscriptions' },
+        ]}
         actions={
-          <div className="flex items-center gap-2">
-            <Link
-              href="/customers"
-              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-slate-900 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-white/20"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Customers</span>
+          <div className="flex items-center gap-2.5">
+            <Link href="/customers">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={ArrowLeft}
+              >
+                Back to Customers
+              </AdminButton>
             </Link>
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Play}
               onClick={() => scanMutation.mutate()}
               disabled={scanMutation.isPending}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
             >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>{scanMutation.isPending ? 'Scanning...' : 'Run Expiry Scan'}</span>
-            </button>
+              {scanMutation.isPending ? 'Scanning...' : 'Run Expiry Scan'}
+            </AdminButton>
           </div>
         }
       />

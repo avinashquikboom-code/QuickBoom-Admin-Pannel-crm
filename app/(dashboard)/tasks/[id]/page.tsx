@@ -32,7 +32,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPageHeader, AdminButton } from '@/components/admin';
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -151,90 +151,60 @@ export default function TaskDetailPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. TOP HERO HEADER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#23C45E]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 flex-wrap">
-              <Link
-                href="/tasks"
-                className="p-2 bg-white/10 hover:bg-white/15 rounded-xl text-white transition-colors cursor-pointer"
-                title="Back to Tasks"
+      {/* 1. TOP PAGE HEADER */}
+      <AdminPageHeader
+        title={task.title}
+        description={task.description || 'No detailed instructions provided.'}
+        icon={CheckSquare}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `${task.taskNumber || `TSK-${task.id}`} • ${task.status === 'UNDER_REVIEW' ? 'Awaiting Review' : task.status}${task.isOverdue ? ' • OVERDUE' : ''}`,
+          icon: CheckSquare,
+          variant: task.status === 'COMPLETED' ? 'emerald' : task.isOverdue ? 'rose' : 'slate',
+        }}
+        breadcrumbs={[
+          { label: 'Field Operations', href: '/tasks' },
+          { label: 'Tasks', href: '/tasks' },
+          { label: task.taskNumber || `Task #${task.id}` },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link href="/tasks">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={ArrowLeft}
               >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
+                Back to Tasks
+              </AdminButton>
+            </Link>
 
-              <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <CheckSquare className="w-3.5 h-3.5" />
-                {task.taskNumber || `TSK-${task.id}`}
-              </span>
-
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                  task.priority === 'URGENT'
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : task.priority === 'HIGH'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                }`}
-              >
-                {task.priority} Priority
-              </span>
-
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                  task.status === 'COMPLETED'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : task.status === 'UNDER_REVIEW' || task.status === 'SUBMITTED'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    : task.status === 'REJECTED'
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : 'bg-slate-500/20 text-slate-300 border border-slate-500/30'
-                }`}
-              >
-                {task.status === 'UNDER_REVIEW' ? 'Awaiting Review' : task.status}
-              </span>
-
-              {task.isOverdue && (
-                <span className="px-3 py-1 rounded-full bg-rose-500 text-white text-xs font-black uppercase animate-pulse">
-                  OVERDUE
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{task.title}</h1>
-            <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-2xl">
-              {task.description || 'No detailed instructions provided.'}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
             {task.status !== 'COMPLETED' && (
-              <button
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={UploadCloud}
                 onClick={() => setIsSubmitProofOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-md"
               >
-                <UploadCloud className="w-4 h-4" />
-                <span>Upload Proof</span>
-              </button>
+                Upload Proof
+              </AdminButton>
             )}
 
-            {task.status === 'UNDER_REVIEW' || task.status === 'SUBMITTED' ? (
-              <button
+            {(task.status === 'UNDER_REVIEW' || task.status === 'SUBMITTED') && (
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={ShieldCheck}
                 onClick={() => {
                   window.scrollTo({ top: 500, behavior: 'smooth' });
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer shadow-md shadow-[#23C45E]/20"
               >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Review Proof</span>
-              </button>
-            ) : null}
+                Review Proof
+              </AdminButton>
+            )}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. PRIORITY GUIDELINE BANNER */}
       {task.priority === 'URGENT' ? (

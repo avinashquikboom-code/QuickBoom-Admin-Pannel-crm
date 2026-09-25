@@ -25,7 +25,8 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
@@ -301,19 +302,26 @@ export default function HomeBannersPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-      {/* 1. Hero Header */}
-      <AdminPageHero
+      {/* 1. Header */}
+      <AdminPageHeader
         title="Home Banners"
         description="Manage dynamic promotional banners, seasonal offers, and campaign carousels for the Customer Mobile App."
+        icon={ImageIcon}
+        iconColor="text-emerald-600"
         badge={{ text: 'Customer Home Screen', icon: ImageIcon, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'Marketing', href: '/marketing/banners' },
+          { label: 'Home Banners' },
+        ]}
         actions={
-          <button
+          <AdminButton
+            variant="primary"
+            size="md"
+            icon={Plus}
             onClick={openCreateDrawer}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#23C45E] text-white text-xs font-bold hover:bg-[#1fa951] transition-all cursor-pointer shadow-md shadow-emerald-900/20 shrink-0"
           >
-            <Plus className="w-4 h-4" />
             Add Banner
-          </button>
+          </AdminButton>
         }
       />
 

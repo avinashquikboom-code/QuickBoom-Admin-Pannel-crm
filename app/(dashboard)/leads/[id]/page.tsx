@@ -45,7 +45,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer, LeadStageEmailDrawer, WhatsAppIcon, LeadImageGalleryModal } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminFormDrawer, LeadStageEmailDrawer, WhatsAppIcon, LeadImageGalleryModal } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -518,61 +518,40 @@ function isDetailsSendStage(lead: any): boolean {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Navigation & Action Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/leads"
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-slate-300 hover:text-white transition-all backdrop-blur-xs"
+      {/* Top Header */}
+      <AdminPageHeader
+        title={company}
+        description={`Contact: ${name}${lead.city || lead.location ? ` • ${lead.city || lead.location}, ${lead.state || lead.country || ''}` : ''}`}
+        icon={Building}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `Lead #${lead.id} • ${lead.stage?.name || lead.status}`,
+          icon: Building,
+          variant: isConverted ? 'emerald' : 'slate',
+        }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Leads', href: '/leads' },
+          { label: company || `Lead #${lead.id}` },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            {isDetailsSendStage(lead) && (
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={Mail}
+                onClick={handleSendLeadDetails}
+                disabled={isSendingDetails}
               >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider">
-                Lead Record #{lead.id}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    isConverted
-                      ? 'bg-emerald-500 text-slate-950 font-black'
-                      : 'bg-white/15 text-white'
-                  }`}
-                >
-                  {lead.stage?.name || lead.status}
-                </span>
-                {isDetailsSendStage(lead) && (
-                  <button
-                    type="button"
-                    onClick={handleSendLeadDetails}
-                    disabled={isSendingDetails}
-                    className="p-1.5 bg-blue-500/25 hover:bg-blue-500/40 text-blue-200 hover:text-white rounded-xl border border-blue-400/40 transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 inline-flex items-center justify-center"
-                    title="Send Details"
-                    aria-label="Send Details"
-                  >
-                    {isSendingDetails ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-300" />
-                    ) : (
-                      <Mail className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
+                {isSendingDetails ? 'Sending...' : 'Send Details'}
+              </AdminButton>
+            )}
 
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{company}</h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium flex items-center gap-2">
-              <span>Contact: {name}</span>
-              {(lead.city || lead.location) && <span>• {lead.city || lead.location}, {lead.state || lead.country}</span>}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={Clock}
               onClick={() => {
                 setFollowUpOutcome('Interested');
                 setFollowUpDate('');
@@ -580,14 +559,15 @@ function isDetailsSendStage(lead: any): boolean {
                 setFollowUpNotes('');
                 setIsFollowUpOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600/30 hover:bg-blue-600/40 text-blue-200 border border-blue-500/40 rounded-2xl text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95"
             >
-              <Clock className="w-4 h-4 text-blue-400" />
-              <span>Log Follow-up</span>
-            </button>
+              Log Follow-up
+            </AdminButton>
 
             {!isConverted && (
-              <button
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={CheckCircle2}
                 onClick={() => {
                   setConvertCompanyName(company);
                   setConvertDealTitle(`${company} - Enterprise Deal`);
@@ -595,27 +575,26 @@ function isDetailsSendStage(lead: any): boolean {
                   setConvertNotes('Lead qualified and converted from admin profile.');
                   setIsConvertOpen(true);
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Convert to Customer</span>
-              </button>
+                Convert to Customer
+              </AdminButton>
             )}
 
-            <button
+            <AdminButton
+              variant="danger"
+              size="md"
+              icon={Trash2}
               onClick={() => {
                 if (confirm(`Are you sure you want to delete lead "${company}"?`)) {
                   deleteMutation.mutate();
                 }
               }}
-              className="p-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-2xl text-xs font-black transition-all cursor-pointer"
-              title="Delete Lead"
             >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              Delete
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

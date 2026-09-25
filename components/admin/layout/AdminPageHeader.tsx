@@ -19,7 +19,7 @@ export interface AdminPageHeaderProps {
     | {
         text: string;
         icon?: LucideIcon;
-        variant?: 'primary' | 'indigo' | 'purple' | 'amber' | 'blue' | 'emerald';
+        variant?: 'primary' | 'indigo' | 'purple' | 'amber' | 'blue' | 'emerald' | 'rose' | 'slate';
         pulsingDot?: boolean;
       };
   actions?: React.ReactNode;
@@ -44,6 +44,8 @@ export function AdminPageHeader({
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
     amber: 'bg-amber-50 text-amber-700 border-amber-200',
     blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    rose: 'bg-rose-50 text-rose-700 border-rose-200',
+    slate: 'bg-slate-100 text-slate-700 border-slate-200',
   };
 
   const isBadgeString = typeof badge === 'string';

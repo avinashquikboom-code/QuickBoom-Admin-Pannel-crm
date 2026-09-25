@@ -24,6 +24,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function VisitDetailPage() {
@@ -98,86 +99,71 @@ export default function VisitDetailPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/visits"
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-slate-300 hover:text-white transition-all backdrop-blur-xs"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-black uppercase tracking-wider">
-                Visit #{visit.id}
-              </span>
-              <span
-                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                  visit.status === 'COMPLETED'
-                    ? 'bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30'
-                    : visit.status === 'CANCELLED'
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                }`}
-              >
-                {visit.status || 'SCHEDULED'}
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{clientName}</h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium flex items-center gap-2">
-              <span>{visit.purpose || 'Client On-site Consultation'}</span>
-              {visit.visitType && <span>• {visit.visitType}</span>}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+      {/* Top Header */}
+      <AdminPageHeader
+        title={clientName}
+        description={`${visit.purpose || 'Client On-site Consultation'}${visit.visitType ? ` • ${visit.visitType}` : ''}`}
+        icon={Calendar}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `Visit #${visit.id} • ${visit.status || 'SCHEDULED'}`,
+          icon: Calendar,
+          variant: visit.status === 'COMPLETED' ? 'emerald' : visit.status === 'CANCELLED' ? 'rose' : 'slate',
+        }}
+        breadcrumbs={[
+          { label: 'Field Operations', href: '/visits' },
+          { label: 'Client Visits', href: '/visits' },
+          { label: clientName },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
             {visit.status !== 'COMPLETED' && (
-              <button
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={CheckCircle2}
                 onClick={() => {
                   const outcome = prompt('Enter meeting outcome summary:', visit.outcome || '');
                   if (outcome !== null) {
                     updateStatusMutation.mutate({ status: 'COMPLETED', outcome });
                   }
                 }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Mark Completed</span>
-              </button>
+                Mark Completed
+              </AdminButton>
             )}
 
             {visit.status !== 'CANCELLED' && visit.status !== 'COMPLETED' && (
-              <button
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={XCircle}
+                className="text-rose-600 hover:text-rose-700 border-rose-200 hover:bg-rose-50"
                 onClick={() => {
                   if (confirm('Cancel this scheduled visit?')) {
                     updateStatusMutation.mutate({ status: 'CANCELLED' });
                   }
                 }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-2xl text-xs font-black transition-all cursor-pointer"
               >
-                <XCircle className="w-4 h-4" />
-                <span>Cancel Visit</span>
-              </button>
+                Cancel Visit
+              </AdminButton>
             )}
 
-            <button
+            <AdminButton
+              variant="danger"
+              size="md"
+              icon={Trash2}
               onClick={() => {
                 if (confirm('Delete this visit record permanently?')) {
                   deleteMutation.mutate();
                 }
               }}
-              className="p-2.5 bg-white/10 hover:bg-rose-500/30 text-slate-300 hover:text-rose-300 rounded-2xl text-xs font-black transition-all cursor-pointer"
-              title="Delete Visit"
             >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              Delete
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

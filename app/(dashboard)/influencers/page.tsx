@@ -34,7 +34,8 @@ import {
   InfluencerCategoryItem,
 } from '@/lib/services/influencer.service';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminStatCard,
   AdminFormDrawer,
   AdminConfirmDialog,
@@ -299,26 +300,36 @@ export default function InfluencersPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Hero Header */}
-      <AdminPageHero
+      {/* Standard Header */}
+      <AdminPageHeader
         title="Influencer Hub Management"
         description="Manage verified creators, tier pricing packages, booking availabilities and collaborations."
+        icon={Users}
+        iconColor="text-emerald-600"
+        badge={{ text: 'Influencer Marketing', icon: Users, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'Influencers', href: '/influencers' },
+          { label: 'Directory' },
+        ]}
         actions={
-          <div className="flex items-center gap-3">
-            <Link
-              href="/influencers/bookings"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm shadow-xs transition-all"
-            >
-              <Package className="w-4 h-4 text-emerald-600" />
-              Manage Bookings
+          <div className="flex items-center gap-2.5">
+            <Link href="/influencers/bookings">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={Package}
+              >
+                Manage Bookings
+              </AdminButton>
             </Link>
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={handleOpenCreate}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition-all"
             >
-              <Plus className="w-4 h-4" />
               Add Influencer
-            </button>
+            </AdminButton>
           </div>
         }
       />

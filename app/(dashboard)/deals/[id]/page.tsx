@@ -26,7 +26,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPageHeader, AdminButton } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function DealDetailPage() {
@@ -139,54 +139,39 @@ export default function DealDetailPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/deals"
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-slate-300 hover:text-white transition-all backdrop-blur-xs"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-black uppercase tracking-wider">
-                Deal #{deal.id}
-              </span>
-              <span
-                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                  deal.isWon
-                    ? 'bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30'
-                    : deal.isLost
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                }`}
-              >
-                {deal.isWon ? 'WON' : deal.isLost ? 'LOST' : 'IN PIPELINE'}
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{deal.title}</h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium flex items-center gap-2">
-              <span className="text-[#23C45E] font-black text-lg">₹{Number(deal.amount || 0).toLocaleString('en-IN')}</span>
-              {deal.company && <span>• {deal.company.name}</span>}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+      {/* Top Header */}
+      <AdminPageHeader
+        title={deal.title}
+        description={`₹${Number(deal.amount || 0).toLocaleString('en-IN')}${deal.company ? ` • ${deal.company.name}` : ''}`}
+        icon={DollarSign}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `Deal #${deal.id} • ${deal.isWon ? 'WON' : deal.isLost ? 'LOST' : 'IN PIPELINE'}`,
+          icon: DollarSign,
+          variant: deal.isWon ? 'emerald' : deal.isLost ? 'rose' : 'slate',
+        }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Deals', href: '/deals' },
+          { label: deal.title },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
             {!deal.isWon && (
-              <button
+              <AdminButton
+                variant="primary"
+                size="md"
+                icon={CheckCircle2}
                 onClick={() => updateStageMutation.mutate({ stageId: '4', isWon: true, isLost: false })}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Mark Won</span>
-              </button>
+                Mark Won
+              </AdminButton>
             )}
 
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={Calendar}
               onClick={() => {
                 setVisitForm({
                   purpose: 'Deal Closing & Contract Finalization',
@@ -198,54 +183,53 @@ export default function DealDetailPage() {
                 });
                 setIsScheduleVisitOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600/30 hover:bg-blue-600/40 text-blue-200 border border-blue-500/40 rounded-2xl text-xs font-black transition-all cursor-pointer"
             >
-              <Calendar className="w-4 h-4 text-blue-400" />
-              <span>Schedule Visit</span>
-            </button>
+              Schedule Visit
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="danger"
+              size="md"
+              icon={Trash2}
               onClick={() => {
                 if (confirm(`Archive deal "${deal.title}"?`)) {
                   deleteMutation.mutate();
                 }
               }}
-              className="p-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-2xl text-xs font-black transition-all cursor-pointer"
-              title="Archive Deal"
             >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              Archive
+            </AdminButton>
           </div>
-        </div>
+        }
+      />
 
-        {/* Stage Progression Stepper */}
-        <div className="mt-8 pt-6 border-t border-slate-700/60">
-          <div className="grid grid-cols-4 gap-2 sm:gap-4">
-            {stages.map((stg, idx) => {
-              const currentStageId = deal.stageId || 1;
-              const isPassed = Number(stg.id) <= Number(currentStageId) || deal.isWon;
-              const isCurrent = Number(stg.id) === Number(currentStageId);
+      {/* Stage Progression Stepper */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+          {stages.map((stg, idx) => {
+            const currentStageId = deal.stageId || 1;
+            const isPassed = Number(stg.id) <= Number(currentStageId) || deal.isWon;
+            const isCurrent = Number(stg.id) === Number(currentStageId);
 
-              return (
-                <button
-                  key={stg.id}
-                  onClick={() => updateStageMutation.mutate({ stageId: stg.id, isWon: stg.id === '4', isLost: false })}
-                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                    isCurrent
-                      ? 'bg-[#23C45E]/20 border-[#23C45E] text-white shadow-xs'
-                      : isPassed
-                      ? 'bg-white/10 border-white/20 text-slate-200'
-                      : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10'
-                  }`}
-                >
-                  <span className="text-[10px] font-black uppercase tracking-wider block opacity-75">
-                    Step {idx + 1}
-                  </span>
-                  <span className="font-extrabold text-xs block truncate mt-0.5">{stg.name}</span>
-                </button>
-              );
-            })}
-          </div>
+            return (
+              <button
+                key={stg.id}
+                onClick={() => updateStageMutation.mutate({ stageId: stg.id, isWon: stg.id === '4', isLost: false })}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  isCurrent
+                    ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+                    : isPassed
+                    ? 'bg-slate-50 border-slate-200 text-slate-700'
+                    : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-50'
+                }`}
+              >
+                <span className="text-[10px] font-black uppercase tracking-wider block opacity-75">
+                  Step {idx + 1}
+                </span>
+                <span className="font-extrabold text-xs block truncate mt-0.5">{stg.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

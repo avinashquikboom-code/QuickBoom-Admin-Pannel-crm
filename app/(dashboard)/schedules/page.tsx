@@ -24,7 +24,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
-  AdminPageHero,
+  AdminPageHeader,
   AdminStatCard,
   AdminPagination,
   AdminFormDrawer,
@@ -201,8 +201,8 @@ export default function SchedulesPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <AdminPageHero
+      {/* 1. PAGE HEADER */}
+      <AdminPageHeader
         badge={{
           text: 'DELIVERY AUTOMATION',
           icon: CalendarIcon,
@@ -210,13 +210,19 @@ export default function SchedulesPage() {
         }}
         title="Monthly Delivery Schedules"
         description="Automated monthly execution calendars & client milestone tracks anchored to plan activation dates."
+        icon={CalendarIcon}
+        iconColor="text-emerald-600"
+        breadcrumbs={[
+          { label: 'Operations', href: '/dashboard' },
+          { label: 'Schedules' },
+        ]}
         actions={
           <div className="flex items-center gap-2">
-            <div className="flex bg-white/20 backdrop-blur-md rounded-xl p-1 border border-white/20 text-xs font-bold">
+            <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs font-bold">
               <button
                 onClick={() => setViewMode('CALENDAR')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  viewMode === 'CALENDAR' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-900 hover:text-black'
+                  viewMode === 'CALENDAR' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Calendar
@@ -224,7 +230,7 @@ export default function SchedulesPage() {
               <button
                 onClick={() => setViewMode('LIST')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  viewMode === 'LIST' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-900 hover:text-black'
+                  viewMode === 'LIST' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Directory

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { AdminPageHero, AdminFormDrawer } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminFormDrawer } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function CustomerPlansPage() {
@@ -316,31 +316,40 @@ export default function CustomerPlansPage() {
 
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <AdminPageHero
+      {/* 1. PAGE HEADER */}
+      <AdminPageHeader
+        title="Subscription Plans & Pricing Engine"
+        description="Unified database source of truth for standard packages and custom plan builder services displayed live on the Mobile App."
+        icon={Layers}
+        iconColor="text-emerald-600"
         badge={{
           text: 'SINGLE SOURCE OF TRUTH',
           icon: Layers,
           variant: 'emerald',
         }}
-        title="Subscription Plans & Pricing Engine"
-        description="Unified database source of truth for standard packages and custom plan builder services displayed live on the Mobile App."
+        breadcrumbs={[
+          { label: 'Customers', href: '/customers' },
+          { label: 'Subscription Plans' },
+        ]}
         actions={
-          <div className="flex items-center gap-2">
-            <Link
-              href="/customers"
-              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-slate-900 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer border border-white/20"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Customers</span>
+          <div className="flex items-center gap-2.5">
+            <Link href="/customers">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={ArrowLeft}
+              >
+                Customers
+              </AdminButton>
             </Link>
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={openCreatePackage}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create Package</span>
-            </button>
+              Create Package
+            </AdminButton>
           </div>
         }
       />

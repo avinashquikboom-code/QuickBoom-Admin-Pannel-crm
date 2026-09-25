@@ -43,7 +43,7 @@ import {
   AiCreditTransactionItem,
   SocialPublishItem,
 } from '@/lib/services/ai-social.service';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminFormDrawer } from '@/components/admin';
 
 export default function AiStudioAdminPage() {
   const queryClient = useQueryClient();
@@ -165,60 +165,33 @@ export default function AiStudioAdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* ── Breadcrumbs ────────────────────────────────────────── */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <Link href="/dashboard" className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
-          Dashboard
-        </Link>
-        <ChevronRight className="w-3 h-3 text-slate-400" />
-        <span className="text-slate-500 dark:text-slate-400">Marketing</span>
-        <ChevronRight className="w-3 h-3 text-slate-400" />
-        <span className="text-slate-900 dark:text-white font-semibold">AI Studio &amp; Social</span>
-      </nav>
-
-      {/* ── Hero Page Header Card ──────────────────────────────── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-3xl border border-slate-700/60 shadow-xl p-6 sm:p-8">
-        {/* Ambient Glows */}
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-72 h-72 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 -mb-10 w-60 h-60 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-3xl min-w-0">
-            {/* Top Pill */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <Sparkles className="w-3 h-3" />
-                QuikBoom AI Engine • Live
-              </span>
-              <span className="text-xs text-slate-400 hidden sm:inline">•</span>
-              <span className="text-xs text-slate-300 font-medium hidden sm:inline">
-                Omnichannel Creator &amp; Publishing
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight break-words">
-              AI Content Creation &amp; Social Publishing
-            </h1>
-
-            <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
-              Manage QB Marketplace AI studio services, credit wallet pricing, generation logs, and automated social publishing.
-            </p>
-          </div>
-
-          {/* Action Button */}
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <Link
-              href="/marketing/ai-credits"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-sm shadow-lg shadow-emerald-900/30 hover:shadow-emerald-900/40 hover:-translate-y-0.5 transition-all duration-200 active:scale-95"
+      {/* ── Page Header ──────────────────────────────── */}
+      <AdminPageHeader
+        title="AI Content Creation & Social Publishing"
+        description="Manage QB Marketplace AI studio services, credit wallet pricing, generation logs, and automated social publishing."
+        icon={Sparkles}
+        iconColor="text-emerald-600"
+        badge={{
+          text: 'QuikBoom AI Engine • Live',
+          icon: Sparkles,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Marketing', href: '/marketing/banners' },
+          { label: 'AI Studio & Social' },
+        ]}
+        actions={
+          <Link href="/marketing/ai-credits">
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Coins}
             >
-              <Coins className="w-4 h-4" />
-              <span>Manage Customer Credits</span>
-              <ArrowRight className="w-4 h-4 opacity-75" />
-            </Link>
-          </div>
-        </div>
-      </div>
+              Manage Customer Credits
+            </AdminButton>
+          </Link>
+        }
+      />
 
       {/* ── KPI Stat Metric Cards ──────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

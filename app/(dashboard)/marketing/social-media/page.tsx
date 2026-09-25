@@ -30,7 +30,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
@@ -278,19 +279,26 @@ export default function SocialMediaHandlersPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Page Hero */}
-      <AdminPageHero
-        title="SSM ACCOUNT ACCESS DETAILS"
+      {/* 1. Header */}
+      <AdminPageHeader
+        title="SSM Account Access Details"
         description="Manage and review submitted SSM account access details."
+        icon={Share2}
+        iconColor="text-purple-600"
         badge={{ text: 'Campaign Hub', icon: Share2, variant: 'purple' }}
+        breadcrumbs={[
+          { label: 'Marketing', href: '/marketing/social-media' },
+          { label: 'SSM Accounts' },
+        ]}
         actions={
-          <button
+          <AdminButton
+            variant="primary"
+            size="md"
+            icon={Plus}
             onClick={openCreateDrawer}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity text-sm cursor-pointer shadow-xs"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add SSM Account</span>
-          </button>
+            Add SSM Account
+          </AdminButton>
         }
       />
 

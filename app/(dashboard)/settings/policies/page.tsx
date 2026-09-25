@@ -19,6 +19,7 @@ import {
   Info,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 export default function SettingsPoliciesPage() {
   const [activeTab, setActiveTab] = useState<'LEAVE' | 'ATTENDANCE' | 'SALARY' | 'REMOTE' | 'CONDUCT'>('LEAVE');
@@ -98,42 +99,44 @@ export default function SettingsPoliciesPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. TOP HERO HEADER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#23C45E]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/settings"
-                className="p-2 bg-white/10 hover:bg-white/15 rounded-xl text-white transition-colors cursor-pointer"
-                title="Back to Settings"
+      {/* 1. PAGE HEADER */}
+      <AdminPageHeader
+        title="Company Policies & Guidelines"
+        description="Configure organizational rules for leaves, shift attendance, payroll overtime, remote work, and statutory compliance."
+        icon={ShieldCheck}
+        iconColor="text-emerald-600"
+        badge={{
+          text: 'Governance & Compliance',
+          icon: ShieldCheck,
+          variant: 'emerald',
+        }}
+        breadcrumbs={[
+          { label: 'Settings', href: '/settings' },
+          { label: 'Company Policies' },
+        ]}
+        actions={
+          <div className="flex items-center gap-2.5">
+            <Link href="/settings">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={ArrowLeft}
               >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Governance & Compliance
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Company Policies & Guidelines</h1>
-            <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-2xl">
-              Configure organizational rules for leaves, shift attendance, payroll overtime, remote work, and statutory compliance.
-            </p>
+                Back to Settings
+              </AdminButton>
+            </Link>
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Save}
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Saving Policies...' : 'Save All Policies'}
+            </AdminButton>
           </div>
-
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-3 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs sm:text-sm transition-all cursor-pointer shadow-lg shadow-[#23C45E]/20 disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            <span>{isSaving ? 'Saving Policies...' : 'Save All Policies'}</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. POLICY CATEGORY TABS */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-2 shadow-xs flex items-center gap-2 overflow-x-auto">

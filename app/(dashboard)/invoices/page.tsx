@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero, AdminStatCard, AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminStatCard, AdminFormDrawer, AdminPagination, AdminStatusTabs } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { downloadPdfFromEndpoint } from '@/lib/pdf-download.util';
@@ -266,8 +266,8 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Header Hero Card */}
-      <AdminPageHero
+      {/* Header */}
+      <AdminPageHeader
         badge={{
           text: 'BILLING & INVOICES',
           icon: DollarSign,
@@ -275,21 +275,30 @@ export default function InvoicesPage() {
         }}
         title="Client Invoices & Billing"
         description="Generate, manage, and track client invoice payments, tax reconciliation, and collections."
+        icon={DollarSign}
+        iconColor="text-emerald-600"
+        breadcrumbs={[
+          { label: 'Billing', href: '/dashboard' },
+          { label: 'Invoices' },
+        ]}
         actions={
-          <div className="flex items-center gap-3">
-            <button
+          <div className="flex items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => refetch()}
-              className="p-2.5 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 transition"
-              title="Refresh"
             >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
+              Refresh
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" /> Create New Invoice
-            </button>
+              Create New Invoice
+            </AdminButton>
           </div>
         }
       />

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Activity, PhoneCall, Mail, Calendar, MessageSquare, Plus, RefreshCw, Layers, CheckCircle2, Clock } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
-import { AdminPageHero, AdminStatCard, AdminPagination, AdminFormDrawer } from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminStatCard, AdminPagination, AdminFormDrawer } from '@/components/admin';
 import { toast } from 'react-hot-toast';
 
 interface ActivityItem {
@@ -125,8 +125,8 @@ export default function ActivitiesPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. Top Hero Card */}
-      <AdminPageHero
+      {/* 1. Header */}
+      <AdminPageHeader
         badge={{
           text: 'ACTIVITY CENTER',
           icon: Activity,
@@ -134,25 +134,31 @@ export default function ActivitiesPage() {
         }}
         title="Activities"
         description="Monitor employee and system activities across the organization."
+        icon={Activity}
+        iconColor="text-emerald-600"
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Activities' },
+        ]}
         actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => refetch()}
               disabled={isFetching}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
-              title="Refresh activities"
             >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
-
-            <button
-              type="button"
+              Refresh
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={() => setIsLogDrawerOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" />
-              <span>Log Activity</span>
-            </button>
+              Log Activity
+            </AdminButton>
           </div>
         }
       />

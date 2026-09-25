@@ -34,7 +34,8 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  AdminPageHero,
+  AdminPageHeader,
+  AdminButton,
   AdminStatCard,
   AdminFormDrawer,
   AdminPagination,
@@ -499,8 +500,8 @@ export default function TrendingManagementPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. Top Hero Card */}
-      <AdminPageHero
+      {/* 1. Header */}
+      <AdminPageHeader
         badge={{
           text: 'MARKETING ENGINE',
           icon: TrendingUp,
@@ -508,24 +509,32 @@ export default function TrendingManagementPage() {
         }}
         title="Trending Media & Campaigns"
         description="Publish and manage high-converting reels, promotional offers, story hooks, and video creatives with file uploads or public media links."
+        icon={TrendingUp}
+        iconColor="text-emerald-600"
+        breadcrumbs={[
+          { label: 'Marketing', href: '/marketing/banners' },
+          { label: 'Trending Media' },
+        ]}
         actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => refetch()}
               disabled={isFetching}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs disabled:opacity-50 active:scale-95"
-              title="Refresh database records"
             >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-[#23C45E]' : ''}`} />
-            </button>
+              Refresh
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
               onClick={openCreateDrawer}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add Trending Media</span>
-            </button>
+              Add Trending Media
+            </AdminButton>
           </div>
         }
       />

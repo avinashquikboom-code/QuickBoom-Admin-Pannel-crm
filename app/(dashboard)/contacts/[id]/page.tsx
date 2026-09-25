@@ -25,7 +25,7 @@ import {
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminFormDrawer } from '@/components/admin';
+import { AdminFormDrawer, AdminPageHeader, AdminButton } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -123,47 +123,39 @@ export default function ContactDetailPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* Top Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-700/60 shadow-xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/contacts"
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-slate-300 hover:text-white transition-all backdrop-blur-xs"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-[#23C45E] border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider">
-                Contact #{contact.id}
-              </span>
-              <span className="px-3 py-1 rounded-full bg-white/15 text-white text-[10px] font-black uppercase tracking-wider">
-                {contact.status || 'ACTIVE'}
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{name}</h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium flex items-center gap-2">
-              <span>{contact.designation || 'Key Stakeholder'}</span>
-              {contact.company && <span>• {contact.company.name}</span>}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+      {/* Top Header */}
+      <AdminPageHeader
+        title={name}
+        description={`${contact.designation || 'Key Stakeholder'}${contact.company ? ` • ${contact.company.name}` : ''}`}
+        icon={User}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `Contact #${contact.id} • ${contact.status || 'ACTIVE'}`,
+          icon: User,
+          variant: contact.status === 'ACTIVE' ? 'emerald' : 'slate',
+        }}
+        breadcrumbs={[
+          { label: 'CRM', href: '/crm' },
+          { label: 'Contacts', href: '/contacts' },
+          { label: name },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
             {contact.email && (
-              <button
-                type="button"
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={Mail}
                 onClick={() => setIsEmailModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-400/30 rounded-2xl text-xs font-black transition-all cursor-pointer active:scale-95"
               >
-                <Mail className="w-4 h-4 text-blue-300" />
-                <span>Send Email</span>
-              </button>
+                Send Email
+              </AdminButton>
             )}
 
-            <button
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={Calendar}
               onClick={() => {
                 setVisitForm({
                   purpose: 'Client Consultation & Review',
@@ -175,26 +167,25 @@ export default function ContactDetailPage() {
                 });
                 setIsVisitDrawerOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600/30 hover:bg-blue-600/40 text-blue-200 border border-blue-500/40 rounded-2xl text-xs font-black transition-all cursor-pointer active:scale-95"
             >
-              <Calendar className="w-4 h-4 text-blue-400" />
-              <span>Schedule Visit</span>
-            </button>
+              Schedule Visit
+            </AdminButton>
 
-            <button
+            <AdminButton
+              variant="danger"
+              size="md"
+              icon={Trash2}
               onClick={() => {
                 if (confirm(`Archive contact "${name}"?`)) {
                   deleteMutation.mutate();
                 }
               }}
-              className="p-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-2xl text-xs font-black transition-all cursor-pointer"
-              title="Archive Contact"
             >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              Archive
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

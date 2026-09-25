@@ -5,7 +5,7 @@ import { FileText, Save, RefreshCw, CheckCircle, ShieldAlert } from 'lucide-reac
 import { toast } from 'react-hot-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHero } from '@/components/admin';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 export default function MasterLeavePoliciesPage() {
   const queryClient = useQueryClient();
@@ -61,29 +61,36 @@ export default function MasterLeavePoliciesPage() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHero
+      <AdminPageHeader
         title="Leave Policies Master"
         description="Configure workforce leave application rules, maximum limits, notices, and approval chains."
+        icon={FileText}
+        iconColor="text-emerald-600"
         badge={{ text: 'Leave Policy Master', icon: FileText, variant: 'emerald' }}
+        breadcrumbs={[
+          { label: 'Master Data', href: '/master' },
+          { label: 'Leave Policies' },
+        ]}
         actions={
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
+          <div className="flex items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={RefreshCw}
               onClick={() => refetch()}
-              className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-2xl border border-white/10 text-xs font-black transition-all cursor-pointer backdrop-blur-xs active:scale-95"
-              title="Refresh"
+              disabled={isLoading}
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              type="button"
+              Refresh
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Save}
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-2xl text-xs shadow-md shadow-[#23C45E]/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
-              <Save className="w-4 h-4 stroke-[2.5]" />
-              <span>{saveMutation.isPending ? 'Saving...' : 'Save Policy Changes'}</span>
-            </button>
+              {saveMutation.isPending ? 'Saving...' : 'Save Policy Changes'}
+            </AdminButton>
           </div>
         }
       />

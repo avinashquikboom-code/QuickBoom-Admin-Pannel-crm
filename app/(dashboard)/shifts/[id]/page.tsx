@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 export default function ShiftDetailPage() {
   const { id } = useParams();
@@ -63,44 +64,39 @@ export default function ShiftDetailPage() {
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. HERO HEADER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#23C45E]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/shifts"
-                className="p-2 bg-white/10 hover:bg-white/15 rounded-xl text-white transition-colors cursor-pointer"
-                title="Back to Shifts"
+      {/* 1. PAGE HEADER */}
+      <AdminPageHeader
+        title={shift?.name || 'Shift Details'}
+        description={`${shift?.startTime || '09:30 AM'} – ${shift?.endTime || '06:30 PM'} • ${shift?.durationHours ?? 9} Hours • ${shift?.gracePeriodMinutes ?? 15}m Grace`}
+        icon={Clock}
+        iconColor="text-emerald-600"
+        badge={{
+          text: `${shift?.code || 'SHIFT'} • ${shift?.status || 'ACTIVE'}`,
+          icon: Clock,
+          variant: shift?.status === 'ACTIVE' ? 'emerald' : 'slate',
+        }}
+        breadcrumbs={[
+          { label: 'HRMS', href: '/shifts' },
+          { label: 'Shifts', href: '/shifts' },
+          { label: shift?.name || 'Shift Details' },
+        ]}
+        actions={
+          <div className="flex items-center gap-2.5">
+            <Link href="/shifts">
+              <AdminButton
+                variant="outline"
+                size="md"
+                icon={ArrowLeft}
               >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
-              <span className="px-3 py-1 rounded-full bg-[#23C45E]/20 text-[#23C45E] border border-[#23C45E]/30 text-xs font-black uppercase tracking-wider">
-                {shift?.code || 'SHIFT'}
-              </span>
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                  shift?.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-500/20 text-slate-300'
-                }`}
-              >
-                {shift?.status || 'ACTIVE'}
-              </span>
+                Back to Shifts
+              </AdminButton>
+            </Link>
+            <div className="bg-emerald-50 text-emerald-800 px-3.5 py-1.5 rounded-xl border border-emerald-200 text-xs font-black">
+              {employees.length} Employees Allocated
             </div>
-
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{shift?.name || 'Shift Details'}</h1>
-            <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-2xl">
-              {shift?.startTime || '09:30 AM'} – {shift?.endTime || '06:30 PM'} • {shift?.durationHours ?? 9} Hours • {shift?.gracePeriodMinutes ?? 15}m Grace
-            </p>
           </div>
-
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 text-right">
-            <span className="text-[10px] font-black uppercase text-slate-300 block">Allocated Workforce</span>
-            <span className="text-2xl font-black text-[#23C45E]">{employees.length} Employees</span>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. SHIFT GUIDANCE RULES GRID */}
       {guidance && (
