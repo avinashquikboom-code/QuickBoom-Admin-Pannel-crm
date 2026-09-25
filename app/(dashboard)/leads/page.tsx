@@ -1052,6 +1052,7 @@ export default function LeadsPage() {
 
     setIsSearchingPlaces(true);
     setPlaceResults([]);
+    resetLeadForm();
     try {
       const res: any = await api.post('/data-capture/extract', {
         keyword: googleQuery.trim(),
@@ -1308,8 +1309,26 @@ export default function LeadsPage() {
                 </tr>
               ) : filteredLeads.length > 0 ? (
                 filteredLeads.map((lead) => {
-                  const leadName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || 'Contact';
-                  const compName = lead.companyName || lead.title || 'Direct Prospect';
+                  const compName =
+                    (lead.companyName && lead.companyName !== 'Business Lead' && lead.companyName !== 'Direct Lead' && lead.companyName !== 'New Lead' ? lead.companyName.trim() : null) ||
+                    ((lead as any).businessName && (lead as any).businessName !== 'Business Lead' && (lead as any).businessName !== 'Direct Lead' && (lead as any).businessName !== 'New Lead' ? (lead as any).businessName.trim() : null) ||
+                    (lead.title && lead.title !== 'Business Lead' && lead.title !== 'Direct Lead' && lead.title !== 'New Lead' ? lead.title.trim() : null) ||
+                    'Unnamed Business';
+
+                  const rawContactName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+                  const hasDistinctContact =
+                    rawContactName &&
+                    rawContactName !== '.' &&
+                    rawContactName !== 'Business Lead' &&
+                    rawContactName !== 'Business Owner' &&
+                    rawContactName !== 'Unknown Business' &&
+                    rawContactName !== 'Contact' &&
+                    rawContactName.toLowerCase() !== compName.toLowerCase();
+
+                  const subtitleText = hasDistinctContact
+                    ? rawContactName
+                    : (lead.category || (lead.source && lead.source !== 'WEBSITE' ? (lead.source === 'GOOGLE_PLACES' || lead.source === 'Google Discovery' ? 'Google Discovery' : lead.source) : null) || 'Lead Prospect');
+
                   const isConverted = lead.status === 'CONVERTED' || lead.status === 'WON';
                   const isSelected = String(selectedLeadId) === String(lead.id);
 
@@ -1357,11 +1376,11 @@ export default function LeadsPage() {
                             );
                           })()}
                           <div className="min-w-0">
-                            <span className="font-extrabold text-slate-900 group-hover:text-[#1AA14D] text-sm truncate block transition-colors">
+                            <span className="font-extrabold text-slate-900 group-hover:text-[#1AA14D] text-sm truncate block transition-colors" title={compName}>
                               {compName}
                             </span>
                             <p className="text-slate-500 font-medium text-[11px] truncate flex items-center gap-1.5 mt-0.5">
-                              <span className="font-bold text-slate-700">{leadName}</span>
+                              <span className="font-bold text-slate-700">{subtitleText}</span>
                               {(lead.city || lead.location) && <span>• {lead.city || lead.location}</span>}
                             </p>
                           </div>
@@ -1635,10 +1654,19 @@ export default function LeadsPage() {
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-base font-black text-slate-900 truncate">
-                      {leadDetail?.companyName || leadDetail?.title || 'Lead Details'}
+                      {(leadDetail?.companyName && leadDetail.companyName !== 'Business Lead' ? leadDetail.companyName : null) ||
+                       ((leadDetail as any)?.businessName && (leadDetail as any).businessName !== 'Business Lead' ? (leadDetail as any).businessName : null) ||
+                       (leadDetail?.title && leadDetail.title !== 'Business Lead' ? leadDetail.title : null) ||
+                       'Lead Details'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium truncate">
-                      {leadDetail?.firstName} {leadDetail?.lastName} {leadDetail?.city ? `• ${leadDetail.city}` : ''}
+                      {(() => {
+                        const rawC = `${leadDetail?.firstName || ''} ${leadDetail?.lastName || ''}`.trim();
+                        const comp = leadDetail?.companyName || leadDetail?.title || '';
+                        const hasC = rawC && rawC !== '.' && rawC !== 'Business Lead' && rawC.toLowerCase() !== comp.toLowerCase();
+                        const sub = hasC ? rawC : (leadDetail?.category || leadDetail?.source || 'Lead Prospect');
+                        return `${sub}${leadDetail?.city ? ` • ${leadDetail.city}` : ''}`;
+                      })()}
                     </p>
                   </div>
                 </div>
@@ -3075,15 +3103,14 @@ export default function LeadsPage() {
                     '';
 
                   if (!resolvedFirstName && !resolvedLastName) {
-                    const rawFullName =
-                      cleanOptionalString(place.name) ||
-                      cleanOptionalString(place.full_name) ||
-                      cleanOptionalString(rawData.name) ||
-                      cleanOptionalString(rawData.full_name) ||
-                      cleanOptionalString(displayName) ||
+                    const rawCandidate =
+                      cleanOptionalString(place.contactName) ||
+                      cleanOptionalString(place.contactPerson) ||
+                      cleanOptionalString(rawData.contactName) ||
+                      cleanOptionalString(rawData.contactPerson) ||
                       '';
-                    if (rawFullName) {
-                      const parts = rawFullName.split(/\s+/);
+                    if (rawCandidate && !rawCandidate.startsWith('places/') && rawCandidate !== 'Business Lead') {
+                      const parts = rawCandidate.split(/\s+/);
                       resolvedFirstName = parts[0] || '';
                       resolvedLastName = parts.slice(1).join(' ') || '';
                     }
@@ -3126,11 +3153,12 @@ export default function LeadsPage() {
 
                   setLeadForm({
                     id: '',
-                    title: cleanOptionalString(displayName) || 'New Prospect',
-                    businessName: cleanOptionalString(displayName) || 'New Prospect',
+                    title: cleanOptionalString(displayName) || 'Unnamed Business',
+                    businessName: cleanOptionalString(displayName) || 'Unnamed Business',
+                    companyName: cleanOptionalString(displayName) || 'Unnamed Business',
                     firstName: resolvedFirstName || '',
                     lastName: resolvedLastName || '',
-                    category: cleanOptionalString(place.category) || '',
+                    category: cleanOptionalString(place.category) || cleanOptionalString(googleQuery) || '',
                     phone: resolvedPhone || '',
                     email: resolvedEmail || '',
                     website: cleanOptionalString(place.website) || '',
