@@ -141,6 +141,7 @@ export default function LeadGenerationLimitsPage() {
       toast.success('Employee custom limit saved successfully');
       setIsEmployeeDrawerOpen(false);
       queryClient.invalidateQueries({ queryKey: ['lead-limits-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['lead-limits-roles'] });
     },
     onError: (err: any) => {
       toast.error(getErrorMessage(err) || 'Failed to update employee limit');
@@ -157,6 +158,7 @@ export default function LeadGenerationLimitsPage() {
       setIsResetConfirmOpen(false);
       setEmployeeToReset(null);
       queryClient.invalidateQueries({ queryKey: ['lead-limits-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['lead-limits-roles'] });
     },
     onError: (err: any) => {
       toast.error(getErrorMessage(err) || 'Failed to reset employee limit');
