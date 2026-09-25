@@ -39,6 +39,10 @@ import {
   Activity,
   History,
   Loader2,
+  Building2,
+  Maximize2,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
@@ -94,6 +98,17 @@ interface CapturedPlace {
   customerId?: string;
   extractionJobId?: string;
   duplicateMatches?: DuplicateMatch[];
+  googlePhotos?: { name: string; url: string; width?: number; height?: number }[];
+  photos?: string[];
+  socialMedia?: {
+    website?: string;
+    facebook?: string;
+    instagram?: string;
+    linkedin?: string;
+    twitter?: string;
+    youtube?: string;
+    [key: string]: any;
+  };
 }
 
 interface UsageSummary {
@@ -145,6 +160,36 @@ export default function DataCapturePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CapturedPlace>>({});
   const [showRawData, setShowRawData] = useState(false);
+
+  // Photo Gallery Lightbox / Modal State
+  const [galleryModal, setGalleryModal] = useState<{
+    isOpen: boolean;
+    businessName: string;
+    photos: { name?: string; url: string; width?: number; height?: number }[];
+    currentIndex: number;
+  }>({
+    isOpen: false,
+    businessName: '',
+    photos: [],
+    currentIndex: 0,
+  });
+
+  const openGalleryModal = (
+    e: React.MouseEvent,
+    businessName: string,
+    photos: { name?: string; url: string; width?: number; height?: number }[] | string[] | undefined,
+    startIndex = 0,
+  ) => {
+    e.stopPropagation();
+    if (!photos || photos.length === 0) return;
+    const normalizedList = photos.map((p) => (typeof p === 'string' ? { url: p } : p));
+    setGalleryModal({
+      isOpen: true,
+      businessName,
+      photos: normalizedList,
+      currentIndex: startIndex,
+    });
+  };
 
   // Google Places Extraction Modal State
   const [extractModalOpen, setExtractModalOpen] = useState(false);
@@ -490,9 +535,15 @@ export default function DataCapturePage() {
       'Category',
       'Status',
       'Source',
+      'Primary Photo URL',
       'Phone',
       'Email',
       'Website',
+      'Facebook',
+      'Instagram',
+      'LinkedIn',
+      'Twitter / X',
+      'YouTube',
       'Address',
       'Rating',
       'Review Count',
@@ -501,22 +552,36 @@ export default function DataCapturePage() {
       'Captured Date',
     ];
 
-    const rows = exportPlaces.map((p) => [
-      p.id || '',
-      `"${(p.businessName || '').replace(/"/g, '""')}"`,
-      `"${(p.category || '').replace(/"/g, '""')}"`,
-      p.status || 'CAPTURED',
-      p.source || 'GOOGLE_PLACES',
-      `"${p.phone || ''}"`,
-      `"${p.email || ''}"`,
-      `"${p.website || ''}"`,
-      `"${(p.address || '').replace(/"/g, '""')}"`,
-      p.rating || '',
-      p.reviewCount || '',
-      `"${p.googlePlaceId || ''}"`,
-      `"${p.googleMapsUrl || ''}"`,
-      `"${p.capturedAt || ''}"`,
-    ]);
+    const rows = exportPlaces.map((p) => {
+      const photos = p.googlePhotos && p.googlePhotos.length > 0
+        ? p.googlePhotos
+        : (p.photos && p.photos.length > 0 ? p.photos.map((u) => ({ url: u })) : []);
+      const primaryPhoto = photos[0]?.url || '';
+      const sm = p.socialMedia || (p.rawData as any)?.socialMedia || {};
+
+      return [
+        p.id || '',
+        `"${(p.businessName || '').replace(/"/g, '""')}"`,
+        `"${(p.category || '').replace(/"/g, '""')}"`,
+        p.status || 'CAPTURED',
+        p.source || 'GOOGLE_PLACES',
+        `"${primaryPhoto.replace(/"/g, '""')}"`,
+        `"${p.phone || ''}"`,
+        `"${p.email || ''}"`,
+        `"${p.website || sm.website || ''}"`,
+        `"${sm.facebook || ''}"`,
+        `"${sm.instagram || ''}"`,
+        `"${sm.linkedin || ''}"`,
+        `"${sm.twitter || ''}"`,
+        `"${sm.youtube || ''}"`,
+        `"${(p.address || '').replace(/"/g, '""')}"`,
+        p.rating || '',
+        p.reviewCount || '',
+        `"${p.googlePlaceId || ''}"`,
+        `"${p.googleMapsUrl || ''}"`,
+        `"${p.capturedAt || ''}"`,
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -880,7 +945,7 @@ export default function DataCapturePage() {
           </div>
         ) : (
           <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-xs text-left min-w-[850px]">
+            <table className="w-full text-xs text-left min-w-[1050px]">
               <thead className="bg-slate-50 text-slate-500 font-black uppercase text-[10px] tracking-wider border-b border-slate-100">
                 <tr>
                   <th className="p-3.5 w-10 text-center">
@@ -891,10 +956,12 @@ export default function DataCapturePage() {
                       className="rounded text-[#23C45E] focus:ring-[#23C45E] cursor-pointer"
                     />
                   </th>
+                  <th className="p-3.5 w-14 text-center">Photo</th>
                   <th className="p-3.5">Business Name & Category</th>
                   <th className="p-3.5">Contact Info</th>
                   <th className="p-3.5">Address</th>
                   <th className="p-3.5">Rating & Reviews</th>
+                  <th className="p-3.5">Social Media</th>
                   <th className="p-3.5">Status</th>
                   <th className="p-3.5">Source</th>
                   <th className="p-3.5 text-right">Actions</th>
@@ -921,6 +988,62 @@ export default function DataCapturePage() {
                           className="rounded text-[#23C45E] focus:ring-[#23C45E] cursor-pointer"
                         />
                       </td>
+
+                      {/* PHOTO COLUMN */}
+                      <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const placePhotos = place.googlePhotos && place.googlePhotos.length > 0
+                            ? place.googlePhotos
+                            : (place.photos && place.photos.length > 0 ? place.photos.map((u) => ({ url: u })) : []);
+                          const primary = placePhotos[0];
+                          const photoCount = placePhotos.length;
+
+                          if (primary?.url) {
+                            return (
+                              <div
+                                onClick={(e) => openGalleryModal(e, place.businessName, placePhotos, 0)}
+                                className="relative inline-block group cursor-pointer"
+                                title={`Click to view ${photoCount} Google Places ${photoCount === 1 ? 'photo' : 'photos'}`}
+                              >
+                                <div className="w-11 h-11 rounded-xl overflow-hidden border border-slate-200 shadow-2xs group-hover:border-[#23C45E] group-hover:shadow-md transition-all bg-slate-100 flex items-center justify-center">
+                                  <img
+                                    src={primary.url}
+                                    alt={place.businessName}
+                                    loading="lazy"
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                    onError={(e) => {
+                                      (e.target as HTMLElement).style.display = 'none';
+                                      const next = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                                      if (next) next.classList.remove('hidden');
+                                    }}
+                                  />
+                                  <div className="hidden w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+                                    <Building2 className="w-5 h-5 text-slate-400" />
+                                  </div>
+                                </div>
+                                {photoCount > 1 && (
+                                  <span className="absolute -bottom-1 -right-1 bg-slate-900/90 text-white text-[9px] font-black px-1 py-0.2 rounded-full border border-white shadow-xs">
+                                    +{photoCount - 1}
+                                  </span>
+                                )}
+                                <span className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center text-white">
+                                  <Maximize2 className="w-3.5 h-3.5" />
+                                </span>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              className="w-11 h-11 rounded-xl bg-slate-100/90 border border-slate-200/80 flex items-center justify-center mx-auto text-slate-400"
+                              title="No Google photo available"
+                            >
+                              <Building2 className="w-5 h-5 text-slate-400" />
+                            </div>
+                          );
+                        })()}
+                      </td>
+
                       <td className="p-3.5">
                         <p className="font-black text-slate-900 hover:text-emerald-700 transition-colors">
                           {place.businessName}
@@ -969,6 +1092,96 @@ export default function DataCapturePage() {
                           <span className="text-slate-400 text-[10px]">No ratings</span>
                         )}
                       </td>
+
+                      {/* SOCIAL MEDIA / LINKS COLUMN */}
+                      <td className="p-3.5" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const sm = place.socialMedia || (place.rawData as any)?.socialMedia;
+                          const hasWeb = place.website && place.website !== 'N/A';
+                          const hasFb = sm?.facebook;
+                          const hasIg = sm?.instagram;
+                          const hasLi = sm?.linkedin;
+                          const hasTw = sm?.twitter;
+                          const hasYt = sm?.youtube;
+
+                          if (!hasWeb && !hasFb && !hasIg && !hasLi && !hasTw && !hasYt) {
+                            return <span className="text-slate-400 text-xs font-bold">—</span>;
+                          }
+
+                          return (
+                            <div className="flex flex-wrap items-center gap-1 max-w-[170px]">
+                              {hasWeb && (
+                                <a
+                                  href={place.website}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 hover:bg-blue-100 text-[10px] font-black transition-colors"
+                                  title={`Website: ${place.website}`}
+                                >
+                                  <Globe className="w-2.5 h-2.5" />
+                                  <span>WEB</span>
+                                </a>
+                              )}
+                              {hasFb && (
+                                <a
+                                  href={sm.facebook}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/25 hover:bg-[#1877F2]/20 text-[10px] font-black transition-colors"
+                                  title={`Facebook: ${sm.facebook}`}
+                                >
+                                  FB
+                                </a>
+                              )}
+                              {hasIg && (
+                                <a
+                                  href={sm.instagram}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-gradient-to-r from-[#F58529]/15 to-[#DD2A7B]/15 text-[#DD2A7B] border border-[#DD2A7B]/30 hover:opacity-90 text-[10px] font-black transition-opacity"
+                                  title={`Instagram: ${sm.instagram}`}
+                                >
+                                  IG
+                                </a>
+                              )}
+                              {hasLi && (
+                                <a
+                                  href={sm.linkedin}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/25 hover:bg-[#0A66C2]/20 text-[10px] font-black transition-colors"
+                                  title={`LinkedIn: ${sm.linkedin}`}
+                                >
+                                  IN
+                                </a>
+                              )}
+                              {hasTw && (
+                                <a
+                                  href={sm.twitter}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-900/10 text-slate-900 border border-slate-900/20 hover:bg-slate-900/20 text-[10px] font-black transition-colors"
+                                  title={`X (Twitter): ${sm.twitter}`}
+                                >
+                                  X
+                                </a>
+                              )}
+                              {hasYt && (
+                                <a
+                                  href={sm.youtube}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 text-[10px] font-black transition-colors"
+                                  title={`YouTube: ${sm.youtube}`}
+                                >
+                                  YT
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
+
                       <td className="p-3.5">
                         <span
                           className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase border ${statusConf.bg} ${statusConf.text} ${statusConf.border}`}
@@ -1297,6 +1510,75 @@ export default function DataCapturePage() {
                   </div>
                 </div>
 
+                {/* Google Photos Hero Banner / Gallery */}
+                {(() => {
+                  const drawerPhotos = selectedRecord.googlePhotos && selectedRecord.googlePhotos.length > 0
+                    ? selectedRecord.googlePhotos
+                    : (selectedRecord.photos && selectedRecord.photos.length > 0
+                        ? selectedRecord.photos.map((u) => ({ url: u }))
+                        : []);
+                  const hasPhotos = drawerPhotos.length > 0;
+
+                  if (hasPhotos) {
+                    return (
+                      <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm relative group">
+                        <div className="relative h-44 sm:h-52 w-full overflow-hidden bg-slate-950">
+                          <img
+                            src={drawerPhotos[0].url}
+                            alt={selectedRecord.businessName}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20" />
+                          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
+                            <span className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-xs text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-white/20">
+                              <Camera className="w-3 h-3 text-[#23C45E]" />
+                              Google Places Photo ({drawerPhotos.length})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => openGalleryModal(e, selectedRecord.businessName, drawerPhotos, 0)}
+                              className="px-2.5 py-1 rounded-xl bg-white/90 hover:bg-white text-slate-900 text-[11px] font-black flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                              <span>View Gallery</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Thumbnail Strip if multiple photos */}
+                        {drawerPhotos.length > 1 && (
+                          <div className="p-2.5 bg-slate-900/90 border-t border-white/10 flex items-center gap-2 overflow-x-auto custom-scrollbar">
+                            {drawerPhotos.map((photo, pIdx) => (
+                              <button
+                                key={photo.url || pIdx}
+                                type="button"
+                                onClick={(e) => openGalleryModal(e, selectedRecord.businessName, drawerPhotos, pIdx)}
+                                className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/20 hover:border-[#23C45E] transition-all cursor-pointer"
+                              >
+                                <img src={photo.url} alt={`Photo ${pIdx + 1}`} className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                        <Building2 className="w-5 h-5 text-slate-400" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-700 block">No Google Photos</span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Google Places API did not return photo references for this location.
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Key Details Card */}
                 <div className="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-3 shadow-2xs">
                   <div className="flex items-start justify-between">
@@ -1360,6 +1642,167 @@ export default function DataCapturePage() {
                     )}
                   </div>
                 </div>
+
+                {/* Social Media & Online Handles Card */}
+                {(() => {
+                  const sm = selectedRecord.socialMedia || (selectedRecord.rawData as any)?.socialMedia;
+                  const hasWeb = selectedRecord.website && selectedRecord.website !== 'N/A';
+                  const hasFb = sm?.facebook;
+                  const hasIg = sm?.instagram;
+                  const hasLi = sm?.linkedin;
+                  const hasTw = sm?.twitter;
+                  const hasYt = sm?.youtube;
+                  const hasAny = hasWeb || hasFb || hasIg || hasLi || hasTw || hasYt;
+
+                  return (
+                    <div className="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          Discovered Social Media & Handles
+                        </span>
+                        {hasAny && (
+                          <span className="px-2 py-0.5 rounded-full bg-[#23C45E]/10 text-[#1AA14D] font-black text-[10px]">
+                            Verified
+                          </span>
+                        )}
+                      </div>
+
+                      {hasAny ? (
+                        <div className="space-y-2 pt-1">
+                          {hasWeb && (
+                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-black">
+                                  WEB
+                                </span>
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  {selectedRecord.website}
+                                </span>
+                              </div>
+                              <a
+                                href={selectedRecord.website}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black shrink-0 transition-colors"
+                              >
+                                Visit
+                              </a>
+                            </div>
+                          )}
+
+                          {hasFb && (
+                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="px-1.5 py-0.5 rounded bg-[#1877F2]/10 text-[#1877F2] border border-[#1877F2]/30 text-[10px] font-black">
+                                  FB
+                                </span>
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  {sm.facebook}
+                                </span>
+                              </div>
+                              <a
+                                href={sm.facebook}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded-lg bg-[#1877F2] hover:bg-[#1567d3] text-white text-[10px] font-black shrink-0 transition-colors"
+                              >
+                                Open
+                              </a>
+                            </div>
+                          )}
+
+                          {hasIg && (
+                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="px-1.5 py-0.5 rounded bg-gradient-to-r from-[#F58529]/15 to-[#DD2A7B]/15 text-[#DD2A7B] border border-[#DD2A7B]/30 text-[10px] font-black">
+                                  IG
+                                </span>
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  {sm.instagram}
+                                </span>
+                              </div>
+                              <a
+                                href={sm.instagram}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded-lg bg-gradient-to-r from-[#F58529] to-[#DD2A7B] text-white text-[10px] font-black shrink-0 transition-opacity hover:opacity-90"
+                              >
+                                Open
+                              </a>
+                            </div>
+                          )}
+
+                          {hasLi && (
+                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="px-1.5 py-0.5 rounded bg-[#0A66C2]/10 text-[#0A66C2] border border-[#0A66C2]/30 text-[10px] font-black">
+                                  IN
+                                </span>
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  {sm.linkedin}
+                                </span>
+                              </div>
+                              <a
+                                href={sm.linkedin}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded-lg bg-[#0A66C2] hover:bg-[#084e96] text-white text-[10px] font-black shrink-0 transition-colors"
+                              >
+                                Open
+                              </a>
+                            </div>
+                          )}
+
+                          {hasTw && (
+                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="px-1.5 py-0.5 rounded bg-slate-900/10 text-slate-900 border border-slate-900/20 text-[10px] font-black">
+                                  X
+                                </span>
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  {sm.twitter}
+                                </span>
+                              </div>
+                              <a
+                                href={sm.twitter}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-black text-white text-[10px] font-black shrink-0 transition-colors"
+                              >
+                                Open
+                              </a>
+                            </div>
+                          )}
+
+                          {hasYt && (
+                            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-black">
+                                  YT
+                                </span>
+                                <span className="text-xs font-bold text-slate-800 truncate">
+                                  {sm.youtube}
+                                </span>
+                              </div>
+                              <a
+                                href={sm.youtube}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black shrink-0 transition-colors"
+                              >
+                                Open
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 font-medium py-1">
+                          No social media handles discovered for this business.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Notes Section */}
                 {selectedRecord.notes && (
@@ -1703,6 +2146,110 @@ export default function DataCapturePage() {
         variant="danger"
         loading={deleteMutation.isPending}
       />
+
+      {/* 12. PHOTO GALLERY LIGHTBOX MODAL */}
+      {galleryModal.isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in-50 duration-150"
+          onClick={() => setGalleryModal((prev) => ({ ...prev, isOpen: false }))}
+        >
+          <div
+            className="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl relative flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="w-full flex items-center justify-between pb-4 border-b border-slate-800 text-white">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#23C45E]" />
+                <h3 className="font-black text-sm sm:text-base text-white truncate max-w-md">
+                  {galleryModal.businessName}
+                </h3>
+                <span className="text-xs text-slate-400 font-bold ml-2">
+                  Photo {galleryModal.currentIndex + 1} of {galleryModal.photos.length}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setGalleryModal((prev) => ({ ...prev, isOpen: false }))}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Main Active Photo */}
+            <div className="relative my-4 w-full flex items-center justify-center max-h-[65vh] overflow-hidden rounded-2xl bg-black">
+              {galleryModal.photos[galleryModal.currentIndex]?.url ? (
+                <img
+                  src={galleryModal.photos[galleryModal.currentIndex].url}
+                  alt={`${galleryModal.businessName} photo ${galleryModal.currentIndex + 1}`}
+                  className="max-h-[65vh] w-auto object-contain rounded-2xl select-none"
+                />
+              ) : (
+                <div className="h-64 flex items-center justify-center text-slate-500">
+                  <span>Photo unavailable</span>
+                </div>
+              )}
+
+              {/* Prev / Next controls if multiple photos */}
+              {galleryModal.photos.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setGalleryModal((prev) => ({
+                        ...prev,
+                        currentIndex:
+                          prev.currentIndex === 0 ? prev.photos.length - 1 : prev.currentIndex - 1,
+                      }))
+                    }
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-white/20 shadow-lg cursor-pointer transition-transform hover:scale-110"
+                    title="Previous photo"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setGalleryModal((prev) => ({
+                        ...prev,
+                        currentIndex:
+                          prev.currentIndex === prev.photos.length - 1 ? 0 : prev.currentIndex + 1,
+                      }))
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-white/20 shadow-lg cursor-pointer transition-transform hover:scale-110"
+                    title="Next photo"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Thumbnail Strip */}
+            {galleryModal.photos.length > 1 && (
+              <div className="w-full flex items-center justify-center gap-2 overflow-x-auto py-2 px-1 custom-scrollbar">
+                {galleryModal.photos.map((p, idx) => (
+                  <button
+                    key={p.url || idx}
+                    type="button"
+                    onClick={() => setGalleryModal((prev) => ({ ...prev, currentIndex: idx }))}
+                    className={`relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
+                      galleryModal.currentIndex === idx
+                        ? 'border-[#23C45E] scale-105 shadow-md shadow-[#23C45E]/20'
+                        : 'border-slate-800 opacity-60 hover:opacity-100 hover:border-slate-600'
+                    }`}
+                  >
+                    <img src={p.url} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

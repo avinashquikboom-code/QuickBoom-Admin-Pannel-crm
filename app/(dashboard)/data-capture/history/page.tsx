@@ -371,8 +371,30 @@ export default function DataCaptureHistoryPage() {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => {}}
-                        className="w-4 h-4 mt-1 rounded text-[#23C45E] focus:ring-[#23C45E] pointer-events-none"
+                        className="w-4 h-4 mt-3 rounded text-[#23C45E] focus:ring-[#23C45E] pointer-events-none"
                       />
+
+                      {/* Photo thumbnail */}
+                      {(() => {
+                        const photoUrl = place.googlePhotos?.[0]?.url || (place.photos && place.photos.length > 0 ? (typeof place.photos[0] === 'string' ? place.photos[0] : place.photos[0]?.url) : null);
+                        if (photoUrl) {
+                          return (
+                            <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-100">
+                              <img
+                                src={photoUrl}
+                                alt={place.businessName}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200/80 flex items-center justify-center shrink-0 text-slate-400">
+                            <Database className="w-5 h-5 text-slate-400" />
+                          </div>
+                        );
+                      })()}
+
                       <div>
                         <h4 className="font-black text-slate-900 text-sm">{place.businessName}</h4>
                         <p className="text-xs text-slate-500 font-medium mt-0.5">{place.address}</p>
