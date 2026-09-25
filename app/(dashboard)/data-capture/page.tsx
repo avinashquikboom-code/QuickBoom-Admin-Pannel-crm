@@ -570,6 +570,7 @@ export default function DataCapturePage() {
       setLeadDuplicateConfirmOpen(false);
       queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
       queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
     onError: (err) => {
       setCapturingId(null);

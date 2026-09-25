@@ -76,8 +76,8 @@ export default function DataCaptureHistoryPage() {
 
   // Import to Leads Mutation
   const importMutation = useMutation({
-    mutationFn: async ({ jobId, placeIds }: { jobId: string; placeIds: string[] }) => {
-      return api.post('/data-capture/import-to-leads', { jobId, placeIds });
+    mutationFn: async ({ jobId, placeIds, places }: { jobId: string; placeIds: string[]; places?: any[] }) => {
+      return api.post('/data-capture/import-to-leads', { jobId, placeIds, places });
     },
     onSuccess: (res: any) => {
       const data = res?.data || res;
@@ -131,9 +131,13 @@ export default function DataCaptureHistoryPage() {
       toast.error('Please select at least one prospect to import');
       return;
     }
+    const selectedPlaces = (selectedJob.places || []).filter((p: any) =>
+      selectedPlaceIds.includes(p.googlePlaceId) || selectedPlaceIds.includes(String(p.id))
+    );
     importMutation.mutate({
       jobId: selectedJob.jobId,
       placeIds: selectedPlaceIds,
+      places: selectedPlaces,
     });
   };
 
