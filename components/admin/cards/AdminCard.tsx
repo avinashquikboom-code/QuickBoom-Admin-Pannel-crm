@@ -41,3 +41,8 @@ export function AdminCard({
     </div>
   );
 }
+
+export const StandardCard = AdminCard;
+export const SectionCard = AdminCard;
+export type StandardCardProps = AdminCardProps;
+export type SectionCardProps = AdminCardProps;

@@ -31,13 +31,13 @@ export function AdminPageHeader({
   title,
   description,
   icon: Icon,
-  iconColor = 'text-[#25D366]',
+  iconColor = 'text-[#1AA14D]',
   badge,
   actions,
   breadcrumbs,
   className = '',
 }: AdminPageHeaderProps) {
-  const badgeClasses = {
+  const badgeClasses: Record<string, string> = {
     primary: 'bg-emerald-50 text-[#1AA14D] border-emerald-200',
     emerald: 'bg-emerald-50 text-[#1AA14D] border-emerald-200',
     indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
@@ -50,28 +50,33 @@ export function AdminPageHeader({
 
   const isBadgeString = typeof badge === 'string';
   const badgeText = isBadgeString ? badge : badge?.text;
-  const selectedBadgeVariant = (!isBadgeString && badge?.variant) || 'primary';
+  const selectedBadgeVariant = (!isBadgeString && badge?.variant) || 'emerald';
   const BadgeIcon = !isBadgeString ? badge?.icon : undefined;
   const showPulsingDot = isBadgeString ? true : badge?.pulsingDot !== false;
 
   return (
-    <div className={`space-y-2.5 ${className}`}>
+    <div
+      className={`bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5 sm:p-6 space-y-3 ${className}`}
+    >
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 flex-wrap"
+        >
           {breadcrumbs.map((crumb, idx) => {
             const isLast = idx === breadcrumbs.length - 1;
             return (
               <React.Fragment key={crumb.label}>
-                {idx > 0 && <span className="text-slate-400 font-normal">/</span>}
+                {idx > 0 && <span className="text-slate-300 font-normal">/</span>}
                 {crumb.href && !isLast ? (
                   <Link
                     href={crumb.href}
-                    className="hover:text-slate-800 transition-colors"
+                    className="text-slate-500 hover:text-[#1AA14D] transition-colors"
                   >
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className={isLast ? 'text-slate-800 font-bold' : ''}>
+                  <span className={isLast ? 'text-[#1AA14D] font-bold' : ''}>
                     {crumb.label}
                   </span>
                 )}
@@ -85,16 +90,18 @@ export function AdminPageHeader({
         <div className="space-y-1.5 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             {Icon && (
-              <div className="shrink-0">
-                <Icon className={`w-7 h-7 ${iconColor}`} />
+              <div className="w-10 h-10 rounded-2xl bg-[#E8F9EE] text-[#1AA14D] border border-[#23C45E]/20 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                <Icon className={`w-5 h-5 ${iconColor || 'text-[#1AA14D]'}`} />
               </div>
             )}
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight break-words">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight break-words">
               {title}
             </h1>
             {badgeText && (
               <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-2xs ${badgeClasses[selectedBadgeVariant]}`}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-2xs ${
+                  badgeClasses[selectedBadgeVariant] || badgeClasses.emerald
+                }`}
               >
                 {showPulsingDot && (
                   <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
@@ -161,4 +168,35 @@ export function AdminPageHero({
 // Aliases for standard Admin Panel Page Header
 export const PageHeader = AdminPageHeader;
 export type PageHeaderProps = AdminPageHeaderProps;
+
+export interface PageContainerProps {
+  children: React.ReactNode;
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | '7xl' | 'full';
+  className?: string;
+}
+
+export function PageContainer({
+  children,
+  maxWidth = 'full',
+  className = '',
+}: PageContainerProps) {
+  const maxWMap = {
+    sm: 'max-w-screen-sm',
+    md: 'max-w-screen-md',
+    lg: 'max-w-screen-lg',
+    xl: 'max-w-screen-xl',
+    '2xl': 'max-w-screen-2xl',
+    '4xl': 'max-w-4xl',
+    '7xl': 'max-w-7xl',
+    full: 'max-w-full',
+  };
+
+  return (
+    <div
+      className={`space-y-6 ${maxWMap[maxWidth]} mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
 

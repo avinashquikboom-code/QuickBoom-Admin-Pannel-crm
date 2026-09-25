@@ -30,6 +30,7 @@ import {
 import api from '@/lib/api';
 import { formatTimeIST, formatDurationHoursMinutes } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
+import { AdminPageHeader, AdminButton } from '@/components/admin';
 
 interface EmployeeLiveRecord {
   id: number;
@@ -293,66 +294,63 @@ export default function HrmsLiveDashboardPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">HRMS Live Dashboard</h1>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-              Live
-            </span>
-          </div>
-          <p className="text-xs font-medium text-slate-500 flex items-center gap-2">
-            <span>Real-time attendance, break telemetry, and office geofencing</span>
-            <span>•</span>
-            <span className="text-slate-700 font-bold">Local Time: {liveClock}</span>
-            <span>•</span>
-            <span className="text-slate-400">
-              Last updated: {data?.timestamp ? new Date(data.timestamp).toLocaleTimeString() : '—'}
-            </span>
-          </p>
-        </div>
+      {/* 1. STANDARD PAGE HEADER */}
+      <AdminPageHeader
+        title="HRMS Live Dashboard"
+        description={`Real-time attendance, break telemetry, and office geofencing • Local Time: ${liveClock} • Last updated: ${data?.timestamp ? new Date(data.timestamp).toLocaleTimeString() : '—'}`}
+        icon={Radio}
+        iconColor="text-[#1AA14D]"
+        badge={{
+          text: 'LIVE TELEMETRY',
+          icon: Radio,
+          variant: 'emerald',
+          pulsingDot: true,
+        }}
+        breadcrumbs={[
+          { label: 'HRM', href: '/hrms/offices' },
+          { label: 'Live Dashboard' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Date Picker */}
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+              <Calendar className="w-4 h-4 text-slate-500" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden"
+              />
+            </div>
 
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Date Picker */}
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-2xl border border-slate-200">
-            <Calendar className="w-4 h-4 text-slate-500" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden"
-            />
-          </div>
+            {/* Auto-refresh interval */}
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+              <Radio className="w-4 h-4 text-emerald-600 animate-pulse" />
+              <select
+                value={autoRefreshSec}
+                onChange={(e) => setAutoRefreshSec(Number(e.target.value))}
+                className="bg-transparent text-xs font-bold text-slate-700 focus:outline-hidden cursor-pointer"
+              >
+                <option value={15}>Sync: 15s</option>
+                <option value={30}>Sync: 30s</option>
+                <option value={60}>Sync: 60s</option>
+                <option value={0}>Manual only</option>
+              </select>
+            </div>
 
-          {/* Auto-refresh interval */}
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-2xl border border-slate-200">
-            <Radio className="w-4 h-4 text-emerald-600 animate-pulse" />
-            <select
-              value={autoRefreshSec}
-              onChange={(e) => setAutoRefreshSec(Number(e.target.value))}
-              className="bg-transparent text-xs font-bold text-slate-700 focus:outline-hidden cursor-pointer"
+            {/* Manual Refresh Button */}
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={RefreshCw}
+              loading={isFetching}
+              onClick={() => refetch()}
             >
-              <option value={15}>Sync: 15s</option>
-              <option value={30}>Sync: 30s</option>
-              <option value={60}>Sync: 60s</option>
-              <option value={0}>Manual only</option>
-            </select>
+              Refresh
+            </AdminButton>
           </div>
-
-          {/* Manual Refresh Button */}
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#23C45E] hover:bg-[#1fa851] text-white text-xs font-black rounded-2xl shadow-sm transition-all cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-            <span>{isFetching ? 'Refreshing...' : 'Refresh'}</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Error Banner */}
       {isError && (

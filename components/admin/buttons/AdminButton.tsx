@@ -65,3 +65,11 @@ export function AdminButton({
     </button>
   );
 }
+
+export const PrimaryButton = (props: AdminButtonProps) => (
+  <AdminButton variant="primary" {...props} />
+);
+
+export const SecondaryButton = (props: AdminButtonProps) => (
+  <AdminButton variant="outline" {...props} />
+);

@@ -99,3 +99,6 @@ export function AdminStatCard({
     </div>
   );
 }
+
+export const StatCard = AdminStatCard;
+export type StatCardProps = AdminStatCardProps;

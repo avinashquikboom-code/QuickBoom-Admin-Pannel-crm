@@ -72,3 +72,6 @@ export function AdminStatusBadge({
     </span>
   );
 }
+
+export const StatusBadge = AdminStatusBadge;
+export type StatusBadgeProps = AdminStatusBadgeProps;

@@ -22,3 +22,6 @@ export function AdminFilterBar({ children, className = '' }: AdminFilterBarProps
     </div>
   );
 }
+
+export const FilterCard = AdminFilterBar;
+export type FilterCardProps = AdminFilterBarProps;
