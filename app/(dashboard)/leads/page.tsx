@@ -703,6 +703,9 @@ export default function LeadsPage() {
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: (number | string)[]) => {
       const numericIds = ids.map((id) => Number(id)).filter((n) => !isNaN(n) && n > 0);
+      if (numericIds.length === 0) {
+        throw new Error('Please select at least one valid lead to delete.');
+      }
       return api.delete('/leads/bulk', {
         data: { ids: numericIds },
         params: { ids: numericIds.join(',') },
