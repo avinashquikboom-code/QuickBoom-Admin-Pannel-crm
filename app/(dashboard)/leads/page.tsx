@@ -695,6 +695,9 @@ export default function LeadsPage() {
       const numericIds = ids.map((id) => Number(id)).filter((n) => !isNaN(n) && n > 0);
       return api.delete('/leads/bulk', {
         data: { ids: numericIds },
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
     },
     onSuccess: (res: any) => {

@@ -121,7 +121,7 @@ function redactData(obj: any): any {
 
 // Request interceptor: attach bearer token and customer headers + logging
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     (config as any).__startTime = Date.now();
 
     // If payload is FormData, strip explicit application/json header so browser sets multipart boundary
@@ -135,8 +135,75 @@ api.interceptors.request.use(
       }
     }
 
+    // Ensure Content-Type is application/json for requests with payload (especially DELETE)
+    if (config.data && !(typeof FormData !== 'undefined' && config.data instanceof FormData)) {
+      if (typeof config.headers?.set === 'function') {
+        config.headers.set('Content-Type', 'application/json');
+      } else if (config.headers) {
+        config.headers['Content-Type'] = 'application/json';
+      }
+    }
+
     if (typeof window !== 'undefined') {
-      const { token, customerId, user } = getPersistedAuthSession();
+      let { token, refreshToken, customerId, user } = getPersistedAuthSession();
+
+      const isAuthUrl =
+        typeof config.url === 'string' &&
+        (config.url.includes('/auth/refresh') ||
+          config.url.includes('/auth/login') ||
+          config.url.includes('/admin/auth/login') ||
+          config.url.includes('/mobile/auth/login') ||
+          config.url.includes('/auth/register') ||
+          config.url.includes('/login'));
+
+      // Proactive token refresh if token is expired or expiring in <= 30 seconds
+      if (!isAuthUrl && token && refreshToken) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(
+              typeof window !== 'undefined'
+                ? atob(parts[1])
+                : Buffer.from(parts[1], 'base64').toString('utf8'),
+            );
+            if (payload.exp && payload.exp * 1000 <= Date.now() + 30000) {
+              try {
+                const rawBase = api.defaults.baseURL || apiBaseURL;
+                const cleanBaseUrl = rawBase.replace(/\/+$/, '');
+                let refreshRes: any;
+                try {
+                  refreshRes = await axios.post(
+                    `${cleanBaseUrl}/auth/refresh`,
+                    { refreshToken },
+                    { headers: { 'Content-Type': 'application/json', 'x-client-type': 'admin' } },
+                  );
+                } catch (rErr: any) {
+                  if (rErr?.response?.status === 404) {
+                    refreshRes = await axios.post(
+                      `${cleanBaseUrl}/admin/auth/refresh`,
+                      { refreshToken },
+                      { headers: { 'Content-Type': 'application/json', 'x-client-type': 'admin' } },
+                    );
+                  } else {
+                    throw rErr;
+                  }
+                }
+                const resData = refreshRes?.data;
+                const pl = resData?.data || resData?.tokens || resData;
+                const newAcc = (pl?.accessToken || pl?.token || '').replace(/^["']|["']$/g, '').trim();
+                const newRef = (pl?.refreshToken || refreshToken).replace(/^["']|["']$/g, '').trim();
+                if (newAcc) {
+                  useAuthStore.getState().updateTokens(newAcc, newRef);
+                  token = newAcc;
+                  refreshToken = newRef;
+                }
+              } catch (_) {
+                // If proactive refresh fails, allow request to proceed and let 401 response interceptor handle it
+              }
+            }
+          }
+        } catch (_) {}
+      }
 
       if (token) {
         const cleanToken = token.replace(/^["']|["']$/g, '').trim();
