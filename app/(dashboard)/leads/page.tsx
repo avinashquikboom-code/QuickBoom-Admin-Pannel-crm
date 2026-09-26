@@ -705,6 +705,7 @@ export default function LeadsPage() {
       const numericIds = ids.map((id) => Number(id)).filter((n) => !isNaN(n) && n > 0);
       return api.delete('/leads/bulk', {
         data: { ids: numericIds },
+        params: { ids: numericIds.join(',') },
         headers: {
           'Content-Type': 'application/json',
         },
@@ -713,7 +714,7 @@ export default function LeadsPage() {
     onSuccess: (res: any) => {
       const data = res?.data || res;
       const requestedCount = data?.requested ?? selectedLeadIds.size;
-      const deletedCount = data?.deleted ?? selectedLeadIds.size;
+      const deletedCount = data?.deleted ?? data?.deletedCount ?? selectedLeadIds.size;
       const failedCount = data?.failed ?? 0;
 
       if (failedCount > 0) {
@@ -731,6 +732,7 @@ export default function LeadsPage() {
 
       queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-lead-detail'] });
     },
     onError: (err: any) => {
       toast.error(getErrorMessage(err));
