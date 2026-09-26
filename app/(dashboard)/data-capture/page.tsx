@@ -154,11 +154,6 @@ function getDiscoveredSocialList(place: CapturedPlace): SocialItem[] {
     list.push({ platform: 'TikTok', url: rawTiktok.trim() });
   }
 
-  const rawWebsite = sm?.website || (place.website && place.website !== 'N/A' ? place.website : undefined);
-  if (rawWebsite && typeof rawWebsite === 'string' && rawWebsite.trim() && rawWebsite !== 'N/A') {
-    list.push({ platform: 'Website', url: rawWebsite.trim() });
-  }
-
   const rawPinterest = sm?.pinterest;
   if (rawPinterest && typeof rawPinterest === 'string' && rawPinterest.trim()) {
     list.push({ platform: 'Pinterest', url: rawPinterest.trim() });
@@ -335,7 +330,7 @@ const resolveDisplayUrl = (url?: string): string => {
   if (!url) return '';
   const trimmed = url.trim();
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-  if (trimmed.startsWith('/api/v1')) {
+  if (trimmed.startsWith('/api/') || trimmed.startsWith('/uploads/')) {
     const apiOrigin = (
       process.env.NEXT_PUBLIC_API_BASE_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
@@ -367,16 +362,17 @@ function DataCapturePhotoThumbnail({
   onOpenGallery: (e: React.MouseEvent) => void;
 }) {
   const [loadState, setLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [photoIndex, setPhotoIndex] = useState(0);
 
-  const primary = photos && photos.length > 0 ? photos[0] : null;
+  const activePhoto = photos && photos.length > photoIndex ? photos[photoIndex] : null;
   const photoCount = photos?.length || 0;
-  const rawUrl = primary?.url;
+  const rawUrl = activePhoto?.url;
   const resolvedUrl = resolveDisplayUrl(rawUrl);
 
-  if (!primary || !resolvedUrl) {
+  if (!activePhoto || !resolvedUrl) {
     return (
       <div
-        className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center mx-auto text-slate-400 p-0.5 select-none"
+        className="w-[52px] h-[52px] rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center mx-auto text-slate-400 p-0.5 select-none"
         title="No image available for this business"
       >
         <ImageIcon className="w-4 h-4 text-slate-400" />
@@ -386,6 +382,13 @@ function DataCapturePhotoThumbnail({
   }
 
   const handleImgError = () => {
+    // If another valid image exists for the same record, try next valid image (Part 21)
+    if (photoIndex + 1 < photoCount) {
+      setPhotoIndex((prev) => prev + 1);
+      setLoadState('loading');
+      return;
+    }
+
     setLoadState('error');
     if (process.env.NODE_ENV !== 'production') {
       console.warn(
@@ -404,7 +407,7 @@ function DataCapturePhotoThumbnail({
       className="relative inline-block group cursor-pointer"
       title={`Click to view ${photoCount} Google Places ${photoCount === 1 ? 'photo' : 'photos'}`}
     >
-      <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 shadow-2xs group-hover:border-[#23C45E] group-hover:shadow-md transition-all bg-slate-100 flex items-center justify-center relative">
+      <div className="w-[52px] h-[52px] rounded-lg overflow-hidden border border-slate-200 shadow-2xs group-hover:border-[#23C45E] group-hover:shadow-md transition-all bg-slate-100 flex items-center justify-center relative">
         {/* Loading skeleton */}
         {loadState === 'loading' && (
           <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center">
@@ -415,7 +418,7 @@ function DataCapturePhotoThumbnail({
         {/* Loaded Image */}
         {loadState !== 'error' ? (
           <img
-            key={`thumb-${placeId}-${resolvedUrl}`}
+            key={`thumb-${placeId}-${photoIndex}-${resolvedUrl}`}
             src={resolvedUrl}
             alt={businessName}
             loading="lazy"

@@ -46,6 +46,27 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminPageHeader, AdminButton, AdminFormDrawer, LeadStageEmailDrawer, WhatsAppIcon, LeadImageGalleryModal } from '@/components/admin';
+
+const resolveDisplayUrl = (url?: string): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:image/')) return trimmed;
+  if (trimmed.startsWith('/api/') || trimmed.startsWith('/uploads/')) {
+    const apiOrigin = (
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'https://api.qbapp.online/api/v1'
+    ).replace(/\/api\/v1\/?$/, '');
+    return `${apiOrigin}${trimmed}`;
+  }
+  return trimmed;
+};
+
+const TikTokIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 2.89 3.5 2.75 1.57-.04 2.89-1.2 3.12-2.74.07-.5.08-1.01.08-1.51V.02z" />
+  </svg>
+);
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -413,6 +434,7 @@ function isDetailsSendStage(lead: any): boolean {
       case 'linkedin': return clean.includes('/') ? `https://linkedin.com/${clean}` : `https://linkedin.com/in/${clean}`;
       case 'youtube': return `https://youtube.com/@${clean}`;
       case 'twitter': return `https://x.com/${clean}`;
+      case 'tiktok': return `https://tiktok.com/@${clean}`;
       default: return `https://${clean}`;
     }
   };
@@ -1070,7 +1092,7 @@ function isDetailsSendStage(lead: any): boolean {
                       className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 aspect-video shadow-xs hover:shadow-md transition cursor-pointer"
                     >
                       <img
-                        src={primaryImage.url}
+                        src={resolveDisplayUrl(primaryImage.url)}
                         alt={primaryImage.caption || 'Primary Lead Image'}
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                       />
@@ -1112,7 +1134,7 @@ function isDetailsSendStage(lead: any): boolean {
                               }`}
                               title={img.caption || `Image ${idx + 1}`}
                             >
-                              <img src={img.url} alt="" className="w-full h-full object-cover" />
+                              <img src={resolveDisplayUrl(img.url)} alt="" className="w-full h-full object-cover" />
                               {img.isPrimary && (
                                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white" />
                               )}
@@ -1229,7 +1251,7 @@ function isDetailsSendStage(lead: any): boolean {
           <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                <Share2 className="w-4 h-4 text-emerald-600" /> Social Media & Web
+                <Share2 className="w-4 h-4 text-emerald-600" /> Social Media
               </h3>
               <button
                 type="button"
@@ -1248,7 +1270,7 @@ function isDetailsSendStage(lead: any): boolean {
                 { key: 'linkedin', label: 'LinkedIn', val: social.linkedin || lead.linkedin, icon: Linkedin, color: 'text-sky-600 bg-sky-50 border-sky-200' },
                 { key: 'youtube', label: 'YouTube', val: social.youtube || lead.youtube, icon: Youtube, color: 'text-red-600 bg-red-50 border-red-200' },
                 { key: 'twitter', label: 'X (Twitter)', val: social.twitter || lead.twitter, icon: Twitter, color: 'text-slate-800 bg-slate-100 border-slate-200' },
-                { key: 'website', label: 'Website', val: lead.website || social.website, icon: Globe, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+                { key: 'tiktok', label: 'TikTok', val: social.tiktok || lead.tiktok, icon: TikTokIcon, color: 'text-black bg-slate-100 border-slate-200' },
               ].filter(p => Boolean(p.val));
 
               if (platforms.length === 0) {

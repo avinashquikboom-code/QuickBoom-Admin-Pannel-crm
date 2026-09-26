@@ -20,6 +20,21 @@ export interface LeadImageItem {
   isPrimary?: boolean;
 }
 
+const resolveDisplayUrl = (url?: string): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:image/')) return trimmed;
+  if (trimmed.startsWith('/api/') || trimmed.startsWith('/uploads/')) {
+    const apiOrigin = (
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'https://api.qbapp.online/api/v1'
+    ).replace(/\/api\/v1\/?$/, '');
+    return `${apiOrigin}${trimmed}`;
+  }
+  return trimmed;
+};
+
 interface LeadImageGalleryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -145,7 +160,7 @@ export const LeadImageGalleryModal: React.FC<LeadImageGalleryModalProps> = ({
               {/* Main Image */}
               <div className="relative max-w-full max-h-[62vh] rounded-2xl overflow-hidden shadow-2xl bg-black/40 flex items-center justify-center border border-white/10 group">
                 <img
-                  src={currentImage.url}
+                  src={resolveDisplayUrl(currentImage.url)}
                   alt={currentImage.caption || 'Lead Image'}
                   className="max-w-full max-h-[62vh] object-contain select-none"
                 />
@@ -267,7 +282,7 @@ export const LeadImageGalleryModal: React.FC<LeadImageGalleryModalProps> = ({
                     }`}
                   >
                     <img
-                      src={img.url}
+                      src={resolveDisplayUrl(img.url)}
                       alt={img.caption || `Thumbnail ${idx + 1}`}
                       className="w-full h-full object-cover"
                     />
