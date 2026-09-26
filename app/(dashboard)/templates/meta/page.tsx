@@ -164,22 +164,57 @@ export default function TemplatesMetaPage() {
     data: templates = [],
     isLoading,
     isRefetching,
+    isError,
+    error,
     refetch,
   } = useQuery<MetaTemplate[]>({
     queryKey: ['meta-templates', selectedCategory, selectedMetaStatus, selectedLocalStatus, searchQuery],
     queryFn: async () => {
       const params: any = {};
-      if (selectedCategory !== 'ALL') params.category = selectedCategory;
-      if (selectedMetaStatus !== 'ALL') params.metaStatus = selectedMetaStatus;
-      if (selectedLocalStatus === 'ACTIVE') params.isActive = 'true';
-      if (selectedLocalStatus === 'INACTIVE') params.isActive = 'false';
-      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (selectedCategory && selectedCategory !== 'ALL') params.category = selectedCategory;
+      if (selectedMetaStatus && selectedMetaStatus !== 'ALL') params.status = selectedMetaStatus;
+      if (selectedLocalStatus === 'ACTIVE') params.isLocalActive = 'true';
+      if (selectedLocalStatus === 'INACTIVE') params.isLocalActive = 'false';
+      if (searchQuery && searchQuery.trim()) params.search = searchQuery.trim();
 
       const res: any = await api.get('/templates/meta', { params });
       const rawList = res?.data?.items || res?.items || res?.data?.data || res?.data || res;
-      return Array.isArray(rawList) ? rawList : [];
+      if (!Array.isArray(rawList)) return [];
+
+      return rawList.map((tpl: any) => ({
+        ...tpl,
+        displayName: tpl.displayName || tpl.name,
+        metaStatus: tpl.metaStatus || tpl.status || 'APPROVED',
+        status: tpl.status || tpl.metaStatus || 'APPROVED',
+        bodyText: tpl.bodyText || tpl.body || '',
+        body: tpl.body || tpl.bodyText || '',
+        footerText: tpl.footerText || tpl.footer || '',
+        footer: tpl.footer || tpl.footerText || '',
+        isActive: tpl.isActive !== undefined ? Boolean(tpl.isActive) : Boolean(tpl.isLocalActive),
+        isLocalActive: tpl.isLocalActive !== undefined ? Boolean(tpl.isLocalActive) : Boolean(tpl.isActive),
+      }));
     },
+    retry: (failureCount, err: any) => {
+      const status = err?.response?.status;
+      if (status && status >= 400 && status < 500) return false;
+      return failureCount < 2;
+    },
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
   });
+
+  const templateErrorStatus = (error as any)?.response?.status;
+  const templateErrorMessage =
+    (error as any)?.response?.data?.message ||
+    (error as any)?.message ||
+    'Failed to fetch Meta WhatsApp templates';
+
+  const handleResetFilters = () => {
+    setSelectedCategory('ALL');
+    setSelectedMetaStatus('ALL');
+    setSelectedLocalStatus('ALL');
+    setSearchQuery('');
+  };
 
   // Query statistics with loop prevention and safe debug logging
   const {
@@ -264,17 +299,27 @@ export default function TemplatesMetaPage() {
   // Save template (Create / Update)
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      const templateName = (data.name || data.displayName || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, '_')
+        .replace(/[^a-z0-9_]/g, '');
+
       const payload = {
-        name: data.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'),
-        displayName: data.displayName.trim(),
+        name: data.displayName?.trim() || data.name?.trim(),
+        displayName: data.displayName?.trim() || data.name?.trim(),
+        templateName,
         category: data.category,
         language: data.language,
         headerType: data.headerType,
         headerContent: data.headerContent?.trim() || undefined,
+        body: data.bodyText,
         bodyText: data.bodyText,
+        footer: data.footerText?.trim() || undefined,
         footerText: data.footerText?.trim() || undefined,
-        buttons: data.buttons.length > 0 ? data.buttons : undefined,
+        buttons: data.buttons && data.buttons.length > 0 ? data.buttons : undefined,
         variables: data.variables,
+        isLocalActive: data.isActive,
         isActive: data.isActive,
       };
 
@@ -572,6 +617,72 @@ export default function TemplatesMetaPage() {
       />
 
 
+      {/* Error state if templates list endpoint fails */}
+      {isError && (
+        <div
+          className={`p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-semibold border ${
+            templateErrorStatus === 401
+              ? 'bg-amber-50 border-amber-200 text-amber-900'
+              : templateErrorStatus === 403
+              ? 'bg-rose-50 border-rose-200 text-rose-900'
+              : templateErrorStatus === 400
+              ? 'bg-orange-50 border-orange-200 text-orange-900'
+              : 'bg-rose-50 border-rose-200 text-rose-800'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle
+              className={`w-5 h-5 shrink-0 ${
+                templateErrorStatus === 401
+                  ? 'text-amber-600'
+                  : templateErrorStatus === 403
+                  ? 'text-rose-600'
+                  : templateErrorStatus === 400
+                  ? 'text-orange-600'
+                  : 'text-rose-600'
+              }`}
+            />
+            <div>
+              <span className="font-extrabold block">
+                {templateErrorStatus === 401 && 'Authentication Error (401): Session expired or invalid authentication token'}
+                {templateErrorStatus === 403 && 'Access Denied (403): Insufficient permissions to view Meta Templates'}
+                {templateErrorStatus === 400 && 'Bad Request (400): Invalid template query parameters'}
+                {(!templateErrorStatus || templateErrorStatus >= 500) && 'Server Error: Failed to retrieve Meta WhatsApp templates'}
+              </span>
+              <span className="font-medium opacity-90">
+                {Array.isArray(templateErrorMessage) ? templateErrorMessage.join(', ') : String(templateErrorMessage)}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {templateErrorStatus === 401 && (
+              <button
+                onClick={() => {
+                  window.location.href = '/login';
+                }}
+                className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold cursor-pointer transition-all shadow-xs"
+              >
+                Log In Again
+              </button>
+            )}
+            {templateErrorStatus === 400 && (
+              <button
+                onClick={handleResetFilters}
+                className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold cursor-pointer transition-all shadow-xs"
+              >
+                Reset Filters
+              </button>
+            )}
+            <button
+              onClick={() => refetch()}
+              className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl font-bold cursor-pointer transition-all shadow-2xs"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Error state if stats endpoint fails */}
       {isStatsError && (
         <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl flex items-center justify-between text-xs font-semibold">
@@ -751,6 +862,47 @@ export default function TemplatesMetaPage() {
                   <td colSpan={7} className="py-12 text-center text-slate-400">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#25D366]" />
                     Loading Meta WhatsApp templates...
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="max-w-md mx-auto space-y-2">
+                      <AlertTriangle className="w-8 h-8 mx-auto text-rose-500 mb-1" />
+                      <p className="font-bold text-slate-900 text-sm">
+                        {templateErrorStatus === 401 && 'Session Expired (401)'}
+                        {templateErrorStatus === 403 && 'Access Restricted (403)'}
+                        {templateErrorStatus === 400 && 'Bad Request (400)'}
+                        {(!templateErrorStatus || templateErrorStatus >= 500) && 'Unable to Load Meta Templates'}
+                      </p>
+                      <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                        {Array.isArray(templateErrorMessage) ? templateErrorMessage.join(', ') : String(templateErrorMessage)}
+                      </p>
+                      <div className="pt-2 flex items-center justify-center gap-2">
+                        {templateErrorStatus === 401 ? (
+                          <button
+                            onClick={() => (window.location.href = '/login')}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs cursor-pointer transition-all shadow-xs"
+                          >
+                            Sign In Again
+                          </button>
+                        ) : templateErrorStatus === 400 ? (
+                          <button
+                            onClick={handleResetFilters}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs cursor-pointer transition-all shadow-xs"
+                          >
+                            Reset Filters
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => refetch()}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs cursor-pointer transition-all shadow-xs"
+                          >
+                            Retry Request
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : templates.length === 0 ? (
