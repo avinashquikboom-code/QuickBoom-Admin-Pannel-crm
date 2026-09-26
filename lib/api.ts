@@ -27,6 +27,53 @@ const isValidTokenString = (val: any): val is string =>
   val !== 'undefined' &&
   val !== '[object Object]';
 
+/**
+ * Robust base64url JWT payload decoder that handles URL-safe characters (- and _)
+ * and missing padding without throwing InvalidCharacterError in browser environments.
+ */
+export function safeDecodeJwtPayload(token: string): any {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const parts = token.trim().replace(/^["']|["']$/g, '').split('.');
+    if (parts.length !== 3) return null;
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4 !== 0) {
+      base64 += '=';
+    }
+    const jsonStr =
+      typeof window !== 'undefined'
+        ? decodeURIComponent(
+            Array.prototype.map
+              .call(atob(base64), (c: string) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          )
+        : Buffer.from(base64, 'base64').toString('utf8');
+    return JSON.parse(jsonStr);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns prioritized candidates for token refresh endpoints to prevent 404s
+ * regardless of whether baseURL has a trailing /api/v1 suffix.
+ */
+export function getAuthRefreshCandidates(rawBase: string): string[] {
+  const clean = (rawBase || '').replace(/\/+$/, '');
+  const hasApiV1 = clean.endsWith('/api/v1');
+  const baseWithApi = hasApiV1 ? clean : `${clean}/api/v1`;
+  const baseWithoutApi = clean.replace(/\/api\/v1$/, '');
+
+  return Array.from(
+    new Set([
+      `${baseWithApi}/auth/refresh`,
+      `${baseWithApi}/admin/auth/refresh`,
+      `${baseWithoutApi}/auth/refresh`,
+      `${baseWithoutApi}/admin/auth/refresh`,
+    ])
+  );
+}
+
 export function getPersistedAuthSession() {
   if (typeof window === 'undefined') {
     return { token: null, refreshToken: null, user: null, customerId: null };
@@ -159,36 +206,30 @@ api.interceptors.request.use(
       // Proactive token refresh if token is expired or expiring in <= 30 seconds
       if (!isAuthUrl && token && refreshToken) {
         try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            const payload = JSON.parse(
-              typeof window !== 'undefined'
-                ? atob(parts[1])
-                : Buffer.from(parts[1], 'base64').toString('utf8'),
-            );
-            if (payload.exp && payload.exp * 1000 <= Date.now() + 30000) {
-              try {
-                const rawBase = api.defaults.baseURL || apiBaseURL;
-                const cleanBaseUrl = rawBase.replace(/\/+$/, '');
-                let refreshRes: any;
+          const payload = safeDecodeJwtPayload(token);
+          if (payload?.exp && payload.exp * 1000 <= Date.now() + 30000) {
+            try {
+              const candidates = getAuthRefreshCandidates(api.defaults.baseURL || apiBaseURL);
+              let refreshRes: any;
+
+              for (const endpoint of candidates) {
                 try {
                   refreshRes = await axios.post(
-                    `${cleanBaseUrl}/auth/refresh`,
+                    endpoint,
                     { refreshToken },
                     { headers: { 'Content-Type': 'application/json', 'x-client-type': 'admin' } },
                   );
-                } catch (rErr: any) {
-                  if (rErr?.response?.status === 404) {
-                    refreshRes = await axios.post(
-                      `${cleanBaseUrl}/admin/auth/refresh`,
-                      { refreshToken },
-                      { headers: { 'Content-Type': 'application/json', 'x-client-type': 'admin' } },
-                    );
-                  } else {
-                    throw rErr;
+                  if (refreshRes?.data) break;
+                } catch (err: any) {
+                  if (err?.response?.status === 404) {
+                    continue;
                   }
+                  break;
                 }
-                const resData = refreshRes?.data;
+              }
+
+              if (refreshRes?.data) {
+                const resData = refreshRes.data;
                 const pl = resData?.data || resData?.tokens || resData;
                 const newAcc = (pl?.accessToken || pl?.token || '').replace(/^["']|["']$/g, '').trim();
                 const newRef = (pl?.refreshToken || refreshToken).replace(/^["']|["']$/g, '').trim();
@@ -197,9 +238,9 @@ api.interceptors.request.use(
                   token = newAcc;
                   refreshToken = newRef;
                 }
-              } catch (_) {
-                // If proactive refresh fails, allow request to proceed and let 401 response interceptor handle it
               }
+            } catch (_) {
+              // If proactive refresh fails, allow request to proceed and let 401 response interceptor handle it
             }
           }
         } catch (_) {}
@@ -240,19 +281,14 @@ api.interceptors.request.use(
       let jwtEmployeeId: any = null;
       let jwtCompanyId: any = null;
       if (token) {
-        try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            const payload = JSON.parse(typeof window !== 'undefined' ? atob(parts[1]) : Buffer.from(parts[1], 'base64').toString('utf8'));
-            if (payload.exp) {
-              tokenExpired = payload.exp * 1000 <= Date.now();
-            }
-            jwtUserId = payload.sub || payload.id || payload.userId || null;
-            jwtEmployeeId = payload.employeeId || null;
-            jwtCompanyId = payload.customerId || payload.companyId || payload.tenantId || null;
+        const payload = safeDecodeJwtPayload(token);
+        if (payload) {
+          if (payload.exp) {
+            tokenExpired = payload.exp * 1000 <= Date.now();
           }
-        } catch {
-          // ignore decode error
+          jwtUserId = payload.sub || payload.id || payload.userId || null;
+          jwtEmployeeId = payload.employeeId || null;
+          jwtCompanyId = payload.customerId || payload.companyId || payload.tenantId || null;
         }
       }
 
@@ -414,26 +450,14 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const rawBase = api.defaults.baseURL || apiBaseURL;
-        const cleanBaseUrl = rawBase.replace(/\/+$/, '');
-
-        // Isolated POST call to avoid interceptor loop; fallback to admin refresh route if needed
+        const candidates = getAuthRefreshCandidates(api.defaults.baseURL || apiBaseURL);
         let refreshRes: any;
-        try {
-          refreshRes = await axios.post(
-            `${cleanBaseUrl}/auth/refresh`,
-            { refreshToken },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                'x-client-type': 'admin',
-              },
-            }
-          );
-        } catch (authErr: any) {
-          if (authErr?.response?.status === 404) {
+        let lastAuthErr: any = null;
+
+        for (const endpoint of candidates) {
+          try {
             refreshRes = await axios.post(
-              `${cleanBaseUrl}/admin/auth/refresh`,
+              endpoint,
               { refreshToken },
               {
                 headers: {
@@ -442,9 +466,21 @@ api.interceptors.response.use(
                 },
               }
             );
-          } else {
+            if (refreshRes?.data) {
+              lastAuthErr = null;
+              break;
+            }
+          } catch (authErr: any) {
+            lastAuthErr = authErr;
+            if (authErr?.response?.status === 404) {
+              continue;
+            }
             throw authErr;
           }
+        }
+
+        if (lastAuthErr && !refreshRes?.data) {
+          throw lastAuthErr;
         }
 
         // Normalize response payload across raw and TransformInterceptor wrappers
