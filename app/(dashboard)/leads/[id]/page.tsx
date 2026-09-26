@@ -1049,6 +1049,12 @@ function isDetailsSendStage(lead: any): boolean {
           {(() => {
             const leadImages: any[] = Array.isArray(lead.images) ? lead.images : [];
             const primaryImage = leadImages.find((img: any) => img.isPrimary) || leadImages[0] || null;
+            // Check if this is a Google Places lead
+            const isGooglePlacesLead = (
+              lead?.source?.toUpperCase?.()?.includes('GOOGLE') ||
+              (lead?.googlePlaceId && lead.googlePlaceId.trim() !== '')
+            );
+            const emptyStateMessage = isGooglePlacesLead ? 'No Google photos available' : 'No images available';
 
             return (
               <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
@@ -1070,13 +1076,16 @@ function isDetailsSendStage(lead: any): boolean {
                         {leadImages.length} {leadImages.length === 1 ? 'Image' : 'Images'} →
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setIsAddImageModalOpen(true)}
-                      className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                    >
-                      <Plus className="w-3 h-3" /> Add
-                    </button>
+                    {/* Only show Add button for non-Google Places leads */}
+                    {!isGooglePlacesLead && (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddImageModalOpen(true)}
+                        className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                      >
+                        <Plus className="w-3 h-3" /> Add
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1150,15 +1159,22 @@ function isDetailsSendStage(lead: any): boolean {
                     <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
                       <ImageIcon className="w-6 h-6" />
                     </div>
-                    <p className="text-xs font-bold text-slate-700">No image available</p>
-                    <p className="text-[11px] text-slate-500">Storefront, office, visiting card or product photos</p>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddImageModalOpen(true)}
-                      className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition shadow-xs"
-                    >
-                      <Upload className="w-3.5 h-3.5" /> Upload Image
-                    </button>
+                    <p className="text-xs font-bold text-slate-700">{emptyStateMessage}</p>
+                    <p className="text-[11px] text-slate-500">
+                      {isGooglePlacesLead
+                        ? 'This Google location has no available photos'
+                        : 'Storefront, office, visiting card or product photos'}
+                    </p>
+                    {/* Only show upload button for non-Google Places leads */}
+                    {!isGooglePlacesLead && (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddImageModalOpen(true)}
+                        className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Upload Image
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1748,6 +1764,15 @@ function isDetailsSendStage(lead: any): boolean {
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            // Check if this is a Google Places lead
+            const isGooglePlacesLead = (
+              lead?.source?.toUpperCase?.()?.includes('GOOGLE') ||
+              (lead?.googlePlaceId && lead.googlePlaceId.trim() !== '')
+            );
+            if (isGooglePlacesLead) {
+              toast.error('Photos for Google Places leads are automatically sourced from Google');
+              return;
+            }
             uploadImageMutation.mutate();
           }}
           className="space-y-4"
@@ -1842,21 +1867,35 @@ function isDetailsSendStage(lead: any): boolean {
       </AdminFormDrawer>
 
       {/* FULL-SCREEN IMAGE GALLERY MODAL */}
-      <LeadImageGalleryModal
-        isOpen={isGalleryOpen}
-        onClose={() => setIsGalleryOpen(false)}
-        images={Array.isArray(lead.images) ? lead.images : []}
-        leadTitle={company || name || 'Lead Gallery'}
-        initialIndex={galleryIndex}
-        onSetPrimary={(imgId) => setPrimaryImageMutation.mutate(imgId)}
-        onDelete={(imgId) => deleteImageMutation.mutate(imgId)}
-        onUploadNew={() => {
-          setIsGalleryOpen(false);
-          setIsAddImageModalOpen(true);
-        }}
-        isSettingPrimary={setPrimaryImageMutation.isPending}
-        deletingImageId={deletingImageId}
-      />
+      {(() => {
+        // Determine if this is a Google Places lead
+        const isGooglePlacesLead = (
+          lead?.source?.toUpperCase?.()?.includes('GOOGLE') ||
+          (lead?.googlePlaceId && lead.googlePlaceId.trim() !== '')
+        );
+        return (
+          <LeadImageGalleryModal
+            isOpen={isGalleryOpen}
+            onClose={() => setIsGalleryOpen(false)}
+            images={Array.isArray(lead.images) ? lead.images : []}
+            leadTitle={company || name || 'Lead Gallery'}
+            initialIndex={galleryIndex}
+            onSetPrimary={(imgId) => setPrimaryImageMutation.mutate(imgId)}
+            onDelete={(imgId) => deleteImageMutation.mutate(imgId)}
+            onUploadNew={
+              // Only allow uploads for non-Google Places leads
+              !isGooglePlacesLead
+                ? () => {
+                    setIsGalleryOpen(false);
+                    setIsAddImageModalOpen(true);
+                  }
+                : undefined
+            }
+            isSettingPrimary={setPrimaryImageMutation.isPending}
+            deletingImageId={deletingImageId}
+          />
+        );
+      })()}
 
       {/* EDIT SOCIAL MEDIA DRAWER */}
       <AdminFormDrawer
