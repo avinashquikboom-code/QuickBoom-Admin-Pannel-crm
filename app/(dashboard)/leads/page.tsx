@@ -264,6 +264,16 @@ interface LeadItem {
   socialMedia?: Record<string, any> | null;
   images?: Array<{ id: number; url: string; isPrimary?: boolean; caption?: string }>;
   createdAt: string;
+  createdById?: number | null;
+  createdBy?: { id: number; firstName: string; lastName: string } | null;
+  createdByName?: string | null;
+  assignedToName?: string | null;
+  employeeId?: number | null;
+  employee?: { id: number; firstName: string; lastName: string } | null;
+  employeeName?: string | null;
+  convertedByEmployeeId?: number | null;
+  convertedByEmployee?: { id: number; firstName: string; lastName: string } | null;
+  convertedByEmployeeName?: string | null;
 }
 
 /**
@@ -1439,13 +1449,14 @@ export default function LeadsPage() {
                 <th className="py-4 px-4">Stage Status</th>
                 <th className="py-4 px-4">Est. Value</th>
                 <th className="py-4 px-4">Assigned To</th>
+                <th className="py-4 px-4">Created By</th>
                 <th className="py-4 px-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoadingLeads ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                  <td colSpan={10} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading CRM leads from database...
                   </td>
                 </tr>
@@ -1714,6 +1725,24 @@ export default function LeadsPage() {
                           </div>
                         ) : (
                           <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
+                        )}
+                      </td>
+
+                      {/* Created By */}
+                      <td className="py-4 px-4">
+                        {lead.createdBy ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black flex items-center justify-center">
+                              {lead.createdBy.firstName?.[0] || 'E'}
+                            </div>
+                            <span className="font-bold text-slate-700 text-xs">
+                              {lead.createdBy.firstName} {lead.createdBy.lastName}
+                            </span>
+                          </div>
+                        ) : lead.createdByName ? (
+                          <span className="font-bold text-slate-700 text-xs">{lead.createdByName}</span>
+                        ) : (
+                          <span className="text-slate-400 font-bold text-xs italic">—</span>
                         )}
                       </td>
 
@@ -2355,6 +2384,38 @@ export default function LeadsPage() {
                           ))}
                       </select>
                     </div>
+
+                    {/* Ownership Chain: Created By + Converted By */}
+                    {(leadDetail.createdBy || leadDetail.convertedByEmployee) && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {leadDetail.createdBy && (
+                          <div className="p-3 bg-slate-50/70 rounded-2xl border border-slate-200/80">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Created By</p>
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                                {leadDetail.createdBy.firstName?.[0] || 'E'}
+                              </div>
+                              <p className="text-xs font-black text-slate-800 truncate">
+                                {`${leadDetail.createdBy.firstName} ${leadDetail.createdBy.lastName}`.trim() || 'Employee'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        {leadDetail.convertedByEmployee && (
+                          <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mb-1">Converted By</p>
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                                {leadDetail.convertedByEmployee.firstName?.[0] || 'E'}
+                              </div>
+                              <p className="text-xs font-black text-emerald-800 truncate">
+                                {`${leadDetail.convertedByEmployee.firstName} ${leadDetail.convertedByEmployee.lastName}`.trim() || 'Employee'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Interactive Tabs inside Drawer */}
                     <div className="space-y-4 pt-2">
