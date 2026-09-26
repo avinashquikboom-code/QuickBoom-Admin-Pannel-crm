@@ -90,6 +90,7 @@ interface CapturedPlace {
   businessStatus?: string;
   source?: string;
   status?: string;
+  createdFrom?: 'MOBILE_APP' | 'ADMIN_PANEL' | string;
   notes?: string;
   rawData?: any;
   isImported?: boolean;
@@ -464,6 +465,7 @@ export default function DataCapturePage() {
   const [activeTab, setActiveTab] = useState<StatusTab>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState('ALL');
+  const [createdFromFilter, setCreatedFromFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
@@ -575,7 +577,7 @@ export default function DataCapturePage() {
     error,
     refetch: refetchList,
   } = useQuery({
-    queryKey: ['data-capture-list', page, limit, activeTab, sourceFilter, searchQuery],
+    queryKey: ['data-capture-list', page, limit, activeTab, sourceFilter, createdFromFilter, searchQuery],
     queryFn: async () => {
       const params: any = {
         page,
@@ -583,6 +585,9 @@ export default function DataCapturePage() {
         status: activeTab,
         source: sourceFilter,
       };
+      if (createdFromFilter !== 'ALL') {
+        params.createdFrom = createdFromFilter;
+      }
       if (searchQuery.trim()) {
         params.search = searchQuery.trim();
       }
@@ -858,6 +863,7 @@ export default function DataCapturePage() {
       'Category',
       'Status',
       'Source',
+      'Created From',
       'Primary Photo URL',
       'Phone',
       'Email',
@@ -890,6 +896,7 @@ export default function DataCapturePage() {
         `"${(p.category || '').replace(/"/g, '""')}"`,
         p.status || 'CAPTURED',
         p.source || 'GOOGLE_PLACES',
+        p.createdFrom === 'MOBILE_APP' ? 'Mobile App' : p.createdFrom === 'ADMIN_PANEL' ? 'Admin Panel' : '',
         `"${primaryPhoto.replace(/"/g, '""')}"`,
         `"${p.phone || ''}"`,
         `"${p.email || ''}"`,
@@ -1120,6 +1127,22 @@ export default function DataCapturePage() {
               </select>
             </div>
 
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 hidden md:inline">Created From:</span>
+              <select
+                value={createdFromFilter}
+                onChange={(e) => {
+                  setCreatedFromFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+              >
+                <option value="ALL">All Platforms</option>
+                <option value="MOBILE_APP">📱 Mobile App</option>
+                <option value="ADMIN_PANEL">🖥 Admin Panel</option>
+              </select>
+            </div>
+
             <AdminButton
               variant="outline"
               size="sm"
@@ -1291,6 +1314,7 @@ export default function DataCapturePage() {
                   <th className="p-3.5">SOCIAL</th>
                   <th className="p-3.5">STATUS</th>
                   <th className="p-3.5">SOURCE</th>
+                  <th className="p-3.5">CREATED FROM</th>
                   <th className="p-3.5 text-right">ACTIONS</th>
                 </tr>
               </thead>
@@ -1430,6 +1454,21 @@ export default function DataCapturePage() {
                         <span className="text-[10px] font-bold text-slate-500 uppercase px-2 py-0.5 bg-slate-100 rounded-md">
                           {place.source || 'GOOGLE_PLACES'}
                         </span>
+                      </td>
+                      <td className="p-3.5">
+                        {place.createdFrom === 'MOBILE_APP' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs whitespace-nowrap">
+                            <span>📱</span>
+                            <span>Mobile App</span>
+                          </span>
+                        ) : place.createdFrom === 'ADMIN_PANEL' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs whitespace-nowrap">
+                            <span>🖥</span>
+                            <span>Admin Panel</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-bold text-xs">—</span>
+                        )}
                       </td>
                       <td className="p-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
@@ -2097,6 +2136,25 @@ export default function DataCapturePage() {
                       <span className="font-bold text-slate-800 uppercase px-2 py-0.5 bg-slate-100 rounded text-[10px]">
                         {selectedRecord.source || 'GOOGLE_PLACES'}
                       </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-bold">Created From:</span>
+                      <div>
+                        {selectedRecord.createdFrom === 'MOBILE_APP' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                            <span>📱</span>
+                            <span>Mobile App</span>
+                          </span>
+                        ) : selectedRecord.createdFrom === 'ADMIN_PANEL' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+                            <span>🖥</span>
+                            <span>Admin Panel</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-bold text-xs">—</span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between">

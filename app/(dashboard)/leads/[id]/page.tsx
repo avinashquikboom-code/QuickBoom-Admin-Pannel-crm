@@ -597,7 +597,7 @@ function isDetailsSendStage(lead: any): boolean {
       />
 
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs space-y-1">
           <span className="text-[10px] font-black uppercase text-slate-400">Deal Value</span>
           <p className="text-xl font-black text-slate-900">₹{Number(lead.value || 0).toLocaleString('en-IN')}</p>
@@ -611,6 +611,25 @@ function isDetailsSendStage(lead: any): boolean {
         <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs space-y-1">
           <span className="text-[10px] font-black uppercase text-slate-400">Lead Source</span>
           <p className="text-xl font-black text-slate-900">{lead.source || 'WEBSITE'}</p>
+        </div>
+
+        <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs space-y-1">
+          <span className="text-[10px] font-black uppercase text-slate-400">Created From</span>
+          <div className="mt-1">
+            {lead.createdFrom === 'MOBILE_APP' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                <span>📱</span>
+                <span>Mobile App</span>
+              </span>
+            ) : lead.createdFrom === 'ADMIN_PANEL' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+                <span>🖥</span>
+                <span>Admin Panel</span>
+              </span>
+            ) : (
+              <span className="text-xl font-black text-slate-400">—</span>
+            )}
+          </div>
         </div>
 
         <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-xs space-y-1">
@@ -941,6 +960,66 @@ function isDetailsSendStage(lead: any): boolean {
                   </a>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Source & Platform Information Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-[#23C45E]" /> Source Information
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 text-[10px] font-bold uppercase">Source</span>
+                <span className="font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[11px] uppercase">
+                  {lead.source || 'WEBSITE'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 text-[10px] font-bold uppercase">Created From</span>
+                <div>
+                  {lead.createdFrom === 'MOBILE_APP' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                      <span>📱</span>
+                      <span>Mobile App</span>
+                    </span>
+                  ) : lead.createdFrom === 'ADMIN_PANEL' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+                      <span>🖥</span>
+                      <span>Admin Panel</span>
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400">—</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 text-[10px] font-bold uppercase">Created By</span>
+                <span className="font-bold text-slate-800">
+                  {lead.createdBy
+                    ? `${lead.createdBy.firstName || ''} ${lead.createdBy.lastName || ''}`.trim()
+                    : lead.createdByName || '—'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 text-[10px] font-bold uppercase">Assigned To</span>
+                <span className="font-bold text-slate-800">
+                  {lead.assignedTo
+                    ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
+                    : 'Unassigned'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 text-[10px] font-bold uppercase">Created At</span>
+                <span className="font-medium text-slate-600">
+                  {lead.createdAt ? new Date(lead.createdAt).toLocaleString() : '—'}
+                </span>
+              </div>
             </div>
           </div>
 

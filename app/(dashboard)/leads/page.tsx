@@ -243,6 +243,7 @@ interface LeadItem {
   country?: string | null;
   category?: string | null;
   source: string;
+  createdFrom?: 'MOBILE_APP' | 'ADMIN_PANEL' | string | null;
   status: string;
   stageId?: number | null;
   stage?: LeadStage | null;
@@ -362,6 +363,7 @@ export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState<LeadTab>('ALL');
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('ALL');
+  const [createdFromFilter, setCreatedFromFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [assignedFilter, setAssignedFilter] = useState('ALL');
   const [page, setPage] = useState(1);
@@ -467,17 +469,19 @@ export default function LeadsPage() {
     isError: isLeadsError,
     refetch,
   } = useQuery({
-    queryKey: ['admin-leads-list', search, activeTab, sourceFilter, priorityFilter, assignedFilter, page, pageSize],
+    queryKey: ['admin-leads-list', search, activeTab, sourceFilter, createdFromFilter, priorityFilter, assignedFilter, page, pageSize],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/leads', {
-          params: {
-            search: search || undefined,
-            stageId: activeTab !== 'ALL' ? activeTab : undefined,
-            page,
-            limit: pageSize,
-          },
-        });
+        const params: any = {
+          search: search || undefined,
+          stageId: activeTab !== 'ALL' ? activeTab : undefined,
+          page,
+          limit: pageSize,
+        };
+        if (createdFromFilter !== 'ALL') {
+          params.createdFrom = createdFromFilter;
+        }
+        const res: any = await api.get('/leads', { params });
         const items = res?.data?.data || res?.data?.items || res?.data || res?.items || (Array.isArray(res) ? res : []);
         const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
           page,
@@ -652,17 +656,18 @@ export default function LeadsPage() {
       }
 
       if (sourceFilter !== 'ALL' && l.source !== sourceFilter) return false;
+      if (createdFromFilter !== 'ALL' && (l as any).createdFrom !== createdFromFilter) return false;
       if (priorityFilter !== 'ALL' && l.priority !== priorityFilter) return false;
       if (assignedFilter !== 'ALL' && String(l.assignedToId) !== assignedFilter) return false;
 
       return true;
     });
-  }, [rawLeads, activeTab, sourceFilter, priorityFilter, assignedFilter]);
+  }, [rawLeads, activeTab, sourceFilter, createdFromFilter, priorityFilter, assignedFilter]);
 
   // Reset selection on filter or page changes
   useEffect(() => {
     setSelectedLeadIds(new Set());
-  }, [search, activeTab, sourceFilter, priorityFilter, assignedFilter, page]);
+  }, [search, activeTab, sourceFilter, createdFromFilter, priorityFilter, assignedFilter, page]);
 
   const currentPageLeadIds = useMemo(() => {
     return filteredLeads.map((l) => l.id);
@@ -1314,7 +1319,7 @@ export default function LeadsPage() {
         </div>
 
         {/* Filter Controls Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
             <input
@@ -1345,6 +1350,19 @@ export default function LeadsPage() {
             <option value="COLD_CALL">Cold Call</option>
             <option value="CAMPAIGN">Marketing Campaign</option>
             <option value="OTHER">Other</option>
+          </select>
+
+          <select
+            value={createdFromFilter}
+            onChange={(e) => {
+              setCreatedFromFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+          >
+            <option value="ALL">All Platforms</option>
+            <option value="MOBILE_APP">📱 Mobile App</option>
+            <option value="ADMIN_PANEL">🖥 Admin Panel</option>
           </select>
 
           <select
@@ -1446,6 +1464,7 @@ export default function LeadsPage() {
                 <th className="py-4 px-4">Contact Info</th>
                 <th className="py-4 px-4">Social Media</th>
                 <th className="py-4 px-4">Source & Place</th>
+                <th className="py-4 px-4">Created From</th>
                 <th className="py-4 px-4">Stage Status</th>
                 <th className="py-4 px-4">Est. Value</th>
                 <th className="py-4 px-4">Assigned To</th>
@@ -1456,13 +1475,13 @@ export default function LeadsPage() {
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoadingLeads ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                  <td colSpan={11} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading CRM leads from database...
                   </td>
                 </tr>
               ) : isLeadsError ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center">
+                  <td colSpan={11} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <p className="font-bold text-sm text-rose-600">Unable to load leads. Please try again.</p>
                       <button
@@ -1653,6 +1672,23 @@ export default function LeadsPage() {
                         </div>
                       </td>
 
+                      {/* Created From Platform Badge */}
+                      <td className="py-4 px-4">
+                        {lead.createdFrom === 'MOBILE_APP' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs whitespace-nowrap">
+                            <span>📱</span>
+                            <span>Mobile App</span>
+                          </span>
+                        ) : lead.createdFrom === 'ADMIN_PANEL' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs whitespace-nowrap">
+                            <span>🖥</span>
+                            <span>Admin Panel</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-bold text-xs">—</span>
+                        )}
+                      </td>
+
                       {/* Stage Status Badge — resolved from Stage Management API */}
                       <td className="py-4 px-4">
                         {(() => {
@@ -1801,7 +1837,7 @@ export default function LeadsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-400">
+                  <td colSpan={11} className="py-16 text-center text-slate-400">
                     <p className="font-bold text-sm text-slate-600">No leads found in this view</p>
                     <p className="text-xs text-slate-400 mt-1">Try switching filters or search using Google Places</p>
                     <button
@@ -1936,7 +1972,7 @@ export default function LeadsPage() {
                 ) : (
                   <>
                     {/* Status & Highlights Row */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                       <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
                         <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Deal Value</p>
                         <p className="text-base font-black text-slate-900 mt-0.5">
@@ -1964,6 +2000,25 @@ export default function LeadsPage() {
                         <p className="text-xs font-black text-slate-800 mt-1 truncate">
                           {leadDetail.source || 'WEBSITE'}
                         </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Created From</p>
+                        <div className="mt-1">
+                          {leadDetail.createdFrom === 'MOBILE_APP' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                              <span>📱</span>
+                              <span>Mobile App</span>
+                            </span>
+                          ) : leadDetail.createdFrom === 'ADMIN_PANEL' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200">
+                              <span>🖥</span>
+                              <span>Admin Panel</span>
+                            </span>
+                          ) : (
+                            <span className="text-xs font-bold text-slate-400">—</span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
