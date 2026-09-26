@@ -63,12 +63,12 @@ export default function EditLeadPage() {
     enabled: Boolean(id),
   });
 
-  // Fetch BPO Employees
+  // Fetch All Active Employees for Lead Assignment dropdown
   const { data: employeesData } = useQuery({
-    queryKey: ['admin-active-bpo-employees'],
+    queryKey: ['admin-active-assignable-employees'],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/employees', { params: { bpoOnly: true } });
+        const res: any = await api.get('/employees', { params: { status: 'ACTIVE', limit: 200 } });
         return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       } catch {
         return [];
@@ -76,7 +76,9 @@ export default function EditLeadPage() {
     },
   });
 
-  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
+  const employees: any[] = Array.isArray(employeesData)
+    ? employeesData.filter((e: any) => e.status === 'ACTIVE' || !e.status)
+    : [];
 
   // Fetch Lead Stages
   const { data: stagesData } = useQuery({

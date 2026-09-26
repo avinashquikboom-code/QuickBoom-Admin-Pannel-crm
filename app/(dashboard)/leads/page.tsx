@@ -583,20 +583,19 @@ export default function LeadsPage() {
 
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
-  // 4b. Fetch Active BPO Employees specifically for Lead Details Assign dropdown
+  // 4b. Fetch Active Employees for Lead Assignment dropdown (all active employees can be assigned)
   const {
     data: bpoEmployeesData,
     isLoading: isLoadingBpoEmployees,
     isError: isBpoEmployeesError,
   } = useQuery({
-    queryKey: ['admin-active-bpo-employees'],
+    queryKey: ['admin-active-assignable-employees'],
     queryFn: async () => {
       try {
         const res: any = await api.get('/employees', {
           params: {
-            department: 'BPO',
             status: 'ACTIVE',
-            limit: 100,
+            limit: 200,
           },
         });
         return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
@@ -606,15 +605,10 @@ export default function LeadsPage() {
     },
   });
 
+  // All active employees can be assigned to leads
   const bpoEmployees: any[] = useMemo(() => {
     if (!Array.isArray(bpoEmployeesData)) return [];
-    return bpoEmployeesData.filter((emp) => {
-      if (emp.status && emp.status !== 'ACTIVE') return false;
-      const deptStr = `${emp.departmentName || ''} ${emp.department || ''} ${emp.departmentObj?.name || ''} ${emp.departmentObj?.code || ''}`.toLowerCase();
-      const desigStr = `${emp.designationName || ''} ${emp.designation || ''}`.toLowerCase();
-      const teamStr = `${emp.teamName || ''} ${emp.team?.name || ''}`.toLowerCase();
-      return deptStr.includes('bpo') || desigStr.includes('bpo') || teamStr.includes('bpo');
-    });
+    return bpoEmployeesData.filter((emp) => emp.status === 'ACTIVE' || !emp.status);
   }, [bpoEmployeesData]);
 
   // Fetch active stages from Stage Management — single source of truth for the dropdown
@@ -2948,7 +2942,7 @@ export default function LeadsPage() {
                 onChange={(e) => setLeadForm({ ...leadForm, assignedToId: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
               >
-                <option value="">-- Select BPO Employee --</option>
+                <option value="">-- Select Employee --</option>
                 {isLoadingBpoEmployees && (
                   <option value="" disabled>Loading BPO employees...</option>
                 )}
