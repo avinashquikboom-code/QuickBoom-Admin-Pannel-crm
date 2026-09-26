@@ -1645,6 +1645,11 @@ export default function LeadsPage() {
                             <span>🖥</span>
                             <span>Admin Panel</span>
                           </span>
+                        ) : lead.createdFrom === 'DATA_CAPTURE' || (lead.source === 'GOOGLE_PLACES' && !lead.createdFrom) ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs whitespace-nowrap">
+                            <span>📍</span>
+                            <span>Data Capture</span>
+                          </span>
                         ) : (
                           <span className="text-slate-400 font-bold text-xs">—</span>
                         )}
@@ -1711,13 +1716,15 @@ export default function LeadsPage() {
 
                       {/* Assigned To */}
                       <td className="py-4 px-4">
-                        {lead.assignedTo ? (
+                        {lead.assignedTo || lead.assignedToName || lead.employee || lead.employeeName ? (
                           <div className="flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center">
-                              {lead.assignedTo.firstName?.[0] || 'U'}
+                              {(lead.assignedTo?.firstName || lead.assignedToName || lead.employee?.firstName || lead.employeeName || 'U')[0]}
                             </div>
                             <span className="font-bold text-slate-800 text-xs">
-                              {lead.assignedTo.firstName} {lead.assignedTo.lastName}
+                              {lead.assignedTo
+                                ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
+                                : (lead.assignedToName || (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : lead.employeeName))}
                             </span>
                           </div>
                         ) : (
