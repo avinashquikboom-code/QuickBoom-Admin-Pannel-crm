@@ -170,14 +170,25 @@ export default function TemplatesMetaPage() {
   } = useQuery<MetaTemplate[]>({
     queryKey: ['meta-templates', selectedCategory, selectedMetaStatus, selectedLocalStatus, searchQuery],
     queryFn: async () => {
-      const params: any = {};
-      if (selectedCategory && selectedCategory !== 'ALL') params.category = selectedCategory;
-      if (selectedMetaStatus && selectedMetaStatus !== 'ALL') params.status = selectedMetaStatus;
-      if (selectedLocalStatus === 'ACTIVE') params.isLocalActive = 'true';
-      if (selectedLocalStatus === 'INACTIVE') params.isLocalActive = 'false';
-      if (searchQuery && searchQuery.trim()) params.search = searchQuery.trim();
+      const cleanParams: Record<string, string> = {};
+      if (selectedCategory && selectedCategory !== 'ALL' && selectedCategory !== 'undefined') {
+        cleanParams.category = selectedCategory.trim();
+      }
+      if (selectedMetaStatus && selectedMetaStatus !== 'ALL' && selectedMetaStatus !== 'undefined') {
+        cleanParams.status = selectedMetaStatus.trim();
+      }
+      if (selectedLocalStatus === 'ACTIVE') {
+        cleanParams.isLocalActive = 'true';
+      } else if (selectedLocalStatus === 'INACTIVE') {
+        cleanParams.isLocalActive = 'false';
+      }
+      if (searchQuery && searchQuery.trim() && searchQuery.trim() !== 'undefined') {
+        cleanParams.search = searchQuery.trim();
+      }
 
-      const res: any = await api.get('/templates/meta', { params });
+      const res: any = await api.get('/templates/meta', {
+        params: Object.keys(cleanParams).length > 0 ? cleanParams : undefined,
+      });
       const rawList = res?.data?.items || res?.items || res?.data?.data || res?.data || res;
       if (!Array.isArray(rawList)) return [];
 
