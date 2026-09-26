@@ -28,8 +28,6 @@ import {
   Plus,
   RefreshCw,
   Loader2,
-  ImageIcon,
-  Upload,
   X,
   Share2,
   Compass,
@@ -39,28 +37,12 @@ import {
   Linkedin,
   Youtube,
   Twitter,
-  ZoomIn,
   Eye,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminPageHeader, AdminButton, AdminFormDrawer, LeadStageEmailDrawer, WhatsAppIcon, LeadImageGalleryModal } from '@/components/admin';
-
-const resolveDisplayUrl = (url?: string): string => {
-  if (!url) return '';
-  const trimmed = url.trim();
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:image/')) return trimmed;
-  if (trimmed.startsWith('/api/') || trimmed.startsWith('/uploads/')) {
-    const apiOrigin = (
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      'https://api.qbapp.online/api/v1'
-    ).replace(/\/api\/v1\/?$/, '');
-    return `${apiOrigin}${trimmed}`;
-  }
-  return trimmed;
-};
+import { AdminPageHeader, AdminButton, AdminFormDrawer, LeadStageEmailDrawer, WhatsAppIcon } from '@/components/admin';
 
 const TikTokIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -149,17 +131,6 @@ export default function LeadDetailPage() {
   const [convertDealTitle, setConvertDealTitle] = useState('');
   const [convertDealValue, setConvertDealValue] = useState('150000');
   const [convertNotes, setConvertNotes] = useState('');
-
-  // Lead Images state
-  const [isAddImageModalOpen, setIsAddImageModalOpen] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageUrlInput, setImageUrlInput] = useState('');
-  const [imageCaption, setImageCaption] = useState('');
-  const [imageIsPrimary, setImageIsPrimary] = useState(false);
-  const [previewImage, setPreviewImage] = useState<{ url: string; caption?: string } | null>(null);
-  const [deletingImageId, setDeletingImageId] = useState<number | null>(null);
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const [galleryIndex, setGalleryIndex] = useState(0);
 
   // Social Media state
   const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
@@ -331,72 +302,6 @@ function isDetailsSendStage(lead: any): boolean {
     },
     onError: (err) => {
       toast.error(getErrorMessage(err));
-    },
-  });
-
-  // Upload Lead Image Mutation
-  const uploadImageMutation = useMutation({
-    mutationFn: async () => {
-      if (imageFile) {
-        const formData = new FormData();
-        formData.append('file', imageFile);
-        if (imageCaption.trim()) formData.append('caption', imageCaption.trim());
-        if (imageIsPrimary) formData.append('isPrimary', 'true');
-        return api.post(`/leads/${id}/images`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-      } else if (imageUrlInput.trim()) {
-        return api.post(`/leads/${id}/images`, {
-          url: imageUrlInput.trim(),
-          caption: imageCaption.trim() || undefined,
-          isPrimary: imageIsPrimary,
-        });
-      } else {
-        throw new Error('Please select an image file or enter an image URL');
-      }
-    },
-    onSuccess: () => {
-      toast.success('Lead image added successfully!');
-      setIsAddImageModalOpen(false);
-      setImageFile(null);
-      setImageUrlInput('');
-      setImageCaption('');
-      setImageIsPrimary(false);
-      refetch();
-    },
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
-    },
-  });
-
-  // Set Primary Lead Image Mutation
-  const setPrimaryImageMutation = useMutation({
-    mutationFn: async (imageId: number) => {
-      return api.put(`/leads/${id}/images/${imageId}/primary`);
-    },
-    onSuccess: () => {
-      toast.success('Primary image updated successfully!');
-      refetch();
-    },
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
-    },
-  });
-
-  // Delete Lead Image Mutation
-  const deleteImageMutation = useMutation({
-    mutationFn: async (imageId: number) => {
-      setDeletingImageId(imageId);
-      return api.delete(`/leads/${id}/images/${imageId}`);
-    },
-    onSuccess: () => {
-      toast.success('Lead image deleted');
-      setDeletingImageId(null);
-      refetch();
-    },
-    onError: (err: any) => {
-      toast.error(getErrorMessage(err));
-      setDeletingImageId(null);
     },
   });
 
@@ -1045,142 +950,6 @@ function isDetailsSendStage(lead: any): boolean {
             </div>
           </div>
 
-          {/* Lead Images & Photos Card */}
-          {(() => {
-            const leadImages: any[] = Array.isArray(lead.images) ? lead.images : [];
-            const primaryImage = leadImages.find((img: any) => img.isPrimary) || leadImages[0] || null;
-            // Check if this is a Google Places lead
-            const isGooglePlacesLead = (
-              lead?.source?.toUpperCase?.()?.includes('GOOGLE') ||
-              (lead?.googlePlaceId && lead.googlePlaceId.trim() !== '')
-            );
-            const emptyStateMessage = isGooglePlacesLead ? 'No Google photos available' : 'No images available';
-
-            return (
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4 text-purple-600" /> Lead Images & Photos
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    {leadImages.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const pIdx = leadImages.findIndex((img: any) => img.id === primaryImage?.id);
-                          setGalleryIndex(pIdx >= 0 ? pIdx : 0);
-                          setIsGalleryOpen(true);
-                        }}
-                        className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-full text-[10px] font-black flex items-center gap-1 cursor-pointer transition"
-                      >
-                        {leadImages.length} {leadImages.length === 1 ? 'Image' : 'Images'} →
-                      </button>
-                    )}
-                    {/* Only show Add button for non-Google Places leads */}
-                    {!isGooglePlacesLead && (
-                      <button
-                        type="button"
-                        onClick={() => setIsAddImageModalOpen(true)}
-                        className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                      >
-                        <Plus className="w-3 h-3" /> Add
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {leadImages.length > 0 && primaryImage ? (
-                  <div className="space-y-3">
-                    {/* Primary Image Prominent Display */}
-                    <div
-                      onClick={() => {
-                        const pIdx = leadImages.findIndex((img: any) => img.id === primaryImage.id);
-                        setGalleryIndex(pIdx >= 0 ? pIdx : 0);
-                        setIsGalleryOpen(true);
-                      }}
-                      className="group relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 aspect-video shadow-xs hover:shadow-md transition cursor-pointer"
-                    >
-                      <img
-                        src={resolveDisplayUrl(primaryImage.url)}
-                        alt={primaryImage.caption || 'Primary Lead Image'}
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                      />
-
-                      {/* Primary badge */}
-                      <div className="absolute top-3 left-3 bg-emerald-600/90 text-white text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-md backdrop-blur-xs">
-                        <Star className="w-3 h-3 fill-current" /> PRIMARY IMAGE
-                      </div>
-
-                      {/* View Gallery Prompt Button */}
-                      <div className="absolute bottom-3 right-3 bg-black/70 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-md backdrop-blur-xs transition">
-                        <ZoomIn className="w-3.5 h-3.5" /> View Gallery ({leadImages.length})
-                      </div>
-
-                      {primaryImage.caption && (
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 pr-32">
-                          <p className="text-xs text-white font-medium truncate">{primaryImage.caption}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Secondary thumbnails strip */}
-                    {leadImages.length > 1 && (
-                      <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-thin">
-                        {leadImages.map((img: any, idx: number) => {
-                          const isCurPrimary = img.id === primaryImage.id;
-                          return (
-                            <button
-                              key={img.id}
-                              type="button"
-                              onClick={() => {
-                                setGalleryIndex(idx);
-                                setIsGalleryOpen(true);
-                              }}
-                              className={`relative w-16 h-12 rounded-xl overflow-hidden border-2 transition shrink-0 cursor-pointer ${
-                                isCurPrimary
-                                  ? 'border-emerald-500 ring-2 ring-emerald-500/30'
-                                  : 'border-slate-200 hover:border-slate-400 opacity-80 hover:opacity-100'
-                              }`}
-                              title={img.caption || `Image ${idx + 1}`}
-                            >
-                              <img src={resolveDisplayUrl(img.url)} alt="" className="w-full h-full object-cover" />
-                              {img.isPrimary && (
-                                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* Clean Empty State */
-                  <div className="p-6 rounded-2xl border border-dashed border-slate-200 text-center space-y-2 bg-slate-50/50">
-                    <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
-                      <ImageIcon className="w-6 h-6" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-700">{emptyStateMessage}</p>
-                    <p className="text-[11px] text-slate-500">
-                      {isGooglePlacesLead
-                        ? 'This Google location has no available photos'
-                        : 'Storefront, office, visiting card or product photos'}
-                    </p>
-                    {/* Only show upload button for non-Google Places leads */}
-                    {!isGooglePlacesLead && (
-                      <button
-                        type="button"
-                        onClick={() => setIsAddImageModalOpen(true)}
-                        className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition shadow-xs"
-                      >
-                        <Upload className="w-3.5 h-3.5" /> Upload Image
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
           {/* Location & Geographic Coordinates Card */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
@@ -1748,155 +1517,6 @@ function isDetailsSendStage(lead: any): boolean {
         }}
       />
 
-      {/* UPLOAD LEAD IMAGE DRAWER */}
-      <AdminFormDrawer
-        isOpen={isAddImageModalOpen}
-        onClose={() => {
-          setIsAddImageModalOpen(false);
-          setImageFile(null);
-          setImageUrlInput('');
-          setImageCaption('');
-        }}
-        title="Upload Lead Photo"
-        subtitle={`Add business photo, visiting card, or storefront for ${company}`}
-        size="md"
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            // Check if this is a Google Places lead
-            const isGooglePlacesLead = (
-              lead?.source?.toUpperCase?.()?.includes('GOOGLE') ||
-              (lead?.googlePlaceId && lead.googlePlaceId.trim() !== '')
-            );
-            if (isGooglePlacesLead) {
-              toast.error('Photos for Google Places leads are automatically sourced from Google');
-              return;
-            }
-            uploadImageMutation.mutate();
-          }}
-          className="space-y-4"
-        >
-          <div>
-            <label className="text-[11px] font-bold text-slate-600 block mb-1">Upload Image File</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setImageFile(file);
-                if (file) setImageUrlInput('');
-              }}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="h-px bg-slate-200 flex-1" />
-            <span className="text-[10px] font-black uppercase text-slate-400">OR</span>
-            <div className="h-px bg-slate-200 flex-1" />
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-slate-600 block mb-1">Image URL</label>
-            <input
-              type="url"
-              placeholder="https://example.com/photo.jpg"
-              value={imageUrlInput}
-              disabled={Boolean(imageFile)}
-              onChange={(e) => setImageUrlInput(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 disabled:bg-slate-100"
-            />
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-slate-600 block mb-1">Photo Caption (Optional)</label>
-            <input
-              type="text"
-              placeholder="e.g. Store Entrance, Visiting Card, Office Front"
-              value={imageCaption}
-              onChange={(e) => setImageCaption(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="setPrimaryCheckbox"
-              checked={imageIsPrimary}
-              onChange={(e) => setImageIsPrimary(e.target.checked)}
-              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-            />
-            <label htmlFor="setPrimaryCheckbox" className="text-xs font-bold text-slate-700 cursor-pointer">
-              Set as Primary / Cover Photo
-            </label>
-          </div>
-
-          <div className="pt-2 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddImageModalOpen(false);
-                setImageFile(null);
-                setImageUrlInput('');
-                setImageCaption('');
-                setImageIsPrimary(false);
-              }}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={uploadImageMutation.isPending || (!imageFile && !imageUrlInput.trim())}
-              className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-xs cursor-pointer shadow-md shadow-purple-600/20 disabled:opacity-50 transition flex items-center gap-1.5"
-            >
-              {uploadImageMutation.isPending ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-3.5 h-3.5" /> Upload Image
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </AdminFormDrawer>
-
-      {/* FULL-SCREEN IMAGE GALLERY MODAL */}
-      {(() => {
-        // Determine if this is a Google Places lead
-        const isGooglePlacesLead = (
-          lead?.source?.toUpperCase?.()?.includes('GOOGLE') ||
-          (lead?.googlePlaceId && lead.googlePlaceId.trim() !== '')
-        );
-        return (
-          <LeadImageGalleryModal
-            isOpen={isGalleryOpen}
-            onClose={() => setIsGalleryOpen(false)}
-            images={Array.isArray(lead.images) ? lead.images : []}
-            leadTitle={company || name || 'Lead Gallery'}
-            initialIndex={galleryIndex}
-            onSetPrimary={(imgId) => setPrimaryImageMutation.mutate(imgId)}
-            onDelete={(imgId) => deleteImageMutation.mutate(imgId)}
-            onUploadNew={
-              // Only allow uploads for non-Google Places leads
-              !isGooglePlacesLead
-                ? () => {
-                    setIsGalleryOpen(false);
-                    setIsAddImageModalOpen(true);
-                  }
-                : undefined
-            }
-            isSettingPrimary={setPrimaryImageMutation.isPending}
-            deletingImageId={deletingImageId}
-          />
-        );
-      })()}
-
       {/* EDIT SOCIAL MEDIA DRAWER */}
       <AdminFormDrawer
         isOpen={isSocialModalOpen}
@@ -1996,52 +1616,6 @@ function isDetailsSendStage(lead: any): boolean {
         </form>
       </AdminFormDrawer>
 
-      {/* FULLSCREEN IMAGE PREVIEW MODAL */}
-      {previewImage && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-4"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div
-            className="relative max-w-4xl max-h-[90vh] bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/80 text-white">
-              <p className="text-xs font-bold text-slate-300 truncate pr-4">
-                {previewImage.caption || 'Lead Image Preview'}
-              </p>
-              <div className="flex items-center gap-2">
-                <a
-                  href={previewImage.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition"
-                  title="Open original"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setPreviewImage(null)}
-                  className="p-1.5 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition cursor-pointer"
-                  title="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            <div className="p-2 flex items-center justify-center bg-black/60 overflow-auto max-h-[calc(90vh-100px)]">
-              <img
-                src={previewImage.url}
-                alt={previewImage.caption || 'Full view'}
-                className="max-h-[75vh] w-auto object-contain rounded-xl"
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

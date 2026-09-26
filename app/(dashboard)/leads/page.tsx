@@ -68,7 +68,6 @@ import {
   AdminPagination,
   LeadStageEmailDrawer,
   WhatsAppIcon,
-  LeadImageGalleryModal,
 } from '@/components/admin';
 import { SendEmailModal } from '@/components/admin/dialogs/SendEmailModal';
 import { getErrorMessage } from '@/lib/utils';
@@ -263,7 +262,6 @@ interface LeadItem {
   convertedToContactId?: number | null;
   convertedToDealId?: number | null;
   socialMedia?: Record<string, any> | null;
-  images?: Array<{ id: number; url: string; isPrimary?: boolean; caption?: string }>;
   createdAt: string;
   createdById?: number | null;
   createdBy?: { id: number; firstName: string; lastName: string } | null;
@@ -454,9 +452,6 @@ export default function LeadsPage() {
     initialChannel?: 'EMAIL' | 'WHATSAPP';
     isDirectSend?: boolean;
   } | null>(null);
-
-  // Image gallery modal state for list
-  const [galleryModalLead, setGalleryModalLead] = useState<any | null>(null);
 
   // Multi-select state
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<number | string>>(new Set());
@@ -1545,40 +1540,7 @@ export default function LeadsPage() {
                       {/* Lead & Business Name */}
                       <td className="py-4 px-5">
 
-                        <div className="flex items-center gap-3">
-                          {(() => {
-                            const primaryImg = (lead as any).images?.find((img: any) => img.isPrimary) || (lead as any).images?.[0];
-                            if (primaryImg?.url) {
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setGalleryModalLead(lead);
-                                  }}
-                                  className="relative w-11 h-11 rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-2xs group/img shrink-0 hover:ring-2 hover:ring-[#1AA14D] transition cursor-pointer"
-                                  title="View Image Gallery"
-                                >
-                                  <img
-                                    src={primaryImg.url}
-                                    alt="Primary Lead Image"
-                                    className="w-full h-full object-cover group-hover/img:scale-110 transition duration-300"
-                                  />
-                                  {(lead as any).images && (lead as any).images.length > 1 && (
-                                    <span className="absolute bottom-0 right-0 bg-black/80 text-white text-[9px] font-black px-1 rounded-tl">
-                                      {(lead as any).images.length}
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            }
-                            return (
-                              <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#1AA14D] border border-emerald-200/60 flex items-center justify-center font-black shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                                {lead.googlePlaceId ? <Globe className="w-4 h-4 text-blue-600" /> : <Building className="w-4 h-4" />}
-                              </div>
-                            );
-                          })()}
-                          <div className="min-w-0">
+                        <div className="min-w-0">
                             <span className={`font-extrabold ${compName ? 'text-slate-900 group-hover:text-[#1AA14D]' : 'text-slate-400 italic'} text-sm truncate block transition-colors`} title={compName || 'No business name available'}>
                               {compName || 'No business name available'}
                             </span>
@@ -1587,7 +1549,6 @@ export default function LeadsPage() {
                               {(lead.city || lead.location) && <span>• {lead.city || lead.location}</span>}
                             </p>
                           </div>
-                        </div>
                       </td>
 
                       {/* Contact Info */}
@@ -3548,14 +3509,6 @@ export default function LeadsPage() {
             // error handled by mutation onError
           }
         }}
-      />
-
-      <LeadImageGalleryModal
-        isOpen={Boolean(galleryModalLead)}
-        onClose={() => setGalleryModalLead(null)}
-        images={Array.isArray(galleryModalLead?.images) ? galleryModalLead.images : []}
-        leadTitle={galleryModalLead?.companyName || galleryModalLead?.title || 'Lead Gallery'}
-        initialIndex={0}
       />
 
       {/* BULK DELETE CONFIRMATION DIALOG */}
