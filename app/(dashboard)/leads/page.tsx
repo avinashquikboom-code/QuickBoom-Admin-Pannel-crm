@@ -273,6 +273,10 @@ interface LeadItem {
   convertedByEmployeeId?: number | null;
   convertedByEmployee?: { id: number; firstName: string; lastName: string } | null;
   convertedByEmployeeName?: string | null;
+  wonByEmployeeId?: number | null;
+  wonBy?: { id: number; firstName: string; lastName: string } | null;
+  wonByName?: string | null;
+  wonAt?: string | null;
 }
 
 /**
@@ -1713,21 +1717,35 @@ export default function LeadsPage() {
                         </span>
                       </td>
 
-                      {/* Assigned To */}
+                      {/* Assigned To & Won By */}
                       <td className="py-4 px-4">
                         {lead.assignedTo || lead.assignedToName || lead.employee || lead.employeeName ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center">
-                              {(lead.assignedTo?.firstName || lead.assignedToName || lead.employee?.firstName || lead.employeeName || 'U')[0]}
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center">
+                                {(lead.assignedTo?.firstName || lead.assignedToName || lead.employee?.firstName || lead.employeeName || 'U')[0]}
+                              </div>
+                              <span className="font-bold text-slate-800 text-xs">
+                                {lead.assignedTo
+                                  ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
+                                  : (lead.assignedToName || (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : lead.employeeName))}
+                              </span>
                             </div>
-                            <span className="font-bold text-slate-800 text-xs">
-                              {lead.assignedTo
-                                ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
-                                : (lead.assignedToName || (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : lead.employeeName))}
-                            </span>
+                            {(lead.wonByName || lead.convertedByEmployeeName || lead.wonBy || lead.convertedByEmployee) && (
+                              <span className="text-[10px] font-bold text-emerald-600 pl-7">
+                                Won by: {lead.wonByName || lead.convertedByEmployeeName || `${lead.wonBy?.firstName || lead.convertedByEmployee?.firstName || ''} ${lead.wonBy?.lastName || lead.convertedByEmployee?.lastName || ''}`.trim()}
+                              </span>
+                            )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
+                            {(lead.wonByName || lead.convertedByEmployeeName || lead.wonBy || lead.convertedByEmployee) && (
+                              <span className="text-[10px] font-bold text-emerald-600">
+                                Won by: {lead.wonByName || lead.convertedByEmployeeName || `${lead.wonBy?.firstName || lead.convertedByEmployee?.firstName || ''} ${lead.wonBy?.lastName || lead.convertedByEmployee?.lastName || ''}`.trim()}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
 
@@ -2423,17 +2441,22 @@ export default function LeadsPage() {
                             </div>
                           </div>
                         )}
-                        {leadDetail.convertedByEmployee && (
+                        {(leadDetail.convertedByEmployee || leadDetail.wonBy || leadDetail.wonByName || leadDetail.convertedByEmployeeName) && (
                           <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mb-1">Converted By</p>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mb-1">Won By</p>
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0">
-                                {leadDetail.convertedByEmployee.firstName?.[0] || 'E'}
+                                {leadDetail.convertedByEmployee?.firstName?.[0] || leadDetail.wonBy?.firstName?.[0] || 'E'}
                               </div>
                               <p className="text-xs font-black text-emerald-800 truncate">
-                                {`${leadDetail.convertedByEmployee.firstName} ${leadDetail.convertedByEmployee.lastName}`.trim() || 'Employee'}
+                                {`${leadDetail.convertedByEmployee?.firstName || leadDetail.wonBy?.firstName || ''} ${leadDetail.convertedByEmployee?.lastName || leadDetail.wonBy?.lastName || ''}`.trim() || leadDetail.wonByName || leadDetail.convertedByEmployeeName || 'Employee'}
                               </p>
                             </div>
+                            {(leadDetail.wonAt || (leadDetail as any).convertedAt) && (
+                              <p className="text-[10px] font-bold text-emerald-600 mt-1">
+                                Won At: {new Date(leadDetail.wonAt || (leadDetail as any).convertedAt).toLocaleString()}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

@@ -2046,6 +2046,36 @@ export default function CustomerDetailPage() {
                 <span className="text-slate-400 font-bold">Department</span>
                 <span className="text-slate-900 font-bold">{customer?.department || 'General'}</span>
               </div>
+              {(customer?.leadId || customer?.originLead?.id || customer?.lead?.id) && (
+                <div className="flex justify-between py-2 border-b border-slate-100">
+                  <span className="text-slate-400 font-bold">Linked Lead</span>
+                  <span className="text-indigo-600 font-bold">
+                    Lead #{customer?.leadId || customer?.originLead?.id || customer?.lead?.id}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between py-2 border-b border-slate-100">
+                <span className="text-slate-400 font-bold">Assigned Employee</span>
+                <span className="text-slate-900 font-bold">
+                  {customer?.assignedEmployee || (customer?.assignedEmployeeRel ? `${customer.assignedEmployeeRel.firstName || ''} ${customer.assignedEmployeeRel.lastName || ''}`.trim() : 'Unassigned')}
+                </span>
+              </div>
+              {(customer?.wonBy?.name || customer?.wonByName || customer?.originLead?.convertedByEmployeeName || customer?.assignedEmployee) && (
+                <div className="flex justify-between py-2 border-b border-slate-100">
+                  <span className="text-slate-400 font-bold">Won By</span>
+                  <span className="text-emerald-700 font-bold">
+                    {customer?.wonBy?.name || customer?.wonByName || customer?.originLead?.convertedByEmployeeName || customer?.assignedEmployee}
+                  </span>
+                </div>
+              )}
+              {(customer?.wonAt || customer?.originLead?.convertedAt) && (
+                <div className="flex justify-between py-2 border-b border-slate-100">
+                  <span className="text-slate-400 font-bold">Won Date</span>
+                  <span className="text-slate-900 font-bold">
+                    {new Date(customer.wonAt || customer.originLead.convertedAt).toLocaleString()}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between py-2">
                 <span className="text-slate-400 font-bold">Account Created Date</span>
                 <span className="text-slate-900 font-bold">
