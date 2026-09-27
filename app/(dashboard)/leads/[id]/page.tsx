@@ -564,6 +564,19 @@ function isDetailsSendStage(lead: any): boolean {
           <p className="text-sm font-black text-slate-900 truncate">
             {lead.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : 'Unassigned'}
           </p>
+          {(() => {
+            const vName = (lead as any).visitedByName ||
+              ((lead as any).visitedBy ? `${(lead as any).visitedBy.firstName || ''} ${(lead as any).visitedBy.lastName || ''}`.trim() : null) ||
+              (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : null) ||
+              (lead as any).employeeName ||
+              lead.visits?.find((v: any) => v.completedBy || v.assignedEmployee)?.completedBy ||
+              lead.visits?.find((v: any) => v.completedBy || v.assignedEmployee)?.assignedEmployee;
+            return vName ? (
+              <p className="text-[10px] font-bold text-blue-600 truncate" title={`Visited by: ${vName}`}>
+                Visited by: {vName}
+              </p>
+            ) : null;
+          })()}
         </div>
       </div>
 
@@ -941,6 +954,32 @@ function isDetailsSendStage(lead: any): boolean {
                 </span>
               </div>
 
+              {(() => {
+                const vName = (lead as any).visitedByName ||
+                  ((lead as any).visitedBy ? `${(lead as any).visitedBy.firstName || ''} ${(lead as any).visitedBy.lastName || ''}`.trim() : null) ||
+                  (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : null) ||
+                  (lead as any).employeeName ||
+                  lead.visits?.find((v: any) => v.completedBy || v.assignedEmployee)?.completedBy ||
+                  lead.visits?.find((v: any) => v.completedBy || v.assignedEmployee)?.assignedEmployee;
+                return vName ? (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 text-[10px] font-bold uppercase">Visited By</span>
+                    <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full text-xs">
+                      {vName}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
+
+              {(lead.wonByName || (lead as any).convertedByEmployeeName || (lead as any).wonBy || (lead as any).convertedByEmployee) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[10px] font-bold uppercase">Won By</span>
+                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-xs">
+                    {lead.wonByName || (lead as any).convertedByEmployeeName || `${(lead as any).wonBy?.firstName || (lead as any).convertedByEmployee?.firstName || ''} ${(lead as any).wonBy?.lastName || (lead as any).convertedByEmployee?.lastName || ''}`.trim()}
+                  </span>
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <span className="text-slate-400 text-[10px] font-bold uppercase">Created At</span>
                 <span className="font-medium text-slate-600">
@@ -1287,19 +1326,48 @@ function isDetailsSendStage(lead: any): boolean {
 
               {lead.visits && lead.visits.length > 0 ? (
                 <div className="space-y-3">
-                  {lead.visits.map((v: any) => (
-                    <div key={v.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-slate-900">{v.purpose || 'Client Visit'}</span>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                          {v.status || 'SCHEDULED'}
-                        </span>
+                  {lead.visits.map((v: any) => {
+                    const visitorName = v.completedBy ||
+                      v.assignedEmployee ||
+                      (v.employee ? `${v.employee.firstName || ''} ${v.employee.lastName || ''}`.trim() : null) ||
+                      (lead as any).visitedByName ||
+                      ((lead as any).visitedBy ? `${(lead as any).visitedBy.firstName || ''} ${(lead as any).visitedBy.lastName || ''}`.trim() : null) ||
+                      (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : null) ||
+                      (lead as any).employeeName;
+                    return (
+                      <div key={v.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-slate-900">{v.purpose || 'Client Visit'}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                            {v.status || 'SCHEDULED'}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 font-medium">
+                          Scheduled Date: {v.visitDate || v.date ? new Date(v.visitDate || v.date).toLocaleDateString() : 'N/A'} {v.time ? `• ${v.time}` : ''} {v.location ? `• ${v.location}` : ''}
+                        </p>
+                        {visitorName && (
+                          <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60">
+                            <span className="text-[10px] font-black uppercase text-slate-400">
+                              {v.status === 'COMPLETED' || lead.status === 'VISIT_DONE' ? 'Visited By:' : 'Field Officer:'}
+                            </span>
+                            <span className="text-xs font-bold text-blue-700">
+                              {visitorName}
+                            </span>
+                          </div>
+                        )}
+                        {v.outcome && (
+                          <p className="text-slate-600 text-[11px]">
+                            <span className="font-bold text-slate-500">Outcome:</span> {v.outcome}
+                          </p>
+                        )}
+                        {v.notes && (
+                          <p className="text-slate-500 text-[11px] italic">
+                            {v.notes}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-slate-600 font-medium">
-                        Scheduled Date: {v.visitDate ? new Date(v.visitDate).toLocaleDateString() : 'N/A'}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-xs text-slate-400 py-8 text-center font-bold">No field visits scheduled yet.</p>

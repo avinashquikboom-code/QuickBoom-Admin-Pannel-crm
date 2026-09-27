@@ -277,6 +277,9 @@ interface LeadItem {
   wonBy?: { id: number; firstName: string; lastName: string } | null;
   wonByName?: string | null;
   wonAt?: string | null;
+  visitedByEmployeeId?: number | null;
+  visitedBy?: { id: number; firstName: string; lastName: string } | null;
+  visitedByName?: string | null;
 }
 
 /**
@@ -1750,36 +1753,55 @@ export default function LeadsPage() {
                         </span>
                       </td>
 
-                      {/* Assigned To & Won By */}
+                      {/* Assigned To, Visited By & Won By */}
                       <td className="py-4 px-4">
-                        {lead.assignedTo || lead.assignedToName || lead.employee || lead.employeeName ? (
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center">
-                                {(lead.assignedTo?.firstName || lead.assignedToName || lead.employee?.firstName || lead.employeeName || 'U')[0]}
+                        {(() => {
+                          const visitedEmpName = lead.visitedByName ||
+                            (lead.visitedBy ? `${lead.visitedBy.firstName || ''} ${lead.visitedBy.lastName || ''}`.trim() : null) ||
+                            (lead.employee && (lead.status === 'VISIT_DONE' || (lead.stage as any)?.key === 'VISIT_DONE' || (lead.assignedTo && lead.assignedTo.id !== lead.employee.id))
+                              ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim()
+                              : null) ||
+                            (lead.status === 'VISIT_DONE' ? lead.employeeName : null);
+
+                          return lead.assignedTo || lead.assignedToName || lead.employee || lead.employeeName ? (
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center">
+                                  {(lead.assignedTo?.firstName || lead.assignedToName || lead.employee?.firstName || lead.employeeName || 'U')[0]}
+                                </div>
+                                <span className="font-bold text-slate-800 text-xs">
+                                  {lead.assignedTo
+                                    ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
+                                    : (lead.assignedToName || (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : lead.employeeName))}
+                                </span>
                               </div>
-                              <span className="font-bold text-slate-800 text-xs">
-                                {lead.assignedTo
-                                  ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
-                                  : (lead.assignedToName || (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : lead.employeeName))}
-                              </span>
+                              {visitedEmpName && (
+                                <span className="text-[10px] font-bold text-blue-600 pl-7">
+                                  Visited by: {visitedEmpName}
+                                </span>
+                              )}
+                              {(lead.wonByName || lead.convertedByEmployeeName || lead.wonBy || lead.convertedByEmployee) && (
+                                <span className="text-[10px] font-bold text-emerald-600 pl-7">
+                                  Won by: {lead.wonByName || lead.convertedByEmployeeName || `${lead.wonBy?.firstName || lead.convertedByEmployee?.firstName || ''} ${lead.wonBy?.lastName || lead.convertedByEmployee?.lastName || ''}`.trim()}
+                                </span>
+                              )}
                             </div>
-                            {(lead.wonByName || lead.convertedByEmployeeName || lead.wonBy || lead.convertedByEmployee) && (
-                              <span className="text-[10px] font-bold text-emerald-600 pl-7">
-                                Won by: {lead.wonByName || lead.convertedByEmployeeName || `${lead.wonBy?.firstName || lead.convertedByEmployee?.firstName || ''} ${lead.wonBy?.lastName || lead.convertedByEmployee?.lastName || ''}`.trim()}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
-                            {(lead.wonByName || lead.convertedByEmployeeName || lead.wonBy || lead.convertedByEmployee) && (
-                              <span className="text-[10px] font-bold text-emerald-600">
-                                Won by: {lead.wonByName || lead.convertedByEmployeeName || `${lead.wonBy?.firstName || lead.convertedByEmployee?.firstName || ''} ${lead.wonBy?.lastName || lead.convertedByEmployee?.lastName || ''}`.trim()}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                          ) : (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
+                              {visitedEmpName && (
+                                <span className="text-[10px] font-bold text-blue-600">
+                                  Visited by: {visitedEmpName}
+                                </span>
+                              )}
+                              {(lead.wonByName || lead.convertedByEmployeeName || lead.wonBy || lead.convertedByEmployee) && (
+                                <span className="text-[10px] font-bold text-emerald-600">
+                                  Won by: {lead.wonByName || lead.convertedByEmployeeName || `${lead.wonBy?.firstName || lead.convertedByEmployee?.firstName || ''} ${lead.wonBy?.lastName || lead.convertedByEmployee?.lastName || ''}`.trim()}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Created By */}
@@ -2458,42 +2480,71 @@ export default function LeadsPage() {
                       </select>
                     </div>
 
-                    {/* Ownership Chain: Created By + Converted By */}
-                    {(leadDetail.createdBy || leadDetail.convertedByEmployee) && (
-                      <div className="grid grid-cols-2 gap-2">
-                        {leadDetail.createdBy && (
-                          <div className="p-3 bg-slate-50/70 rounded-2xl border border-slate-200/80">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Created By</p>
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-700 font-black text-[10px] flex items-center justify-center shrink-0">
-                                {leadDetail.createdBy.firstName?.[0] || 'E'}
+                    {/* Ownership Chain: Created By + Visited By + Won By */}
+                    {(() => {
+                      const visitedName = (leadDetail as any).visitedByName ||
+                        ((leadDetail as any).visitedBy ? `${(leadDetail as any).visitedBy.firstName || ''} ${(leadDetail as any).visitedBy.lastName || ''}`.trim() : null) ||
+                        (leadDetail.employee ? `${leadDetail.employee.firstName || ''} ${leadDetail.employee.lastName || ''}`.trim() : null) ||
+                        (leadDetail as any).employeeName ||
+                        leadDetail.visits?.find((v: any) => v.completedBy || v.assignedEmployee)?.completedBy ||
+                        leadDetail.visits?.find((v: any) => v.completedBy || v.assignedEmployee)?.assignedEmployee ||
+                        (leadDetail.visits?.find((v: any) => v.employee)?.employee ? `${leadDetail.visits.find((v: any) => v.employee).employee.firstName || ''} ${leadDetail.visits.find((v: any) => v.employee).employee.lastName || ''}`.trim() : null);
+
+                      const hasWon = Boolean(leadDetail.convertedByEmployee || leadDetail.wonBy || leadDetail.wonByName || leadDetail.convertedByEmployeeName);
+                      const hasVisited = Boolean(visitedName);
+                      const hasCreated = Boolean(leadDetail.createdBy);
+
+                      if (!hasCreated && !hasVisited && !hasWon) return null;
+
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {hasCreated && (
+                            <div className="p-3 bg-slate-50/70 rounded-2xl border border-slate-200/80">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Created By</p>
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                                  {leadDetail.createdBy?.firstName?.[0] || 'E'}
+                                </div>
+                                <p className="text-xs font-black text-slate-800 truncate">
+                                  {`${leadDetail.createdBy?.firstName} ${leadDetail.createdBy?.lastName}`.trim() || 'Employee'}
+                                </p>
                               </div>
-                              <p className="text-xs font-black text-slate-800 truncate">
-                                {`${leadDetail.createdBy.firstName} ${leadDetail.createdBy.lastName}`.trim() || 'Employee'}
-                              </p>
                             </div>
-                          </div>
-                        )}
-                        {(leadDetail.convertedByEmployee || leadDetail.wonBy || leadDetail.wonByName || leadDetail.convertedByEmployeeName) && (
-                          <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mb-1">Won By</p>
-                            <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0">
-                                {leadDetail.convertedByEmployee?.firstName?.[0] || leadDetail.wonBy?.firstName?.[0] || 'E'}
+                          )}
+                          {hasVisited && (
+                            <div className="p-3 bg-blue-50/70 rounded-2xl border border-blue-200/80">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-blue-500 mb-1">Visited By</p>
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                                  {visitedName?.[0] || 'V'}
+                                </div>
+                                <p className="text-xs font-black text-blue-800 truncate" title={visitedName}>
+                                  {visitedName}
+                                </p>
                               </div>
-                              <p className="text-xs font-black text-emerald-800 truncate">
-                                {`${leadDetail.convertedByEmployee?.firstName || leadDetail.wonBy?.firstName || ''} ${leadDetail.convertedByEmployee?.lastName || leadDetail.wonBy?.lastName || ''}`.trim() || leadDetail.wonByName || leadDetail.convertedByEmployeeName || 'Employee'}
-                              </p>
                             </div>
-                            {(leadDetail.wonAt || (leadDetail as any).convertedAt) && (
-                              <p className="text-[10px] font-bold text-emerald-600 mt-1">
-                                Won At: {new Date(leadDetail.wonAt || (leadDetail as any).convertedAt).toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+                          {hasWon && (
+                            <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mb-1">Won By</p>
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                                  {leadDetail.convertedByEmployee?.firstName?.[0] || leadDetail.wonBy?.firstName?.[0] || 'E'}
+                                </div>
+                                <p className="text-xs font-black text-emerald-800 truncate">
+                                  {`${leadDetail.convertedByEmployee?.firstName || leadDetail.wonBy?.firstName || ''} ${leadDetail.convertedByEmployee?.lastName || leadDetail.wonBy?.lastName || ''}`.trim() || leadDetail.wonByName || leadDetail.convertedByEmployeeName || 'Employee'}
+                                </p>
+                              </div>
+                              {(leadDetail.wonAt || (leadDetail as any).convertedAt) && (
+                                <p className="text-[10px] font-bold text-emerald-600 mt-1">
+                                  Won At: {new Date(leadDetail.wonAt || (leadDetail as any).convertedAt).toLocaleString()}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Interactive Tabs inside Drawer */}
                     <div className="space-y-4 pt-2">
@@ -2728,22 +2779,46 @@ export default function LeadsPage() {
                       {drawerActiveTab === 'VISITS' && (
                         <div className="space-y-3">
                           {leadDetail.visits && leadDetail.visits.length > 0 ? (
-                            leadDetail.visits.map((v: any) => (
-                              <div
-                                key={v.id}
-                                className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-black text-slate-900">{v.purpose || 'Client Visit'}</span>
-                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full text-[10px]">
-                                    {v.status}
-                                  </span>
+                            leadDetail.visits.map((v: any) => {
+                              const visitorName = v.completedBy ||
+                                v.assignedEmployee ||
+                                (v.employee ? `${v.employee.firstName || ''} ${v.employee.lastName || ''}`.trim() : null) ||
+                                (leadDetail as any).visitedByName ||
+                                ((leadDetail as any).visitedBy ? `${(leadDetail as any).visitedBy.firstName || ''} ${(leadDetail as any).visitedBy.lastName || ''}`.trim() : null) ||
+                                (leadDetail.employee ? `${leadDetail.employee.firstName || ''} ${leadDetail.employee.lastName || ''}`.trim() : null) ||
+                                (leadDetail as any).employeeName;
+                              return (
+                                <div
+                                  key={v.id}
+                                  className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-1.5"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-black text-slate-900">{v.purpose || 'Client Visit'}</span>
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full text-[10px]">
+                                      {v.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-500 text-[11px]">
+                                    {new Date(v.date || v.visitDate).toLocaleDateString('en-IN')} {v.time ? `• ${v.time}` : ''} • {v.location}
+                                  </p>
+                                  {visitorName && (
+                                    <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60">
+                                      <span className="text-[10px] font-black uppercase text-slate-400">
+                                        {v.status === 'COMPLETED' || leadDetail.status === 'VISIT_DONE' ? 'Visited By:' : 'Field Officer:'}
+                                      </span>
+                                      <span className="text-xs font-bold text-blue-700">
+                                        {visitorName}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {v.outcome && (
+                                    <p className="text-slate-600 text-[11px]">
+                                      <span className="font-bold text-slate-500">Outcome:</span> {v.outcome}
+                                    </p>
+                                  )}
                                 </div>
-                                <p className="text-slate-500 text-[11px]">
-                                  {new Date(v.date).toLocaleDateString('en-IN')} {v.time ? `• ${v.time}` : ''} • {v.location}
-                                </p>
-                              </div>
-                            ))
+                              );
+                            })
                           ) : (
                             <p className="text-center py-6 text-slate-400 text-xs font-bold">
                               No field visits logged for this lead

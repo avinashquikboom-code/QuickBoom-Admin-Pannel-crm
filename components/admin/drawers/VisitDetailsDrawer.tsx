@@ -139,7 +139,9 @@ export function VisitDetailsDrawer({
                   {visit.status === 'COMPLETED' ? 'Completed By' : 'Field Officer'}
                 </span>
                 <p className="font-bold text-slate-800 mt-0.5">
-                  {visit.employee ? `${visit.employee.firstName} ${visit.employee.lastName}` : 'Unassigned'}
+                  {visit.employee
+                    ? `${visit.employee.firstName || ''} ${visit.employee.lastName || ''}`.trim()
+                    : (visit.completedBy || visit.assignedEmployee || 'Unassigned')}
                 </p>
               </div>
             </div>
