@@ -385,6 +385,20 @@ export default function LeadsPage() {
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [selectedLeadForAction, setSelectedLeadForAction] = useState<LeadItem | null>(null);
 
+  // Schedule Field Visit states
+  const [isScheduleVisitOpen, setIsScheduleVisitOpen] = useState(false);
+  const [scheduleVisitLead, setScheduleVisitLead] = useState<any>(null);
+  const [scheduleVisitPurpose, setScheduleVisitPurpose] = useState('Product Demo & Architecture Review');
+  const [scheduleVisitLocation, setScheduleVisitLocation] = useState('');
+  const [scheduleVisitDate, setScheduleVisitDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [scheduleVisitTime, setScheduleVisitTime] = useState('11:00 AM');
+  const [scheduleVisitNotes, setScheduleVisitNotes] = useState('');
+  const [scheduleVisitEmployeeId, setScheduleVisitEmployeeId] = useState<number | string>('');
+
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [sendingLeadId, setSendingLeadId] = useState<number | string | null>(null);
   const [emailRecipient, setEmailRecipient] = useState<{ email: string; name: string; id: number | string }>({
@@ -1080,6 +1094,38 @@ export default function LeadsPage() {
     },
   });
 
+  // Schedule Field Visit Mutation
+  const scheduleVisitMutation = useMutation({
+    mutationFn: async () => {
+      if (!scheduleVisitLead) return;
+      const targetEmpId = scheduleVisitEmployeeId
+        ? Number(scheduleVisitEmployeeId)
+        : (scheduleVisitLead.employeeId ? Number(scheduleVisitLead.employeeId) : undefined);
+
+      return api.post(`/leads/${scheduleVisitLead.id}/visits`, {
+        action: 'SCHEDULE',
+        purpose: scheduleVisitPurpose.trim() || 'Product Demo & Architecture Review',
+        location: scheduleVisitLocation.trim() || scheduleVisitLead.address || scheduleVisitLead.city || 'Client Site',
+        date: scheduleVisitDate,
+        time: scheduleVisitTime,
+        notes: scheduleVisitNotes.trim() || undefined,
+        employeeId: targetEmpId,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Field Visit Scheduled Successfully!');
+      queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-leads-metrics'] });
+      if (selectedLeadId) {
+        queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
+      }
+      setIsScheduleVisitOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to schedule field visit.');
+    },
+  });
+
   const resetLeadForm = () => {
     setLeadForm({
       id: '',
@@ -1502,6 +1548,8 @@ export default function LeadsPage() {
                 <th className="py-4 px-4">Stage Status</th>
                 <th className="py-4 px-4">Est. Value</th>
                 <th className="py-4 px-4">Assigned To</th>
+                <th className="py-4 px-4">Visited By</th>
+                <th className="py-4 px-4">Won By</th>
                 <th className="py-4 px-4">Created By</th>
                 <th className="py-4 px-5 text-right">Actions</th>
               </tr>
@@ -1509,13 +1557,13 @@ export default function LeadsPage() {
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoadingLeads ? (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                  <td colSpan={13} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading CRM leads from database...
                   </td>
                 </tr>
               ) : isLeadsError ? (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center">
+                  <td colSpan={13} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <p className="font-bold text-sm text-rose-600">Unable to load leads. Please try again.</p>
                       <button
@@ -1753,53 +1801,66 @@ export default function LeadsPage() {
                         </span>
                       </td>
 
-                      {/* Assigned To, Visited By & Won By */}
+                      {/* Assigned To */}
+                      <td className="py-4 px-4">
+                        {lead.assignedTo || lead.assignedToName ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                              {(lead.assignedTo?.firstName || lead.assignedToName || 'U')[0]}
+                            </div>
+                            <span className="font-bold text-slate-800 text-xs truncate max-w-[120px]">
+                              {lead.assignedTo
+                                ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
+                                : lead.assignedToName}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
+                        )}
+                      </td>
+
+                      {/* Visited By */}
                       <td className="py-4 px-4">
                         {(() => {
-                          const visitedEmpName = lead.visitedByName ||
+                          const visitedName = lead.visitedByName ||
                             (lead.visitedBy ? `${lead.visitedBy.firstName || ''} ${lead.visitedBy.lastName || ''}`.trim() : null) ||
-                            (lead.employee && (lead.status === 'VISIT_DONE' || (lead.stage as any)?.key === 'VISIT_DONE' || (lead.assignedTo && lead.assignedTo.id !== lead.employee.id))
+                            (lead.employee && (lead.status === 'VISIT_DONE' || (lead.stage as any)?.key === 'VISIT_DONE')
                               ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim()
-                              : null) ||
-                            (lead.status === 'VISIT_DONE' ? lead.employeeName : null);
+                              : null);
 
-                          return lead.assignedTo || lead.assignedToName || lead.employee || lead.employeeName ? (
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center">
-                                  {(lead.assignedTo?.firstName || lead.assignedToName || lead.employee?.firstName || lead.employeeName || 'U')[0]}
-                                </div>
-                                <span className="font-bold text-slate-800 text-xs">
-                                  {lead.assignedTo
-                                    ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
-                                    : (lead.assignedToName || (lead.employee ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim() : lead.employeeName))}
-                                </span>
+                          return visitedName ? (
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                                {visitedName[0] || 'V'}
                               </div>
-                              {visitedEmpName && (
-                                <span className="text-[10px] font-bold text-blue-600 pl-7">
-                                  Visited by: {visitedEmpName}
-                                </span>
-                              )}
-                              {(lead.wonByName || lead.convertedByEmployeeName || lead.wonBy || lead.convertedByEmployee) && (
-                                <span className="text-[10px] font-bold text-emerald-600 pl-7">
-                                  Won by: {lead.wonByName || lead.convertedByEmployeeName || `${lead.wonBy?.firstName || lead.convertedByEmployee?.firstName || ''} ${lead.wonBy?.lastName || lead.convertedByEmployee?.lastName || ''}`.trim()}
-                                </span>
-                              )}
+                              <span className="font-bold text-blue-800 text-xs truncate max-w-[120px]" title={visitedName}>
+                                {visitedName}
+                              </span>
                             </div>
                           ) : (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
-                              {visitedEmpName && (
-                                <span className="text-[10px] font-bold text-blue-600">
-                                  Visited by: {visitedEmpName}
-                                </span>
-                              )}
-                              {(lead.wonByName || lead.convertedByEmployeeName || lead.wonBy || lead.convertedByEmployee) && (
-                                <span className="text-[10px] font-bold text-emerald-600">
-                                  Won by: {lead.wonByName || lead.convertedByEmployeeName || `${lead.wonBy?.firstName || lead.convertedByEmployee?.firstName || ''} ${lead.wonBy?.lastName || lead.convertedByEmployee?.lastName || ''}`.trim()}
-                                </span>
-                              )}
+                            <span className="text-slate-400 font-bold text-xs">—</span>
+                          );
+                        })()}
+                      </td>
+
+                      {/* Won By */}
+                      <td className="py-4 px-4">
+                        {(() => {
+                          const wonName = lead.wonByName ||
+                            (lead.wonBy ? `${lead.wonBy.firstName || ''} ${lead.wonBy.lastName || ''}`.trim() : null) ||
+                            (lead.convertedByEmployeeName || (lead.convertedByEmployee ? `${lead.convertedByEmployee.firstName || ''} ${lead.convertedByEmployee.lastName || ''}`.trim() : null));
+
+                          return wonName ? (
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                                {wonName[0] || 'W'}
+                              </div>
+                              <span className="font-bold text-emerald-800 text-xs truncate max-w-[120px]" title={wonName}>
+                                {wonName}
+                              </span>
                             </div>
+                          ) : (
+                            <span className="text-slate-400 font-bold text-xs">—</span>
                           );
                         })()}
                       </td>
@@ -1877,7 +1938,7 @@ export default function LeadsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center text-slate-400">
+                  <td colSpan={13} className="py-16 text-center text-slate-400">
                     <p className="font-bold text-sm text-slate-600">No leads found in this view</p>
                     <p className="text-xs text-slate-400 mt-1">Try switching filters or search using Google Places</p>
                     <button
@@ -2778,6 +2839,23 @@ export default function LeadsPage() {
                       {/* TAB 4: VISITS */}
                       {drawerActiveTab === 'VISITS' && (
                         <div className="space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                            <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider">Field Visits</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setScheduleVisitLead(leadDetail);
+                                setScheduleVisitPurpose('Product Demo & Architecture Review');
+                                setScheduleVisitLocation(leadDetail.address || leadDetail.city || 'Client Site');
+                                setScheduleVisitEmployeeId(leadDetail.employeeId || '');
+                                setIsScheduleVisitOpen(true);
+                              }}
+                              className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg text-xs transition flex items-center gap-1"
+                            >
+                              <Calendar className="w-3 h-3" />
+                              <span>Schedule Visit</span>
+                            </button>
+                          </div>
                           {leadDetail.visits && leadDetail.visits.length > 0 ? (
                             leadDetail.visits.map((v: any) => {
                               const visitorName = v.completedBy ||
@@ -3392,6 +3470,118 @@ export default function LeadsPage() {
               className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20"
             >
               {convertMutation.isPending ? 'Converting...' : 'Confirm Conversion'}
+            </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
+
+      {/* SCHEDULE FIELD VISIT DRAWER */}
+      <AdminFormDrawer
+        isOpen={isScheduleVisitOpen}
+        onClose={() => setIsScheduleVisitOpen(false)}
+        title="Schedule Field Visit"
+        subtitle={scheduleVisitLead ? `Lead: ${scheduleVisitLead.companyName || scheduleVisitLead.title}` : undefined}
+        size="md"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            scheduleVisitMutation.mutate();
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Visit Purpose *</label>
+            <input
+              type="text"
+              required
+              value={scheduleVisitPurpose}
+              onChange={(e) => setScheduleVisitPurpose(e.target.value)}
+              placeholder="Product Demo & Architecture Review"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Visit Location *</label>
+            <input
+              type="text"
+              required
+              value={scheduleVisitLocation}
+              onChange={(e) => setScheduleVisitLocation(e.target.value)}
+              placeholder="e.g. Shankheshwar Parshwanath Mar"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Date</label>
+              <input
+                type="date"
+                required
+                value={scheduleVisitDate}
+                onChange={(e) => setScheduleVisitDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Time</label>
+              <input
+                type="text"
+                value={scheduleVisitTime}
+                onChange={(e) => setScheduleVisitTime(e.target.value)}
+                placeholder="11:00 AM"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Preparation Notes</label>
+            <textarea
+              rows={3}
+              value={scheduleVisitNotes}
+              onChange={(e) => setScheduleVisitNotes(e.target.value)}
+              placeholder="Key stakeholder names or presentation items"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Visitor / Employee Assignment *</label>
+            <select
+              value={scheduleVisitEmployeeId}
+              onChange={(e) => setScheduleVisitEmployeeId(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            >
+              <option value="">Select Field Officer / Visitor</option>
+              {employees.map((emp: any) => {
+                const name = `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
+                const code = emp.employeeCode ? ` (${emp.employeeCode})` : '';
+                return (
+                  <option key={emp.id} value={emp.id}>
+                    {name || `Employee #${emp.id}`}{code}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsScheduleVisitOpen(false)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={scheduleVisitMutation.isPending}
+              className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20"
+            >
+              {scheduleVisitMutation.isPending ? 'Scheduling...' : 'CONFIRM VISIT SCHEDULE'}
             </button>
           </div>
         </form>

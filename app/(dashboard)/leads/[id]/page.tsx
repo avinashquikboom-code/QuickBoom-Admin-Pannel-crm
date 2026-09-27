@@ -132,6 +132,19 @@ export default function LeadDetailPage() {
   const [convertDealValue, setConvertDealValue] = useState('150000');
   const [convertNotes, setConvertNotes] = useState('');
 
+  // Schedule Field Visit form
+  const [isScheduleVisitOpen, setIsScheduleVisitOpen] = useState(false);
+  const [visitPurpose, setVisitPurpose] = useState('Product Demo & Architecture Review');
+  const [visitLocation, setVisitLocation] = useState('');
+  const [visitDate, setVisitDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [visitTime, setVisitTime] = useState('11:00 AM');
+  const [visitNotes, setVisitNotes] = useState('');
+  const [visitEmployeeId, setVisitEmployeeId] = useState<number | string>('');
+
   // Social Media state
   const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
   const [socialForm, setSocialForm] = useState({
@@ -414,6 +427,49 @@ function isDetailsSendStage(lead: any): boolean {
     },
   });
 
+  // Fetch Employees for visitor assignment
+  const { data: employeesData } = useQuery({
+    queryKey: ['admin-employees-dropdown'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/employees');
+        return Array.isArray(res?.data) ? res.data : Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+  const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
+
+  // Schedule Field Visit Mutation
+  const scheduleVisitMutation = useMutation({
+    mutationFn: async () => {
+      const targetEmpId = visitEmployeeId
+        ? Number(visitEmployeeId)
+        : (lead?.employeeId ? Number(lead.employeeId) : (employees[0]?.id ? Number(employees[0].id) : undefined));
+
+      return api.post(`/leads/${id}/visits`, {
+        action: 'SCHEDULE',
+        purpose: visitPurpose.trim() || 'Product Demo & Architecture Review',
+        location: visitLocation.trim() || lead?.address || lead?.city || 'Client Site',
+        date: visitDate,
+        time: visitTime,
+        notes: visitNotes.trim() || undefined,
+        employeeId: targetEmpId,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Field Visit Scheduled Successfully!');
+      queryClient.invalidateQueries({ queryKey: ['lead-detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['visits'] });
+      setIsScheduleVisitOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to schedule field visit.');
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="max-w-6xl mx-auto py-24 text-center">
@@ -488,6 +544,20 @@ function isDetailsSendStage(lead: any): boolean {
               }}
             >
               Log Follow-up
+            </AdminButton>
+
+            <AdminButton
+              variant="outline"
+              size="md"
+              icon={Calendar}
+              onClick={() => {
+                setVisitPurpose('Product Demo & Architecture Review');
+                setVisitLocation(lead?.address || lead?.city || 'Client Site');
+                setVisitEmployeeId(lead?.employeeId || (employees[0]?.id ?? ''));
+                setIsScheduleVisitOpen(true);
+              }}
+            >
+              Schedule Field Visit
             </AdminButton>
 
             {!isConverted && (
@@ -1320,9 +1390,24 @@ function isDetailsSendStage(lead: any): boolean {
           {/* TAB 4: FIELD VISITS */}
           {activeTab === 'VISITS' && (
             <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                Field Visits & Client Demonstrations
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                  Field Visits & Client Demonstrations
+                </h3>
+                <AdminButton
+                  variant="outline"
+                  size="sm"
+                  icon={Calendar}
+                  onClick={() => {
+                    setVisitPurpose('Product Demo & Architecture Review');
+                    setVisitLocation(lead?.address || lead?.city || 'Client Site');
+                    setVisitEmployeeId(lead?.employeeId || (employees[0]?.id ?? ''));
+                    setIsScheduleVisitOpen(true);
+                  }}
+                >
+                  Schedule Field Visit
+                </AdminButton>
+              </div>
 
               {lead.visits && lead.visits.length > 0 ? (
                 <div className="space-y-3">
@@ -1680,6 +1765,110 @@ function isDetailsSendStage(lead: any): boolean {
             >
               {updateSocialMutation.isPending ? 'Saving...' : 'Save Handles'}
             </button>
+          </div>
+        </form>
+      </AdminFormDrawer>
+
+      {/* SCHEDULE FIELD VISIT DRAWER */}
+      <AdminFormDrawer
+        isOpen={isScheduleVisitOpen}
+        onClose={() => setIsScheduleVisitOpen(false)}
+        title="Schedule Field Visit"
+        subtitle={`Lead: ${company}`}
+        size="md"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            scheduleVisitMutation.mutate();
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Visit Purpose *</label>
+            <input
+              type="text"
+              required
+              value={visitPurpose}
+              onChange={(e) => setVisitPurpose(e.target.value)}
+              placeholder="Product Demo & Architecture Review"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Visit Location *</label>
+            <input
+              type="text"
+              required
+              value={visitLocation}
+              onChange={(e) => setVisitLocation(e.target.value)}
+              placeholder="e.g. Shankheshwar Parshwanath Mar"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Date</label>
+              <input
+                type="date"
+                required
+                value={visitDate}
+                onChange={(e) => setVisitDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">Time</label>
+              <input
+                type="text"
+                value={visitTime}
+                onChange={(e) => setVisitTime(e.target.value)}
+                placeholder="11:00 AM"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Preparation Notes</label>
+            <textarea
+              rows={3}
+              value={visitNotes}
+              onChange={(e) => setVisitNotes(e.target.value)}
+              placeholder="Key stakeholder names or presentation items"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 block mb-1">Visitor / Employee Assignment *</label>
+            <select
+              value={visitEmployeeId}
+              onChange={(e) => setVisitEmployeeId(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
+            >
+              <option value="">Select Field Officer / Visitor</option>
+              {employees.map((emp) => {
+                const name = `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
+                const code = emp.employeeCode ? ` (${emp.employeeCode})` : '';
+                return (
+                  <option key={emp.id} value={emp.id}>
+                    {name || `Employee #${emp.id}`}{code}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200 flex justify-end gap-2">
+            <AdminButton variant="outline" type="button" onClick={() => setIsScheduleVisitOpen(false)}>
+              Cancel
+            </AdminButton>
+            <AdminButton type="submit" loading={scheduleVisitMutation.isPending}>
+              CONFIRM VISIT SCHEDULE
+            </AdminButton>
           </div>
         </form>
       </AdminFormDrawer>
