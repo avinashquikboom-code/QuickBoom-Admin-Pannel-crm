@@ -587,18 +587,19 @@ export default function LeadsPage() {
 
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
-  // 4b. Fetch Active Employees for Lead Assignment dropdown (all active employees can be assigned)
+  // 4b. Fetch Active BPO Team Employees for Lead Assignment dropdown
   const {
     data: bpoEmployeesData,
     isLoading: isLoadingBpoEmployees,
     isError: isBpoEmployeesError,
   } = useQuery({
-    queryKey: ['admin-active-assignable-employees'],
+    queryKey: ['admin-active-bpo-employees'],
     queryFn: async () => {
       try {
         const res: any = await api.get('/employees', {
           params: {
             status: 'ACTIVE',
+            bpoOnly: 'true',
             limit: 200,
           },
         });
@@ -609,7 +610,7 @@ export default function LeadsPage() {
     },
   });
 
-  // All active employees can be assigned to leads
+  // Only active BPO team employees can be assigned to leads
   const bpoEmployees: any[] = useMemo(() => {
     if (!Array.isArray(bpoEmployeesData)) return [];
     return bpoEmployeesData.filter((emp) => emp.status === 'ACTIVE' || !emp.status);

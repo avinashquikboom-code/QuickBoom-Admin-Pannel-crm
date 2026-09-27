@@ -63,12 +63,12 @@ export default function EditLeadPage() {
     enabled: Boolean(id),
   });
 
-  // Fetch All Active Employees for Lead Assignment dropdown
+  // Fetch Active BPO Employees for Lead Assignment dropdown
   const { data: employeesData } = useQuery({
-    queryKey: ['admin-active-assignable-employees'],
+    queryKey: ['admin-active-bpo-employees'],
     queryFn: async () => {
       try {
-        const res: any = await api.get('/employees', { params: { status: 'ACTIVE', limit: 200 } });
+        const res: any = await api.get('/employees', { params: { status: 'ACTIVE', bpoOnly: 'true', limit: 200 } });
         return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
       } catch {
         return [];
@@ -455,6 +455,9 @@ export default function EditLeadPage() {
               onChange={(e) => setFormData({ ...formData, assignedToId: e.target.value })}
               options={[
                 { label: '-- Unassigned --', value: '' },
+                ...(formData.assignedToId && !employees.some((e: any) => String(e.id) === String(formData.assignedToId) || String(e.userId) === String(formData.assignedToId))
+                  ? [{ label: lead?.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName} (Current)` : `Current Representative (#${formData.assignedToId})`, value: String(formData.assignedToId) }]
+                  : []),
                 ...employees.map((emp) => ({
                   label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})`,
                   value: String(emp.id),
