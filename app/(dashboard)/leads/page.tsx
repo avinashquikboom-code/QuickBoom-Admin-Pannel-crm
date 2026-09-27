@@ -705,13 +705,45 @@ export default function LeadsPage() {
       if (numericIds.length === 0) {
         throw new Error('Please select at least one valid lead to delete.');
       }
-      return api.delete('/leads/bulk', {
-        data: { ids: numericIds },
-        params: { ids: numericIds.join(',') },
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      try {
+        return await api.delete('/leads/bulk', {
+          data: { ids: numericIds },
+          params: { ids: numericIds.join(',') },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (err: any) {
+        // Fallback 1: POST /leads/bulk-delete if DELETE route encounters proxy/route collision
+        if (err?.response?.status === 404) {
+          try {
+            return await api.post('/leads/bulk-delete', { ids: numericIds });
+          } catch (postErr: any) {
+            // Fallback 2: If server has older image catching bulk route, delete leads individually
+            if (
+              postErr?.response?.status === 404 ||
+              String(err?.response?.data?.message || '').toLowerCase().includes('bulk')
+            ) {
+              const results = await Promise.allSettled(
+                numericIds.map((id) => api.delete(`/leads/${id}`))
+              );
+              const successfulCount = results.filter((r) => r.status === 'fulfilled').length;
+              if (successfulCount > 0) {
+                return {
+                  data: {
+                    success: true,
+                    requested: numericIds.length,
+                    deleted: successfulCount,
+                    failed: numericIds.length - successfulCount,
+                  },
+                };
+              }
+            }
+            throw postErr;
+          }
+        }
+        throw err;
+      }
     },
     onSuccess: (res: any) => {
       const data = res?.data || res;
