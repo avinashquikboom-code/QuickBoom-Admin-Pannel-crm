@@ -198,8 +198,18 @@ export default function TemplatesEmailPage() {
       };
 
       if (data.id && data.id > 0) {
+        console.log('[TEMPLATE_API_DEBUG]', {
+          method: 'PUT',
+          url: `/email/templates/${data.id}`,
+          payloadKeys: Object.keys(payload),
+        });
         return api.put(`/email/templates/${data.id}`, payload);
       } else {
+        console.log('[TEMPLATE_API_DEBUG]', {
+          method: 'POST',
+          url: '/email/templates',
+          payloadKeys: Object.keys(payload),
+        });
         return api.post('/email/templates', payload);
       }
     },

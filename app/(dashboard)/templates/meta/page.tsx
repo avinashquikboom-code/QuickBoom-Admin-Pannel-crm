@@ -73,6 +73,49 @@ interface MetaTemplate {
   updatedAt: string;
 }
 
+export interface MetaTemplateFormValues {
+  id: number;
+  name: string;
+  displayName: string;
+  category: string;
+  language: string;
+  headerType: string;
+  headerContent: string;
+  bodyText: string;
+  footerText: string;
+  buttons: any[];
+  variables: string[];
+  isActive: boolean;
+}
+
+export interface CreateMetaTemplatePayload {
+  name: string;
+  templateName: string;
+  body: string;
+  category?: string;
+  language?: string;
+  headerType?: string;
+  headerContent?: string;
+  footer?: string;
+  buttons?: any[];
+  variables?: string[];
+  isLocalActive?: boolean;
+}
+
+export interface UpdateMetaTemplatePayload {
+  name?: string;
+  templateName?: string;
+  body?: string;
+  category?: string;
+  language?: string;
+  headerType?: string;
+  headerContent?: string;
+  footer?: string;
+  buttons?: any[];
+  variables?: string[];
+  isLocalActive?: boolean;
+}
+
 const CATEGORIES = [
   { id: 'ALL', label: 'All Categories' },
   { id: 'MARKETING', label: 'Marketing' },
@@ -144,7 +187,7 @@ export default function TemplatesMetaPage() {
   const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<MetaTemplateFormValues>({
     id: 0,
     name: '',
     displayName: '',
@@ -307,36 +350,106 @@ export default function TemplatesMetaPage() {
     },
   });
 
+/**
+ * Maps local UI form values to the strict backend CreateMetaTemplateDto contract.
+ * Strips UI-only properties (displayName, bodyText, footerText, isActive) and maps:
+ * - displayName / name -> name
+ * - bodyText -> body
+ * - footerText -> footer
+ * - isActive -> isLocalActive
+ */
+function mapFormToCreatePayload(data: MetaTemplateFormValues): CreateMetaTemplatePayload {
+  const templateName = (data.name || data.displayName || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+
+  const payload: CreateMetaTemplatePayload = {
+    name: (data.displayName?.trim() || data.name?.trim() || ''),
+    templateName,
+    body: data.bodyText.trim(),
+    category: data.category,
+    language: data.language,
+    headerType: data.headerType || 'NONE',
+    isLocalActive: data.isActive,
+  };
+
+  if (data.headerContent?.trim()) {
+    payload.headerContent = data.headerContent.trim();
+  }
+  if (data.footerText?.trim()) {
+    payload.footer = data.footerText.trim();
+  }
+  if (data.buttons && data.buttons.length > 0) {
+    payload.buttons = data.buttons;
+  }
+  if (data.variables && data.variables.length > 0) {
+    payload.variables = data.variables;
+  }
+
+  return payload;
+}
+
+/**
+ * Maps local UI form values to the strict backend UpdateMetaTemplateDto contract.
+ * Strips UI-only properties (displayName, bodyText, footerText, isActive) and maps:
+ * - displayName / name -> name
+ * - bodyText -> body
+ * - footerText -> footer
+ * - isActive -> isLocalActive
+ */
+function mapFormToUpdatePayload(data: MetaTemplateFormValues): UpdateMetaTemplatePayload {
+  const templateName = (data.name || data.displayName || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+
+  const payload: UpdateMetaTemplatePayload = {
+    name: (data.displayName?.trim() || data.name?.trim() || undefined),
+    templateName: templateName || undefined,
+    body: data.bodyText !== undefined ? data.bodyText.trim() : undefined,
+    category: data.category || undefined,
+    language: data.language || undefined,
+    headerType: data.headerType || undefined,
+    isLocalActive: data.isActive,
+  };
+
+  if (data.headerContent !== undefined) {
+    payload.headerContent = data.headerContent.trim() || undefined;
+  }
+  if (data.footerText !== undefined) {
+    payload.footer = data.footerText.trim() || undefined;
+  }
+  if (data.buttons !== undefined) {
+    payload.buttons = data.buttons.length > 0 ? data.buttons : undefined;
+  }
+  if (data.variables !== undefined) {
+    payload.variables = data.variables;
+  }
+
+  return payload;
+}
+
   // Save template (Create / Update)
   const saveMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const templateName = (data.name || data.displayName || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[\s-]+/g, '_')
-        .replace(/[^a-z0-9_]/g, '');
-
-      const payload = {
-        name: data.displayName?.trim() || data.name?.trim(),
-        displayName: data.displayName?.trim() || data.name?.trim(),
-        templateName,
-        category: data.category,
-        language: data.language,
-        headerType: data.headerType,
-        headerContent: data.headerContent?.trim() || undefined,
-        body: data.bodyText,
-        bodyText: data.bodyText,
-        footer: data.footerText?.trim() || undefined,
-        footerText: data.footerText?.trim() || undefined,
-        buttons: data.buttons && data.buttons.length > 0 ? data.buttons : undefined,
-        variables: data.variables,
-        isLocalActive: data.isActive,
-        isActive: data.isActive,
-      };
-
+    mutationFn: async (data: MetaTemplateFormValues) => {
       if (data.id && data.id > 0) {
+        const payload = mapFormToUpdatePayload(data);
+        console.log('[TEMPLATE_API_DEBUG]', {
+          method: 'PUT',
+          url: `/templates/meta/${data.id}`,
+          payloadKeys: Object.keys(payload),
+        });
         return api.put(`/templates/meta/${data.id}`, payload);
       } else {
+        const payload = mapFormToCreatePayload(data);
+        console.log('[TEMPLATE_API_DEBUG]', {
+          method: 'POST',
+          url: '/templates/meta',
+          payloadKeys: Object.keys(payload),
+        });
         return api.post('/templates/meta', payload);
       }
     },
