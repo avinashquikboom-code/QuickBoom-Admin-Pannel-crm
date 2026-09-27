@@ -81,7 +81,7 @@ export default function LoginPage() {
       };
 
       setAuth(mappedUser, accessToken, refreshToken || '');
-      toast.success('Welcome back to QB Suite Super Admin Portal!');
+      toast.success('Hi,Welcome back to QB Suite Super Admin Portal!');
       router.push('/dashboard');
     } catch (err: any) {
       const errorMsg = err?.response?.data?.message || err?.message || 'Authentication failed. Please check credentials.';
