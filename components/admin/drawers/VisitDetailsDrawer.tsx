@@ -135,7 +135,9 @@ export function VisitDetailsDrawer({
                 </p>
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase text-slate-400">Field Officer</span>
+                <span className="text-[10px] font-bold uppercase text-slate-400">
+                  {visit.status === 'COMPLETED' ? 'Completed By' : 'Field Officer'}
+                </span>
                 <p className="font-bold text-slate-800 mt-0.5">
                   {visit.employee ? `${visit.employee.firstName} ${visit.employee.lastName}` : 'Unassigned'}
                 </p>

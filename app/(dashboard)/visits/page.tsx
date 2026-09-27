@@ -509,6 +509,11 @@ export default function VisitsPage() {
                         <span className="font-bold text-slate-800 text-xs flex items-center gap-1">
                           <User className="w-3 h-3 text-slate-400" /> {repName}
                         </span>
+                        {visit.status === 'COMPLETED' && (
+                          <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">
+                            Completed By: {repName}
+                          </span>
+                        )}
                       </td>
 
                       <td className="py-4 px-4">
