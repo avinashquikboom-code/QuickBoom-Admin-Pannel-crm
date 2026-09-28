@@ -293,6 +293,22 @@ export function CustomerDetailsDrawer({
                     <span className="text-[10px] font-bold uppercase text-slate-400">Department</span>
                     <p className="font-bold text-slate-800 mt-0.5">{customer.department || 'Sales & BD'}</p>
                   </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Won By</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                        {((customer.wonByName || (customer.wonBy ? (typeof customer.wonBy === 'string' ? customer.wonBy : customer.wonBy.name) : null) || 'W')[0] || 'W').toUpperCase()}
+                      </div>
+                      <p className="font-bold text-emerald-800 truncate" title={customer.wonByName || (customer.wonBy ? (typeof customer.wonBy === 'string' ? customer.wonBy : customer.wonBy.name) : null) || '—'}>
+                        {customer.wonByName || (customer.wonBy ? (typeof customer.wonBy === 'string' ? customer.wonBy : customer.wonBy.name) : null) || '—'}
+                      </p>
+                    </div>
+                    {customer.wonAt && (
+                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                        Won At: {new Date(customer.wonAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 

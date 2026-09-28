@@ -1548,8 +1548,6 @@ export default function LeadsPage() {
                 <th className="py-4 px-4">Stage Status</th>
                 <th className="py-4 px-4">Est. Value</th>
                 <th className="py-4 px-4">Assigned To</th>
-                <th className="py-4 px-4">Visited By</th>
-                <th className="py-4 px-4">Won By</th>
                 <th className="py-4 px-4">Created By</th>
                 <th className="py-4 px-5 text-right">Actions</th>
               </tr>
@@ -1557,13 +1555,13 @@ export default function LeadsPage() {
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoadingLeads ? (
                 <tr>
-                  <td colSpan={13} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                  <td colSpan={11} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading CRM leads from database...
                   </td>
                 </tr>
               ) : isLeadsError ? (
                 <tr>
-                  <td colSpan={13} className="py-16 text-center">
+                  <td colSpan={11} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <p className="font-bold text-sm text-rose-600">Unable to load leads. Please try again.</p>
                       <button
@@ -1819,52 +1817,6 @@ export default function LeadsPage() {
                         )}
                       </td>
 
-                      {/* Visited By */}
-                      <td className="py-4 px-4">
-                        {(() => {
-                          const visitedName = lead.visitedByName ||
-                            (lead.visitedBy ? `${lead.visitedBy.firstName || ''} ${lead.visitedBy.lastName || ''}`.trim() : null) ||
-                            (lead.employee && (lead.status === 'VISIT_DONE' || (lead.stage as any)?.key === 'VISIT_DONE')
-                              ? `${lead.employee.firstName || ''} ${lead.employee.lastName || ''}`.trim()
-                              : null);
-
-                          return visitedName ? (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black flex items-center justify-center shrink-0">
-                                {visitedName[0] || 'V'}
-                              </div>
-                              <span className="font-bold text-blue-800 text-xs truncate max-w-[120px]" title={visitedName}>
-                                {visitedName}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 font-bold text-xs">—</span>
-                          );
-                        })()}
-                      </td>
-
-                      {/* Won By */}
-                      <td className="py-4 px-4">
-                        {(() => {
-                          const wonName = lead.wonByName ||
-                            (lead.wonBy ? `${lead.wonBy.firstName || ''} ${lead.wonBy.lastName || ''}`.trim() : null) ||
-                            (lead.convertedByEmployeeName || (lead.convertedByEmployee ? `${lead.convertedByEmployee.firstName || ''} ${lead.convertedByEmployee.lastName || ''}`.trim() : null));
-
-                          return wonName ? (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center shrink-0">
-                                {wonName[0] || 'W'}
-                              </div>
-                              <span className="font-bold text-emerald-800 text-xs truncate max-w-[120px]" title={wonName}>
-                                {wonName}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 font-bold text-xs">—</span>
-                          );
-                        })()}
-                      </td>
-
                       {/* Created By */}
                       <td className="py-4 px-4">
                         {lead.createdBy ? (
@@ -1938,7 +1890,7 @@ export default function LeadsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={13} className="py-16 text-center text-slate-400">
+                  <td colSpan={11} className="py-16 text-center text-slate-400">
                     <p className="font-bold text-sm text-slate-600">No leads found in this view</p>
                     <p className="text-xs text-slate-400 mt-1">Try switching filters or search using Google Places</p>
                     <button
@@ -2541,71 +2493,20 @@ export default function LeadsPage() {
                       </select>
                     </div>
 
-                    {/* Ownership Chain: Created By + Visited By + Won By */}
-                    {(() => {
-                      const visitedName = (leadDetail as any).visitedByName ||
-                        ((leadDetail as any).visitedBy ? `${(leadDetail as any).visitedBy.firstName || ''} ${(leadDetail as any).visitedBy.lastName || ''}`.trim() : null) ||
-                        (leadDetail.employee ? `${leadDetail.employee.firstName || ''} ${leadDetail.employee.lastName || ''}`.trim() : null) ||
-                        (leadDetail as any).employeeName ||
-                        leadDetail.visits?.find((v: any) => v.completedBy || v.assignedEmployee)?.completedBy ||
-                        leadDetail.visits?.find((v: any) => v.completedBy || v.assignedEmployee)?.assignedEmployee ||
-                        (leadDetail.visits?.find((v: any) => v.employee)?.employee ? `${leadDetail.visits.find((v: any) => v.employee).employee.firstName || ''} ${leadDetail.visits.find((v: any) => v.employee).employee.lastName || ''}`.trim() : null);
-
-                      const hasWon = Boolean(leadDetail.convertedByEmployee || leadDetail.wonBy || leadDetail.wonByName || leadDetail.convertedByEmployeeName);
-                      const hasVisited = Boolean(visitedName);
-                      const hasCreated = Boolean(leadDetail.createdBy);
-
-                      if (!hasCreated && !hasVisited && !hasWon) return null;
-
-                      return (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {hasCreated && (
-                            <div className="p-3 bg-slate-50/70 rounded-2xl border border-slate-200/80">
-                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Created By</p>
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-700 font-black text-[10px] flex items-center justify-center shrink-0">
-                                  {leadDetail.createdBy?.firstName?.[0] || 'E'}
-                                </div>
-                                <p className="text-xs font-black text-slate-800 truncate">
-                                  {`${leadDetail.createdBy?.firstName} ${leadDetail.createdBy?.lastName}`.trim() || 'Employee'}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                          {hasVisited && (
-                            <div className="p-3 bg-blue-50/70 rounded-2xl border border-blue-200/80">
-                              <p className="text-[10px] font-black uppercase tracking-wider text-blue-500 mb-1">Visited By</p>
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-black text-[10px] flex items-center justify-center shrink-0">
-                                  {visitedName?.[0] || 'V'}
-                                </div>
-                                <p className="text-xs font-black text-blue-800 truncate" title={visitedName}>
-                                  {visitedName}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                          {hasWon && (
-                            <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
-                              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mb-1">Won By</p>
-                              <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-black text-[10px] flex items-center justify-center shrink-0">
-                                  {leadDetail.convertedByEmployee?.firstName?.[0] || leadDetail.wonBy?.firstName?.[0] || 'E'}
-                                </div>
-                                <p className="text-xs font-black text-emerald-800 truncate">
-                                  {`${leadDetail.convertedByEmployee?.firstName || leadDetail.wonBy?.firstName || ''} ${leadDetail.convertedByEmployee?.lastName || leadDetail.wonBy?.lastName || ''}`.trim() || leadDetail.wonByName || leadDetail.convertedByEmployeeName || 'Employee'}
-                                </p>
-                              </div>
-                              {(leadDetail.wonAt || (leadDetail as any).convertedAt) && (
-                                <p className="text-[10px] font-bold text-emerald-600 mt-1">
-                                  Won At: {new Date(leadDetail.wonAt || (leadDetail as any).convertedAt).toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                          )}
+                    {/* Ownership: Created By */}
+                    {leadDetail.createdBy && (
+                      <div className="p-3 bg-slate-50/70 rounded-2xl border border-slate-200/80 max-w-xs">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Created By</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-violet-100 text-violet-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                            {leadDetail.createdBy?.firstName?.[0] || 'E'}
+                          </div>
+                          <p className="text-xs font-black text-slate-800 truncate">
+                            {`${leadDetail.createdBy?.firstName} ${leadDetail.createdBy?.lastName}`.trim() || 'Employee'}
+                          </p>
                         </div>
-                      );
-                    })()}
+                      </div>
+                    )}
 
                     {/* Interactive Tabs inside Drawer */}
                     <div className="space-y-4 pt-2">

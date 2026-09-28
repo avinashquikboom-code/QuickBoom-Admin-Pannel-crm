@@ -2060,11 +2060,11 @@ export default function CustomerDetailPage() {
                   {customer?.assignedEmployee || (customer?.assignedEmployeeRel ? `${customer.assignedEmployeeRel.firstName || ''} ${customer.assignedEmployeeRel.lastName || ''}`.trim() : 'Unassigned')}
                 </span>
               </div>
-              {(customer?.wonBy?.name || customer?.wonByName || customer?.originLead?.convertedByEmployeeName || customer?.assignedEmployee) && (
+              {(customer?.wonBy?.name || customer?.wonByName || customer?.originLead?.convertedByEmployeeName || (typeof customer?.wonBy === 'string' && customer.wonBy)) && (
                 <div className="flex justify-between py-2 border-b border-slate-100">
                   <span className="text-slate-400 font-bold">Won By</span>
                   <span className="text-emerald-700 font-bold">
-                    {customer?.wonBy?.name || customer?.wonByName || customer?.originLead?.convertedByEmployeeName || customer?.assignedEmployee}
+                    {customer?.wonBy?.name || customer?.wonByName || (typeof customer?.wonBy === 'string' ? customer.wonBy : null) || customer?.originLead?.convertedByEmployeeName}
                   </span>
                 </div>
               )}

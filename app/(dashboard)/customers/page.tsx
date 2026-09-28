@@ -756,6 +756,7 @@ export default function CustomersPage() {
                   <th className="px-4 py-3.5 min-w-[170px]">Validity Dates</th>
                   <th className="px-4 py-3.5 min-w-[180px]">Contact Details</th>
                   <th className="px-4 py-3.5 min-w-[150px]">Assigned Team</th>
+                  <th className="px-4 py-3.5 min-w-[150px]">Won By</th>
                   <th className="px-4 py-3.5 min-w-[110px]">Status</th>
                   <th className="px-4 py-3.5 min-w-[120px] text-right">Actions</th>
                 </tr>
@@ -906,6 +907,37 @@ export default function CustomersPage() {
                             <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 font-bold text-[11px] inline-flex items-center gap-1">
                               Unassigned
                             </span>
+                          );
+                        })()}
+                      </td>
+
+                      {/* Won By */}
+                      <td className="px-4 py-4 min-w-[150px]">
+                        {(() => {
+                          const wonName = cust.wonByName ||
+                            (cust.wonBy ? (typeof cust.wonBy === 'string' ? cust.wonBy : cust.wonBy.name || `${cust.wonBy.firstName || ''} ${cust.wonBy.lastName || ''}`.trim()) : null) ||
+                            (cust.originLead?.convertedByEmployee
+                              ? `${cust.originLead.convertedByEmployee.firstName || ''} ${cust.originLead.convertedByEmployee.lastName || ''}`.trim()
+                              : null);
+
+                          return wonName ? (
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                                {wonName[0] || 'W'}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-bold text-emerald-800 text-xs truncate block max-w-[130px]" title={wonName}>
+                                  {wonName}
+                                </span>
+                                {cust.wonAt && (
+                                  <span className="text-[10px] text-slate-400 font-medium block">
+                                    {new Date(cust.wonAt).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs font-bold">—</span>
                           );
                         })()}
                       </td>
