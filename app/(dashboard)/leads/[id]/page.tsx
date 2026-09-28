@@ -831,6 +831,20 @@ function isDetailsSendStage(lead: any): boolean {
                   const currentStageId = lead.stageId ? String(lead.stageId) : lead.stage?.id ? String(lead.stage.id) : null;
                   if (currentStageId && String(currentStageId) === String(matchedStage.id)) return;
 
+                  // If VISIT_SCHEDULED stage selected → open Schedule Visit modal instead of direct update
+                  const stageKey = (matchedStage.key || '').toUpperCase().replace(/[\s-]+/g, '_');
+                  const stageName = (matchedStage.name || '').toLowerCase();
+                  const isVisitScheduledStage = stageKey === 'VISIT_SCHEDULED' || stageKey === 'VISIT' || stageName.includes('visit scheduled');
+                  if (isVisitScheduledStage) {
+                    setVisitPurpose('Product Demo & Architecture Review');
+                    setVisitLocation(lead?.address || lead?.city || 'Client Site');
+                    setVisitEmployeeId(lead?.employeeId || (employees[0]?.id ?? ''));
+                    setIsScheduleVisitOpen(true);
+                    // Reset dropdown to current value (visit modal handles stage change on confirm)
+                    e.target.value = currentStageId || '';
+                    return;
+                  }
+
                   try {
                     await updateStatusMutation.mutateAsync({
                       stageId: Number(matchedStage.id),

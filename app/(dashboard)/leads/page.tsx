@@ -2298,6 +2298,21 @@ export default function LeadsPage() {
                               const currentStageId = leadDetail.stageId ? String(leadDetail.stageId) : leadDetail.stage?.id ? String(leadDetail.stage.id) : null;
                               if (currentStageId && String(currentStageId) === String(matchedStage.id)) return;
 
+                              // If VISIT_SCHEDULED stage selected → open Schedule Visit modal instead of direct update
+                              const stageKey = (matchedStage.key || '').toUpperCase().replace(/[\s-]+/g, '_');
+                              const stageName = (matchedStage.name || '').toLowerCase();
+                              const isVisitScheduledStage = stageKey === 'VISIT_SCHEDULED' || stageKey === 'VISIT' || stageName.includes('visit scheduled');
+                              if (isVisitScheduledStage) {
+                                setScheduleVisitLead(leadDetail);
+                                setScheduleVisitPurpose('Product Demo & Architecture Review');
+                                setScheduleVisitLocation(leadDetail.address || leadDetail.city || 'Client Site');
+                                setScheduleVisitEmployeeId(leadDetail.employeeId || '');
+                                setIsScheduleVisitOpen(true);
+                                // Reset dropdown to current value (visit modal handles stage change on confirm)
+                                e.target.value = currentStageId || '';
+                                return;
+                              }
+
                               try {
                                 await updateStatusMutation.mutateAsync({
                                   stageId: Number(matchedStage.id),
