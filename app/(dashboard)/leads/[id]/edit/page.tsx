@@ -44,6 +44,8 @@ export default function EditLeadPage() {
     linkedin: '',
     youtube: '',
     twitter: '',
+    tiktok: '',
+    pinterest: '',
     source: 'WEBSITE',
     status: 'NEW',
     stageId: '',
@@ -118,7 +120,9 @@ export default function EditLeadPage() {
         facebook: social.facebook || lead.facebook || '',
         linkedin: social.linkedin || lead.linkedin || '',
         youtube: social.youtube || lead.youtube || '',
-        twitter: social.twitter || lead.twitter || '',
+        twitter: social.twitter || social.x || lead.twitter || '',
+        tiktok: social.tiktok || lead.tiktok || '',
+        pinterest: social.pinterest || lead.pinterest || '',
         source: lead.source || 'WEBSITE',
         status: lead.status || 'NEW',
         stageId: lead.stageId ? String(lead.stageId) : '',
@@ -164,6 +168,8 @@ export default function EditLeadPage() {
           linkedin: cleanVal(formData.linkedin) || '',
           youtube: cleanVal(formData.youtube) || '',
           twitter: cleanVal(formData.twitter) || '',
+          tiktok: cleanVal(formData.tiktok) || '',
+          pinterest: cleanVal(formData.pinterest) || '',
           website: cleanVal(formData.website) || '',
         },
         source: formData.source,
@@ -373,6 +379,26 @@ export default function EditLeadPage() {
               value={formData.twitter}
               onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
               placeholder="https://x.com/business or @business"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="TikTok Profile">
+            <AdminInput
+              type="text"
+              icon={Share2}
+              value={formData.tiktok}
+              onChange={(e) => setFormData({ ...formData, tiktok: e.target.value })}
+              placeholder="https://tiktok.com/@profile or @profile"
+            />
+          </AdminFormField>
+
+          <AdminFormField label="Pinterest Profile">
+            <AdminInput
+              type="text"
+              icon={Share2}
+              value={formData.pinterest}
+              onChange={(e) => setFormData({ ...formData, pinterest: e.target.value })}
+              placeholder="https://pinterest.com/profile or username"
             />
           </AdminFormField>
         </AdminFormSection>

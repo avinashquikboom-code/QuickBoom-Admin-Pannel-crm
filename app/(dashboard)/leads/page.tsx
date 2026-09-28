@@ -151,7 +151,11 @@ function normalizeSocialLink(platform: string, rawVal?: string | null): string {
     case 'facebook': return `https://facebook.com/${clean}`;
     case 'linkedin': return clean.includes('/') ? `https://linkedin.com/${clean}` : `https://linkedin.com/in/${clean}`;
     case 'youtube': return `https://youtube.com/@${clean}`;
-    case 'twitter': return `https://x.com/${clean}`;
+    case 'twitter':
+    case 'x': return `https://x.com/${clean}`;
+    case 'tiktok': return `https://tiktok.com/@${clean}`;
+    case 'pinterest': return `https://pinterest.com/${clean}`;
+    case 'website':
     default: return `https://${clean}`;
   }
 }
@@ -441,6 +445,8 @@ export default function LeadsPage() {
     linkedin: '',
     youtube: '',
     twitter: '',
+    tiktok: '',
+    pinterest: '',
   });
 
   
@@ -909,6 +915,8 @@ export default function LeadsPage() {
           linkedin: cleanOptionalString(leadForm.linkedin),
           youtube: cleanOptionalString(leadForm.youtube),
           twitter: cleanOptionalString(leadForm.twitter),
+          tiktok: cleanOptionalString(leadForm.tiktok),
+          pinterest: cleanOptionalString(leadForm.pinterest),
           website: cleanOptionalString(leadForm.website),
         },
       };
@@ -1187,6 +1195,8 @@ export default function LeadsPage() {
       linkedin: '',
       youtube: '',
       twitter: '',
+      tiktok: '',
+      pinterest: '',
     });
   };
 
@@ -1229,7 +1239,9 @@ export default function LeadsPage() {
       facebook: cleanOptionalString(lead.socialMedia?.facebook) || cleanOptionalString(lead.facebook) || '',
       linkedin: cleanOptionalString(lead.socialMedia?.linkedin) || cleanOptionalString(lead.linkedin) || '',
       youtube: cleanOptionalString(lead.socialMedia?.youtube) || cleanOptionalString(lead.youtube) || '',
-      twitter: cleanOptionalString(lead.socialMedia?.twitter) || cleanOptionalString(lead.twitter) || '',
+      twitter: cleanOptionalString(lead.socialMedia?.twitter) || cleanOptionalString(lead.socialMedia?.x) || cleanOptionalString(lead.twitter) || '',
+      tiktok: cleanOptionalString(lead.socialMedia?.tiktok) || cleanOptionalString(lead.tiktok) || '',
+      pinterest: cleanOptionalString(lead.socialMedia?.pinterest) || cleanOptionalString(lead.pinterest) || '',
     });
     setIsAddDrawerOpen(true);
   };
@@ -1692,7 +1704,10 @@ export default function LeadsPage() {
                             { key: 'facebook', label: 'Facebook', val: social.facebook || (lead as any).facebook, icon: Facebook, color: 'text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-200' },
                             { key: 'linkedin', label: 'LinkedIn', val: social.linkedin || (lead as any).linkedin, icon: Linkedin, color: 'text-sky-600 bg-sky-50 hover:bg-sky-100 border-sky-200' },
                             { key: 'youtube', label: 'YouTube', val: social.youtube || (lead as any).youtube, icon: Youtube, color: 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200' },
-                            { key: 'twitter', label: 'X / Twitter', val: social.twitter || (lead as any).twitter, icon: Twitter, color: 'text-slate-800 bg-slate-100 hover:bg-slate-200 border-slate-300' },
+                            { key: 'twitter', label: 'X / Twitter', val: social.twitter || social.x || (lead as any).twitter, icon: Twitter, color: 'text-slate-800 bg-slate-100 hover:bg-slate-200 border-slate-300' },
+                            { key: 'tiktok', label: 'TikTok', val: social.tiktok || (lead as any).tiktok, icon: Share2, color: 'text-black bg-slate-100 hover:bg-slate-200 border-slate-300' },
+                            { key: 'pinterest', label: 'Pinterest', val: social.pinterest || (lead as any).pinterest, icon: Share2, color: 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200' },
+                            { key: 'website', label: 'Website', val: lead.website || social.website, icon: Globe, color: 'text-teal-600 bg-teal-50 hover:bg-teal-100 border-teal-200' },
                           ].filter((p) => Boolean(p.val && String(p.val).trim() !== '' && String(p.val).trim() !== 'N/A' && String(p.val).trim() !== 'null'));
 
                           if (platforms.length === 0) {
@@ -3191,6 +3206,30 @@ export default function LeadsPage() {
                     value={leadForm.twitter}
                     onChange={(e) => setLeadForm({ ...leadForm, twitter: e.target.value })}
                     placeholder="https://x.com/... or @handle"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center gap-1">
+                    <Share2 className="w-3 h-3 text-slate-700" /> TikTok Profile / URL
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.tiktok}
+                    onChange={(e) => setLeadForm({ ...leadForm, tiktok: e.target.value })}
+                    placeholder="https://tiktok.com/@... or @handle"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-0.5 flex items-center gap-1">
+                    <Share2 className="w-3 h-3 text-red-600" /> Pinterest Profile / URL
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.pinterest}
+                    onChange={(e) => setLeadForm({ ...leadForm, pinterest: e.target.value })}
+                    placeholder="https://pinterest.com/..."
                     className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-900"
                   />
                 </div>

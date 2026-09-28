@@ -153,6 +153,9 @@ export default function LeadDetailPage() {
     linkedin: '',
     youtube: '',
     twitter: '',
+    tiktok: '',
+    pinterest: '',
+    website: '',
   });
 
   const openSocialModal = () => {
@@ -162,7 +165,10 @@ export default function LeadDetailPage() {
       facebook: social.facebook || lead?.facebook || '',
       linkedin: social.linkedin || lead?.linkedin || '',
       youtube: social.youtube || lead?.youtube || '',
-      twitter: social.twitter || lead?.twitter || '',
+      twitter: social.twitter || social.x || lead?.twitter || '',
+      tiktok: social.tiktok || lead?.tiktok || '',
+      pinterest: social.pinterest || lead?.pinterest || '',
+      website: lead?.website || social.website || '',
     });
     setIsSocialModalOpen(true);
   };
@@ -321,6 +327,7 @@ function isDetailsSendStage(lead: any): boolean {
   // Update Social Media Mutation
   const updateSocialMutation = useMutation({
     mutationFn: async () => {
+      const trimmedWebsite = socialForm.website.trim();
       return api.patch(`/leads/${id}`, {
         socialMedia: {
           instagram: socialForm.instagram.trim(),
@@ -328,7 +335,11 @@ function isDetailsSendStage(lead: any): boolean {
           linkedin: socialForm.linkedin.trim(),
           youtube: socialForm.youtube.trim(),
           twitter: socialForm.twitter.trim(),
+          tiktok: socialForm.tiktok.trim(),
+          pinterest: socialForm.pinterest.trim(),
+          website: trimmedWebsite,
         },
+        ...(trimmedWebsite ? { website: trimmedWebsite } : {}),
       });
     },
     onSuccess: () => {
@@ -351,8 +362,11 @@ function isDetailsSendStage(lead: any): boolean {
       case 'facebook': return `https://facebook.com/${clean}`;
       case 'linkedin': return clean.includes('/') ? `https://linkedin.com/${clean}` : `https://linkedin.com/in/${clean}`;
       case 'youtube': return `https://youtube.com/@${clean}`;
-      case 'twitter': return `https://x.com/${clean}`;
+      case 'twitter':
+      case 'x': return `https://x.com/${clean}`;
       case 'tiktok': return `https://tiktok.com/@${clean}`;
+      case 'pinterest': return `https://pinterest.com/${clean}`;
+      case 'website':
       default: return `https://${clean}`;
     }
   };
@@ -1165,9 +1179,11 @@ function isDetailsSendStage(lead: any): boolean {
                 { key: 'facebook', label: 'Facebook', val: social.facebook || lead.facebook, icon: Facebook, color: 'text-blue-600 bg-blue-50 border-blue-200' },
                 { key: 'linkedin', label: 'LinkedIn', val: social.linkedin || lead.linkedin, icon: Linkedin, color: 'text-sky-600 bg-sky-50 border-sky-200' },
                 { key: 'youtube', label: 'YouTube', val: social.youtube || lead.youtube, icon: Youtube, color: 'text-red-600 bg-red-50 border-red-200' },
-                { key: 'twitter', label: 'X (Twitter)', val: social.twitter || lead.twitter, icon: Twitter, color: 'text-slate-800 bg-slate-100 border-slate-200' },
+                { key: 'twitter', label: 'X (Twitter)', val: social.twitter || social.x || lead.twitter, icon: Twitter, color: 'text-slate-800 bg-slate-100 border-slate-200' },
                 { key: 'tiktok', label: 'TikTok', val: social.tiktok || lead.tiktok, icon: TikTokIcon, color: 'text-black bg-slate-100 border-slate-200' },
-              ].filter(p => Boolean(p.val));
+                { key: 'pinterest', label: 'Pinterest', val: social.pinterest || lead.pinterest, icon: Share2, color: 'text-red-600 bg-red-50 border-red-200' },
+                { key: 'website', label: 'Website', val: lead.website || social.website, icon: Globe, color: 'text-teal-600 bg-teal-50 border-teal-200' },
+              ].filter(p => Boolean(p.val && String(p.val).trim() !== '' && String(p.val).trim() !== 'N/A' && String(p.val).trim() !== 'null'));
 
               if (platforms.length === 0) {
                 return (
@@ -1748,6 +1764,45 @@ function isDetailsSendStage(lead: any): boolean {
               placeholder="https://x.com/business or @business"
               value={socialForm.twitter}
               onChange={(e) => setSocialForm({ ...socialForm, twitter: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+              <TikTokIcon className="w-3.5 h-3.5 text-slate-900" /> TikTok Profile
+            </label>
+            <input
+              type="text"
+              placeholder="https://tiktok.com/@profile or @profile"
+              value={socialForm.tiktok}
+              onChange={(e) => setSocialForm({ ...socialForm, tiktok: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+              <Share2 className="w-3.5 h-3.5 text-red-600" /> Pinterest Profile
+            </label>
+            <input
+              type="text"
+              placeholder="https://pinterest.com/profile or username"
+              value={socialForm.pinterest}
+              onChange={(e) => setSocialForm({ ...socialForm, pinterest: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+              <Globe className="w-3.5 h-3.5 text-teal-600" /> Website URL
+            </label>
+            <input
+              type="text"
+              placeholder="https://example.com"
+              value={socialForm.website}
+              onChange={(e) => setSocialForm({ ...socialForm, website: e.target.value })}
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
             />
           </div>
