@@ -80,6 +80,29 @@ export default function CreateVisitPage() {
   const contacts: any[] = Array.isArray(contactsData) ? contactsData : [];
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
+  // Only Visitor / Field employees can be assigned to field visits
+  const visitorEmployees = React.useMemo(() => {
+    return employees.filter((emp: any) => {
+      const desigName = (emp.designation?.name || emp.designationName || '').toUpperCase();
+      const desigCode = (emp.designation?.code || emp.designationCode || '').toUpperCase();
+      const desigId = emp.designationId || emp.designation?.id;
+      const roleName = (emp.role?.name || emp.role || '').toString().toUpperCase();
+      const roleTypeName = (emp.roleType || '').toString().toUpperCase();
+      return (
+        desigId === 11 ||
+        desigName.includes('VISIT') ||
+        desigName.includes('FIELD') ||
+        desigName.includes('VISITOR') ||
+        desigCode.includes('VISIT') ||
+        desigCode.includes('FIELD') ||
+        roleName.includes('VISITOR') ||
+        roleName.includes('VISIT') ||
+        roleTypeName.includes('VISITOR') ||
+        roleTypeName.includes('VISIT')
+      );
+    });
+  }, [employees]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -156,10 +179,10 @@ export default function CreateVisitPage() {
               value={formData.employeeId}
               onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
               options={[
-                { value: '', label: '-- Select Field Rep --' },
-                ...employees.map((emp) => ({
+                { value: '', label: visitorEmployees.length === 0 ? '-- No Visitor Employees Found --' : '-- Select Field Rep --' },
+                ...visitorEmployees.map((emp) => ({
                   value: String(emp.id),
-                  label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})`,
+                  label: `${emp.name || `${emp.firstName || ''} ${emp.lastName || ''}`} (${emp.employeeCode})${emp.designation?.name ? ` — ${emp.designation.name}` : ''}`,
                 })),
               ]}
             />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -441,12 +441,39 @@ function isDetailsSendStage(lead: any): boolean {
   });
   const employees: any[] = Array.isArray(employeesData) ? employeesData : [];
 
+  // Only Visitor / Field employees for Schedule Visit assignment
+  const visitorEmployees: any[] = useMemo(() => {
+    return employees.filter((emp: any) => {
+      const desigName = (emp.designation?.name || emp.designationName || '').toUpperCase();
+      const desigCode = (emp.designation?.code || emp.designationCode || '').toUpperCase();
+      const desigId = emp.designationId || emp.designation?.id;
+      const roleName = (emp.role?.name || emp.role || '').toString().toUpperCase();
+      const roleTypeName = (emp.roleType || '').toString().toUpperCase();
+      return (
+        desigId === 11 ||
+        desigName.includes('VISIT') ||
+        desigName.includes('FIELD') ||
+        desigName.includes('VISITOR') ||
+        desigCode.includes('VISIT') ||
+        desigCode.includes('FIELD') ||
+        roleName.includes('VISITOR') ||
+        roleName.includes('VISIT') ||
+        roleTypeName.includes('VISITOR') ||
+        roleTypeName.includes('VISIT')
+      );
+    });
+  }, [employees]);
+
   // Schedule Field Visit Mutation
   const scheduleVisitMutation = useMutation({
     mutationFn: async () => {
       const targetEmpId = visitEmployeeId
         ? Number(visitEmployeeId)
-        : (lead?.employeeId ? Number(lead.employeeId) : (employees[0]?.id ? Number(employees[0].id) : undefined));
+        : (lead?.employeeId ? Number(lead.employeeId) : (visitorEmployees[0]?.id ? Number(visitorEmployees[0].id) : undefined));
+
+      if (!targetEmpId) {
+        throw new Error('Please select a visitor/field employee to assign the visit');
+      }
 
       return api.post(`/leads/${id}/visits`, {
         action: 'SCHEDULE',
@@ -1820,21 +1847,31 @@ function isDetailsSendStage(lead: any): boolean {
           <div>
             <label className="text-[11px] font-bold text-slate-600 block mb-1">Visitor / Employee Assignment *</label>
             <select
+              required
               value={visitEmployeeId}
               onChange={(e) => setVisitEmployeeId(e.target.value)}
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
             >
               <option value="">Select Field Officer / Visitor</option>
-              {employees.map((emp) => {
+              {visitorEmployees.length === 0 && (
+                <option value="" disabled>No visitor/field employees found</option>
+              )}
+              {visitorEmployees.map((emp: any) => {
                 const name = `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
                 const code = emp.employeeCode ? ` (${emp.employeeCode})` : '';
+                const desig = emp.designation?.name ? ` — ${emp.designation.name}` : '';
                 return (
                   <option key={emp.id} value={emp.id}>
-                    {name || `Employee #${emp.id}`}{code}
+                    {name || `Employee #${emp.id}`}{code}{desig}
                   </option>
                 );
               })}
             </select>
+            {visitorEmployees.length === 0 && (
+              <p className="mt-1.5 text-[11px] text-amber-600 font-medium">
+                No visitor or field officers found. Please assign "Visitor" or "Field Officer" designation in Employee Settings.
+              </p>
+            )}
           </div>
 
           <div className="pt-4 border-t border-slate-200 flex justify-end gap-2">

@@ -633,6 +633,29 @@ export default function LeadsPage() {
     return bpoEmployeesData.filter((emp) => emp.status === 'ACTIVE' || !emp.status);
   }, [bpoEmployeesData]);
 
+  // Only Visitor / Field employees for Schedule Visit assignment
+  const visitorEmployees: any[] = useMemo(() => {
+    return employees.filter((emp: any) => {
+      const desigName = (emp.designation?.name || emp.designationName || '').toUpperCase();
+      const desigCode = (emp.designation?.code || emp.designationCode || '').toUpperCase();
+      const desigId = emp.designationId || emp.designation?.id;
+      const roleName = (emp.role?.name || emp.role || '').toString().toUpperCase();
+      const roleTypeName = (emp.roleType || '').toString().toUpperCase();
+      return (
+        desigId === 11 ||
+        desigName.includes('VISIT') ||
+        desigName.includes('FIELD') ||
+        desigName.includes('VISITOR') ||
+        desigCode.includes('VISIT') ||
+        desigCode.includes('FIELD') ||
+        roleName.includes('VISITOR') ||
+        roleName.includes('VISIT') ||
+        roleTypeName.includes('VISITOR') ||
+        roleTypeName.includes('VISIT')
+      );
+    });
+  }, [employees]);
+
   // Fetch active stages from Stage Management — single source of truth for the dropdown
   const {
     data: stagesData,
@@ -1101,6 +1124,10 @@ export default function LeadsPage() {
       const targetEmpId = scheduleVisitEmployeeId
         ? Number(scheduleVisitEmployeeId)
         : (scheduleVisitLead.employeeId ? Number(scheduleVisitLead.employeeId) : undefined);
+
+      if (!targetEmpId) {
+        throw new Error('Please select a visitor/field employee to assign the visit');
+      }
 
       return api.post(`/leads/${scheduleVisitLead.id}/visits`, {
         action: 'SCHEDULE',
@@ -3467,21 +3494,31 @@ export default function LeadsPage() {
           <div>
             <label className="text-[11px] font-bold text-slate-600 block mb-1">Visitor / Employee Assignment *</label>
             <select
+              required
               value={scheduleVisitEmployeeId}
               onChange={(e) => setScheduleVisitEmployeeId(e.target.value)}
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
             >
               <option value="">Select Field Officer / Visitor</option>
-              {employees.map((emp: any) => {
+              {visitorEmployees.length === 0 && (
+                <option value="" disabled>No visitor/field employees found</option>
+              )}
+              {visitorEmployees.map((emp: any) => {
                 const name = `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
                 const code = emp.employeeCode ? ` (${emp.employeeCode})` : '';
+                const desig = emp.designation?.name ? ` — ${emp.designation.name}` : '';
                 return (
                   <option key={emp.id} value={emp.id}>
-                    {name || `Employee #${emp.id}`}{code}
+                    {name || `Employee #${emp.id}`}{code}{desig}
                   </option>
                 );
               })}
             </select>
+            {visitorEmployees.length === 0 && (
+              <p className="mt-1.5 text-[11px] text-amber-600 font-medium">
+                No visitor or field officers found. Please assign "Visitor" or "Field Officer" designation in Employee Settings.
+              </p>
+            )}
           </div>
 
           <div className="pt-4 border-t border-slate-200 flex justify-end gap-2">
