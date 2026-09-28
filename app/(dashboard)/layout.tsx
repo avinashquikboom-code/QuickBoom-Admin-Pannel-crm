@@ -18,6 +18,8 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { getUserRole, UserRole } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
@@ -39,6 +41,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: '🛡️',
     });
   };
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['admin-notifications', 'unread-count'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/notifications', {
+          params: { unreadOnly: 'true', limit: 20 },
+        });
+        const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
+        const total = res?.pagination?.total ?? res?.meta?.total ?? (Array.isArray(items) ? items.length : 0);
+        return Number(total) || (Array.isArray(items) ? items.length : 0);
+      } catch {
+        return 0;
+      }
+    },
+    enabled: Boolean(user),
+    refetchInterval: 30000,
+  });
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-800">
@@ -159,7 +179,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               title="Notification Center"
             >
               <Bell className="w-5 h-5" />
-              <span className="w-2 h-2 bg-[#23C45E] rounded-full absolute top-2 right-2" />
+              {unreadCount > 0 && (
+                <span className="min-w-[18px] h-[18px] bg-[#23C45E] text-slate-950 font-black text-[10px] rounded-full absolute -top-1 -right-1 flex items-center justify-center px-1 shadow-xs border-2 border-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Link>
 
             {/* User Profile Badge */}

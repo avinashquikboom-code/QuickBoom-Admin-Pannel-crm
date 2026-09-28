@@ -22,9 +22,13 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[FCM] Background message received:', payload);
 
-  const title = payload.notification?.title || payload.data?.title || 'QuikBoom Admin';
+  // If payload already has a notification block handled by Firebase SDK, avoid duplicate
+  if (payload.notification) {
+    return;
+  }
+
+  const title = payload.data?.title || 'QuikBoom Admin';
   const body =
-    payload.notification?.body ||
     payload.data?.body ||
     payload.data?.message ||
     'New operational notification received.';
@@ -36,7 +40,7 @@ messaging.onBackgroundMessage((payload) => {
     tag: payload.data?.notificationId || payload.data?.type || 'quikboom-admin-alert',
     data: {
       ...payload.data,
-      click_action: payload.data?.route || payload.fcmOptions?.link || '/notifications',
+      click_action: payload.data?.route || payload.fcmOptions?.link || '/settings/notifications',
     },
     requireInteraction: true,
   };
@@ -53,7 +57,7 @@ self.addEventListener('notificationclick', (event) => {
   const targetRoute =
     event.notification.data?.click_action ||
     event.notification.data?.route ||
-    '/notifications';
+    '/settings/notifications';
 
   event.waitUntil(
     clients
