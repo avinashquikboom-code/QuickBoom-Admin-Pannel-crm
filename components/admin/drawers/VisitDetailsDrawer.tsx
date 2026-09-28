@@ -139,13 +139,18 @@ export function VisitDetailsDrawer({
                 <p className="font-bold text-slate-800 mt-0.5">
                   {visit.employee
                     ? `${visit.employee.firstName || ''} ${visit.employee.lastName || ''}`.trim()
-                    : 'Unassigned'}
+                    : (visit.assignedVisitor?.name || 'Unassigned')}
                 </p>
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase text-slate-400">Visited By</span>
                 <p className="font-bold text-[#1AA14D] mt-0.5">
-                  {visit.completedBy || '—'}
+                  {visit.status === 'COMPLETED'
+                    ? ((visit.completedBy && visit.completedBy !== 'Visitor' ? visit.completedBy : null) ||
+                       (visit.completedEmployee ? `${visit.completedEmployee.firstName || ''} ${visit.completedEmployee.lastName || ''}`.trim() : null) ||
+                       (visit.visitedBy?.name && visit.visitedBy.name !== 'Visitor' ? visit.visitedBy.name : null) ||
+                       '—')
+                    : '—'}
                 </p>
               </div>
               {visit.scheduledBy && (

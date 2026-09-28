@@ -274,7 +274,12 @@ export default function VisitDetailPage() {
               <div>
                 <span className="text-slate-400 text-[10px] font-bold uppercase block">Visited By</span>
                 <p className="font-extrabold text-[#1AA14D] text-xs mt-0.5">
-                  {visit.completedBy || '—'}
+                  {visit.status === 'COMPLETED'
+                    ? ((visit.completedBy && visit.completedBy !== 'Visitor' ? visit.completedBy : null) ||
+                       (visit.completedEmployee ? `${visit.completedEmployee.firstName || ''} ${visit.completedEmployee.lastName || ''}`.trim() : null) ||
+                       (visit.visitedBy?.name && visit.visitedBy.name !== 'Visitor' ? visit.visitedBy.name : null) ||
+                       '—')
+                    : '—'}
                 </p>
               </div>
 

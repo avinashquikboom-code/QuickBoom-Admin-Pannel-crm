@@ -454,9 +454,17 @@ export default function VisitsPage() {
                 visits.map((visit) => {
                   const clientName = visit.customerName || visit.clientName || 'Client Meeting';
                   const repName = visit.employee
-                    ? `${visit.employee.firstName} ${visit.employee.lastName}`
-                    : visit.employeeName || 'Assigned Visitor';
-                  const visitedByName = visit.completedBy || (visit.status === 'COMPLETED' ? null : null);
+                    ? `${visit.employee.firstName || ''} ${visit.employee.lastName || ''}`.trim()
+                    : (visit.assignedVisitor?.name || visit.employeeName || '—');
+                  const visitedByName =
+                    visit.status === 'COMPLETED'
+                      ? (
+                          (visit.completedBy && visit.completedBy !== 'Visitor' ? visit.completedBy : null) ||
+                          (visit.completedEmployee ? `${visit.completedEmployee.firstName || ''} ${visit.completedEmployee.lastName || ''}`.trim() : null) ||
+                          (visit.visitedBy?.name && visit.visitedBy.name !== 'Visitor' ? visit.visitedBy.name : null) ||
+                          null
+                        )
+                      : null;
 
                   return (
                     <tr key={visit.id} className="hover:bg-slate-50/70 transition-colors">
