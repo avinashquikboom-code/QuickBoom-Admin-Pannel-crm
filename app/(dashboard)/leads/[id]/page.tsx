@@ -313,7 +313,7 @@ function isDetailsSendStage(lead: any): boolean {
       } else if (emailFailed) {
         toast.error(`Lead stage updated, but customer email failed: ${emailNotif.error || 'Check SMTP configuration'}.`);
       } else if (whatsappFailed) {
-        toast.error(`Lead stage updated, but WhatsApp message failed: ${whatsappNotif.error || 'Check WhatsApp configuration'}.`);
+        toast.error(`Lead stage updated, but WhatsApp message failed: ${whatsappNotif.message || whatsappNotif.error || 'Check WhatsApp configuration'}.`);
       } else {
         toast.success('Lead stage updated successfully.');
       }

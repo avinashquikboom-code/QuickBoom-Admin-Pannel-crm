@@ -1076,7 +1076,7 @@ export default function LeadsPage() {
       if (emailSent && whatsappSent) {
         toast.success('Lead stage updated! Customer email & WhatsApp message sent.', { id: 'lead-status-update' });
       } else if (emailSent && whatsappFailed) {
-        toast.success(`Lead stage updated! Customer email sent (WhatsApp failed: ${whatsappNotif.error || 'Check WhatsApp configuration'}).`, { id: 'lead-status-update' });
+        toast.success(`Lead stage updated! Customer email sent (WhatsApp failed: ${whatsappNotif.message || whatsappNotif.error || 'Check WhatsApp configuration'}).`, { id: 'lead-status-update' });
       } else if (whatsappSent && emailFailed) {
         toast.success(`Lead stage updated! WhatsApp message sent (Email failed: ${emailNotif.error || 'Check SMTP configuration'}).`, { id: 'lead-status-update' });
       } else if (emailSent) {
@@ -1088,7 +1088,7 @@ export default function LeadsPage() {
       } else if (emailFailed) {
         toast.error(`Lead stage updated, but customer email failed: ${emailNotif.error || 'Check SMTP configuration'}.`, { id: 'lead-status-update' });
       } else if (whatsappFailed) {
-        toast.error(`Lead stage updated, but WhatsApp message failed: ${whatsappNotif.error || 'Check WhatsApp configuration'}.`, { id: 'lead-status-update' });
+        toast.error(`Lead stage updated, but WhatsApp message failed: ${whatsappNotif.message || whatsappNotif.error || 'Check WhatsApp configuration'}.`, { id: 'lead-status-update' });
       } else {
         toast.success('Lead stage updated successfully.', { id: 'lead-status-update' });
       }
