@@ -53,6 +53,7 @@ interface MetaTemplate {
   id: number;
   customerId?: number | null;
   name: string;
+  templateName?: string;
   displayName: string;
   category: string;
   language: string;
@@ -616,7 +617,7 @@ function mapFormToUpdatePayload(data: MetaTemplateFormValues): UpdateMetaTemplat
     try {
       const res: any = await api.post('/templates/meta/test-send', {
         templateId: selectedTemplateForTest.id,
-        templateName: selectedTemplateForTest.name,
+        templateName: selectedTemplateForTest.templateName || selectedTemplateForTest.name,
         language: selectedTemplateForTest.language,
         to: testRecipientPhone.trim(),
         variables: testVariables,
@@ -630,7 +631,9 @@ function mapFormToUpdatePayload(data: MetaTemplateFormValues): UpdateMetaTemplat
       );
       setIsTestSendModalOpen(false);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to send test WhatsApp message';
+      const data = err?.response?.data;
+      const rawMsg = data?.message || err?.message || 'Failed to send test WhatsApp message';
+      const msg = Array.isArray(rawMsg) ? rawMsg.join(', ') : rawMsg;
       toast.error(msg);
     } finally {
       setIsSendingTest(false);
