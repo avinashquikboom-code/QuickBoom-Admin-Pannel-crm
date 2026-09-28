@@ -189,6 +189,24 @@ export default function VisitDetailPage() {
                 </p>
               </div>
 
+              {visit.startedAt && (
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">Started At</span>
+                  <p className="font-bold text-slate-800 mt-0.5">
+                    {new Date(visit.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              )}
+
+              {visit.completedAt && (
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">Completed At</span>
+                  <p className="font-bold text-emerald-700 mt-0.5">
+                    {new Date(visit.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              )}
+
               {visit.duration && (
                 <div>
                   <span className="text-slate-400 text-[10px] font-bold uppercase block">Duration</span>
@@ -231,24 +249,42 @@ export default function VisitDetailPage() {
             </div>
           </div>
 
-          {/* Representative Card */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-3 text-xs">
-            <span className="text-slate-400 text-[10px] font-bold uppercase block">Assigned Representative</span>
-            {visit.employee ? (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#1AA14D] font-black flex items-center justify-center">
-                  {visit.employee.firstName?.[0] || 'E'}
+          {/* Representative & Ownership Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 text-xs">
+            <div>
+              <span className="text-slate-400 text-[10px] font-bold uppercase block mb-1.5">Assigned Visitor</span>
+              {visit.employee ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#1AA14D] font-black flex items-center justify-center">
+                    {visit.employee.firstName?.[0] || 'E'}
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-slate-900 text-sm">
+                      {visit.employee.firstName} {visit.employee.lastName}
+                    </p>
+                    <p className="text-slate-400 font-medium text-[11px]">{visit.employee.employeeCode}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-extrabold text-slate-900 text-sm">
-                    {visit.employee.firstName} {visit.employee.lastName}
-                  </p>
-                  <p className="text-slate-400 font-medium text-[11px]">{visit.employee.employeeCode}</p>
-                </div>
+              ) : (
+                <p className="font-extrabold text-slate-900">Unassigned Field Rep</p>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div>
+                <span className="text-slate-400 text-[10px] font-bold uppercase block">Visited By</span>
+                <p className="font-extrabold text-[#1AA14D] text-xs mt-0.5">
+                  {visit.completedBy || '—'}
+                </p>
               </div>
-            ) : (
-              <p className="font-extrabold text-slate-900">Unassigned Field Rep</p>
-            )}
+
+              {visit.scheduledBy && (
+                <div>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase block">Scheduled By</span>
+                  <p className="font-bold text-slate-800 text-xs mt-0.5">{visit.scheduledBy}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -437,7 +437,8 @@ export default function VisitsPage() {
                 <th className="py-4 px-4">Visit Purpose</th>
                 <th className="py-4 px-4">Location</th>
                 <th className="py-4 px-4">Date & Time</th>
-                <th className="py-4 px-4">Assigned Rep</th>
+                <th className="py-4 px-4">Assigned Visitor</th>
+                <th className="py-4 px-4">Visited By</th>
                 <th className="py-4 px-4">Status</th>
                 <th className="py-4 px-5 text-right">Actions</th>
               </tr>
@@ -445,7 +446,7 @@ export default function VisitsPage() {
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                  <td colSpan={8} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading client visits...
                   </td>
                 </tr>
@@ -454,7 +455,8 @@ export default function VisitsPage() {
                   const clientName = visit.customerName || visit.clientName || 'Client Meeting';
                   const repName = visit.employee
                     ? `${visit.employee.firstName} ${visit.employee.lastName}`
-                    : visit.employeeName || 'Assigned Rep';
+                    : visit.employeeName || 'Assigned Visitor';
+                  const visitedByName = visit.completedBy || (visit.status === 'COMPLETED' ? null : null);
 
                   return (
                     <tr key={visit.id} className="hover:bg-slate-50/70 transition-colors">
@@ -509,10 +511,20 @@ export default function VisitsPage() {
                         <span className="font-bold text-slate-800 text-xs flex items-center gap-1">
                           <User className="w-3 h-3 text-slate-400" /> {repName}
                         </span>
-                        {visit.status === 'COMPLETED' && (
-                          <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">
-                            Completed By: {repName}
+                        {visit.scheduledBy && (
+                          <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+                            By: {visit.scheduledBy}
                           </span>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-4">
+                        {visitedByName ? (
+                          <span className="font-extrabold text-[#1AA14D] text-xs flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-[#1AA14D]" /> {visitedByName}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">—</span>
                         )}
                       </td>
 
@@ -799,7 +811,7 @@ export default function VisitsPage() {
               disabled={saveMutation.isPending}
               className="px-5 py-2 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-md shadow-[#23C45E]/20"
             >
-              {saveMutation.isPending ? 'Saving...' : form.id ? 'Save Changes' : 'Schedule Visit'}
+              {saveMutation.isPending ? 'Saving...' : form.id ? 'Save Changes' : 'Confirm Visit Schedule'}
             </button>
           </div>
         </form>

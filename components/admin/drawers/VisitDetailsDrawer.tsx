@@ -131,19 +131,45 @@ export function VisitDetailsDrawer({
               <div>
                 <span className="text-[10px] font-bold uppercase text-slate-400">Date & Time</span>
                 <p className="font-bold text-slate-800 mt-0.5">
-                  {visit.date} at {visit.time}
+                  {visit.date ? new Date(visit.date).toLocaleDateString() : ''} at {visit.time || '10:00 AM'}
                 </p>
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase text-slate-400">
-                  {visit.status === 'COMPLETED' ? 'Completed By' : 'Field Officer'}
-                </span>
+                <span className="text-[10px] font-bold uppercase text-slate-400">Assigned Visitor</span>
                 <p className="font-bold text-slate-800 mt-0.5">
                   {visit.employee
                     ? `${visit.employee.firstName || ''} ${visit.employee.lastName || ''}`.trim()
-                    : (visit.completedBy || visit.assignedEmployee || 'Unassigned')}
+                    : 'Unassigned'}
                 </p>
               </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase text-slate-400">Visited By</span>
+                <p className="font-bold text-[#1AA14D] mt-0.5">
+                  {visit.completedBy || '—'}
+                </p>
+              </div>
+              {visit.scheduledBy && (
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Scheduled By</span>
+                  <p className="font-bold text-slate-800 mt-0.5">{visit.scheduledBy}</p>
+                </div>
+              )}
+              {visit.startedAt && (
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Started At</span>
+                  <p className="font-bold text-slate-800 mt-0.5">
+                    {new Date(visit.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              )}
+              {visit.completedAt && (
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Completed At</span>
+                  <p className="font-bold text-emerald-700 mt-0.5">
+                    {new Date(visit.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -172,13 +198,23 @@ export function VisitDetailsDrawer({
             </div>
           )}
 
-          {/* Outcome Notes */}
+          {/* Discussion / Requirement Notes */}
           {visit.notes && (
             <div className="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-2">
               <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-emerald-600" /> Visit Discussion Notes
+                <FileText className="w-3.5 h-3.5 text-emerald-600" /> Visit Discussion & Requirement Notes
               </h4>
               <p className="text-slate-700 font-medium whitespace-pre-wrap">{visit.notes}</p>
+            </div>
+          )}
+
+          {/* Outcome & Review */}
+          {visit.outcome && (
+            <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 space-y-2">
+              <h4 className="text-xs font-black uppercase text-emerald-900 tracking-wider flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Meeting Outcome & Review
+              </h4>
+              <p className="text-emerald-950 font-medium whitespace-pre-wrap">{visit.outcome}</p>
             </div>
           )}
         </div>
