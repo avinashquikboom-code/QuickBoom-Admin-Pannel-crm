@@ -3102,13 +3102,13 @@ export default function RolesPermissionsPage() {
                 <RotateCcw className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-slate-900">Reset Employee Permissions?</h3>
+                <h3 className="text-sm font-black text-slate-900">Reset {isCustomerOverrides ? 'Customer' : 'Employee'} Permissions?</h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Employee:{' '}
+                  {isCustomerOverrides ? 'Customer' : 'Employee'}:{' '}
                   <span className="font-bold text-slate-800">
                     {selectedEmployee.firstName
                       ? `${selectedEmployee.firstName} ${selectedEmployee.lastName || ''}`.trim()
-                      : selectedEmployee.name || 'Employee'}
+                      : selectedEmployee.name || (isCustomerOverrides ? 'Customer' : 'Employee')}
                   </span>{' '}
                   ({empPermsData?.roleName || selectedEmployee.designation?.name || 'Role Defaults'})
                 </p>
@@ -3117,7 +3117,7 @@ export default function RolesPermissionsPage() {
 
             <div className="text-xs text-slate-600 space-y-2.5">
               <p>
-                This will remove all custom permission overrides for this employee and restore the permissions inherited from the employee's role.
+                This will remove all custom permission overrides for this {isCustomerOverrides ? 'customer' : 'employee'} and restore the permissions inherited from the {isCustomerOverrides ? 'customer' : 'employee'}'s role.
               </p>
 
               {hasUnsavedEmpChanges && (
@@ -3128,7 +3128,7 @@ export default function RolesPermissionsPage() {
               )}
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500">
-                ℹ️ Other employees assigned to this role will NOT be affected.
+                ℹ️ Other {isCustomerOverrides ? 'customers' : 'employees'} assigned to this role will NOT be affected.
               </div>
             </div>
 
@@ -3168,11 +3168,11 @@ export default function RolesPermissionsPage() {
               <div>
                 <h3 className="text-sm font-black text-slate-900">Restrict All Permissions?</h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Employee:{' '}
+                  {isCustomerOverrides ? 'Customer' : 'Employee'}:{' '}
                   <span className="font-bold text-slate-800">
                     {selectedEmployee.firstName
                       ? `${selectedEmployee.firstName} ${selectedEmployee.lastName || ''}`.trim()
-                      : selectedEmployee.name || 'Employee'}
+                      : selectedEmployee.name || (isCustomerOverrides ? 'Customer' : 'Employee')}
                   </span>{' '}
                   ({empPermsData?.roleName || selectedEmployee.designation?.name || 'Role Defaults'})
                 </p>
@@ -3181,10 +3181,10 @@ export default function RolesPermissionsPage() {
 
             <div className="text-xs text-slate-600 space-y-2.5">
               <p>
-                This will remove mobile access to all configured Employee modules for this employee.
+                This will remove mobile access to all configured {isCustomerOverrides ? 'Customer' : 'Employee'} modules for this {isCustomerOverrides ? 'customer' : 'employee'}.
               </p>
               <p className="text-slate-500">
-                The employee will remain active, but their Employee Mobile App access will be restricted.
+                The {isCustomerOverrides ? 'customer' : 'employee'} will remain active, but their {isCustomerOverrides ? 'Customer' : 'Employee'} Mobile App access will be restricted.
               </p>
 
               {hasUnsavedEmpChanges && (
