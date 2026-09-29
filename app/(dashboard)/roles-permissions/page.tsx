@@ -599,6 +599,7 @@ interface RoleItem {
   isSystem: boolean;
   isActive: boolean;
   code?: string;
+  audience?: 'EMPLOYEE' | 'CUSTOMER' | string;
   permissions?: { module: string; action: string; key?: string; description?: string }[];
 }
 
@@ -609,6 +610,7 @@ export default function RolesPermissionsPage() {
   // TOP DUAL-TAB STATE: 'roles' (Role Permissions) vs 'employees' (Employee Overrides)
   // -------------------------------------------------------------------------
   const [activeTab, setActiveTab] = useState<'roles' | 'employees'>('roles');
+  const [permissionSubject, setPermissionSubject] = useState<'employee' | 'customer'>('employee');
 
   // =========================================================================
   // TAB 1: ROLE PERMISSIONS STATE
@@ -671,6 +673,7 @@ export default function RolesPermissionsPage() {
       roleId: r.roleId ? String(r.roleId) : undefined,
       name: r.name,
       code: r.code,
+      audience: r.audience || 'EMPLOYEE',
       rawName: r.rawName || r.name,
       type: r.type || 'CUSTOM',
       description: r.description || `${r.name} role`,
@@ -691,6 +694,10 @@ export default function RolesPermissionsPage() {
     for (const r of roles) {
       const raw = (r.rawName || r.name || '').trim().toUpperCase();
       const norm = (r.name || '').trim().toLowerCase();
+      const audience = String(r.audience || 'EMPLOYEE').toUpperCase();
+      if (permissionSubject === 'customer' ? audience !== 'CUSTOMER' : audience === 'CUSTOMER') {
+        continue;
+      }
       if (excludedNames.includes(raw) || norm === 'employee') {
         continue;
       }
@@ -701,7 +708,7 @@ export default function RolesPermissionsPage() {
       result.push(r);
     }
     return result;
-  }, [roles]);
+  }, [roles, permissionSubject]);
 
   const filteredRoles = useMemo(() => {
     if (!roleSearch.trim()) return employeeRoles;
@@ -784,9 +791,23 @@ export default function RolesPermissionsPage() {
   // 2. FETCH EMPLOYEES & INDIVIDUAL OVERRIDES (Backend API)
   // -------------------------------------------------------------------------
   const { data: employeesRes, isLoading: isEmployeesLoading, refetch: refetchEmployees } = useQuery({
-    queryKey: ['admin-rbac-employees-list'],
+    queryKey: ['admin-rbac-employees-list', permissionSubject],
     queryFn: async () => {
       try {
+        if (permissionSubject === 'customer') {
+          const res: any = await api.get('/customers', { params: { limit: 100, excludeAdmins: 'true' } });
+          const raw =
+            res?.data?.data ||
+            res?.data?.items ||
+            (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : res?.items || []);
+          return (Array.isArray(raw) ? raw : []).map((c: any) => ({
+            id: c.id,
+            name: c.companyName || c.name || 'Customer',
+            firstName: c.companyName || c.name || 'Customer',
+            email: c.email,
+            designation: { name: c.mobileRole?.name || 'Unassigned' },
+          }));
+        }
         const res: any = await api.get('/employees', { params: { limit: 100 } });
         return Array.isArray(res?.data)
           ? res.data
@@ -829,6 +850,11 @@ export default function RolesPermissionsPage() {
   }, [employeesList, selectedEmpId]);
 
   useEffect(() => {
+    setSelectedEmpId('');
+    setSelectedRoleId('');
+  }, [permissionSubject]);
+
+  useEffect(() => {
     if (employeesList.length > 0 && !selectedEmpId) {
       setSelectedEmpId(String(employeesList[0].id));
     }
@@ -840,10 +866,14 @@ export default function RolesPermissionsPage() {
     isLoading: isEmpPermsLoading,
     refetch: refetchEmpPerms,
   } = useQuery({
-    queryKey: ['admin-employee-permissions', selectedEmployee?.id],
+    queryKey: ['admin-employee-permissions', permissionSubject, selectedEmployee?.id],
     enabled: Boolean(selectedEmployee?.id),
     queryFn: async () => {
-      const res: any = await api.get(`/employees/${selectedEmployee.id}/permissions`);
+      const path =
+        permissionSubject === 'customer'
+          ? `/customers/${selectedEmployee.id}/mobile-permissions`
+          : `/employees/${selectedEmployee.id}/permissions`;
+      const res: any = await api.get(path);
       return res?.data || res;
     },
     retry: 1,
@@ -1114,7 +1144,7 @@ export default function RolesPermissionsPage() {
     if (!selectedEmployee || !empPermsData?.modules) return;
     setIsSavingEmpPerms(true);
     try {
-      if (isInheritingRoleDefaults && inheritOverride === true) {
+      if (permissionSubject !== 'customer' && isInheritingRoleDefaults && inheritOverride === true) {
         await api.delete(`/employees/${selectedEmployee.id}/permissions`);
         toast.success(
           `Inheriting designation defaults for ${selectedEmployee.firstName || selectedEmployee.name}!`
@@ -1132,7 +1162,11 @@ export default function RolesPermissionsPage() {
             override: getEmpModuleOverride(g.key),
           }));
 
-        await api.put(`/employees/${selectedEmployee.id}/permissions`, {
+        const path =
+          permissionSubject === 'customer'
+            ? `/customers/${selectedEmployee.id}/mobile-permissions`
+            : `/employees/${selectedEmployee.id}/permissions`;
+        await api.put(path, {
           overrides: [...moduleOverrides, ...granularOverrides],
         });
 
@@ -1325,15 +1359,49 @@ export default function RolesPermissionsPage() {
   // Role creation / editing is handled via Designation management page.
   // This function is intentionally a no-op — the drawer now shows an info panel.
   const handleSaveRoleForm = async () => {
-    setIsRoleDrawerOpen(false);
+    if (permissionSubject !== 'customer') {
+      setIsRoleDrawerOpen(false);
+      return;
+    }
+    const name = roleFormData.name.trim();
+    if (!name) {
+      toast.error('Role name is required');
+      return;
+    }
+    try {
+      await api.post('/designations', {
+        name,
+        description: roleFormData.description.trim(),
+        audience: 'CUSTOMER',
+        crmMobileAccess: false,
+      });
+      toast.success('Customer role created');
+      setIsRoleDrawerOpen(false);
+      refetchRoles();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to create customer role');
+    }
+  };
+
+  const handleAssignCustomerRole = async (mobileRoleId: string) => {
+    if (!selectedEmployee || permissionSubject !== 'customer') return;
+    try {
+      await api.patch(`/customers/${selectedEmployee.id}/mobile-role`, {
+        mobileRoleId: mobileRoleId ? Number(mobileRoleId) : null,
+      });
+      toast.success('Customer role updated');
+      refetchEmpPerms();
+      refetchEmployees();
+      refetchRoles();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to assign customer role');
+    }
   };
 
   const isCustomerMobileRole = useMemo(() => {
-    const raw = (selectedRole?.code || selectedRole?.rawName || selectedRole?.name || '')
-      .trim()
-      .toUpperCase();
-    return raw === 'CUSTOMER';
-  }, [selectedRole]);
+    if (permissionSubject === 'customer') return true;
+    return String(selectedRole?.audience || '').toUpperCase() === 'CUSTOMER';
+  }, [permissionSubject, selectedRole]);
 
   const roleModuleCatalog = useMemo(
     () =>
@@ -1601,10 +1669,31 @@ export default function RolesPermissionsPage() {
             }`}
           >
             <Users className="w-4 h-4 text-[#1AA14D]" />
-            <span>Employee Permissions (Overrides)</span>
+            <span>{permissionSubject === 'customer' ? 'Customer Permissions (Overrides)' : 'Employee Permissions (Overrides)'}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
-              {filteredEmployees.length} Staff
+              {filteredEmployees.length} {permissionSubject === 'customer' ? 'Customers' : 'Staff'}
             </span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPermissionSubject('employee')}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-black ${
+              permissionSubject === 'employee' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+            }`}
+          >
+            Employee Roles
+          </button>
+          <button
+            type="button"
+            onClick={() => setPermissionSubject('customer')}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-black ${
+              permissionSubject === 'customer' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+            }`}
+          >
+            Customer Roles
           </button>
         </div>
 
@@ -1748,7 +1837,7 @@ export default function RolesPermissionsPage() {
 
                           <span className="flex items-center gap-1 text-slate-500">
                             <Users className="w-3.5 h-3.5 text-blue-500" />
-                            <span>{role.usersCount} Staff</span>
+                            <span>{role.usersCount} {permissionSubject === 'customer' ? 'Customers' : 'Staff'}</span>
                           </span>
                         </div>
                       </div>
@@ -1888,17 +1977,17 @@ export default function RolesPermissionsPage() {
                         </div>
                         <div>
                           <span className="text-[10px] font-black uppercase text-slate-400 block">
-                            Staff Impact
+                            {permissionSubject === 'customer' ? 'Customer Impact' : 'Staff Impact'}
                           </span>
                           <span className="text-xs font-black text-slate-900">
-                            {selectedRole.usersCount} Employees
+                            {selectedRole.usersCount} {permissionSubject === 'customer' ? 'Customers' : 'Employees'}
                           </span>
                         </div>
                       </div>
                     </div>
 
                     {/* CRM Mobile Section Eligibility Toggle */}
-                    <div className={`p-4 rounded-2xl border transition-all ${
+                    {!isCustomerMobileRole && <div className={`p-4 rounded-2xl border transition-all ${
                       localCrmAccess
                         ? 'bg-emerald-50/70 border-emerald-300 shadow-2xs'
                         : 'bg-slate-50/80 border-slate-200'
@@ -1947,7 +2036,7 @@ export default function RolesPermissionsPage() {
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </div>}
                   </div>
 
                   {/* Toolbar: Category Tabs, Search & Bulk Actions */}
@@ -2161,7 +2250,7 @@ export default function RolesPermissionsPage() {
                   type="text"
                   value={empSearch}
                   onChange={(e) => setEmpSearch(e.target.value)}
-                  placeholder="Search employees..."
+                  placeholder={permissionSubject === 'customer' ? 'Search customers...' : 'Search employees...'}
                   className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-[#23C45E]"
                 />
               </div>
@@ -2253,11 +2342,26 @@ export default function RolesPermissionsPage() {
                               : selectedEmployee.name || 'Employee'}
                           </h2>
                           <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                            Designation: {selectedEmployee.designation?.name || empPermsData?.designationName || 'Staff'}
+                            {permissionSubject === 'customer' ? 'Customer' : 'Designation'}: {selectedEmployee.designation?.name || empPermsData?.designationName || (permissionSubject === 'customer' ? 'Unassigned' : 'Staff')}
                           </span>
+                          {permissionSubject === 'customer' ? (
+                            <select
+                              value={String(empPermsData?.mobileRoleId || '')}
+                              onChange={(e) => handleAssignCustomerRole(e.target.value)}
+                              className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 bg-white"
+                            >
+                              <option value="">Unassigned</option>
+                              {roles
+                                .filter((r) => String(r.audience || '').toUpperCase() === 'CUSTOMER')
+                                .map((r) => (
+                                  <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                            </select>
+                          ) : (
                           <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
                             Employee Role: {empPermsData?.roleName || selectedEmployee.designation?.name || 'Staff'}
                           </span>
+                          )}
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                             ID: {selectedEmployee.employeeCode || `#${selectedEmployee.id}`}
                           </span>
@@ -2970,7 +3074,7 @@ export default function RolesPermissionsPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <Smartphone className="w-4 h-4 text-[#23C45E]" />
-                  <h3 className="text-sm font-black">Employee Mobile App Simulator</h3>
+                  <h3 className="text-sm font-black">{permissionSubject === 'customer' ? 'Customer Mobile App Simulator' : 'Employee Mobile App Simulator'}</h3>
                 </div>
                 <p className="text-[11px] text-slate-400">
                   {activeTab === 'roles' ? (
@@ -3037,7 +3141,29 @@ export default function RolesPermissionsPage() {
                     </span>
 
                     <div className="space-y-1">
-                      {(activeTab === 'roles'
+                      {permissionSubject === 'customer' &&
+                        [
+                          ['employee.customer_home.view', 'Home'],
+                          ['employee.customer_plans.view', 'Plans'],
+                          ['employee.customer_trending.view', 'Trending'],
+                          ['employee.customer_orders.view', 'Orders'],
+                          ['employee.customer_invoices.view', 'Invoices'],
+                          ['employee.customer_profile.view', 'Profile'],
+                          ['employee.customer_calendar.view', 'Calendar'],
+                          ['employee.customer_ssm.view', 'SSM'],
+                          ['employee.customer_influencers.view', 'Influencers'],
+                          ['employee.customer_notifications.view', 'Notifications'],
+                          ['employee.customer_support.view', 'Support'],
+                        ]
+                          .filter(([key]) =>
+                            activeTab === 'roles' ? localPerms.has(key) : getEmpEffectiveStatus(key),
+                          )
+                          .map(([key, label]) => (
+                            <div key={key} className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800">
+                              {label}
+                            </div>
+                          ))}
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.leads.view')
                         : getEmpEffectiveStatus('employee.leads.view')) && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -3045,7 +3171,7 @@ export default function RolesPermissionsPage() {
                           <span>Leads Pipeline</span>
                         </div>
                       )}
-                      {(activeTab === 'roles'
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.followups.view')
                         : getEmpEffectiveStatus('employee.followups.view')) && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -3053,7 +3179,7 @@ export default function RolesPermissionsPage() {
                           <span>Follow-ups</span>
                         </div>
                       )}
-                      {(activeTab === 'roles'
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.visits.view')
                         : getEmpEffectiveStatus('employee.visits.view')) && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -3061,7 +3187,7 @@ export default function RolesPermissionsPage() {
                           <span>Field Visits</span>
                         </div>
                       )}
-                      {(activeTab === 'roles'
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.data_capture.view')
                         : getEmpEffectiveStatus('employee.data_capture.view')) && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -3069,7 +3195,7 @@ export default function RolesPermissionsPage() {
                           <span>Data Capture</span>
                         </div>
                       )}
-                      {(activeTab === 'roles'
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.my_work.view')
                         : getEmpEffectiveStatus('employee.my_work.view')) && (
                         <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-800 flex items-center gap-2">
@@ -3077,7 +3203,7 @@ export default function RolesPermissionsPage() {
                           <span>My Work (Creative)</span>
                         </div>
                       )}
-                      {(activeTab === 'roles'
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.creative_work.view')
                         : getEmpEffectiveStatus('employee.creative_work.view')) && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -3085,7 +3211,7 @@ export default function RolesPermissionsPage() {
                           <span>Social Media Work</span>
                         </div>
                       )}
-                      {(activeTab === 'roles'
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.packages.view')
                         : getEmpEffectiveStatus('employee.packages.view')) && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -3093,7 +3219,7 @@ export default function RolesPermissionsPage() {
                           <span>Packages</span>
                         </div>
                       )}
-                      {(activeTab === 'roles'
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.attendance.view')
                         : getEmpEffectiveStatus('employee.attendance.view')) && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -3101,7 +3227,7 @@ export default function RolesPermissionsPage() {
                           <span>Attendance Punch</span>
                         </div>
                       )}
-                      {(activeTab === 'roles'
+                      {permissionSubject !== 'customer' && (activeTab === 'roles'
                         ? localPerms.has('employee.tasks.view')
                         : getEmpEffectiveStatus('employee.tasks.view')) && (
                         <div className="p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 flex items-center gap-2">
@@ -3113,7 +3239,7 @@ export default function RolesPermissionsPage() {
                   </div>
 
                   {/* Unavailable / Hidden Modules */}
-                  <div>
+                  {permissionSubject !== 'customer' && <div>
                     <span className="text-[10px] font-black text-red-500 uppercase tracking-wider block mb-1.5">
                       Hidden / Restricted Modules
                     </span>
@@ -3152,17 +3278,31 @@ export default function RolesPermissionsPage() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </div>}
                 </div>
 
                 {/* Dynamic Bottom Navigation Bar */}
                 <div className="bg-white border-t border-slate-200 p-2 flex items-center justify-around">
+                  {(permissionSubject !== 'customer' || (activeTab === 'roles' ? localPerms.has('employee.customer_home.view') : getEmpEffectiveStatus('employee.customer_home.view'))) && (
                   <div className="flex flex-col items-center gap-0.5 text-[#1AA14D]">
                     <Sparkles className="w-4 h-4" />
                     <span className="text-[9px] font-bold">Home</span>
                   </div>
+                  )}
+                  {permissionSubject === 'customer' && (activeTab === 'roles' ? localPerms.has('employee.customer_plans.view') : getEmpEffectiveStatus('employee.customer_plans.view')) && (
+                    <div className="flex flex-col items-center gap-0.5 text-slate-600">
+                      <Package className="w-4 h-4" />
+                      <span className="text-[9px] font-bold">Plans</span>
+                    </div>
+                  )}
+                  {permissionSubject === 'customer' && (activeTab === 'roles' ? localPerms.has('employee.customer_orders.view') : getEmpEffectiveStatus('employee.customer_orders.view')) && (
+                    <div className="flex flex-col items-center gap-0.5 text-slate-600">
+                      <Briefcase className="w-4 h-4" />
+                      <span className="text-[9px] font-bold">Orders</span>
+                    </div>
+                  )}
 
-                  {(activeTab === 'roles'
+                  {permissionSubject !== 'customer' && (activeTab === 'roles'
                     ? localPerms.has('employee.calendar.view')
                     : getEmpEffectiveStatus('employee.calendar.view')) && (
                     <div className="flex flex-col items-center gap-0.5 text-slate-600">
@@ -3171,7 +3311,7 @@ export default function RolesPermissionsPage() {
                     </div>
                   )}
 
-                  {(activeTab === 'roles'
+                  {permissionSubject !== 'customer' && (activeTab === 'roles'
                     ? localPerms.has('employee.my_work.view')
                     : getEmpEffectiveStatus('employee.my_work.view')) && (
                     <div className="flex flex-col items-center gap-0.5 text-slate-600">
@@ -3180,7 +3320,7 @@ export default function RolesPermissionsPage() {
                     </div>
                   )}
 
-                  {(activeTab === 'roles'
+                  {permissionSubject !== 'customer' && (activeTab === 'roles'
                     ? localPerms.has('employee.attendance.view')
                     : getEmpEffectiveStatus('employee.attendance.view')) && (
                     <div className="flex flex-col items-center gap-0.5 text-slate-600">
@@ -3189,10 +3329,12 @@ export default function RolesPermissionsPage() {
                     </div>
                   )}
 
+                  {(permissionSubject !== 'customer' || (activeTab === 'roles' ? localPerms.has('employee.customer_profile.view') : getEmpEffectiveStatus('employee.customer_profile.view'))) && (
                   <div className="flex flex-col items-center gap-0.5 text-slate-600">
                     <User className="w-4 h-4" />
                     <span className="text-[9px] font-bold">Profile</span>
                   </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -3218,12 +3360,41 @@ export default function RolesPermissionsPage() {
       <AdminFormDrawer
         isOpen={isRoleDrawerOpen}
         onClose={() => setIsRoleDrawerOpen(false)}
-        title="Employee Roles & Designations"
-        subtitle="How Employee Roles are managed in this system"
+        title={permissionSubject === 'customer' ? 'Create Customer Role' : 'Employee Roles & Designations'}
+        subtitle={permissionSubject === 'customer' ? 'Customer roles use the same permission system as employee roles' : 'How Employee Roles are managed in this system'}
         isSubmitting={false}
         maxWidth="sm:max-w-[500px]"
         showFooter={false}
       >
+        {permissionSubject === 'customer' ? (
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-bold text-slate-700">Role name</label>
+              <input
+                value={roleFormData.name}
+                onChange={(e) => setRoleFormData((prev) => ({ ...prev, name: e.target.value }))}
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+                placeholder="Premium Customer"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700">Description</label>
+              <textarea
+                value={roleFormData.description}
+                onChange={(e) => setRoleFormData((prev) => ({ ...prev, description: e.target.value }))}
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+                rows={3}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveRoleForm}
+              className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
+            >
+              Create Customer Role
+            </button>
+          </div>
+        ) : (
         <div className="space-y-5 py-2">
           {/* Info Banner */}
           <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 flex gap-3 items-start">
@@ -3278,6 +3449,7 @@ export default function RolesPermissionsPage() {
             </Link>
           </div>
         </div>
+        )}
       </AdminFormDrawer>
 
     </div>
