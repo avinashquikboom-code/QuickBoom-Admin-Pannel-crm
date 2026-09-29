@@ -73,7 +73,8 @@ type PermissionCategory =
   | 'CALENDAR'
   | 'CREATIVE'
   | 'HRM'
-  | 'SYSTEM';
+  | 'SYSTEM'
+  | 'CUSTOMER';
 
 interface ModuleGroup {
   id: string;
@@ -91,6 +92,7 @@ const CATEGORY_DEFINITIONS: { id: PermissionCategory; name: string; icon: any }[
   { id: 'CREATIVE', name: 'CREATIVE / SSM', icon: Share2 },
   { id: 'HRM', name: 'HRM / WORKPLACE', icon: Clock3 },
   { id: 'SYSTEM', name: 'SYSTEM', icon: Sliders },
+  { id: 'CUSTOMER', name: 'CUSTOMER MOBILE', icon: Smartphone },
 ];
 
 const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
@@ -459,6 +461,125 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
       { key: 'employee.settings.users', module: 'SETTINGS', action: 'SETTING_USERS', label: 'User Management Section', description: 'Role and permission management tile' },
     ],
   },
+
+  // =========================================================================
+  // CUSTOMER MOBILE APP
+  // =========================================================================
+  {
+    id: 'CUSTOMER_HOME',
+    name: 'Home',
+    icon: Smartphone,
+    category: 'CUSTOMER',
+    description: 'Customer mobile home tab',
+    permissions: [
+      { key: 'employee.customer_home.view', module: 'CUSTOMER_HOME', action: 'VIEW', label: 'View Home', description: 'Show the home tab' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_PLANS',
+    name: 'Plans',
+    icon: Package,
+    category: 'CUSTOMER',
+    description: 'Subscription plans and checkout',
+    permissions: [
+      { key: 'employee.customer_plans.view', module: 'CUSTOMER_PLANS', action: 'VIEW', label: 'View Plans', description: 'Show subscription plans' },
+      { key: 'employee.customer_plans.create', module: 'CUSTOMER_PLANS', action: 'CREATE', label: 'Purchase Plan', description: 'Allow plan checkout' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_TRENDING',
+    name: 'Trending',
+    icon: Sparkles,
+    category: 'CUSTOMER',
+    description: 'Trending content tab',
+    permissions: [
+      { key: 'employee.customer_trending.view', module: 'CUSTOMER_TRENDING', action: 'VIEW', label: 'View Trending', description: 'Show the trending tab' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_ORDERS',
+    name: 'Orders',
+    icon: FileText,
+    category: 'CUSTOMER',
+    description: 'Customer orders',
+    permissions: [
+      { key: 'employee.customer_orders.view', module: 'CUSTOMER_ORDERS', action: 'VIEW', label: 'View Orders', description: 'Show this customer’s orders' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_INVOICES',
+    name: 'Invoices',
+    icon: CreditCard,
+    category: 'CUSTOMER',
+    description: 'Customer invoices and downloads',
+    permissions: [
+      { key: 'employee.customer_invoices.view', module: 'CUSTOMER_INVOICES', action: 'VIEW', label: 'View Invoices', description: 'Show this customer’s invoices' },
+      { key: 'employee.customer_invoices.download', module: 'CUSTOMER_INVOICES', action: 'DOWNLOAD', label: 'Download Invoice', description: 'Download invoice or receipt files' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_PROFILE',
+    name: 'Profile',
+    icon: User,
+    category: 'CUSTOMER',
+    description: 'Account profile',
+    permissions: [
+      { key: 'employee.customer_profile.view', module: 'CUSTOMER_PROFILE', action: 'VIEW', label: 'View Profile', description: 'Show the account tab' },
+      { key: 'employee.customer_profile.edit', module: 'CUSTOMER_PROFILE', action: 'EDIT', label: 'Edit Profile', description: 'Allow profile updates' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_CALENDAR',
+    name: 'Calendar',
+    icon: Calendar,
+    category: 'CUSTOMER',
+    description: 'Customer calendar',
+    permissions: [
+      { key: 'employee.customer_calendar.view', module: 'CUSTOMER_CALENDAR', action: 'VIEW', label: 'View Calendar', description: 'Show the customer calendar' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_SSM',
+    name: 'SSM Account Access',
+    icon: Share2,
+    category: 'CUSTOMER',
+    description: 'Social media account access',
+    permissions: [
+      { key: 'employee.customer_ssm.view', module: 'CUSTOMER_SSM', action: 'VIEW', label: 'View SSM Access', description: 'Show social media account access' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_INFLUENCERS',
+    name: 'Influencer Hub',
+    icon: Users,
+    category: 'CUSTOMER',
+    description: 'Influencer hub and bookings',
+    permissions: [
+      { key: 'employee.customer_influencers.view', module: 'CUSTOMER_INFLUENCERS', action: 'VIEW', label: 'View Influencer Hub', description: 'Show the influencer hub' },
+      { key: 'employee.customer_influencer_bookings.view', module: 'CUSTOMER_INFLUENCER_BOOKINGS', action: 'VIEW', label: 'View Bookings', description: 'Show this customer’s influencer bookings' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_NOTIFICATIONS',
+    name: 'Notifications',
+    icon: AlertCircle,
+    category: 'CUSTOMER',
+    description: 'Customer notifications',
+    permissions: [
+      { key: 'employee.customer_notifications.view', module: 'CUSTOMER_NOTIFICATIONS', action: 'VIEW', label: 'View Notifications', description: 'Show notifications' },
+    ],
+  },
+  {
+    id: 'CUSTOMER_SUPPORT',
+    name: 'Support',
+    icon: ShieldCheck,
+    category: 'CUSTOMER',
+    description: 'Support and help desk',
+    permissions: [
+      { key: 'employee.customer_support.view', module: 'CUSTOMER_SUPPORT', action: 'VIEW', label: 'View Support', description: 'Show support and help' },
+      { key: 'employee.customer_support.create', module: 'CUSTOMER_SUPPORT', action: 'CREATE', label: 'Create Support Request', description: 'Allow submitting a support request' },
+    ],
+  },
 ];
 
 // Helper to normalize keys to dot format
@@ -477,6 +598,7 @@ interface RoleItem {
   usersCount: number;
   isSystem: boolean;
   isActive: boolean;
+  code?: string;
   permissions?: { module: string; action: string; key?: string; description?: string }[];
 }
 
@@ -548,6 +670,7 @@ export default function RolesPermissionsPage() {
       id: String(r.designationId ?? r.id),
       roleId: r.roleId ? String(r.roleId) : undefined,
       name: r.name,
+      code: r.code,
       rawName: r.rawName || r.name,
       type: r.type || 'CUSTOM',
       description: r.description || `${r.name} role`,
@@ -559,9 +682,9 @@ export default function RolesPermissionsPage() {
     }));
   }, [rolesData]);
 
-  // Filter out non-employee portal roles (e.g. CUSTOMER) and obsolete generic EMPLOYEE roles
+  // Keep the Customer mobile designation. Hide only the obsolete generic EMPLOYEE role.
   const employeeRoles = useMemo(() => {
-    const excludedNames = ['CUSTOMER', 'EMPLOYEE', 'EMPLOYEE ROLE'];
+    const excludedNames = ['EMPLOYEE', 'EMPLOYEE ROLE'];
     const seen = new Set<string>();
     const result: RoleItem[] = [];
 
@@ -1205,9 +1328,32 @@ export default function RolesPermissionsPage() {
     setIsRoleDrawerOpen(false);
   };
 
+  const isCustomerMobileRole = useMemo(() => {
+    const raw = (selectedRole?.code || selectedRole?.rawName || selectedRole?.name || '')
+      .trim()
+      .toUpperCase();
+    return raw === 'CUSTOMER';
+  }, [selectedRole]);
+
+  const roleModuleCatalog = useMemo(
+    () =>
+      isCustomerMobileRole
+        ? PERMISSION_MODULE_GROUPS.filter((group) => group.category === 'CUSTOMER')
+        : PERMISSION_MODULE_GROUPS.filter((group) => group.category !== 'CUSTOMER'),
+    [isCustomerMobileRole],
+  );
+
+  const visibleCategories = useMemo(
+    () =>
+      isCustomerMobileRole
+        ? CATEGORY_DEFINITIONS.filter((cat) => cat.id === 'CUSTOMER')
+        : CATEGORY_DEFINITIONS.filter((cat) => cat.id !== 'CUSTOMER'),
+    [isCustomerMobileRole],
+  );
+
   // Filter modules for Tab 1 (Role Permissions)
   const filteredRoleModules = useMemo(() => {
-    return PERMISSION_MODULE_GROUPS.filter((group) => {
+    return roleModuleCatalog.filter((group) => {
       if (selectedCategory !== 'ALL' && group.category !== selectedCategory) {
         return false;
       }
@@ -1223,7 +1369,7 @@ export default function RolesPermissionsPage() {
       );
       return matchGroupName || matchDesc || matchPerms;
     });
-  }, [selectedCategory, permSearch]);
+  }, [roleModuleCatalog, selectedCategory, permSearch]);
 
   // Render a module card in Tab 1
   const renderRoleModuleCard = (group: ModuleGroup) => {
@@ -1864,7 +2010,7 @@ export default function RolesPermissionsPage() {
                         All Modules
                       </button>
 
-                      {CATEGORY_DEFINITIONS.map((cat) => (
+                      {visibleCategories.map((cat) => (
                         <button
                           key={cat.id}
                           type="button"
@@ -1889,10 +2035,12 @@ export default function RolesPermissionsPage() {
                     </div>
                     <div>
                       <h3 className="text-xs font-black text-slate-900 tracking-tight uppercase">
-                        Employee Mobile Module Permissions
+                        {isCustomerMobileRole ? 'Customer Mobile Module Permissions' : 'Employee Mobile Module Permissions'}
                       </h3>
                       <p className="text-[11px] text-slate-600 font-medium mt-0.5">
-                        These switches represent the <span className="font-bold text-slate-900">DEFAULT FOR THIS DESIGNATION</span>. These permissions are automatically inherited by employees assigned to this designation unless individually overridden.
+                        {isCustomerMobileRole
+                          ? 'These switches control what the customer mobile app can show and do. Customers only see their own data.'
+                          : <>These switches represent the <span className="font-bold text-slate-900">DEFAULT FOR THIS DESIGNATION</span>. These permissions are automatically inherited by employees assigned to this designation unless individually overridden.</>}
                       </p>
                     </div>
                   </div>
@@ -1909,7 +2057,7 @@ export default function RolesPermissionsPage() {
                         No permissions match your search or filter.
                       </div>
                     ) : selectedCategory === 'ALL' ? (
-                      CATEGORY_DEFINITIONS.map((cat) => {
+                      visibleCategories.map((cat) => {
                         const catModules = filteredRoleModules.filter((m) => m.category === cat.id);
                         if (catModules.length === 0) return null;
                         return (
