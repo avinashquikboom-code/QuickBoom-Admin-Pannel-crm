@@ -603,14 +603,34 @@ interface RoleItem {
   permissions?: { module: string; action: string; key?: string; description?: string }[];
 }
 
+function isCustomerRoleItem(r: {
+  audience?: string;
+  code?: string;
+  permissions?: { module?: string }[];
+}) {
+  if (String(r.audience || '').toUpperCase() === 'CUSTOMER') return true;
+  if (String(r.code || '').toUpperCase() === 'CUSTOMER') return true;
+  const perms = r.permissions || [];
+  return (
+    perms.length > 0 &&
+    perms.every((p) => String(p.module || '').toUpperCase().startsWith('CUSTOMER_'))
+  );
+}
+
+function unwrapPermissionPayload(res: any) {
+  if (res?.modules) return res;
+  if (res?.data?.modules) return res.data;
+  return res?.data || res;
+}
+
 export default function RolesPermissionsPage() {
   const queryClient = useQueryClient();
 
   // -------------------------------------------------------------------------
   // TOP DUAL-TAB STATE: 'roles' (Role Permissions) vs 'employees' (Employee Overrides)
   // -------------------------------------------------------------------------
-  const [activeTab, setActiveTab] = useState<'roles' | 'employees'>('roles');
-  const [permissionSubject, setPermissionSubject] = useState<'employee' | 'customer'>('employee');
+  const [activeTab, setActiveTab] = useState<'roles' | 'employees' | 'customers'>('roles');
+  const [roleAudience, setRoleAudience] = useState<'employee' | 'customer'>('employee');
 
   // =========================================================================
   // TAB 1: ROLE PERMISSIONS STATE
@@ -637,6 +657,7 @@ export default function RolesPermissionsPage() {
   // =========================================================================
   const [empSearch, setEmpSearch] = useState('');
   const [selectedEmpId, setSelectedEmpId] = useState<string>('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [empOverrideEdits, setEmpOverrideEdits] = useState<Record<string, 'INHERIT' | 'ALLOW' | 'DENY'>>({});
   const [inheritOverride, setInheritOverride] = useState<boolean | null>(null);
   const [isSavingEmpPerms, setIsSavingEmpPerms] = useState(false);
@@ -673,7 +694,7 @@ export default function RolesPermissionsPage() {
       roleId: r.roleId ? String(r.roleId) : undefined,
       name: r.name,
       code: r.code,
-      audience: r.audience || 'EMPLOYEE',
+      audience: isCustomerRoleItem(r) ? 'CUSTOMER' : r.audience || 'EMPLOYEE',
       rawName: r.rawName || r.name,
       type: r.type || 'CUSTOM',
       description: r.description || `${r.name} role`,
@@ -694,8 +715,7 @@ export default function RolesPermissionsPage() {
     for (const r of roles) {
       const raw = (r.rawName || r.name || '').trim().toUpperCase();
       const norm = (r.name || '').trim().toLowerCase();
-      const audience = String(r.audience || 'EMPLOYEE').toUpperCase();
-      if (permissionSubject === 'customer' ? audience !== 'CUSTOMER' : audience === 'CUSTOMER') {
+      if (roleAudience === 'customer' ? !isCustomerRoleItem(r) : isCustomerRoleItem(r)) {
         continue;
       }
       if (excludedNames.includes(raw) || norm === 'employee') {
@@ -708,7 +728,12 @@ export default function RolesPermissionsPage() {
       result.push(r);
     }
     return result;
-  }, [roles, permissionSubject]);
+  }, [roles, roleAudience]);
+
+  const customerRoles = useMemo(
+    () => roles.filter((r) => isCustomerRoleItem(r)),
+    [roles],
+  );
 
   const filteredRoles = useMemo(() => {
     if (!roleSearch.trim()) return employeeRoles;
@@ -791,23 +816,9 @@ export default function RolesPermissionsPage() {
   // 2. FETCH EMPLOYEES & INDIVIDUAL OVERRIDES (Backend API)
   // -------------------------------------------------------------------------
   const { data: employeesRes, isLoading: isEmployeesLoading, refetch: refetchEmployees } = useQuery({
-    queryKey: ['admin-rbac-employees-list', permissionSubject],
+    queryKey: ['admin-rbac-employees-list'],
     queryFn: async () => {
       try {
-        if (permissionSubject === 'customer') {
-          const res: any = await api.get('/customers', { params: { limit: 100, excludeAdmins: 'true' } });
-          const raw =
-            res?.data?.data ||
-            res?.data?.items ||
-            (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : res?.items || []);
-          return (Array.isArray(raw) ? raw : []).map((c: any) => ({
-            id: c.id,
-            name: c.companyName || c.name || 'Customer',
-            firstName: c.companyName || c.name || 'Customer',
-            email: c.email,
-            designation: { name: c.mobileRole?.name || 'Unassigned' },
-          }));
-        }
         const res: any = await api.get('/employees', { params: { limit: 100 } });
         return Array.isArray(res?.data)
           ? res.data
@@ -825,34 +836,82 @@ export default function RolesPermissionsPage() {
     retry: 1,
   });
 
+  const { data: customersRes, isLoading: isCustomersLoading, refetch: refetchCustomers } = useQuery({
+    queryKey: ['admin-rbac-customers-list'],
+    queryFn: async () => {
+      try {
+        const res: any = await api.get('/customers', { params: { limit: 100, excludeAdmins: 'true' } });
+        const raw =
+          res?.data?.data ||
+          res?.data?.items ||
+          (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : res?.items || []);
+        return (Array.isArray(raw) ? raw : []).map((c: any) => {
+          const displayName =
+            c.contactFullName ||
+            c.customerName ||
+            c.companyName ||
+            c.name ||
+            'Customer';
+          return {
+            id: c.id,
+            name: displayName,
+            firstName: displayName,
+            lastName: '',
+            email: c.email,
+            employeeCode: c.customerId || `CUST-${c.id}`,
+            designation: { name: c.mobileRole?.name || 'Customer' },
+            mobileRoleId: c.mobileRoleId || c.mobileRole?.id || null,
+            roleName: c.mobileRole?.name || 'Customer',
+          };
+        });
+      } catch {
+        return [];
+      }
+    },
+    retry: 1,
+  });
+
   const employeesList = useMemo(() => {
     return Array.isArray(employeesRes) ? employeesRes : [];
   }, [employeesRes]);
 
+  const customersList = useMemo(() => {
+    return Array.isArray(customersRes) ? customersRes : [];
+  }, [customersRes]);
+
+  const isCustomerOverrides = activeTab === 'customers';
+  const permissionSubject: 'employee' | 'customer' =
+    activeTab === 'customers' || (activeTab === 'roles' && roleAudience === 'customer')
+      ? 'customer'
+      : 'employee';
+  const overrideList = isCustomerOverrides ? customersList : employeesList;
+  const isOverrideListLoading = isCustomerOverrides ? isCustomersLoading : isEmployeesLoading;
+
   const filteredEmployees = useMemo(() => {
-    if (!empSearch.trim()) return employeesList;
+    const source = isCustomerOverrides ? customersList : employeesList;
+    if (!empSearch.trim()) return source;
     const q = empSearch.toLowerCase();
-    return employeesList.filter((emp: any) => {
+    return source.filter((emp: any) => {
       const name = `${emp.firstName || ''} ${emp.lastName || ''} ${emp.name || ''}`.toLowerCase();
       const role = (emp.roleName || emp.designation?.name || emp.designation || '').toLowerCase();
       const email = (emp.email || '').toLowerCase();
       const code = (emp.employeeCode || '').toLowerCase();
       return name.includes(q) || role.includes(q) || email.includes(q) || code.includes(q);
     });
-  }, [employeesList, empSearch]);
+  }, [employeesList, customersList, empSearch, isCustomerOverrides]);
 
   const selectedEmployee = useMemo(() => {
+    const selectedId = isCustomerOverrides ? selectedCustomerId : selectedEmpId;
     return (
-      employeesList.find((e: any) => String(e.id) === selectedEmpId) ||
-      employeesList[0] ||
+      overrideList.find((e: any) => String(e.id) === selectedId) ||
+      overrideList[0] ||
       null
     );
-  }, [employeesList, selectedEmpId]);
+  }, [overrideList, selectedEmpId, selectedCustomerId, isCustomerOverrides]);
 
   useEffect(() => {
-    setSelectedEmpId('');
     setSelectedRoleId('');
-  }, [permissionSubject]);
+  }, [roleAudience]);
 
   useEffect(() => {
     if (employeesList.length > 0 && !selectedEmpId) {
@@ -860,24 +919,74 @@ export default function RolesPermissionsPage() {
     }
   }, [employeesList, selectedEmpId]);
 
-  // Fetch Permissions & Overrides for Selected Employee
+  useEffect(() => {
+    if (customersList.length > 0 && !selectedCustomerId) {
+      setSelectedCustomerId(String(customersList[0].id));
+    }
+  }, [customersList, selectedCustomerId]);
+
   const {
-    data: empPermsData,
-    isLoading: isEmpPermsLoading,
-    refetch: refetchEmpPerms,
+    data: employeePermsRaw,
+    isLoading: isEmployeePermsLoading,
+    refetch: refetchEmployeePerms,
   } = useQuery({
-    queryKey: ['admin-employee-permissions', permissionSubject, selectedEmployee?.id],
-    enabled: Boolean(selectedEmployee?.id),
+    queryKey: ['admin-employee-permissions', selectedEmpId],
+    enabled: Boolean(selectedEmpId) && activeTab === 'employees',
     queryFn: async () => {
-      const path =
-        permissionSubject === 'customer'
-          ? `/customers/${selectedEmployee.id}/mobile-permissions`
-          : `/employees/${selectedEmployee.id}/permissions`;
-      const res: any = await api.get(path);
-      return res?.data || res;
+      const res: any = await api.get(`/employees/${selectedEmpId}/permissions`);
+      return unwrapPermissionPayload(res);
     },
     retry: 1,
   });
+
+  const {
+    data: customerPermsRaw,
+    isLoading: isCustomerPermsLoading,
+    refetch: refetchCustomerPerms,
+  } = useQuery({
+    queryKey: ['admin-customer-permissions', selectedCustomerId],
+    enabled: Boolean(selectedCustomerId) && activeTab === 'customers',
+    queryFn: async () => {
+      const res: any = await api.get(`/customers/${selectedCustomerId}/mobile-permissions`);
+      return unwrapPermissionPayload(res);
+    },
+    retry: 1,
+  });
+
+  const empPermsData = isCustomerOverrides
+    ? customerPermsRaw ||
+      (isCustomerPermsLoading
+        ? undefined
+        : {
+            roleName: selectedEmployee?.roleName || selectedEmployee?.designation?.name || 'Customer',
+            designationName: selectedEmployee?.designation?.name || 'Customer',
+            mobileRoleId: selectedEmployee?.mobileRoleId || null,
+            modules: PERMISSION_MODULE_GROUPS.filter((g) => g.category === 'CUSTOMER').map((g) => ({
+              moduleKey: g.id,
+              label: g.name,
+              category: 'CUSTOMER',
+              description: g.description,
+              roleDefault: true,
+              override: 'INHERIT',
+              effective: true,
+            })),
+            granularPermissions: PERMISSION_MODULE_GROUPS.filter((g) => g.category === 'CUSTOMER').flatMap((g) =>
+              g.permissions.map((p) => ({
+                key: p.key,
+                module: p.module,
+                action: p.action,
+                label: p.label,
+                description: p.description,
+                category: 'CUSTOMER',
+                roleDefault: true,
+                override: 'INHERIT',
+                effective: true,
+              })),
+            ),
+          })
+    : employeePermsRaw;
+  const isEmpPermsLoading = isCustomerOverrides ? isCustomerPermsLoading : isEmployeePermsLoading;
+  const refetchEmpPerms = isCustomerOverrides ? refetchCustomerPerms : refetchEmployeePerms;
 
   const initialEmpOverrides: Record<string, 'INHERIT' | 'ALLOW' | 'DENY'> = useMemo(() => {
     const map: Record<string, 'INHERIT' | 'ALLOW' | 'DENY'> = {};
@@ -1104,12 +1213,19 @@ export default function RolesPermissionsPage() {
     if (!selectedEmployee) return;
     setIsResettingPerms(true);
     try {
-      await api.delete(`/employees/${selectedEmployee.id}/permissions`);
-      toast.success('Permissions reset successfully. Employee is now using role defaults.');
+      if (isCustomerOverrides) {
+        await api.delete(`/customers/${selectedEmployee.id}/mobile-permissions`);
+        toast.success('Permissions reset successfully. Customer is now using role defaults.');
+      } else {
+        await api.delete(`/employees/${selectedEmployee.id}/permissions`);
+        toast.success('Permissions reset successfully. Employee is now using role defaults.');
+      }
       setEmpOverrideEdits({});
       setIsResetModalOpen(false);
       await queryClient.invalidateQueries({
-        queryKey: ['admin-employee-permissions', selectedEmployee.id],
+        queryKey: isCustomerOverrides
+          ? ['admin-customer-permissions', String(selectedEmployee.id)]
+          : ['admin-employee-permissions', String(selectedEmployee.id)],
       });
       await refetchEmpPerms();
     } catch (err: any) {
@@ -1124,12 +1240,19 @@ export default function RolesPermissionsPage() {
     if (!selectedEmployee) return;
     setIsRestrictingAllPerms(true);
     try {
-      await api.post(`/employees/${selectedEmployee.id}/permissions/restrict-all`);
-      toast.success('All Employee Mobile permissions have been restricted.');
+      if (isCustomerOverrides) {
+        await api.post(`/customers/${selectedEmployee.id}/mobile-permissions/restrict-all`);
+        toast.success('All Customer Mobile permissions have been restricted.');
+      } else {
+        await api.post(`/employees/${selectedEmployee.id}/permissions/restrict-all`);
+        toast.success('All Employee Mobile permissions have been restricted.');
+      }
       setEmpOverrideEdits({});
       setIsRestrictAllModalOpen(false);
       await queryClient.invalidateQueries({
-        queryKey: ['admin-employee-permissions', selectedEmployee.id],
+        queryKey: isCustomerOverrides
+          ? ['admin-customer-permissions', String(selectedEmployee.id)]
+          : ['admin-employee-permissions', String(selectedEmployee.id)],
       });
       await refetchEmpPerms();
     } catch (err: any) {
@@ -1144,10 +1267,14 @@ export default function RolesPermissionsPage() {
     if (!selectedEmployee || !empPermsData?.modules) return;
     setIsSavingEmpPerms(true);
     try {
-      if (permissionSubject !== 'customer' && isInheritingRoleDefaults && inheritOverride === true) {
-        await api.delete(`/employees/${selectedEmployee.id}/permissions`);
+      if (isInheritingRoleDefaults && inheritOverride === true) {
+        if (isCustomerOverrides) {
+          await api.delete(`/customers/${selectedEmployee.id}/mobile-permissions`);
+        } else {
+          await api.delete(`/employees/${selectedEmployee.id}/permissions`);
+        }
         toast.success(
-          `Inheriting designation defaults for ${selectedEmployee.firstName || selectedEmployee.name}!`
+          `Inheriting role defaults for ${selectedEmployee.firstName || selectedEmployee.name}!`
         );
       } else {
         const moduleOverrides = empPermsData.modules.map((m: any) => ({
@@ -1162,8 +1289,7 @@ export default function RolesPermissionsPage() {
             override: getEmpModuleOverride(g.key),
           }));
 
-        const path =
-          permissionSubject === 'customer'
+        const path = isCustomerOverrides
             ? `/customers/${selectedEmployee.id}/mobile-permissions`
             : `/employees/${selectedEmployee.id}/permissions`;
         await api.put(path, {
@@ -1177,7 +1303,9 @@ export default function RolesPermissionsPage() {
       setEmpOverrideEdits({});
       setInheritOverride(null);
       await queryClient.invalidateQueries({
-        queryKey: ['admin-employee-permissions', selectedEmployee.id],
+        queryKey: isCustomerOverrides
+          ? ['admin-customer-permissions', String(selectedEmployee.id)]
+          : ['admin-employee-permissions', String(selectedEmployee.id)],
       });
       await refetchEmpPerms();
     } catch (err: any) {
@@ -1359,7 +1487,7 @@ export default function RolesPermissionsPage() {
   // Role creation / editing is handled via Designation management page.
   // This function is intentionally a no-op — the drawer now shows an info panel.
   const handleSaveRoleForm = async () => {
-    if (permissionSubject !== 'customer') {
+    if (roleAudience !== 'customer') {
       setIsRoleDrawerOpen(false);
       return;
     }
@@ -1384,14 +1512,14 @@ export default function RolesPermissionsPage() {
   };
 
   const handleAssignCustomerRole = async (mobileRoleId: string) => {
-    if (!selectedEmployee || permissionSubject !== 'customer') return;
+    if (!selectedEmployee || !isCustomerOverrides) return;
     try {
       await api.patch(`/customers/${selectedEmployee.id}/mobile-role`, {
         mobileRoleId: mobileRoleId ? Number(mobileRoleId) : null,
       });
       toast.success('Customer role updated');
       refetchEmpPerms();
-      refetchEmployees();
+      refetchCustomers();
       refetchRoles();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to assign customer role');
@@ -1399,9 +1527,9 @@ export default function RolesPermissionsPage() {
   };
 
   const isCustomerMobileRole = useMemo(() => {
-    if (permissionSubject === 'customer') return true;
-    return String(selectedRole?.audience || '').toUpperCase() === 'CUSTOMER';
-  }, [permissionSubject, selectedRole]);
+    if (roleAudience === 'customer') return true;
+    return selectedRole ? isCustomerRoleItem(selectedRole) : false;
+  }, [roleAudience, selectedRole]);
 
   const roleModuleCatalog = useMemo(
     () =>
@@ -1626,6 +1754,16 @@ export default function RolesPermissionsPage() {
               >
                 Create Role
               </AdminButton>
+            ) : activeTab === 'customers' ? (
+              <Link href="/customers">
+                <AdminButton
+                  variant="outline"
+                  size="md"
+                  icon={Users}
+                >
+                  Customer Directory
+                </AdminButton>
+              </Link>
             ) : (
               <Link href="/employees">
                 <AdminButton
@@ -1655,7 +1793,7 @@ export default function RolesPermissionsPage() {
             <ShieldCheck className="w-4 h-4 text-purple-600" />
             <span>Role Permissions (Defaults)</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-bold">
-              {filteredRoles.length} Roles
+              {roles.filter((r) => r.name.toUpperCase() !== 'EMPLOYEE').length} Roles
             </span>
           </button>
 
@@ -1669,31 +1807,26 @@ export default function RolesPermissionsPage() {
             }`}
           >
             <Users className="w-4 h-4 text-[#1AA14D]" />
-            <span>{permissionSubject === 'customer' ? 'Customer Permissions (Overrides)' : 'Employee Permissions (Overrides)'}</span>
+            <span>Employee Permissions (Overrides)</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
-              {filteredEmployees.length} {permissionSubject === 'customer' ? 'Customers' : 'Staff'}
+              {employeesList.length} Employees
             </span>
           </button>
-        </div>
 
-        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setPermissionSubject('employee')}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-black ${
-              permissionSubject === 'employee' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+            onClick={() => setActiveTab('customers')}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              activeTab === 'customers'
+                ? 'bg-white text-slate-950 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Employee Roles
-          </button>
-          <button
-            type="button"
-            onClick={() => setPermissionSubject('customer')}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-black ${
-              permissionSubject === 'customer' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
-            }`}
-          >
-            Customer Roles
+            <Users className="w-4 h-4 text-blue-600" />
+            <span>Customer Permissions (Overrides)</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold">
+              {customersList.length} Customers
+            </span>
           </button>
         </div>
 
@@ -1744,6 +1877,27 @@ export default function RolesPermissionsPage() {
             </div>
           )}
 
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRoleAudience('employee')}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-black ${
+                roleAudience === 'employee' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              }`}
+            >
+              Employee Roles ({roles.filter((r) => !isCustomerRoleItem(r) && r.name.toUpperCase() !== 'EMPLOYEE').length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleAudience('customer')}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-black ${
+                roleAudience === 'customer' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              }`}
+            >
+              Customer Roles ({customerRoles.length})
+            </button>
+          </div>
+
           {/* Role Layout: 4 Cols Roles List, 8 Cols Permissions Tree */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
             {/* LEFT SIDEBAR: EMPLOYEE ROLES (Cols: 4) */}
@@ -1752,7 +1906,7 @@ export default function RolesPermissionsPage() {
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#1AA14D]" />
                   <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    EMPLOYEE ROLES
+                    {roleAudience === 'customer' ? 'CUSTOMER ROLES' : 'EMPLOYEE ROLES'}
                   </span>
                 </div>
                 <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
@@ -1777,11 +1931,11 @@ export default function RolesPermissionsPage() {
                 {isRolesLoading ? (
                   <div className="py-12 text-center text-xs text-slate-400">
                     <RotateCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1AA14D]" />
-                    Loading employee roles...
+                    Loading {roleAudience === 'customer' ? 'customer' : 'employee'} roles...
                   </div>
                 ) : filteredRoles.length === 0 ? (
                   <div className="py-12 text-center text-xs text-slate-400">
-                    No employee roles matching "{roleSearch}"
+                    No {roleAudience === 'customer' ? 'customer' : 'employee'} roles matching "{roleSearch}"
                   </div>
                 ) : (
                   filteredRoles.map((role) => {
@@ -2186,7 +2340,7 @@ export default function RolesPermissionsPage() {
       {/* =================================================================== */}
       {/* TAB 2: EMPLOYEE PERMISSIONS (OVERRIDES)                             */}
       {/* =================================================================== */}
-      {activeTab === 'employees' && (
+      {(activeTab === 'employees' || activeTab === 'customers') && (
         <div className="space-y-5 animate-in fade-in duration-200">
           {/* Unsaved Changes Banner for Employee */}
           {hasUnsavedEmpChanges && selectedEmployee && (
@@ -2201,7 +2355,7 @@ export default function RolesPermissionsPage() {
                     <span className="underline">{selectedEmployee.firstName || selectedEmployee.name}</span>.
                   </p>
                   <p className="text-[11px] text-amber-700">
-                    Overrides will not take effect on the employee's mobile app until saved.
+                    Overrides will not take effect on the {isCustomerOverrides ? 'customer' : 'employee'} mobile app until saved.
                   </p>
                 </div>
               </div>
@@ -2235,11 +2389,11 @@ export default function RolesPermissionsPage() {
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-[#1AA14D]" />
                   <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    EMPLOYEES
+                    {isCustomerOverrides ? 'CUSTOMERS' : 'EMPLOYEES'}
                   </span>
                 </div>
                 <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                  {filteredEmployees.length} Staff
+                  {filteredEmployees.length} {isCustomerOverrides ? 'Customers' : 'Staff'}
                 </span>
               </div>
 
@@ -2257,14 +2411,14 @@ export default function RolesPermissionsPage() {
 
               {/* Employee Cards List */}
               <div className="space-y-2.5 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
-                {isEmployeesLoading ? (
+                    {isOverrideListLoading ? (
                   <div className="py-12 text-center text-xs text-slate-400">
                     <RotateCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1AA14D]" />
-                    Loading employees...
+                    Loading {isCustomerOverrides ? 'customers' : 'employees'}...
                   </div>
                 ) : filteredEmployees.length === 0 ? (
                   <div className="py-12 text-center text-xs text-slate-400">
-                    No employees matching "{empSearch}"
+                    No {isCustomerOverrides ? 'customers' : 'employees'} matching "{empSearch}"
                   </div>
                 ) : (
                   filteredEmployees.map((emp: any) => {
@@ -2277,7 +2431,11 @@ export default function RolesPermissionsPage() {
                     return (
                       <div
                         key={emp.id}
-                        onClick={() => setSelectedEmpId(String(emp.id))}
+                        onClick={() =>
+                          isCustomerOverrides
+                            ? setSelectedCustomerId(String(emp.id))
+                            : setSelectedEmpId(String(emp.id))
+                        }
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative ${
                           isSelected
                             ? 'bg-emerald-50/70 border-[#23C45E] shadow-sm ring-1 ring-[#23C45E]'
@@ -2288,7 +2446,7 @@ export default function RolesPermissionsPage() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <h4 className="text-xs font-black text-slate-900 tracking-tight truncate">
-                                {emp.firstName ? `${emp.firstName} ${emp.lastName || ''}`.trim() : emp.name || 'Staff Member'}
+                                {emp.firstName ? `${emp.firstName} ${emp.lastName || ''}`.trim() : emp.name || (isCustomerOverrides ? 'Customer' : 'Staff Member')}
                               </h4>
                               {isSelected && (
                                 <span className="w-2 h-2 rounded-full bg-[#23C45E] shrink-0 animate-pulse" />
@@ -2339,7 +2497,7 @@ export default function RolesPermissionsPage() {
                           <h2 className="text-base font-black text-slate-900 tracking-tight">
                             {selectedEmployee.firstName
                               ? `${selectedEmployee.firstName} ${selectedEmployee.lastName || ''}`.trim()
-                              : selectedEmployee.name || 'Employee'}
+                              : selectedEmployee.name || (isCustomerOverrides ? 'Customer' : 'Employee')}
                           </h2>
                           <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
                             {permissionSubject === 'customer' ? 'Customer' : 'Designation'}: {selectedEmployee.designation?.name || empPermsData?.designationName || (permissionSubject === 'customer' ? 'Unassigned' : 'Staff')}
@@ -2352,7 +2510,7 @@ export default function RolesPermissionsPage() {
                             >
                               <option value="">Unassigned</option>
                               {roles
-                                .filter((r) => String(r.audience || '').toUpperCase() === 'CUSTOMER')
+                                .filter((r) => isCustomerRoleItem(r))
                                 .map((r) => (
                                   <option key={r.id} value={r.id}>{r.name}</option>
                                 ))}
@@ -2370,7 +2528,7 @@ export default function RolesPermissionsPage() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 font-medium mt-1">
-                          Role Default baseline merged with individual employee overrides to calculate effective mobile access.
+                          Role Default baseline merged with individual {isCustomerOverrides ? 'customer' : 'employee'} overrides to calculate effective mobile access.
                         </p>
                       </div>
 
@@ -2444,7 +2602,7 @@ export default function RolesPermissionsPage() {
 
                       <div className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                          2. Employee Overrides
+                          2. {isCustomerOverrides ? 'Customer Overrides' : 'Employee Overrides'}
                         </span>
                         <div className="font-extrabold text-xs text-indigo-700 flex items-center gap-1.5">
                           <Sliders className="w-4 h-4 text-indigo-600" />
@@ -2470,7 +2628,9 @@ export default function RolesPermissionsPage() {
                           <span>
                             {empPermsData?.modules
                               ? `${empPermsData.modules.filter((m: any) => getEmpEffectiveStatus(m)).length} Active on Mobile`
-                              : 'Calculating...'}
+                              : isEmpPermsLoading
+                              ? 'Calculating...'
+                              : '0 Active on Mobile'}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1">
@@ -2496,7 +2656,7 @@ export default function RolesPermissionsPage() {
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="text-sm font-black text-slate-900">
-                              Inherit from Designation / Role
+                              Inherit from {isCustomerOverrides ? 'Customer Role' : 'Designation / Role'}
                             </h3>
                             <span
                               className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
@@ -2510,8 +2670,8 @@ export default function RolesPermissionsPage() {
                           </div>
                           <p className="text-xs text-slate-500 font-medium mt-0.5">
                             {isInheritingRoleDefaults
-                              ? `Employee automatically inherits default permissions from ${selectedEmployee.designation?.name || empPermsData?.designationName || 'Designation'}. Use the segmented controls below to set custom overrides.`
-                              : `Custom overrides are active for this employee. Any module set to INHERIT will automatically follow Designation defaults.`}
+                              ? `${isCustomerOverrides ? 'Customer' : 'Employee'} automatically inherits default permissions from ${selectedEmployee.designation?.name || empPermsData?.designationName || (isCustomerOverrides ? 'Customer Role' : 'Designation')}. Use the segmented controls below to set custom overrides.`
+                              : `Custom overrides are active for this ${isCustomerOverrides ? 'customer' : 'employee'}. Any module set to INHERIT will automatically follow ${isCustomerOverrides ? 'Customer Role' : 'Designation'} defaults.`}
                           </p>
                         </div>
                       </div>
@@ -2568,10 +2728,10 @@ export default function RolesPermissionsPage() {
                     <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
                       <div>
                         <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                          Mobile Application Module Permissions
+                          {isCustomerOverrides ? 'Customer Mobile Application Module Permissions' : 'Mobile Application Module Permissions'}
                         </h3>
                         <p className="text-[11px] text-slate-500">
-                          Select <span className="font-bold text-slate-700">INHERIT</span> to use Designation default, or set an individual <span className="font-bold text-emerald-700">ALLOW</span> / <span className="font-bold text-rose-700">DENY</span> override.
+                          Select <span className="font-bold text-slate-700">INHERIT</span> to use {isCustomerOverrides ? 'Customer Role' : 'Designation'} default, or set an individual <span className="font-bold text-emerald-700">ALLOW</span> / <span className="font-bold text-rose-700">DENY</span> override.
                         </p>
                       </div>
 
@@ -2606,7 +2766,7 @@ export default function RolesPermissionsPage() {
                     {isEmpPermsLoading ? (
                       <div className="p-12 text-center text-xs text-slate-400">
                         <RotateCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1AA14D]" />
-                        Loading employee permissions...
+                        Loading {isCustomerOverrides ? 'customer' : 'employee'} permissions...
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -2615,7 +2775,7 @@ export default function RolesPermissionsPage() {
                             <tr>
                               <th className="py-3 px-5">Module / Action</th>
                               <th className="py-3 px-4 text-center">Role Default</th>
-                              <th className="py-3 px-4 text-center">Employee Override</th>
+                              <th className="py-3 px-4 text-center">{isCustomerOverrides ? 'Customer Override' : 'Employee Override'}</th>
                               <th className="py-3 px-4 text-center">Effective Permission</th>
                               <th className="py-3 px-4 text-center">Actions</th>
                             </tr>
@@ -3035,7 +3195,7 @@ export default function RolesPermissionsPage() {
               )}
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500">
-                ℹ️ This restriction applies ONLY to this employee. Other{' '}
+                ℹ️ This restriction applies ONLY to this {isCustomerOverrides ? 'customer' : 'employee'}. Other{' '}
                 <span className="font-bold">{empPermsData?.roleName || selectedEmployee.designation?.name || 'staff'}</span> members and the role defaults remain completely unaffected.
               </div>
             </div>
