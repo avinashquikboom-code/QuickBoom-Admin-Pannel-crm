@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Megaphone,
@@ -40,6 +40,10 @@ export function CreateOfferNotificationDrawer({
   const [imageUrl, setImageUrl] = useState('');
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagePreviewUrlRef = useRef('');
+  const imageUploadGenerationRef = useRef(0);
+  imagePreviewUrlRef.current = imagePreviewUrl;
 
   const isAccessibleImageUrl = (url?: string) => {
     if (!url || typeof url !== 'string') return false;
@@ -84,13 +88,38 @@ export function CreateOfferNotificationDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Reset form when opening
+  const resetForm = () => {
+    imageUploadGenerationRef.current += 1;
+    revokeBlobUrl(imagePreviewUrlRef.current);
+    setTitle('');
+    setMessage('');
+    setImageUrl('');
+    setImagePreviewUrl('');
+    setIsUploadingImage(false);
+    setShowCta(false);
+    setCtaText('Claim Offer');
+    setCtaActionType('DEEP_LINK');
+    setCtaActionValue('/customer/plans');
+    setTargetType('CUSTOMERS');
+    setAudience('ALL');
+    setSelectedIds([]);
+    setSearchTarget('');
+    setScheduleMode('NOW');
+    setScheduledAt('');
+    setValidationErrors({});
+    setIsSubmitting(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Reset when closed so the next open renders a fresh form (no stale flash).
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      setValidationErrors({});
     } else {
       document.body.style.overflow = 'unset';
+      resetForm();
     }
     return () => {
       document.body.style.overflow = 'unset';
@@ -189,6 +218,7 @@ export function CreateOfferNotificationDrawer({
     }
 
     setIsUploadingImage(true);
+    const uploadGeneration = imageUploadGenerationRef.current;
     const formData = new FormData();
     formData.append('image', file);
     const localPreviewUrl = URL.createObjectURL(file);
@@ -197,6 +227,10 @@ export function CreateOfferNotificationDrawer({
       const res: any = await api.post('/notifications/admin/upload-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      if (uploadGeneration !== imageUploadGenerationRef.current) {
+        revokeBlobUrl(localPreviewUrl);
+        return;
+      }
       const uploadData = res?.data?.data || res?.data || res;
       const uploadedUrl = uploadData?.imageUrl;
       const signedPreviewUrl = uploadData?.previewUrl;
@@ -216,10 +250,13 @@ export function CreateOfferNotificationDrawer({
       }
     } catch (err: any) {
       revokeBlobUrl(localPreviewUrl);
+      if (uploadGeneration !== imageUploadGenerationRef.current) return;
       const msg = err?.response?.data?.message || err?.message || 'Failed to upload promotional image.';
       toast.error(msg);
     } finally {
-      setIsUploadingImage(false);
+      if (uploadGeneration === imageUploadGenerationRef.current) {
+        setIsUploadingImage(false);
+      }
       e.target.value = '';
     }
   };
@@ -295,6 +332,7 @@ export function CreateOfferNotificationDrawer({
   // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting || isUploadingImage) return;
     if (!validate()) return;
 
     setIsSubmitting(true);
@@ -321,12 +359,12 @@ export function CreateOfferNotificationDrawer({
           : res?.message || 'Offer notification successfully sent to audience!',
       );
 
+      resetForm();
       onSuccess();
       onClose();
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to send offer notification.';
       toast.error(msg);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -451,6 +489,7 @@ export function CreateOfferNotificationDrawer({
                   <Upload className="w-4 h-4 text-slate-500" />
                   <span>{isUploadingImage ? 'Uploading Image...' : 'Upload Image'}</span>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handleImageFileChange}
@@ -981,6 +1020,7 @@ export function CreateOfferNotificationDrawer({
               size="md"
               icon={scheduleMode === 'SCHEDULE' ? Calendar : Send}
               loading={isSubmitting}
+              disabled={isSubmitting || isUploadingImage}
             >
               {scheduleMode === 'SCHEDULE' ? 'Schedule Notification' : 'Send Notification'}
             </AdminButton>

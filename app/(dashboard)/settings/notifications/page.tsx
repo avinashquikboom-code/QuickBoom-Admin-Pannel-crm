@@ -730,6 +730,9 @@ export default function NotificationCenterPage() {
         isOpen={isOfferDrawerOpen}
         onClose={() => setIsOfferDrawerOpen(false)}
         onSuccess={() => {
+          setCampaignPage(1);
+          queryClient.invalidateQueries({ queryKey: ['admin-offer-campaigns'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
           refetch();
           refetchCampaigns();
         }}
