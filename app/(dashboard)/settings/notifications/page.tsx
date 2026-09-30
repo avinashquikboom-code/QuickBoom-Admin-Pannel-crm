@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Bell,
   CheckCircle2,
@@ -17,6 +17,8 @@ import {
   Users,
   User,
   Layers,
+  Trash2,
+  Repeat2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -30,6 +32,7 @@ import {
   AdminStatusTabs,
   AdminButton,
   AdminStatusBadge,
+  AdminConfirmDialog,
   CreateOfferNotificationDrawer,
 } from '@/components/admin';
 
@@ -84,6 +87,9 @@ export default function NotificationCenterPage() {
   const [campaignPage, setCampaignPage] = useState(1);
   const [campaignPageSize, setCampaignPageSize] = useState(15);
   const [isOfferDrawerOpen, setIsOfferDrawerOpen] = useState(false);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<Set<number>>(new Set());
+  const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Check RBAC permission for sending offer notifications
   const canSendOffer =
@@ -198,6 +204,38 @@ export default function NotificationCenterPage() {
     totalPages: 1,
   };
 
+  const currentPageCampaignIds = useMemo(
+    () => campaignsData.map((c) => Number(c.id)).filter((id) => Number.isInteger(id) && id > 0),
+    [campaignsData],
+  );
+  const isAllCurrentPageSelected =
+    currentPageCampaignIds.length > 0 &&
+    currentPageCampaignIds.every((id) => selectedCampaignIds.has(id));
+  const isSomeCurrentPageSelected = currentPageCampaignIds.some((id) =>
+    selectedCampaignIds.has(id),
+  );
+
+  const toggleCampaignSelection = (campaignId: number) => {
+    setSelectedCampaignIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(campaignId)) next.delete(campaignId);
+      else next.add(campaignId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllCurrentPage = () => {
+    setSelectedCampaignIds((prev) => {
+      const next = new Set(prev);
+      if (isAllCurrentPageSelected) {
+        currentPageCampaignIds.forEach((id) => next.delete(id));
+      } else {
+        currentPageCampaignIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
       return api.patch('/notifications/read-all', {});
@@ -215,6 +253,77 @@ export default function NotificationCenterPage() {
     onSuccess: () => {
       toast.success('Notification marked as read');
       queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    },
+  });
+
+  const refreshCampaignHistory = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-offer-campaigns'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+    refetch();
+    refetchCampaigns();
+  };
+
+  const resendCampaignMutation = useMutation({
+    mutationFn: async (campaignId: number) => {
+      return api.post(`/notifications/admin/campaigns/${campaignId}/resend`);
+    },
+    onSuccess: (res: any) => {
+      toast.success(
+        res?.message ||
+          res?.data?.message ||
+          'Offer notification successfully sent to audience!',
+      );
+      setCampaignPage(1);
+      refreshCampaignHistory();
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.message || err?.message || 'Failed to resend offer notification.',
+      );
+    },
+  });
+
+  const deleteCampaignsMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      if (ids.length === 1) {
+        return api.delete(`/notifications/admin/campaigns/${ids[0]}`);
+      }
+      return api.post('/notifications/admin/campaigns/bulk-delete', { ids });
+    },
+    onSuccess: (res: any) => {
+      const payload =
+        res?.data && typeof res.data === 'object' && ('deletedCount' in res.data || 'failedIds' in res.data)
+          ? res.data
+          : res;
+      const deletedCount = Number(payload?.deletedCount) || 0;
+      const failedIds = Array.isArray(payload?.failedIds) ? payload.failedIds : [];
+      const success = (payload?.success ?? res?.success) !== false && failedIds.length === 0;
+
+      if (success) {
+        toast.success(payload?.message || res?.message || `Deleted ${deletedCount} campaign(s).`);
+      } else {
+        toast.error(
+          payload?.message ||
+            res?.message ||
+            'Some offer notification campaigns could not be deleted.',
+        );
+      }
+
+      setSelectedCampaignIds(new Set());
+      setDeleteTargetIds([]);
+      setIsDeleteDialogOpen(false);
+
+      const remaining = Math.max(0, (campaignPagination.total || 0) - deletedCount);
+      const lastPage = Math.max(1, Math.ceil(remaining / campaignPageSize) || 1);
+      if (campaignPage > lastPage) {
+        setCampaignPage(lastPage);
+      }
+      refreshCampaignHistory();
+    },
+    onError: (err: any) => {
+      toast.error(
+        err?.response?.data?.message || err?.message || 'Failed to delete offer notification campaign(s).',
+      );
     },
   });
 
@@ -537,42 +646,106 @@ export default function NotificationCenterPage() {
                 </p>
               </div>
 
-              {canSendOffer && (
-                <AdminButton
-                  variant="primary"
-                  size="sm"
-                  icon={Megaphone}
-                  onClick={() => setIsOfferDrawerOpen(true)}
-                >
-                  New Offer Push
-                </AdminButton>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedCampaignIds.size > 0 && (
+                  <>
+                    <span className="text-xs font-bold text-emerald-800 bg-emerald-100/90 px-3 py-1 rounded-full border border-emerald-200">
+                      {selectedCampaignIds.size} Selected
+                    </span>
+                    <AdminButton
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedCampaignIds(new Set())}
+                    >
+                      Clear
+                    </AdminButton>
+                    {canSendOffer && (
+                      <AdminButton
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        icon={Trash2}
+                        disabled={deleteCampaignsMutation.isPending}
+                        onClick={() => {
+                          setDeleteTargetIds(Array.from(selectedCampaignIds));
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        Delete Selected
+                      </AdminButton>
+                    )}
+                  </>
+                )}
+                {canSendOffer && (
+                  <AdminButton
+                    variant="primary"
+                    size="sm"
+                    icon={Megaphone}
+                    onClick={() => setIsOfferDrawerOpen(true)}
+                  >
+                    New Offer Push
+                  </AdminButton>
+                )}
+              </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-100/70 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-3 px-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={isAllCurrentPageSelected}
+                        ref={(input) => {
+                          if (input) {
+                            input.indeterminate =
+                              isSomeCurrentPageSelected && !isAllCurrentPageSelected;
+                          }
+                        }}
+                        onChange={toggleSelectAllCurrentPage}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 rounded text-[#1AA14D] focus:ring-[#1AA14D] border-slate-300 cursor-pointer"
+                        aria-label="Select all notifications on this page"
+                      />
+                    </th>
                     <th className="py-3 px-4">Offer / Details</th>
                     <th className="py-3 px-4">Target Audience</th>
                     <th className="py-3 px-4">CTA Configuration</th>
                     <th className="py-3 px-4">Image</th>
                     <th className="py-3 px-4">Status & Delivery</th>
                     <th className="py-3 px-4">Date / Schedule</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {isLoadingCampaigns ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 font-bold animate-pulse">
+                      <td colSpan={8} className="py-12 text-center text-slate-400 font-bold animate-pulse">
                         Loading offer campaigns history...
                       </td>
                     </tr>
                   ) : campaignsData.length > 0 ? (
                     campaignsData.map((c) => {
                       const isCustomer = c.targetType === 'CUSTOMERS';
+                      const campaignId = Number(c.id);
+                      const isSelected = selectedCampaignIds.has(campaignId);
+                      const isResending =
+                        resendCampaignMutation.isPending &&
+                        resendCampaignMutation.variables === campaignId;
                       return (
                         <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-4 px-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleCampaignSelection(campaignId)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-4 h-4 rounded text-[#1AA14D] focus:ring-[#1AA14D] border-slate-300 cursor-pointer"
+                              aria-label={`Select notification ${c.title}`}
+                            />
+                          </td>
                           {/* Offer Title & Message */}
                           <td className="py-4 px-4 max-w-xs">
                             <div className="font-extrabold text-slate-900 text-sm leading-snug">
@@ -694,12 +867,57 @@ export default function NotificationCenterPage() {
                               </div>
                             )}
                           </td>
+
+                          <td className="py-4 px-4 whitespace-nowrap">
+                            {canSendOffer ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <AdminButton
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  icon={Repeat2}
+                                  loading={isResending}
+                                  disabled={
+                                    resendCampaignMutation.isPending ||
+                                    deleteCampaignsMutation.isPending
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    resendCampaignMutation.mutate(campaignId);
+                                  }}
+                                  title="Resend this offer notification"
+                                >
+                                  Resend
+                                </AdminButton>
+                                <AdminButton
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={Trash2}
+                                  disabled={
+                                    resendCampaignMutation.isPending ||
+                                    deleteCampaignsMutation.isPending
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteTargetIds([campaignId]);
+                                    setIsDeleteDialogOpen(true);
+                                  }}
+                                  title="Delete this offer notification"
+                                >
+                                  Delete
+                                </AdminButton>
+                              </div>
+                            ) : (
+                              <span className="text-slate-300 text-xs">—</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 font-bold">
+                      <td colSpan={8} className="py-12 text-center text-slate-400 font-bold">
                         <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                         No promotional offer notifications sent yet.
                       </td>
@@ -731,11 +949,34 @@ export default function NotificationCenterPage() {
         onClose={() => setIsOfferDrawerOpen(false)}
         onSuccess={() => {
           setCampaignPage(1);
-          queryClient.invalidateQueries({ queryKey: ['admin-offer-campaigns'] });
-          queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
-          refetch();
-          refetchCampaigns();
+          refreshCampaignHistory();
         }}
+      />
+
+      <AdminConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          if (deleteCampaignsMutation.isPending) return;
+          setIsDeleteDialogOpen(false);
+          setDeleteTargetIds([]);
+        }}
+        onConfirm={() => {
+          if (deleteTargetIds.length === 0 || deleteCampaignsMutation.isPending) return;
+          deleteCampaignsMutation.mutate(deleteTargetIds);
+        }}
+        title={
+          deleteTargetIds.length > 1
+            ? 'Delete Selected Offer Notifications'
+            : 'Delete Offer Notification'
+        }
+        description={
+          deleteTargetIds.length > 1
+            ? `Are you sure you want to delete ${deleteTargetIds.length} offer notification campaigns from history? This does not recall already delivered device notifications.`
+            : 'Are you sure you want to delete this offer notification campaign from history? This does not recall already delivered device notifications.'
+        }
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteCampaignsMutation.isPending}
       />
     </div>
   );
