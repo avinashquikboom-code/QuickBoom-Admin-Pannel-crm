@@ -263,9 +263,31 @@ export default function NotificationCenterPage() {
     refetchCampaigns();
   };
 
+  const isNotFoundRequest = (err: any) =>
+    Number(err?.response?.status || err?.status) === 404;
+
+  const mapCampaignToOfferPayload = (campaign: CampaignItem) => ({
+    title: campaign.title,
+    message: campaign.message,
+    targetType: campaign.targetType,
+    audience: campaign.audience,
+    targetIds: Array.isArray(campaign.targetIds) ? campaign.targetIds : undefined,
+    imageUrl: campaign.imageUrl || undefined,
+    showCta: Boolean(campaign.showCta),
+    ctaText: campaign.showCta ? campaign.ctaText : undefined,
+    ctaActionType: campaign.showCta ? campaign.ctaActionType : undefined,
+    ctaActionValue: campaign.showCta ? campaign.ctaActionValue : undefined,
+  });
+
   const resendCampaignMutation = useMutation({
-    mutationFn: async (campaignId: number) => {
-      return api.post(`/notifications/admin/campaigns/${campaignId}/resend`);
+    mutationFn: async (campaign: CampaignItem) => {
+      const campaignId = Number(campaign.id);
+      try {
+        return await api.post('/notifications/admin/offer/resend', { campaignId });
+      } catch (err: any) {
+        if (!isNotFoundRequest(err)) throw err;
+        return api.post('/notifications/admin/offer', mapCampaignToOfferPayload(campaign));
+      }
     },
     onSuccess: (res: any) => {
       toast.success(
@@ -285,10 +307,13 @@ export default function NotificationCenterPage() {
 
   const deleteCampaignsMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      if (ids.length === 1) {
-        return api.delete(`/notifications/admin/campaigns/${ids[0]}`);
+      const payload = { ids };
+      try {
+        return await api.post('/notifications/admin/offer/delete', payload);
+      } catch (err: any) {
+        if (!isNotFoundRequest(err)) throw err;
+        return api.post('/notifications/admin/campaigns/bulk-delete', payload);
       }
-      return api.post('/notifications/admin/campaigns/bulk-delete', { ids });
     },
     onSuccess: (res: any) => {
       const payload =
@@ -733,7 +758,7 @@ export default function NotificationCenterPage() {
                       const isSelected = selectedCampaignIds.has(campaignId);
                       const isResending =
                         resendCampaignMutation.isPending &&
-                        resendCampaignMutation.variables === campaignId;
+                        Number(resendCampaignMutation.variables?.id) === campaignId;
                       return (
                         <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-4 px-3">
@@ -883,7 +908,7 @@ export default function NotificationCenterPage() {
                                   }
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    resendCampaignMutation.mutate(campaignId);
+                                    resendCampaignMutation.mutate(c);
                                   }}
                                   title="Resend this offer notification"
                                 >
