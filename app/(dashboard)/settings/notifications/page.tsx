@@ -19,6 +19,7 @@ import {
   Layers,
   Trash2,
   Repeat2,
+  Pencil,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -87,6 +88,7 @@ export default function NotificationCenterPage() {
   const [campaignPage, setCampaignPage] = useState(1);
   const [campaignPageSize, setCampaignPageSize] = useState(15);
   const [isOfferDrawerOpen, setIsOfferDrawerOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<CampaignItem | null>(null);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<Set<number>>(new Set());
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -707,7 +709,10 @@ export default function NotificationCenterPage() {
                     variant="primary"
                     size="sm"
                     icon={Megaphone}
-                    onClick={() => setIsOfferDrawerOpen(true)}
+                    onClick={() => {
+                      setEditingCampaign(null);
+                      setIsOfferDrawerOpen(true);
+                    }}
                   >
                     New Offer Push
                   </AdminButton>
@@ -900,6 +905,24 @@ export default function NotificationCenterPage() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
+                                  icon={Pencil}
+                                  disabled={
+                                    resendCampaignMutation.isPending ||
+                                    deleteCampaignsMutation.isPending
+                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingCampaign(c);
+                                    setIsOfferDrawerOpen(true);
+                                  }}
+                                  title="Edit this offer notification"
+                                >
+                                  Edit
+                                </AdminButton>
+                                <AdminButton
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
                                   icon={Repeat2}
                                   loading={isResending}
                                   disabled={
@@ -968,11 +991,16 @@ export default function NotificationCenterPage() {
         </div>
       )}
 
-      {/* CREATE OFFER NOTIFICATION FORM DRAWER */}
+      {/* CREATE / EDIT OFFER NOTIFICATION FORM DRAWER */}
       <CreateOfferNotificationDrawer
         isOpen={isOfferDrawerOpen}
-        onClose={() => setIsOfferDrawerOpen(false)}
+        initialData={editingCampaign}
+        onClose={() => {
+          setIsOfferDrawerOpen(false);
+          setEditingCampaign(null);
+        }}
         onSuccess={() => {
+          setEditingCampaign(null);
           setCampaignPage(1);
           refreshCampaignHistory();
         }}

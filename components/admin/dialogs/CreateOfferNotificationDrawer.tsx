@@ -23,16 +23,38 @@ import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { AdminButton } from '../buttons/AdminButton';
 
+export interface OfferCampaignData {
+  id?: number | string;
+  title: string;
+  message: string;
+  notificationType?: string;
+  targetType?: string;
+  audience?: string;
+  targetIds?: number[];
+  imageUrl?: string;
+  showCta?: boolean;
+  ctaText?: string;
+  ctaActionType?: string;
+  ctaActionValue?: string;
+  scheduledAt?: string;
+  status?: string;
+  recipientCount?: number;
+  sentCount?: number;
+  failedCount?: number;
+}
+
 export interface CreateOfferNotificationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialData?: OfferCampaignData | null;
 }
 
 export function CreateOfferNotificationDrawer({
   isOpen,
   onClose,
   onSuccess,
+  initialData,
 }: CreateOfferNotificationDrawerProps) {
   // Form State
   const [title, setTitle] = useState('');
@@ -88,6 +110,11 @@ export function CreateOfferNotificationDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
+  const isEditMode = Boolean(initialData && initialData.id);
+
+  const isNotFoundRequest = (err: any) =>
+    Number(err?.response?.status || err?.status) === 404;
+
   const resetForm = () => {
     imageUploadGenerationRef.current += 1;
     revokeBlobUrl(imagePreviewUrlRef.current);
@@ -113,10 +140,49 @@ export function CreateOfferNotificationDrawer({
     }
   };
 
-  // Reset when closed so the next open renders a fresh form (no stale flash).
+  // Pre-fill when opened in Edit mode or reset when closed/Create mode
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      if (initialData) {
+        setTitle(initialData.title || '');
+        setMessage(initialData.message || '');
+        setImageUrl(initialData.imageUrl || '');
+        setImagePreviewUrl(initialData.imageUrl || '');
+        setShowCta(Boolean(initialData.showCta));
+        setCtaText(initialData.ctaText || 'Claim Offer');
+        setCtaActionType(
+          initialData.ctaActionType === 'WEB_URL' ? 'WEB_URL' : 'DEEP_LINK'
+        );
+        setCtaActionValue(initialData.ctaActionValue || '/customer/plans');
+        setTargetType(
+          initialData.targetType?.toUpperCase() === 'EMPLOYEES' ? 'EMPLOYEES' : 'CUSTOMERS'
+        );
+        setAudience(
+          initialData.audience?.toUpperCase() === 'SPECIFIC' ? 'SPECIFIC' : 'ALL'
+        );
+        setSelectedIds(
+          Array.isArray(initialData.targetIds)
+            ? initialData.targetIds.map(Number).filter((n) => !isNaN(n) && n > 0)
+            : []
+        );
+        setSearchTarget('');
+        if (initialData.scheduledAt) {
+          setScheduleMode('SCHEDULE');
+          try {
+            setScheduledAt(new Date(initialData.scheduledAt).toISOString().slice(0, 16));
+          } catch {
+            setScheduledAt('');
+          }
+        } else {
+          setScheduleMode('NOW');
+          setScheduledAt('');
+        }
+        setValidationErrors({});
+        setIsSubmitting(false);
+      } else {
+        resetForm();
+      }
     } else {
       document.body.style.overflow = 'unset';
       resetForm();
@@ -124,7 +190,7 @@ export function CreateOfferNotificationDrawer({
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   useEffect(() => {
     return () => {
@@ -320,7 +386,7 @@ export function CreateOfferNotificationDrawer({
     if (scheduleMode === 'SCHEDULE') {
       if (!scheduledAt) {
         errors.scheduledAt = 'Please select a scheduled date and time.';
-      } else if (new Date(scheduledAt).getTime() <= Date.now()) {
+      } else if (!isEditMode && new Date(scheduledAt).getTime() <= Date.now()) {
         errors.scheduledAt = 'Scheduled time must be in the future.';
       }
     }
@@ -343,27 +409,48 @@ export function CreateOfferNotificationDrawer({
         targetType,
         audience,
         targetIds: audience === 'SPECIFIC' ? selectedIds : undefined,
-        imageUrl: imageUrl.trim() || undefined,
+        imageUrl: imageUrl.trim() ? imageUrl.trim() : '',
         showCta,
         ctaText: showCta ? ctaText.trim() : undefined,
         ctaActionType: showCta ? ctaActionType : undefined,
         ctaActionValue: showCta ? ctaActionValue.trim() : undefined,
-        scheduledAt: scheduleMode === 'SCHEDULE' ? new Date(scheduledAt).toISOString() : undefined,
+        scheduledAt: scheduleMode === 'SCHEDULE' && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       };
 
-      const res: any = await api.post('/notifications/admin/offer', payload);
-      const isSched = scheduleMode === 'SCHEDULE';
-      toast.success(
-        isSched
-          ? 'Offer notification successfully scheduled!'
-          : res?.message || 'Offer notification successfully sent to audience!',
-      );
+      let res: any;
+      if (isEditMode && initialData?.id) {
+        const campaignId = Number(initialData.id);
+        try {
+          res = await api.patch(`/notifications/admin/campaigns/${campaignId}`, payload);
+        } catch (err: any) {
+          if (!isNotFoundRequest(err)) throw err;
+          res = await api.patch(`/notifications/admin/offer/${campaignId}`, payload);
+        }
+        toast.success(
+          res?.message ||
+            res?.data?.message ||
+            'Offer notification successfully updated!',
+        );
+      } else {
+        res = await api.post('/notifications/admin/offer', payload);
+        const isSched = scheduleMode === 'SCHEDULE';
+        toast.success(
+          isSched
+            ? 'Offer notification successfully scheduled!'
+            : res?.message ||
+                res?.data?.message ||
+                'Offer notification successfully sent to audience!',
+        );
+      }
 
       resetForm();
       onSuccess();
       onClose();
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to send offer notification.';
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        (isEditMode ? 'Failed to update offer notification.' : 'Failed to send offer notification.');
       toast.error(msg);
       setIsSubmitting(false);
     }
@@ -390,14 +477,16 @@ export function CreateOfferNotificationDrawer({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                    Create Offer Notification
+                    {isEditMode ? 'Edit Offer Notification' : 'Create Offer Notification'}
                   </h2>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-wide">
                     PROMOTIONAL
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-medium">
-                  Dispatch rich push notification with customizable CTA & image
+                  {isEditMode
+                    ? 'Update existing promotional notification content and configuration'
+                    : 'Dispatch rich push notification with customizable CTA & image'}
                 </p>
               </div>
             </div>
@@ -1018,11 +1107,15 @@ export function CreateOfferNotificationDrawer({
               form="offer-notification-form"
               variant="primary"
               size="md"
-              icon={scheduleMode === 'SCHEDULE' ? Calendar : Send}
+              icon={isEditMode ? Check : scheduleMode === 'SCHEDULE' ? Calendar : Send}
               loading={isSubmitting}
               disabled={isSubmitting || isUploadingImage}
             >
-              {scheduleMode === 'SCHEDULE' ? 'Schedule Notification' : 'Send Notification'}
+              {isEditMode
+                ? 'Update Notification'
+                : scheduleMode === 'SCHEDULE'
+                ? 'Schedule Notification'
+                : 'Send Notification'}
             </AdminButton>
           </div>
         </div>
