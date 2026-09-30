@@ -38,7 +38,26 @@ export function CreateOfferNotificationDrawer({
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const isAccessibleImageUrl = (url?: string) => {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (!trimmed) return false;
+    if (trimmed.startsWith('blob:') || trimmed.startsWith('data:')) return true;
+    if (trimmed.includes('X-Amz-Algorithm') || trimmed.includes('X-Amz-Signature')) return true;
+    const isDirectS3 =
+      trimmed.includes('.amazonaws.com/') ||
+      /^https?:\/\/s3[.-]/i.test(trimmed);
+    return !isDirectS3;
+  };
+
+  const revokeBlobUrl = (url?: string) => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  };
 
   // CTA State
   const [showCta, setShowCta] = useState(false);
@@ -77,6 +96,14 @@ export function CreateOfferNotificationDrawer({
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
 
   // Fetch recipients list when specific targeting is selected
   useEffect(() => {
@@ -164,19 +191,31 @@ export function CreateOfferNotificationDrawer({
     setIsUploadingImage(true);
     const formData = new FormData();
     formData.append('image', file);
+    const localPreviewUrl = URL.createObjectURL(file);
 
     try {
       const res: any = await api.post('/notifications/admin/upload-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const uploadedUrl = res?.data?.data?.imageUrl || res?.data?.imageUrl || res?.imageUrl;
+      const uploadData = res?.data?.data || res?.data || res;
+      const uploadedUrl = uploadData?.imageUrl;
+      const signedPreviewUrl = uploadData?.previewUrl;
       if (uploadedUrl) {
         setImageUrl(uploadedUrl);
+        revokeBlobUrl(imagePreviewUrl);
+        if (isAccessibleImageUrl(signedPreviewUrl)) {
+          revokeBlobUrl(localPreviewUrl);
+          setImagePreviewUrl(signedPreviewUrl);
+        } else {
+          setImagePreviewUrl(localPreviewUrl);
+        }
         toast.success('Promotional image uploaded successfully!');
       } else {
+        revokeBlobUrl(localPreviewUrl);
         toast.error('Upload succeeded but no image URL returned.');
       }
     } catch (err: any) {
+      revokeBlobUrl(localPreviewUrl);
       const msg = err?.response?.data?.message || err?.message || 'Failed to upload promotional image.';
       toast.error(msg);
     } finally {
@@ -394,7 +433,11 @@ export function CreateOfferNotificationDrawer({
                 {imageUrl && (
                   <button
                     type="button"
-                    onClick={() => setImageUrl('')}
+                    onClick={() => {
+                      revokeBlobUrl(imagePreviewUrl);
+                      setImageUrl('');
+                      setImagePreviewUrl('');
+                    }}
                     className="text-xs text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -421,15 +464,20 @@ export function CreateOfferNotificationDrawer({
               <input
                 type="text"
                 value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
+                onChange={(e) => {
+                  const nextUrl = e.target.value;
+                  revokeBlobUrl(imagePreviewUrl);
+                  setImageUrl(nextUrl);
+                  setImagePreviewUrl(nextUrl);
+                }}
                 placeholder="https://example.com/banner.jpg"
                 className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1AA14D] transition-all"
               />
 
-              {imageUrl && (
+              {(imagePreviewUrl || imageUrl) && (
                 <div className="relative mt-2 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 max-h-48 flex items-center justify-center">
                   <img
-                    src={imageUrl}
+                    src={imagePreviewUrl || imageUrl}
                     alt="Promotional Banner Preview"
                     className="w-full h-44 object-cover"
                     onError={(e) => {
@@ -883,10 +931,10 @@ export function CreateOfferNotificationDrawer({
                 </p>
 
                 {/* Promotional Image Preview */}
-                {imageUrl && (
+                {(imagePreviewUrl || imageUrl) && (
                   <div className="mt-3 rounded-2xl overflow-hidden bg-slate-800 border border-slate-700 max-h-48 flex items-center justify-center">
                     <img
-                      src={imageUrl}
+                      src={imagePreviewUrl || imageUrl}
                       alt="Notification Banner"
                       className="w-full h-40 object-cover"
                       onError={(e) => {
