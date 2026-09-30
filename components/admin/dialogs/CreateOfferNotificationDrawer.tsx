@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Megaphone,
+  Upload,
   Image as ImageIcon,
   Link as LinkIcon,
   ExternalLink,
@@ -37,6 +38,7 @@ export function CreateOfferNotificationDrawer({
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // CTA State
   const [showCta, setShowCta] = useState(false);
@@ -143,6 +145,45 @@ export function CreateOfferNotificationDrawer({
       );
     }
   }, [targetType, customersList, employeesList, searchTarget]);
+
+  // Image Upload Handler
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file (PNG, JPG, WEBP).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB.');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res: any = await api.post('/notifications/admin/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const uploadedUrl = res?.data?.data?.imageUrl || res?.data?.imageUrl || res?.imageUrl;
+      if (uploadedUrl) {
+        setImageUrl(uploadedUrl);
+        toast.success('Promotional image uploaded successfully!');
+      } else {
+        toast.error('Upload succeeded but no image URL returned.');
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to upload promotional image.';
+      toast.error(msg);
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
+  };
 
   const toggleSelectId = (id: number) => {
     setSelectedIds((prev) =>
@@ -360,6 +401,21 @@ export function CreateOfferNotificationDrawer({
                     Remove
                   </button>
                 )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="relative cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors shadow-xs">
+                  <Upload className="w-4 h-4 text-slate-500" />
+                  <span>{isUploadingImage ? 'Uploading Image...' : 'Upload Image'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileChange}
+                    disabled={isUploadingImage}
+                    className="hidden"
+                  />
+                </label>
+                <span className="text-xs text-slate-400 font-medium">or paste image URL:</span>
               </div>
 
               <input
