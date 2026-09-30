@@ -580,6 +580,16 @@ const PERMISSION_MODULE_GROUPS: ModuleGroup[] = [
       { key: 'employee.customer_support.create', module: 'CUSTOMER_SUPPORT', action: 'CREATE', label: 'Create Support Request', description: 'Allow submitting a support request' },
     ],
   },
+  {
+    id: 'CUSTOMER_MARKETING',
+    name: 'Marketing & Offers',
+    icon: Target,
+    category: 'CUSTOMER',
+    description: 'Promotional banners, coupon offers and marketing videos shown on Customer Home',
+    permissions: [
+      { key: 'employee.customer_marketing.view', module: 'CUSTOMER_MARKETING', action: 'VIEW', label: 'View Marketing & Offers', description: 'Show promotional banners, coupon carousels and marketing videos' },
+    ],
+  },
 ];
 
 // Helper to normalize keys to dot format
