@@ -616,10 +616,26 @@ interface RoleItem {
 function isCustomerRoleItem(r: {
   audience?: string;
   code?: string;
+  name?: string;
+  rawName?: string;
   permissions?: { module?: string }[];
 }) {
   if (String(r.audience || '').toUpperCase() === 'CUSTOMER') return true;
-  if (String(r.code || '').toUpperCase() === 'CUSTOMER') return true;
+  const code = String(r.code || '').toUpperCase();
+  if (code === 'CUSTOMER' || code.startsWith('CUSTOMER_')) return true;
+  const name = String(r.name || r.rawName || '').trim().toUpperCase();
+  if (
+    name === 'CUSTOMER' ||
+    name === 'CUSTOMER ROLE' ||
+    name === 'CUSTOMER MOBILE' ||
+    name === 'CUSTOMER APP' ||
+    name.startsWith('CUSTOMER ') ||
+    name.endsWith(' CUSTOMER') ||
+    name.includes('CUSTOMER MOBILE') ||
+    name.includes('CUSTOMER APP')
+  ) {
+    return true;
+  }
   const perms = r.permissions || [];
   return (
     perms.length > 0 &&
@@ -716,7 +732,12 @@ export default function RolesPermissionsPage() {
     }));
   }, [rolesData]);
 
-  // Keep the Customer mobile designation. Hide only the obsolete generic EMPLOYEE role.
+  const customerRoles = useMemo(
+    () => roles.filter((r) => isCustomerRoleItem(r)),
+    [roles],
+  );
+
+  // Keep employee designations, hide obsolete generic EMPLOYEE role and customer roles
   const employeeRoles = useMemo(() => {
     const excludedNames = ['EMPLOYEE', 'EMPLOYEE ROLE'];
     const seen = new Set<string>();
@@ -725,7 +746,7 @@ export default function RolesPermissionsPage() {
     for (const r of roles) {
       const raw = (r.rawName || r.name || '').trim().toUpperCase();
       const norm = (r.name || '').trim().toLowerCase();
-      if (roleAudience === 'customer' ? !isCustomerRoleItem(r) : isCustomerRoleItem(r)) {
+      if (isCustomerRoleItem(r)) {
         continue;
       }
       if (excludedNames.includes(raw) || norm === 'employee') {
@@ -738,37 +759,37 @@ export default function RolesPermissionsPage() {
       result.push(r);
     }
     return result;
-  }, [roles, roleAudience]);
+  }, [roles]);
 
-  const customerRoles = useMemo(
-    () => roles.filter((r) => isCustomerRoleItem(r)),
-    [roles],
-  );
+  const currentAudienceRoles = useMemo(() => {
+    return roleAudience === 'customer' ? customerRoles : employeeRoles;
+  }, [roleAudience, customerRoles, employeeRoles]);
 
   const filteredRoles = useMemo(() => {
-    if (!roleSearch.trim()) return employeeRoles;
+    if (!roleSearch.trim()) return currentAudienceRoles;
     const q = roleSearch.toLowerCase();
-    return employeeRoles.filter(
+    return currentAudienceRoles.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
         r.description.toLowerCase().includes(q) ||
         (r.rawName && r.rawName.toLowerCase().includes(q))
     );
-  }, [employeeRoles, roleSearch]);
+  }, [currentAudienceRoles, roleSearch]);
 
   const selectedRole = useMemo(() => {
     return (
-      employeeRoles.find((r) => r.id === selectedRoleId) ||
-      employeeRoles[0] ||
+      currentAudienceRoles.find((r) => r.id === selectedRoleId) ||
+      currentAudienceRoles[0] ||
       null
     );
-  }, [employeeRoles, selectedRoleId]);
+  }, [currentAudienceRoles, selectedRoleId]);
 
   useEffect(() => {
-    if (employeeRoles.length > 0 && !selectedRoleId) {
-      setSelectedRoleId(employeeRoles[0].id);
+    const activeList = roleAudience === 'customer' ? customerRoles : employeeRoles;
+    if (activeList.length > 0 && (!selectedRoleId || !activeList.some((r) => r.id === selectedRoleId))) {
+      setSelectedRoleId(activeList[0].id);
     }
-  }, [employeeRoles, selectedRoleId]);
+  }, [roleAudience, customerRoles, employeeRoles, selectedRoleId]);
 
   // Fetch Permissions for Selected Designation-Role
   // Uses /designations/:designationId/permissions — the source-of-truth endpoint.
@@ -891,7 +912,8 @@ export default function RolesPermissionsPage() {
 
   const isCustomerOverrides = activeTab === 'customers';
   const permissionSubject: 'employee' | 'customer' =
-    activeTab === 'customers' || (activeTab === 'roles' && roleAudience === 'customer')
+    activeTab === 'customers' ||
+    (activeTab === 'roles' && (roleAudience === 'customer' || (selectedRole ? isCustomerRoleItem(selectedRole) : false)))
       ? 'customer'
       : 'employee';
   const overrideList = isCustomerOverrides ? customersList : employeesList;
@@ -921,6 +943,8 @@ export default function RolesPermissionsPage() {
 
   useEffect(() => {
     setSelectedRoleId('');
+    setSelectedCategory('ALL');
+    setPermSearch('');
   }, [roleAudience]);
 
   useEffect(() => {
@@ -1369,30 +1393,46 @@ export default function RolesPermissionsPage() {
 
   const handleExpandAll = () => {
     const next: Record<string, boolean> = {};
-    PERMISSION_MODULE_GROUPS.forEach((g) => (next[g.id] = true));
-    setExpandedModules(next);
+    roleModuleCatalog.forEach((g) => (next[g.id] = true));
+    setExpandedModules((prev) => ({ ...prev, ...next }));
   };
 
   const handleCollapseAll = () => {
     const next: Record<string, boolean> = {};
-    PERMISSION_MODULE_GROUPS.forEach((g) => (next[g.id] = false));
-    setExpandedModules(next);
+    roleModuleCatalog.forEach((g) => (next[g.id] = false));
+    setExpandedModules((prev) => ({ ...prev, ...next }));
   };
 
   const handleSelectAll = () => {
-    const next = new Set<string>();
-    PERMISSION_MODULE_GROUPS.forEach((g) => {
+    const next = new Set(localPerms);
+    roleModuleCatalog.forEach((g) => {
       g.permissions.forEach((p) => next.add(p.key));
     });
     setLocalPerms(next);
   };
 
   const handleClearAll = () => {
-    setLocalPerms(new Set());
+    const catalogKeys = new Set(roleModuleCatalog.flatMap((g) => g.permissions.map((p) => p.key)));
+    setLocalPerms((prev) => {
+      const next = new Set(prev);
+      catalogKeys.forEach((k) => next.delete(k));
+      return next;
+    });
   };
 
   const handleResetToTemplate = () => {
     if (!selectedRole) return;
+    if (isCustomerMobileRole) {
+      const templateKeys = new Set<string>();
+      roleModuleCatalog.forEach((g) => {
+        g.permissions.forEach((p) => {
+          templateKeys.add(p.key);
+        });
+      });
+      setLocalPerms(templateKeys);
+      toast.success(`Reset to ${selectedRole.name} default permissions!`);
+      return;
+    }
     const upper = (selectedRole.rawName || selectedRole.name).toUpperCase().replace(/\s+/g, '_');
     const templateName = upper.includes('TELECALL')
       ? 'TELECALLER'
@@ -1494,8 +1534,6 @@ export default function RolesPermissionsPage() {
     setIsRoleDrawerOpen(true);
   };
 
-  // Role creation / editing is handled via Designation management page.
-  // This function is intentionally a no-op — the drawer now shows an info panel.
   const handleSaveRoleForm = async () => {
     if (roleAudience !== 'customer') {
       setIsRoleDrawerOpen(false);
@@ -1507,17 +1545,25 @@ export default function RolesPermissionsPage() {
       return;
     }
     try {
-      await api.post('/designations', {
-        name,
-        description: roleFormData.description.trim(),
-        audience: 'CUSTOMER',
-        crmMobileAccess: false,
-      });
-      toast.success('Customer role created');
+      if (drawerMode === 'edit' && selectedRole) {
+        await api.patch(`/designations/${selectedRole.id}`, {
+          name,
+          description: roleFormData.description.trim(),
+        });
+        toast.success('Customer role updated');
+      } else {
+        await api.post('/designations', {
+          name,
+          description: roleFormData.description.trim(),
+          audience: 'CUSTOMER',
+          crmMobileAccess: false,
+        });
+        toast.success('Customer role created');
+      }
       setIsRoleDrawerOpen(false);
       refetchRoles();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to create customer role');
+      toast.error(err?.response?.data?.message || 'Failed to save customer role');
     }
   };
 
@@ -1890,18 +1936,36 @@ export default function RolesPermissionsPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setRoleAudience('employee')}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-black ${
-                roleAudience === 'employee' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              onClick={() => {
+                if (hasUnsavedRoleChanges && selectedRole) {
+                  if (!confirm(`You have unsaved permission changes for ${selectedRole.name}. Discard and switch to Employee Roles?`)) {
+                    return;
+                  }
+                }
+                setRoleAudience('employee');
+                setSelectedCategory('ALL');
+                setPermSearch('');
+              }}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-black transition-colors cursor-pointer ${
+                roleAudience === 'employee' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
-              Employee Roles ({roles.filter((r) => !isCustomerRoleItem(r) && r.name.toUpperCase() !== 'EMPLOYEE').length})
+              Employee Roles ({employeeRoles.length})
             </button>
             <button
               type="button"
-              onClick={() => setRoleAudience('customer')}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-black ${
-                roleAudience === 'customer' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              onClick={() => {
+                if (hasUnsavedRoleChanges && selectedRole) {
+                  if (!confirm(`You have unsaved permission changes for ${selectedRole.name}. Discard and switch to Customer Roles?`)) {
+                    return;
+                  }
+                }
+                setRoleAudience('customer');
+                setSelectedCategory('ALL');
+                setPermSearch('');
+              }}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-black transition-colors cursor-pointer ${
+                roleAudience === 'customer' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
               Customer Roles ({customerRoles.length})
@@ -2001,7 +2065,7 @@ export default function RolesPermissionsPage() {
 
                           <span className="flex items-center gap-1 text-slate-500">
                             <Users className="w-3.5 h-3.5 text-blue-500" />
-                            <span>{role.usersCount} {permissionSubject === 'customer' ? 'Customers' : 'Staff'}</span>
+                            <span>{role.usersCount} {isCustomerRoleItem(role) ? 'Customers' : 'Staff'}</span>
                           </span>
                         </div>
                       </div>
@@ -2033,7 +2097,7 @@ export default function RolesPermissionsPage() {
                             {selectedRole.isActive ? 'Active' : 'Inactive'}
                           </span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                            {selectedRole.usersCount} Assigned Staff
+                            {selectedRole.usersCount} {isCustomerMobileRole ? 'Assigned Customers' : 'Assigned Staff'}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 font-medium mt-1">
@@ -2126,11 +2190,11 @@ export default function RolesPermissionsPage() {
                           </span>
                           <span className="text-xs font-black text-slate-900">
                             {
-                              PERMISSION_MODULE_GROUPS.filter((g) =>
+                              roleModuleCatalog.filter((g) =>
                                 g.permissions.some((p) => localPerms.has(p.key))
                               ).length
                             }{' '}
-                            of {PERMISSION_MODULE_GROUPS.length} Modules Active
+                            of {roleModuleCatalog.length} Modules Active
                           </span>
                         </div>
                       </div>
@@ -2141,10 +2205,10 @@ export default function RolesPermissionsPage() {
                         </div>
                         <div>
                           <span className="text-[10px] font-black uppercase text-slate-400 block">
-                            {permissionSubject === 'customer' ? 'Customer Impact' : 'Staff Impact'}
+                            {isCustomerMobileRole ? 'Customer Impact' : 'Staff Impact'}
                           </span>
                           <span className="text-xs font-black text-slate-900">
-                            {selectedRole.usersCount} {permissionSubject === 'customer' ? 'Customers' : 'Employees'}
+                            {selectedRole.usersCount} {isCustomerMobileRole ? 'Customers' : 'Employees'}
                           </span>
                         </div>
                       </div>
@@ -2339,7 +2403,7 @@ export default function RolesPermissionsPage() {
                 </div>
               ) : (
                 <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-400">
-                  Select an employee role from the left sidebar to configure its permissions.
+                  Select a {roleAudience === 'customer' ? 'customer' : 'employee'} role from the left sidebar to configure its permissions.
                 </div>
               )}
             </div>
@@ -3324,6 +3388,7 @@ export default function RolesPermissionsPage() {
                           ['employee.customer_influencers.view', 'Influencers'],
                           ['employee.customer_notifications.view', 'Notifications'],
                           ['employee.customer_support.view', 'Support'],
+                          ['employee.customer_marketing.view', 'Marketing & Offers'],
                         ]
                           .filter(([key]) =>
                             activeTab === 'roles' ? localPerms.has(key) : getEmpEffectiveStatus(key),
@@ -3530,8 +3595,18 @@ export default function RolesPermissionsPage() {
       <AdminFormDrawer
         isOpen={isRoleDrawerOpen}
         onClose={() => setIsRoleDrawerOpen(false)}
-        title={permissionSubject === 'customer' ? 'Create Customer Role' : 'Employee Roles & Designations'}
-        subtitle={permissionSubject === 'customer' ? 'Customer roles use the same permission system as employee roles' : 'How Employee Roles are managed in this system'}
+        title={
+          permissionSubject === 'customer'
+            ? drawerMode === 'edit'
+              ? 'Edit Customer Role'
+              : 'Create Customer Role'
+            : 'Employee Roles & Designations'
+        }
+        subtitle={
+          permissionSubject === 'customer'
+            ? 'Customer roles use the same permission system as employee roles'
+            : 'How Employee Roles are managed in this system'
+        }
         isSubmitting={false}
         maxWidth="sm:max-w-[500px]"
         showFooter={false}
@@ -3559,9 +3634,9 @@ export default function RolesPermissionsPage() {
             <button
               type="button"
               onClick={handleSaveRoleForm}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
+              className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
             >
-              Create Customer Role
+              {drawerMode === 'edit' ? 'Save Changes' : 'Create Customer Role'}
             </button>
           </div>
         ) : (
