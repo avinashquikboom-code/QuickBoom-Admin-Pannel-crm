@@ -24,6 +24,7 @@ export * from './filters/AdminStatusTabs';
 export * from './dialogs/AdminConfirmDialog';
 export * from './dialogs/ResetCustomerDataModal';
 export * from './dialogs/AdminFormDrawer';
+export * from './dialogs/CreateOfferNotificationDrawer';
 export * from './drawers/CustomerDetailsDrawer';
 export * from './drawers/CompanyDetailsDrawer';
 export * from './drawers/ContactDetailsDrawer';
