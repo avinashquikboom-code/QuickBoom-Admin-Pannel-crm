@@ -268,10 +268,19 @@ export default function CreateEmployeePage() {
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
             />
           </AdminFormField>
+
+          <AdminFormField label="Residential Address" className="col-span-2">
+            <AdminTextarea
+              placeholder="Enter full permanent / residential address..."
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              rows={3}
+            />
+          </AdminFormField>
         </AdminFormSection>
 
         {/* Section 2: Employment Information */}
-        <AdminFormSection title="Employment Details" description="Office geofence, shift, department, designation, and joining date" icon={Building2} columns={2}>
+        <AdminFormSection title="Employment Information" description="Office geofence, shift, department, designation, and joining date" icon={Building2} columns={2}>
           <AdminFormField label="Assigned Office (Attendance Geofence)" required>
             <select
               required
@@ -456,23 +465,14 @@ export default function CreateEmployeePage() {
           </div>
         </AdminFormSection>
 
-        {/* Section 3: Additional Details */}
-        <AdminFormSection title="Additional Details" description="Address & Compensation" icon={DollarSign} columns={2}>
+        {/* Section 3: Salary Information */}
+        <AdminFormSection title="Salary Information" description="Compensation, payroll, and monthly CTC details" icon={DollarSign} columns={2}>
           <AdminFormField label="Monthly Basic Salary (₹)">
             <AdminInput
               type="number"
               placeholder="75000"
               value={formData.monthlySalary}
               onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Residential Address" className="col-span-2">
-            <AdminTextarea
-              placeholder="Enter full permanent / residential address..."
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              rows={3}
             />
           </AdminFormField>
         </AdminFormSection>

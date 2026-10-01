@@ -268,10 +268,19 @@ export default function EditEmployeePage() {
               ]}
             />
           </AdminFormField>
+
+          <AdminFormField label="Permanent Address" className="col-span-2">
+            <AdminTextarea
+              placeholder="Enter full permanent / residential address..."
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              rows={3}
+            />
+          </AdminFormField>
         </AdminFormSection>
 
-        {/* Section 2: Employment Setup */}
-        <AdminFormSection title="Employment Setup" description="Assigned office geofence, shift, department, and role" icon={Building2} columns={2}>
+        {/* Section 2: Employment Information */}
+        <AdminFormSection title="Employment Information" description="Assigned office geofence, shift, department, and role" icon={Building2} columns={2}>
           <AdminFormField label="Assigned Office (Attendance Geofence)" required>
             <select
               required
@@ -441,21 +450,14 @@ export default function EditEmployeePage() {
           </div>
         </AdminFormSection>
 
-        {/* Section 3: Compensation & Address */}
-        <AdminFormSection title="Compensation & Address" description="Salary and physical address" icon={DollarSign} columns={2}>
+        {/* Section 3: Salary Information */}
+        <AdminFormSection title="Salary Information" description="Compensation, payroll, and monthly CTC details" icon={DollarSign} columns={2}>
           <AdminFormField label="Monthly Basic Salary (₹)">
             <AdminInput
               type="number"
+              placeholder="75000"
               value={formData.monthlySalary}
               onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
-            />
-          </AdminFormField>
-
-          <AdminFormField label="Permanent Address" className="col-span-2">
-            <AdminTextarea
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              rows={3}
             />
           </AdminFormField>
         </AdminFormSection>

@@ -2390,9 +2390,12 @@ export default function EmployeesPage() {
 
                   {/* Bank Details */}
                   <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
-                    <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
-                      Bank & Salary Details
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-[#23C45E]" />
+                      <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
+                        Bank Details
+                      </span>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -2421,7 +2424,7 @@ export default function EmployeesPage() {
                         />
                       </div>
 
-                      <div>
+                      <div className="col-span-2">
                         <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
                           IFSC Code
                         </label>
@@ -2435,7 +2438,24 @@ export default function EmployeesPage() {
                           className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
                         />
                       </div>
+                    </div>
+                  </div>
 
+                  {/* Salary Information */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-[#23C45E]" />
+                      <div>
+                        <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
+                          Salary Information
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium block">
+                          Compensation and monthly payroll details
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
                       <div>
                         <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
                           Base Monthly Salary (₹)
@@ -2747,6 +2767,12 @@ export default function EmployeesPage() {
                         <span className="text-slate-400 font-bold block text-[10px]">BANK ACCOUNT</span>
                         <span className="font-mono font-bold text-slate-800">
                           {formData.bankName ? `${formData.bankName} • ${maskValue(formData.accountNumber, 4)}` : '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block text-[10px]">MONTHLY SALARY</span>
+                        <span className="font-mono font-bold text-emerald-700">
+                          {formData.basicSalary ? `₹${Number(formData.basicSalary).toLocaleString('en-IN')}` : '—'}
                         </span>
                       </div>
                     </div>
