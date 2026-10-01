@@ -37,13 +37,33 @@ export default function EditEmployeePage() {
     shiftId: '' as string | number,
     joiningDate: new Date().toISOString().split('T')[0],
     employmentType: 'FULL_TIME',
-    monthlySalary: '',
+    basicSalary: '',
+    hra: '0',
+    allowances: '0',
+    specialAllowance: '0',
+    pf: '0',
+    esi: '0',
+    professionalTax: '0',
+    tds: '0',
     status: 'ACTIVE',
     address: '',
     mobileLoginEnabled: true,
     password: '',
     confirmPassword: '',
   });
+
+  const basic = Math.max(0, Number(formData.basicSalary) || 0);
+  const hra = Math.max(0, Number(formData.hra) || 0);
+  const allowances = Math.max(0, Number(formData.allowances) || 0);
+  const specialAllowance = Math.max(0, Number(formData.specialAllowance) || 0);
+  const pf = Math.max(0, Number(formData.pf) || 0);
+  const esi = Math.max(0, Number(formData.esi) || 0);
+  const professionalTax = Math.max(0, Number(formData.professionalTax) || 0);
+  const tds = Math.max(0, Number(formData.tds) || 0);
+
+  const grossEarnings = basic + hra + allowances + specialAllowance;
+  const totalDeductions = pf + esi + professionalTax + tds;
+  const calculatedNetSalary = Math.max(0, grossEarnings - totalDeductions);
 
   // Dynamic Offices query
   const { data: officesRes } = useQuery({
@@ -109,6 +129,7 @@ export default function EditEmployeePage() {
 
   useEffect(() => {
     if (employeeData) {
+      const struct = employeeData.salaryStructure || employeeData.bankDetails?.salaryStructure || employeeData.bankDetails || {};
       setFormData({
         firstName: employeeData.firstName || '',
         lastName: employeeData.lastName || '',
@@ -124,7 +145,14 @@ export default function EditEmployeePage() {
         shiftId: employeeData.shiftId || employeeData.shift?.id || '',
         joiningDate: employeeData.joiningDate ? new Date(employeeData.joiningDate).toISOString().split('T')[0] : '',
         employmentType: employeeData.employmentType || 'FULL_TIME',
-        monthlySalary: employeeData.bankDetails?.basicSalary ? String(employeeData.bankDetails.basicSalary) : '',
+        basicSalary: struct.basicSalary !== undefined && struct.basicSalary !== null ? String(struct.basicSalary) : (employeeData.bankDetails?.basicSalary ? String(employeeData.bankDetails.basicSalary) : ''),
+        hra: struct.hra !== undefined && struct.hra !== null ? String(struct.hra) : '0',
+        allowances: struct.allowances !== undefined && struct.allowances !== null ? String(struct.allowances) : '0',
+        specialAllowance: struct.specialAllowance !== undefined && struct.specialAllowance !== null ? String(struct.specialAllowance) : '0',
+        pf: struct.pf !== undefined && struct.pf !== null ? String(struct.pf) : '0',
+        esi: struct.esi !== undefined && struct.esi !== null ? String(struct.esi) : '0',
+        professionalTax: struct.professionalTax !== undefined && struct.professionalTax !== null ? String(struct.professionalTax) : '0',
+        tds: struct.tds !== undefined && struct.tds !== null ? String(struct.tds) : '0',
         status: employeeData.status || 'ACTIVE',
         address: employeeData.address || '',
         mobileLoginEnabled: employeeData.mobileLoginEnabled !== false,
@@ -168,6 +196,24 @@ export default function EditEmployeePage() {
       }
     }
 
+    if (!formData.basicSalary || Number(formData.basicSalary) <= 0) {
+      toast.error('Basic Salary (₹) is required and must be greater than 0');
+      return;
+    }
+    if (
+      Number(formData.basicSalary) < 0 ||
+      Number(formData.hra) < 0 ||
+      Number(formData.allowances) < 0 ||
+      Number(formData.specialAllowance) < 0 ||
+      Number(formData.pf) < 0 ||
+      Number(formData.esi) < 0 ||
+      Number(formData.professionalTax) < 0 ||
+      Number(formData.tds) < 0
+    ) {
+      toast.error('Salary and deduction values cannot be negative');
+      return;
+    }
+
     const payload: any = {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
@@ -183,7 +229,32 @@ export default function EditEmployeePage() {
       employmentType: formData.employmentType,
       status: formData.status,
       address: formData.address.trim() || undefined,
-      bankDetails: formData.monthlySalary ? { basicSalary: Number(formData.monthlySalary) } : undefined,
+      salaryStructure: {
+        basicSalary: basic,
+        hra,
+        allowances,
+        specialAllowance,
+        pf,
+        esi,
+        professionalTax,
+        tds,
+        grossSalary: grossEarnings,
+        totalDeductions,
+        netSalary: calculatedNetSalary,
+      },
+      bankDetails: {
+        basicSalary: basic,
+        hra,
+        allowances,
+        specialAllowance,
+        pf,
+        esi,
+        professionalTax,
+        tds,
+        grossSalary: grossEarnings,
+        totalDeductions,
+        netSalary: calculatedNetSalary,
+      },
       mobileLoginEnabled: formData.mobileLoginEnabled,
       password: formData.password.trim() || undefined,
       confirmPassword: formData.confirmPassword.trim() || undefined,
@@ -450,16 +521,178 @@ export default function EditEmployeePage() {
           </div>
         </AdminFormSection>
 
-        {/* Section 3: Salary Information */}
-        <AdminFormSection title="Salary Information" description="Compensation, payroll, and monthly CTC details" icon={DollarSign} columns={2}>
-          <AdminFormField label="Monthly Basic Salary (₹)">
-            <AdminInput
-              type="number"
-              placeholder="75000"
-              value={formData.monthlySalary}
-              onChange={(e) => setFormData({ ...formData, monthlySalary: e.target.value })}
-            />
-          </AdminFormField>
+        {/* Section 3: Payroll */}
+        <AdminFormSection
+          title="Payroll Structure"
+          description="Dedicated employee compensation, statutory deductions, and net take-home salary calculation"
+          icon={DollarSign}
+          columns={1}
+        >
+          <div className="space-y-6">
+            {/* Earnings Components Card */}
+            <div className="p-5 sm:p-6 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    Earnings Components
+                  </h3>
+                </div>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full">
+                  Monthly Additions
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <AdminFormField label="Basic Salary (₹) *" required>
+                  <AdminInput
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 15000"
+                    value={formData.basicSalary}
+                    onChange={(e) => setFormData({ ...formData, basicSalary: e.target.value })}
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="HRA (₹)">
+                  <AdminInput
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.hra}
+                    onChange={(e) => setFormData({ ...formData, hra: e.target.value })}
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="Allowances (₹)">
+                  <AdminInput
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.allowances}
+                    onChange={(e) => setFormData({ ...formData, allowances: e.target.value })}
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="Special Allowance (₹)">
+                  <AdminInput
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.specialAllowance}
+                    onChange={(e) => setFormData({ ...formData, specialAllowance: e.target.value })}
+                  />
+                </AdminFormField>
+              </div>
+            </div>
+
+            {/* Deductions Components Card */}
+            <div className="p-5 sm:p-6 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    Deductions Components
+                  </h3>
+                </div>
+                <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200/60 px-2.5 py-0.5 rounded-full">
+                  Statutory & Taxes
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <AdminFormField label="Provident Fund (PF ₹)">
+                  <AdminInput
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.pf}
+                    onChange={(e) => setFormData({ ...formData, pf: e.target.value })}
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="ESI (₹)">
+                  <AdminInput
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.esi}
+                    onChange={(e) => setFormData({ ...formData, esi: e.target.value })}
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="Professional Tax (₹)">
+                  <AdminInput
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.professionalTax}
+                    onChange={(e) => setFormData({ ...formData, professionalTax: e.target.value })}
+                  />
+                </AdminFormField>
+
+                <AdminFormField label="TDS Tax (₹)">
+                  <AdminInput
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.tds}
+                    onChange={(e) => setFormData({ ...formData, tds: e.target.value })}
+                  />
+                </AdminFormField>
+              </div>
+            </div>
+
+            {/* Salary Summary Card */}
+            <div className="p-5 sm:p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl shadow-sm border border-slate-700/50">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 mb-4">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                  Salary Calculation Summary
+                </span>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                  Real-time Calculation
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-3.5 bg-white/5 rounded-xl border border-white/10">
+                  <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Gross Earnings
+                  </span>
+                  <span className="block text-lg sm:text-xl font-black text-white mt-1">
+                    ₹{grossEarnings.toLocaleString('en-IN')}
+                  </span>
+                  <span className="block text-[10px] text-slate-400 mt-0.5">
+                    Basic + HRA + Allowances
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-white/5 rounded-xl border border-white/10">
+                  <span className="block text-[10px] font-extrabold uppercase tracking-wider text-rose-300">
+                    Total Deductions
+                  </span>
+                  <span className="block text-lg sm:text-xl font-black text-rose-400 mt-1">
+                    -₹{totalDeductions.toLocaleString('en-IN')}
+                  </span>
+                  <span className="block text-[10px] text-slate-400 mt-0.5">
+                    PF + ESI + PT + TDS
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+                  <span className="block text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">
+                    Calculated Net Salary
+                  </span>
+                  <span className="block text-xl sm:text-2xl font-black text-emerald-400 mt-0.5">
+                    ₹{calculatedNetSalary.toLocaleString('en-IN')}
+                  </span>
+                  <span className="block text-[10px] text-emerald-200/70 mt-0.5">
+                    Take-home payable per month
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </AdminFormSection>
 
         {/* Actions */}

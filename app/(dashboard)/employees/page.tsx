@@ -89,7 +89,18 @@ export interface EmployeeMaster {
     ifscCode?: string;
     branchName?: string;
     basicSalary?: number | string;
+    hra?: number | string;
+    allowances?: number | string;
+    specialAllowance?: number | string;
+    pf?: number | string;
+    esi?: number | string;
+    professionalTax?: number | string;
+    tds?: number | string;
+    grossSalary?: number | string;
+    totalDeductions?: number | string;
+    netSalary?: number | string;
   } | null;
+  salaryStructure?: any;
   emergencyContact?: {
     name?: string;
     relationship?: string;
@@ -227,6 +238,13 @@ export default function EmployeesPage() {
     accountNumber: '',
     ifscCode: '',
     basicSalary: '',
+    hra: '0',
+    allowances: '0',
+    specialAllowance: '0',
+    pf: '0',
+    esi: '0',
+    professionalTax: '0',
+    tds: '0',
 
     // Step 5: Mobile Login / Account
     mobileLoginEnabled: true,
@@ -518,12 +536,35 @@ export default function EmployeesPage() {
           relationship: formData.emergencyRelationship || undefined,
           phone: formData.emergencyPhone || undefined,
         },
+        salaryStructure: {
+          basicSalary: Number(formData.basicSalary) || 0,
+          hra: Number(formData.hra) || 0,
+          allowances: Number(formData.allowances) || 0,
+          specialAllowance: Number(formData.specialAllowance) || 0,
+          pf: Number(formData.pf) || 0,
+          esi: Number(formData.esi) || 0,
+          professionalTax: Number(formData.professionalTax) || 0,
+          tds: Number(formData.tds) || 0,
+          grossSalary: (Number(formData.basicSalary) || 0) + (Number(formData.hra) || 0) + (Number(formData.allowances) || 0) + (Number(formData.specialAllowance) || 0),
+          totalDeductions: (Number(formData.pf) || 0) + (Number(formData.esi) || 0) + (Number(formData.professionalTax) || 0) + (Number(formData.tds) || 0),
+          netSalary: Math.max(0, ((Number(formData.basicSalary) || 0) + (Number(formData.hra) || 0) + (Number(formData.allowances) || 0) + (Number(formData.specialAllowance) || 0)) - ((Number(formData.pf) || 0) + (Number(formData.esi) || 0) + (Number(formData.professionalTax) || 0) + (Number(formData.tds) || 0))),
+        },
         bankDetails: {
           bankName: formData.bankName || undefined,
           accountHolderName: formData.accountHolderName || undefined,
           accountNumber: formData.accountNumber || undefined,
           ifscCode: formData.ifscCode || undefined,
-          basicSalary: formData.basicSalary || undefined,
+          basicSalary: Number(formData.basicSalary) || undefined,
+          hra: Number(formData.hra) || 0,
+          allowances: Number(formData.allowances) || 0,
+          specialAllowance: Number(formData.specialAllowance) || 0,
+          pf: Number(formData.pf) || 0,
+          esi: Number(formData.esi) || 0,
+          professionalTax: Number(formData.professionalTax) || 0,
+          tds: Number(formData.tds) || 0,
+          grossSalary: (Number(formData.basicSalary) || 0) + (Number(formData.hra) || 0) + (Number(formData.allowances) || 0) + (Number(formData.specialAllowance) || 0),
+          totalDeductions: (Number(formData.pf) || 0) + (Number(formData.esi) || 0) + (Number(formData.professionalTax) || 0) + (Number(formData.tds) || 0),
+          netSalary: Math.max(0, ((Number(formData.basicSalary) || 0) + (Number(formData.hra) || 0) + (Number(formData.allowances) || 0) + (Number(formData.specialAllowance) || 0)) - ((Number(formData.pf) || 0) + (Number(formData.esi) || 0) + (Number(formData.professionalTax) || 0) + (Number(formData.tds) || 0))),
         },
       };
 
@@ -734,6 +775,13 @@ export default function EmployeesPage() {
       accountNumber: '',
       ifscCode: '',
       basicSalary: '',
+      hra: '0',
+      allowances: '0',
+      specialAllowance: '0',
+      pf: '0',
+      esi: '0',
+      professionalTax: '0',
+      tds: '0',
       mobileLoginEnabled: true,
       password: '',
       confirmPassword: '',
@@ -804,7 +852,14 @@ export default function EmployeesPage() {
       accountHolderName: bk?.accountHolderName || `${emp.firstName} ${emp.lastName}`.trim(),
       accountNumber: bk?.accountNumber || '',
       ifscCode: bk?.ifscCode || '',
-      basicSalary: bk?.basicSalary ? String(bk.basicSalary) : '',
+      basicSalary: (emp as any).salaryStructure?.basicSalary !== undefined ? String((emp as any).salaryStructure.basicSalary) : ((bk as any)?.basicSalary ? String((bk as any).basicSalary) : ''),
+      hra: (emp as any).salaryStructure?.hra !== undefined ? String((emp as any).salaryStructure.hra) : ((bk as any)?.hra ? String((bk as any).hra) : '0'),
+      allowances: (emp as any).salaryStructure?.allowances !== undefined ? String((emp as any).salaryStructure.allowances) : ((bk as any)?.allowances ? String((bk as any).allowances) : '0'),
+      specialAllowance: (emp as any).salaryStructure?.specialAllowance !== undefined ? String((emp as any).salaryStructure.specialAllowance) : ((bk as any)?.specialAllowance ? String((bk as any).specialAllowance) : '0'),
+      pf: (emp as any).salaryStructure?.pf !== undefined ? String((emp as any).salaryStructure.pf) : ((bk as any)?.pf ? String((bk as any).pf) : '0'),
+      esi: (emp as any).salaryStructure?.esi !== undefined ? String((emp as any).salaryStructure.esi) : ((bk as any)?.esi ? String((bk as any).esi) : '0'),
+      professionalTax: (emp as any).salaryStructure?.professionalTax !== undefined ? String((emp as any).salaryStructure.professionalTax) : ((bk as any)?.professionalTax ? String((bk as any).professionalTax) : '0'),
+      tds: (emp as any).salaryStructure?.tds !== undefined ? String((emp as any).salaryStructure.tds) : ((bk as any)?.tds ? String((bk as any).tds) : '0'),
       mobileLoginEnabled: emp.mobileLoginEnabled !== false,
       password: '',
       confirmPassword: '',
@@ -857,7 +912,23 @@ export default function EmployeesPage() {
     }
 
     if (stepNumber === 4) {
-      // Emergency / Identity are optional but if filled, validate phone format
+      if (!formData.basicSalary || Number(formData.basicSalary) <= 0) {
+        toast.error('Basic Salary (₹) is required and must be greater than 0');
+        return false;
+      }
+      if (
+        Number(formData.basicSalary) < 0 ||
+        Number(formData.hra) < 0 ||
+        Number(formData.allowances) < 0 ||
+        Number(formData.specialAllowance) < 0 ||
+        Number(formData.pf) < 0 ||
+        Number(formData.esi) < 0 ||
+        Number(formData.professionalTax) < 0 ||
+        Number(formData.tds) < 0
+      ) {
+        toast.error('Salary and deduction values cannot be negative');
+        return false;
+      }
       if (formData.emergencyPhone && formData.emergencyPhone.trim().length > 0 && formData.emergencyPhone.trim().length < 7) {
         toast.error('Please enter a valid emergency phone number');
         return false;
@@ -2441,34 +2512,181 @@ export default function EmployeesPage() {
                     </div>
                   </div>
 
-                  {/* Salary Information */}
-                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-[#23C45E]" />
-                      <div>
-                        <span className="text-[11px] font-extrabold text-slate-800 uppercase block">
-                          Salary Information
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-medium block">
-                          Compensation and monthly payroll details
-                        </span>
+                  {/* Dedicated Payroll Structure */}
+                  <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-[#23C45E]" />
+                        <div>
+                          <span className="text-[11px] font-black text-slate-800 uppercase block">
+                            Payroll Structure
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium block">
+                            Compensation, statutory deductions, and take-home salary
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
-                          Base Monthly Salary (₹)
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.basicSalary}
-                          onChange={(e) => setFormData({ ...formData, basicSalary: e.target.value })}
-                          placeholder="e.g. 50000"
-                          className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                        />
+                    {/* Earnings Components */}
+                    <div className="p-3.5 bg-white border border-slate-200/80 rounded-xl space-y-2.5">
+                      <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">
+                          Earnings Components
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                            Basic Salary (₹) *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.basicSalary}
+                            onChange={(e) => setFormData({ ...formData, basicSalary: e.target.value })}
+                            placeholder="e.g. 15000"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                            HRA (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.hra}
+                            onChange={(e) => setFormData({ ...formData, hra: e.target.value })}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                            Allowances (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.allowances}
+                            onChange={(e) => setFormData({ ...formData, allowances: e.target.value })}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                            Special Allowance (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.specialAllowance}
+                            onChange={(e) => setFormData({ ...formData, specialAllowance: e.target.value })}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                        </div>
                       </div>
                     </div>
+
+                    {/* Deductions Components */}
+                    <div className="p-3.5 bg-white border border-slate-200/80 rounded-xl space-y-2.5">
+                      <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
+                        <div className="w-2 h-2 rounded-full bg-rose-500" />
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">
+                          Deductions Components
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                            Provident Fund (PF ₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.pf}
+                            onChange={(e) => setFormData({ ...formData, pf: e.target.value })}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                            ESI (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.esi}
+                            onChange={(e) => setFormData({ ...formData, esi: e.target.value })}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                            Professional Tax (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.professionalTax}
+                            onChange={(e) => setFormData({ ...formData, professionalTax: e.target.value })}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-slate-600 uppercase mb-1">
+                            TDS Tax (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.tds}
+                            onChange={(e) => setFormData({ ...formData, tds: e.target.value })}
+                            placeholder="0"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary Calculation */}
+                    {(() => {
+                      const b = Math.max(0, Number(formData.basicSalary) || 0);
+                      const h = Math.max(0, Number(formData.hra) || 0);
+                      const al = Math.max(0, Number(formData.allowances) || 0);
+                      const sp = Math.max(0, Number(formData.specialAllowance) || 0);
+                      const p = Math.max(0, Number(formData.pf) || 0);
+                      const es = Math.max(0, Number(formData.esi) || 0);
+                      const pt = Math.max(0, Number(formData.professionalTax) || 0);
+                      const td = Math.max(0, Number(formData.tds) || 0);
+                      const gross = b + h + al + sp;
+                      const ded = p + es + pt + td;
+                      const net = Math.max(0, gross - ded);
+
+                      return (
+                        <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2">
+                          <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase">
+                            <span>Gross Earnings</span>
+                            <span className="text-white font-mono font-bold">₹{gross.toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase">
+                            <span>Total Deductions</span>
+                            <span className="text-rose-400 font-mono font-bold">-₹{ded.toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
+                            <span className="text-[11px] text-emerald-400 font-black uppercase">Calculated Net Salary</span>
+                            <span className="text-sm font-black font-mono text-emerald-400">₹{net.toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -2770,9 +2988,21 @@ export default function EmployeesPage() {
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-400 font-bold block text-[10px]">MONTHLY SALARY</span>
+                        <span className="text-slate-400 font-bold block text-[10px]">PAYROLL / NET SALARY</span>
                         <span className="font-mono font-bold text-emerald-700">
-                          {formData.basicSalary ? `₹${Number(formData.basicSalary).toLocaleString('en-IN')}` : '—'}
+                          {formData.basicSalary
+                            ? `₹${Math.max(
+                                0,
+                                (Number(formData.basicSalary) || 0) +
+                                  (Number(formData.hra) || 0) +
+                                  (Number(formData.allowances) || 0) +
+                                  (Number(formData.specialAllowance) || 0) -
+                                  ((Number(formData.pf) || 0) +
+                                    (Number(formData.esi) || 0) +
+                                    (Number(formData.professionalTax) || 0) +
+                                    (Number(formData.tds) || 0))
+                              ).toLocaleString('en-IN')}`
+                            : '—'}
                         </span>
                       </div>
                     </div>
