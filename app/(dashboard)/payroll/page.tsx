@@ -135,6 +135,7 @@ export default function PayrollPage() {
   // Pagination states
   const [structuresPage, setStructuresPage] = useState(1);
   const [structuresPageSize, setStructuresPageSize] = useState(20);
+  const [structSearch, setStructSearch] = useState('');
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(20);
   const [slipsPage, setSlipsPage] = useState(1);
@@ -863,9 +864,150 @@ export default function PayrollPage() {
         </div>
       )}
 
+      {/* Submodule 3: Salary Structures & Formulas */}
+      {activeTab === 'structures' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="font-extrabold text-slate-900 text-sm">Configured Salary Structures</h3>
+              <p className="text-xs text-slate-500">Define base salaries, statutory rules (PF, ESI, PT), and allowances per employee.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  resetStructureForm();
+                  setIsStructureOpen(true);
+                }}
+                className="px-3.5 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Structure</span>
+              </button>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search employee or code"
+                  value={structSearch}
+                  onChange={(e) => setStructSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium w-48 sm:w-60 focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+              <button
+                onClick={() => refetchStructures()}
+                className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
+                title="Refresh"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
-
-      {/* Submodule 5: Salary Slips */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase border-b border-slate-100">
+                <tr>
+                  <th className="p-3">Employee</th>
+                  <th className="p-3">Basic Salary</th>
+                  <th className="p-3">HRA</th>
+                  <th className="p-3">Allowances</th>
+                  <th className="p-3">Deductions</th>
+                  <th className="p-3">Net Payout</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {salaryStructures.filter((st: any) => {
+                  if (!structSearch.trim()) return true;
+                  const q = structSearch.toLowerCase();
+                  const name = `${st.employee?.firstName || ''} ${st.employee?.lastName || ''}`.toLowerCase();
+                  const code = (st.employee?.employeeCode || '').toLowerCase();
+                  return name.includes(q) || code.includes(q);
+                }).length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-slate-400">
+                      No salary structures configured yet. Click "Add Structure" to set up employee compensation.
+                    </td>
+                  </tr>
+                ) : (
+                  salaryStructures
+                    .filter((st: any) => {
+                      if (!structSearch.trim()) return true;
+                      const q = structSearch.toLowerCase();
+                      const name = `${st.employee?.firstName || ''} ${st.employee?.lastName || ''}`.toLowerCase();
+                      const code = (st.employee?.employeeCode || '').toLowerCase();
+                      return name.includes(q) || code.includes(q);
+                    })
+                    .map((st: any) => {
+                      const empName = `${st.employee?.firstName || ''} ${st.employee?.lastName || ''}`.trim() || `Employee #${st.employeeId}`;
+                      const deptName = st.employee?.department?.name || st.employee?.designation?.name || 'General';
+                      return (
+                        <tr key={st.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="p-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-[10px]">
+                                {empName.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900">{empName}</p>
+                                <p className="text-[10px] text-slate-400">{st.employee?.employeeCode || `#${st.employeeId}`} • {deptName}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3 font-semibold text-slate-700">{formatCurrency(st.basicSalary)}</td>
+                          <td className="p-3 text-slate-600">{formatCurrency(st.hra)}</td>
+                          <td className="p-3 text-slate-600">{formatCurrency(Number(st.allowances || 0) + Number(st.specialAllowance || 0))}</td>
+                          <td className="p-3 font-medium text-rose-600">{formatCurrency(st.totalDeductions || (Number(st.pf || 0) + Number(st.esi || 0) + Number(st.professionalTax || 0)))}</td>
+                          <td className="p-3 font-black text-emerald-700">{formatCurrency(st.netSalary)}</td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                              {st.status || 'ACTIVE'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setEditingStructureId(st.id);
+                                  setStructEmployeeId(String(st.employeeId));
+                                  setStructBasic(st.basicSalary || 0);
+                                  setStructHra(st.hra || 0);
+                                  setStructAllowances(st.allowances || 0);
+                                  setStructSpecial(st.specialAllowance || 0);
+                                  setStructPf(st.pf || 0);
+                                  setStructEsi(st.esi || 0);
+                                  setStructProfTax(st.professionalTax || 200);
+                                  setStructTds(st.tds || 0);
+                                  setIsStructureOpen(true);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Structure"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm('Are you sure you want to delete this salary structure?')) {
+                                    deleteStructureMutation.mutate(st.id);
+                                  }
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Structure"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {activeTab === 'slips' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
