@@ -600,10 +600,18 @@ function mapFormToUpdatePayload(data: MetaTemplateFormValues): UpdateMetaTemplat
 
   // Execute Test Send
   const handleSendTestWhatsApp = async () => {
-    if (!testRecipientPhone.trim()) {
-      toast.error('Please enter a recipient WhatsApp number');
+    const rawPhone = testRecipientPhone.trim();
+    if (!rawPhone) {
+      toast.error('Recipient WhatsApp number is required');
       return;
     }
+
+    const cleanDigits = rawPhone.replace(/\D/g, '');
+    if (cleanDigits.length < 10 || cleanDigits.length > 15) {
+      toast.error('Please enter a valid 10-15 digit WhatsApp phone number (e.g. +91 98200 10000)');
+      return;
+    }
+
     if (!selectedTemplateForTest) return;
 
     if (selectedTemplateForTest.metaStatus !== 'APPROVED') {
@@ -613,15 +621,42 @@ function mapFormToUpdatePayload(data: MetaTemplateFormValues): UpdateMetaTemplat
       return;
     }
 
+    // Step 8: If variables are required, ensure all values are provided before sending
+    if (detectedTestVariables.length > 0) {
+      for (const varKey of detectedTestVariables) {
+        const val = testVariables[varKey];
+        if (val === undefined || val === null || String(val).trim() === '') {
+          toast.error(`Template variable "${varKey}" is required. Please provide a value for {{${varKey}}}.`);
+          return;
+        }
+      }
+    }
+
     setIsSendingTest(true);
     try {
-      const res: any = await api.post('/templates/meta/test-send', {
-        templateId: selectedTemplateForTest.id,
+      const payload: {
+        templateId: number;
+        templateName: string;
+        language: string;
+        to: string;
+        variables?: Record<string, string>;
+      } = {
+        templateId: Number(selectedTemplateForTest.id),
         templateName: selectedTemplateForTest.templateName || selectedTemplateForTest.name,
-        language: selectedTemplateForTest.language,
-        to: testRecipientPhone.trim(),
-        variables: testVariables,
-      });
+        language: selectedTemplateForTest.language || 'en_US',
+        to: rawPhone,
+      };
+
+      // Only include variables if template requires them (STEP 8: zero variables = do not send empty objects)
+      if (detectedTestVariables.length > 0) {
+        const cleanVars: Record<string, string> = {};
+        for (const varKey of detectedTestVariables) {
+          cleanVars[varKey] = String(testVariables[varKey] ?? '').trim();
+        }
+        payload.variables = cleanVars;
+      }
+
+      const res: any = await api.post('/templates/meta/test-send', payload);
 
       const messageId = res?.messageId || res?.data?.messageId;
       toast.success(
@@ -632,9 +667,13 @@ function mapFormToUpdatePayload(data: MetaTemplateFormValues): UpdateMetaTemplat
       setIsTestSendModalOpen(false);
     } catch (err: any) {
       const data = err?.response?.data;
-      const rawMsg = data?.message || err?.message || 'Failed to send test WhatsApp message';
-      const msg = Array.isArray(rawMsg) ? rawMsg.join(', ') : rawMsg;
-      toast.error(msg);
+      const rawMsg =
+        data?.details ||
+        data?.metaErrorMessage ||
+        (Array.isArray(data?.message) ? data.message.join(', ') : data?.message) ||
+        err?.message ||
+        'Failed to send test WhatsApp message';
+      toast.error(rawMsg);
     } finally {
       setIsSendingTest(false);
     }
@@ -1684,7 +1723,8 @@ function mapFormToUpdatePayload(data: MetaTemplateFormValues): UpdateMetaTemplat
                     {detectedTestVariables.map((varKey) => (
                       <div key={varKey}>
                         <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                          Variable {`{{${varKey}}}`}
+                          Variable {`{{${varKey}}}`}{' '}
+                          <span className="text-rose-500 font-bold">*</span>
                         </label>
                         <input
                           type="text"
@@ -1729,23 +1769,33 @@ function mapFormToUpdatePayload(data: MetaTemplateFormValues): UpdateMetaTemplat
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={handleSendTestWhatsApp}
-                disabled={
+              {(() => {
+                const hasEmptyRequiredVars = detectedTestVariables.some(
+                  (v) => testVariables[v] === undefined || String(testVariables[v]).trim() === '',
+                );
+                const hasValidPhone = testRecipientPhone.replace(/\D/g, '').length >= 10;
+                const isSendDisabled =
                   isSendingTest ||
-                  !testRecipientPhone.trim() ||
-                  selectedTemplateForTest.metaStatus !== 'APPROVED'
-                }
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm disabled:opacity-50 cursor-pointer"
-              >
-                {isSendingTest ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
-                {isSendingTest ? 'Sending...' : 'Send Test'}
-              </button>
+                  !hasValidPhone ||
+                  hasEmptyRequiredVars ||
+                  selectedTemplateForTest.metaStatus !== 'APPROVED';
+
+                return (
+                  <button
+                    type="button"
+                    onClick={handleSendTestWhatsApp}
+                    disabled={isSendDisabled}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isSendingTest ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    {isSendingTest ? 'Sending...' : 'Send Test'}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
