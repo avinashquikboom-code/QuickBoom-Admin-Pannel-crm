@@ -47,14 +47,28 @@ export default function MasterLeavePoliciesPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      return api.post('/leaves/policies/leave', policy);
+      const cleanPolicy: any = { ...policy };
+      delete cleanPolicy.customer;
+      delete cleanPolicy.office;
+      delete cleanPolicy.createdAt;
+      delete cleanPolicy.updatedAt;
+      delete cleanPolicy.createdById;
+      delete cleanPolicy.updatedById;
+      delete cleanPolicy.updatedByName;
+      return api.post('/leaves/policies/leave', cleanPolicy);
     },
     onSuccess: () => {
       toast.success('Leave policy rules saved successfully!');
       queryClient.invalidateQueries({ queryKey: ['master-leave-policy'] });
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || 'Failed to update leave policy';
+      const data = err?.response?.data;
+      let msg = 'Failed to update leave policy';
+      if (Array.isArray(data?.message) && data.message.length > 0) {
+        msg = data.message.join(', ');
+      } else if (typeof data?.message === 'string') {
+        msg = data.message;
+      }
       toast.error(msg);
     },
   });

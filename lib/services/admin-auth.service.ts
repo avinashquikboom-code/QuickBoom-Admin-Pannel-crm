@@ -1,23 +1,10 @@
-import axios, { AxiosInstance } from 'axios';
+import api from '../api';
 import { useAuthStore } from '../store';
 
 export class AdminAuthService {
-  private api: AxiosInstance;
+  private api = api;
 
-  constructor(
-    baseURL: string =
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      'https://api.qbapp.online/api/v1'
-  ) {
-    this.api = axios.create({
-      baseURL,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-client-type': 'admin',
-      },
-    });
-  }
+  constructor() {}
 
   /**
    * ✅ SUPER ADMIN LOGIN

@@ -163,6 +163,7 @@ export const useAuthStore = create<AuthState>()(
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('quikboom-next-auth-storage');
           } catch (_) {}
         }
         set({

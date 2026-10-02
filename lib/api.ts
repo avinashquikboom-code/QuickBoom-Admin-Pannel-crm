@@ -107,10 +107,20 @@ export function getPersistedAuthSession() {
   }
 
   // Fallback to direct localStorage keys if Zustand store hasn't been populated
-  if (!token) {
-    const rawAccessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
-    if (isValidTokenString(rawAccessToken)) {
-      token = rawAccessToken.trim();
+  const rawAccessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+  if (isValidTokenString(rawAccessToken)) {
+    const cleanStorageToken = rawAccessToken.trim();
+    if (!token) {
+      token = cleanStorageToken;
+    } else if (token !== cleanStorageToken) {
+      const pState = safeDecodeJwtPayload(token);
+      const pStorage = safeDecodeJwtPayload(cleanStorageToken);
+      const expState = pState?.exp ? Number(pState.exp) : 0;
+      const expStorage = pStorage?.exp ? Number(pStorage.exp) : 0;
+      if (expStorage > expState) {
+        token = cleanStorageToken;
+        useAuthStore.getState().updateTokens(token, refreshToken || undefined);
+      }
     }
   }
   if (!refreshToken) {
@@ -166,6 +176,99 @@ function redactData(obj: any): any {
   return copy;
 }
 
+// Single-flight refresh promise: prevents duplicate concurrent /auth/refresh network calls
+let refreshPromise: Promise<string> | null = null;
+
+/**
+ * Executes a single-flight token refresh. Concurrent callers share the exact same promise.
+ */
+export async function performTokenRefresh(): Promise<string> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const { refreshToken } = getPersistedAuthSession();
+      const authStore = useAuthStore.getState();
+
+      if (!refreshToken) {
+        authStore.logout();
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        throw new Error('No refresh token available');
+      }
+
+      const candidates = getAuthRefreshCandidates(api.defaults.baseURL || apiBaseURL);
+      let refreshRes: any = null;
+      let lastErr: any = null;
+
+      for (const endpoint of candidates) {
+        try {
+          refreshRes = await axios.post(
+            endpoint,
+            { refreshToken },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-client-type': 'admin',
+              },
+            }
+          );
+          if (refreshRes?.data) {
+            lastErr = null;
+            break;
+          }
+        } catch (err: any) {
+          lastErr = err;
+          // If 404, try next candidate route
+          if (err?.response?.status === 404) {
+            continue;
+          }
+          // For 401 or other fatal auth errors, abort candidates immediately
+          throw err;
+        }
+      }
+
+      if (lastErr && !refreshRes?.data) {
+        throw lastErr;
+      }
+
+      const resData = refreshRes?.data;
+      const payload = resData?.data?.tokens || resData?.data || resData?.tokens || resData;
+      const newAccessToken = (payload?.accessToken || payload?.token || '').replace(/^["']|["']$/g, '').trim();
+      const newRefreshToken = (payload?.refreshToken || refreshToken).replace(/^["']|["']$/g, '').trim();
+
+      if (!newAccessToken) {
+        throw new Error('Refresh endpoint did not return an access token');
+      }
+
+      // 1. Update in-memory auth store and localStorage
+      authStore.updateTokens(newAccessToken, newRefreshToken);
+
+      // 2. Update default Authorization header on api instance
+      if (api.defaults.headers.common) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+      }
+
+      return newAccessToken;
+    } catch (refreshErr: any) {
+      const authStore = useAuthStore.getState();
+      authStore.logout();
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        toast.error('Your session has expired. Please login again.');
+        window.location.href = '/login';
+      }
+      throw refreshErr;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 // Request interceptor: attach bearer token and customer headers + logging
 api.interceptors.request.use(
   async (config) => {
@@ -203,42 +306,13 @@ api.interceptors.request.use(
           config.url.includes('/auth/register') ||
           config.url.includes('/login'));
 
-      // Proactive token refresh if token is expired or expiring in <= 30 seconds
-      if (!isAuthUrl && token && refreshToken) {
+      // Proactive token refresh if token is expired or expiring in <= 15 seconds (and request is not a retry)
+      if (!isAuthUrl && !(config as any)._retry && token && refreshToken) {
         try {
           const payload = safeDecodeJwtPayload(token);
-          if (payload?.exp && payload.exp * 1000 <= Date.now() + 30000) {
+          if (payload?.exp && payload.exp * 1000 <= Date.now() + 15000) {
             try {
-              const candidates = getAuthRefreshCandidates(api.defaults.baseURL || apiBaseURL);
-              let refreshRes: any;
-
-              for (const endpoint of candidates) {
-                try {
-                  refreshRes = await axios.post(
-                    endpoint,
-                    { refreshToken },
-                    { headers: { 'Content-Type': 'application/json', 'x-client-type': 'admin' } },
-                  );
-                  if (refreshRes?.data) break;
-                } catch (err: any) {
-                  if (err?.response?.status === 404) {
-                    continue;
-                  }
-                  break;
-                }
-              }
-
-              if (refreshRes?.data) {
-                const resData = refreshRes.data;
-                const pl = resData?.data || resData?.tokens || resData;
-                const newAcc = (pl?.accessToken || pl?.token || '').replace(/^["']|["']$/g, '').trim();
-                const newRef = (pl?.refreshToken || refreshToken).replace(/^["']|["']$/g, '').trim();
-                if (newAcc) {
-                  useAuthStore.getState().updateTokens(newAcc, newRef);
-                  token = newAcc;
-                  refreshToken = newRef;
-                }
-              }
+              token = await performTokenRefresh();
             } catch (_) {
               // If proactive refresh fails, allow request to proceed and let 401 response interceptor handle it
             }
@@ -321,24 +395,6 @@ api.interceptors.request.use(
   }
 );
 
-// Concurrency-safe refresh queue state
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (error: any) => void;
-}> = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else if (token) {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
 // Response interceptor: handle data unwrapping, 401 token refresh & error notifications
 api.interceptors.response.use(
   (response) => {
@@ -389,7 +445,7 @@ api.interceptors.response.use(
         originalRequest.url.includes('/auth/register') ||
         originalRequest.url.includes('/login'));
 
-    // Handle case where a retried request ALSO fails with 401: prevent loops and clear session
+    // 1. Prevent infinite loops: If originalRequest was ALREADY retried and gets 401 again
     if (
       error?.response?.status === 401 &&
       originalRequest._retry &&
@@ -405,101 +461,19 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Attempt token refresh ONLY on 401 (Authentication/Expiration) — NEVER on 403 (Forbidden)
+    // 2. Handle 401 on first attempt: Refresh token once and retry original request
     if (
       error?.response?.status === 401 &&
       !originalRequest._retry &&
       !isAuthUrl &&
       typeof window !== 'undefined'
     ) {
-      const { refreshToken } = getPersistedAuthSession();
-      const authStore = useAuthStore.getState();
-
-      // If no refresh token exists anywhere in state or storage, session is invalid
-      if (!refreshToken) {
-        authStore.logout();
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-        return Promise.reject(error);
-      }
-
-      // If refresh is currently in flight, queue this request until single-flight refresh completes
-      if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((newAccessToken) => {
-            originalRequest._retry = true;
-            const cleanToken = newAccessToken.replace(/^["']|["']$/g, '').trim();
-            if (typeof originalRequest.headers?.set === 'function') {
-              originalRequest.headers.set('Authorization', `Bearer ${cleanToken}`);
-            } else {
-              originalRequest.headers = originalRequest.headers || {};
-              delete (originalRequest.headers as any)['authorization'];
-              originalRequest.headers['Authorization'] = `Bearer ${cleanToken}`;
-            }
-            return api(originalRequest);
-          })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
 
       try {
-        const candidates = getAuthRefreshCandidates(api.defaults.baseURL || apiBaseURL);
-        let refreshRes: any;
-        let lastAuthErr: any = null;
+        const newAccessToken = await performTokenRefresh();
 
-        for (const endpoint of candidates) {
-          try {
-            refreshRes = await axios.post(
-              endpoint,
-              { refreshToken },
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                  'x-client-type': 'admin',
-                },
-              }
-            );
-            if (refreshRes?.data) {
-              lastAuthErr = null;
-              break;
-            }
-          } catch (authErr: any) {
-            lastAuthErr = authErr;
-            if (authErr?.response?.status === 404) {
-              continue;
-            }
-            throw authErr;
-          }
-        }
-
-        if (lastAuthErr && !refreshRes?.data) {
-          throw lastAuthErr;
-        }
-
-        // Normalize response payload across raw and TransformInterceptor wrappers
-        const resData = refreshRes?.data;
-        const payload = resData?.data || resData?.tokens || resData;
-        const newAccessToken = (payload?.accessToken || payload?.token || '').replace(/^["']|["']$/g, '').trim();
-        const newRefreshToken = (payload?.refreshToken || refreshToken).replace(/^["']|["']$/g, '').trim();
-
-        if (!newAccessToken) {
-          throw new Error('No access token returned from refresh endpoint');
-        }
-
-        // Update auth store with new tokens while preserving active session state
-        authStore.updateTokens(newAccessToken, newRefreshToken);
-
-        // Notify and drain all queued requests
-        processQueue(null, newAccessToken);
-
-        // Retry original request with newly issued token
+        // Update Authorization header on the retried request
         if (typeof originalRequest.headers?.set === 'function') {
           originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
         } else {
@@ -508,17 +482,10 @@ api.interceptors.response.use(
           originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
         }
 
+        // Retry original request
         return api(originalRequest);
       } catch (refreshErr) {
-        processQueue(refreshErr, null);
-        authStore.logout();
-        if (window.location.pathname !== '/login') {
-          toast.error('Your session has expired. Please login again.');
-          window.location.href = '/login';
-        }
         return Promise.reject(refreshErr);
-      } finally {
-        isRefreshing = false;
       }
     }
 

@@ -468,7 +468,16 @@ export default function LeaveManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-hr-policies-overview'] });
     },
     onError: (err: any) => {
-      toast.error(getErrorMessage(err));
+      const data = err?.response?.data;
+      let msg = 'Failed to save policy';
+      if (Array.isArray(data?.message) && data.message.length > 0) {
+        msg = data.message.join(', ');
+      } else if (typeof data?.message === 'string') {
+        msg = data.message;
+      } else {
+        msg = getErrorMessage(err);
+      }
+      toast.error(msg);
     },
   });
 
@@ -558,9 +567,19 @@ export default function LeaveManagementPage() {
 
   const handleSavePolicySubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanPayload: any = { ...policyFormData };
+    // Strip relation and audit metadata fields
+    delete cleanPayload.customer;
+    delete cleanPayload.office;
+    delete cleanPayload.createdAt;
+    delete cleanPayload.updatedAt;
+    delete cleanPayload.createdById;
+    delete cleanPayload.updatedById;
+    delete cleanPayload.updatedByName;
+
     savePolicyMutation.mutate({
       category: editingPolicyCategory,
-      payload: policyFormData,
+      payload: cleanPayload,
     });
   };
 
