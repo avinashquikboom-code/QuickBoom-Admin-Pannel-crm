@@ -23,6 +23,16 @@ export function FcmProvider() {
     const title = payload.title || 'System Alert';
     const body = payload.body || 'New update received.';
     const route = payload.route || '/settings/notifications';
+    const type = String(payload.data?.type || '').toUpperCase();
+
+    // Suppress lead assignment toasts
+    if (
+      (type.includes('LEAD') && type.includes('ASSIGN')) ||
+      (title.toLowerCase().includes('lead') && title.toLowerCase().includes('assign')) ||
+      (body.toLowerCase().includes('lead') && body.toLowerCase().includes('assign'))
+    ) {
+      return;
+    }
 
     toast(
       (t) => (

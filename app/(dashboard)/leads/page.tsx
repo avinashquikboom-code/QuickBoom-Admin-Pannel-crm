@@ -1116,7 +1116,6 @@ export default function LeadsPage() {
       });
     },
     onSuccess: () => {
-      toast.success('Assigned employee updated');
       queryClient.invalidateQueries({ queryKey: ['admin-lead-detail', selectedLeadId] });
       queryClient.invalidateQueries({ queryKey: ['admin-leads-list'] });
     },
