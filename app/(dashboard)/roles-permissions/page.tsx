@@ -1502,13 +1502,10 @@ export default function RolesPermissionsPage() {
     if (!selectedRole) return;
     try {
       const nextActive = !selectedRole.isActive;
-      const targetId = selectedRole.roleId || selectedRole.id;
-      await api.put(`/auth/roles/${targetId}`, {
+      // Designations are the single source of truth for Roles
+      await api.patch(`/designations/${selectedRole.id}`, {
         isActive: nextActive,
       });
-      try {
-        await api.patch(`/designations/${selectedRole.id}/status`, { isActive: nextActive });
-      } catch (_) {}
       toast.success(
         nextActive
           ? `Role "${selectedRole.name}" activated!`
