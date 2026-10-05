@@ -1,8 +1,7 @@
-```yaml
 name: Build & Deploy (ECR → EC2)
 
 # Auto-trigger: every push to main runs build + deploy.
-# Also manually runnable from the Actions tab.
+# (Also manually runnable from the Actions tab.)
 on:
   push:
     branches: [main]
@@ -15,11 +14,10 @@ concurrency:
 
 env:
   AWS_REGION: ap-south-1
-
   # Must match ADMIN_ECR_REPOSITORY in deploy/docker/config.sh on the server.
   ECR_REPOSITORY: qcrm-admin-panel
-
-  # Path on the server where deploy/docker/ was copied by hand.
+  # Path on the server where deploy/docker/ was copied by hand (see deploy/README.md
+  # in the backend repo — this deploy/ dir is shared and lives only on the server).
   DEPLOY_DIR: /var/www/qbapp.online
 
 jobs:
@@ -28,15 +26,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ---------------------------------------------------------------
-      # Checkout
-      # ---------------------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---------------------------------------------------------------
-      # SSH setup
-      # ---------------------------------------------------------------
+      # SSH key is needed early: the next step reads GOOGLE_MAPS_API_KEY off
+      # the server's .env before the build, not from a GitHub secret.
       - name: Add SSH key
         run: |
           mkdir -p ~/.ssh
@@ -44,25 +38,19 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
-      # ---------------------------------------------------------------
-      # Read build-time secrets from server .env
-      # ---------------------------------------------------------------
-      # GOOGLE_MAPS_API_KEY is managed on the server.
-      # It is fetched here and passed to the Docker build.
-      # The value is masked in GitHub Actions logs.
-      # ---------------------------------------------------------------
+      # ---- Read build-time secrets from the server's .env -------------------
+      # GOOGLE_MAPS_API_KEY is managed on the server (deploy/docker/.env), not
+      # as a GitHub secret, so it's fetched here rather than baked from
+      # `secrets.*`. Masked in logs via ::add-mask::.
       - name: Read Google Maps key from server .env
         id: server-env
         run: |
           KEY="$(ssh -i ~/.ssh/deploy_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
             "grep '^GOOGLE_MAPS_API_KEY=' '${DEPLOY_DIR}/.env' | cut -d= -f2-")"
-
           echo "::add-mask::${KEY}"
           echo "google_maps_api_key=${KEY}" >> "$GITHUB_OUTPUT"
 
-      # ---------------------------------------------------------------
-      # AWS / ECR authentication
-      # ---------------------------------------------------------------
+      # ---- AWS / ECR auth ---------------------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -74,28 +62,19 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ---------------------------------------------------------------
-      # Docker Buildx
-      # ---------------------------------------------------------------
+      # ---- Build & push image ----------------------------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ---------------------------------------------------------------
-      # Compute image tags
-      # ---------------------------------------------------------------
       - name: Compute image tags
         id: meta
         run: |
           SHA_TAG="${GITHUB_SHA::12}"
           REGISTRY="${{ steps.ecr-login.outputs.registry }}"
-
           echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
           echo "image_sha=${REGISTRY}/${ECR_REPOSITORY}:${SHA_TAG}" >> "$GITHUB_OUTPUT"
           echo "image_latest=${REGISTRY}/${ECR_REPOSITORY}:latest" >> "$GITHUB_OUTPUT"
 
-      # ---------------------------------------------------------------
-      # Build & push Docker image
-      # ---------------------------------------------------------------
       - name: Build and push to ECR
         uses: docker/build-push-action@v6
         with:
@@ -104,26 +83,26 @@ jobs:
           target: runtime
           platforms: linux/amd64
           push: true
-
           tags: |
             ${{ steps.meta.outputs.image_sha }}
             ${{ steps.meta.outputs.image_latest }}
-
-          # NEXT_PUBLIC_* variables are injected into the client bundle
-          # at build time.
+          # api.qbapp.online is a separate subdomain from admin.qbapp.online
+          # (Apache vhosts, not nginx — see deploy/README.md), so this is a
+          # genuine cross-origin absolute URL. NEXT_PUBLIC_* vars are inlined
+          # into the client bundle at build time, so they must be passed
+          # here, not at container start.
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=https://api.qbapp.online/api/v1
             NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ steps.server-env.outputs.google_maps_api_key }}
-
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ---------------------------------------------------------------
-      # Deploy over SSH
-      # ---------------------------------------------------------------
-      # Only the admin container is deployed.
-      # Backend/API is untouched by this workflow.
-      # ---------------------------------------------------------------
+      # ---- Deploy over SSH --------------------------------------------------
+      # Rewrite the ADMIN_IMAGE_TAG line in the server's already-present
+      # config.sh (deploy/ is copied there by hand, not synced by CI — see
+      # deploy/README.md), then run admin.sh — ONLY the admin container.
+      # backend.sh (API) is untouched by this workflow. SSH key was already
+      # added above.
       - name: Pin image tag and deploy
         run: |
           ssh -i ~/.ssh/deploy_key \
@@ -134,13 +113,9 @@ jobs:
              sed -i 's|^export ADMIN_IMAGE_TAG=.*|export ADMIN_IMAGE_TAG=\"${{ steps.meta.outputs.sha_tag }}\"|' config.sh
              ./admin.sh"
 
-      # ---------------------------------------------------------------
-      # Deployment summary
-      # ---------------------------------------------------------------
       - name: Deploy summary
         if: always()
         run: |
           echo "### Deploy result" >> "$GITHUB_STEP_SUMMARY"
           echo "- Image: \`${{ steps.meta.outputs.image_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: \`${GITHUB_SHA::12}\`" >> "$GITHUB_STEP_SUMMARY"
-```
