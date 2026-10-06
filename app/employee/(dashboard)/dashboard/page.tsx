@@ -28,11 +28,13 @@ export default function DashboardPage() {
 
   if (loading) return <div className="p-8">Loading Dashboard...</div>;
 
+  const employeeName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Employee';
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <h1 className="text-3xl font-black text-slate-900 mb-6">Dashboard</h1>
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h2 className="text-lg font-bold mb-4">Welcome back, {user?.firstName || 'Employee'}!</h2>
+        <h2 className="text-lg font-bold mb-4">Welcome back, {employeeName}!</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
             <div className="text-sm font-semibold text-slate-500">Today's Status</div>
