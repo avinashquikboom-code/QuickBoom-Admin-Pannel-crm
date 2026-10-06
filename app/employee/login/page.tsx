@@ -62,6 +62,26 @@ export default function EmployeeLoginPage() {
       }
 
       setAuth(user, accessToken, refreshToken || '');
+
+      // Fetch permissions from backend exactly like Employee Mobile
+      try {
+        const permsRes: any = await api.get('/employees/me/permissions', {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const rawData = permsRes?.data?.data || permsRes?.data || permsRes;
+        const rawPerms = Array.isArray(rawData?.effectivePermissions) ? rawData.effectivePermissions : (Array.isArray(rawData?.permissions) ? rawData.permissions : []);
+        const rawModules = Array.isArray(rawData?.modules) ? rawData.modules : [];
+        
+        // Combine all raw permissions/modules objects
+        const activePerms = [...rawPerms, ...rawModules];
+        
+        if (activePerms.length > 0) {
+          useEmployeeAuthStore.getState().updateUser({ permissions: activePerms });
+        }
+      } catch (permErr) {
+        console.error('Failed to fetch employee permissions during login:', permErr);
+      }
+
       toast.success('Welcome back to the Employee Workspace!');
       router.push('/employee/dashboard');
     } catch (err: any) {
