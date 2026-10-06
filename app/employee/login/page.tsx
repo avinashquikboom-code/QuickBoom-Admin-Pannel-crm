@@ -444,6 +444,19 @@ export default function EmployeeLoginPage() {
             )
           )}
 
+          {/* Registration Link */}
+          <div className="pt-2 text-center">
+            <span className="text-xs sm:text-sm font-medium text-slate-500">
+              Don&apos;t have an account?{' '}
+            </span>
+            <Link
+              href="/employee/register"
+              className="text-xs sm:text-sm font-extrabold text-[#2563EB] hover:text-[#1d4ed8] transition-colors"
+            >
+              Register
+            </Link>
+          </div>
+
           {/* Bottom Back Button */}
           <div className="pt-4 border-t border-slate-200/80">
             <Link
