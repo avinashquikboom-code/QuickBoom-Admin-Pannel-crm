@@ -223,7 +223,21 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
   };
 
   // Get filtered navigation sections based on user role, permissions, and subscription features
-  const accessibleSections = filterNavigation(CENTRAL_NAVIGATION, user);
+  let accessibleSections = filterNavigation(CENTRAL_NAVIGATION, user);
+
+  // FLATTEN Employee Web Sidebar:
+  // Required by business logic to render Employee Web sidebar as a flat list
+  // instead of an accordion/dropdown structure.
+  if (role === 'Employee') {
+    const flatItems = accessibleSections.flatMap(section => section.items);
+    accessibleSections = flatItems.map((item, index) => ({
+      id: `flat-employee-nav-${index}`,
+      category: item.name,
+      sectionIcon: item.icon,
+      roles: ['Employee'],
+      items: [item]
+    }));
+  }
 
   // ACCORDION SINGLE SOURCE OF TRUTH: Only ONE expandable parent section open at a time
   const [openSection, setOpenSection] = useState<string | null>(() => {
