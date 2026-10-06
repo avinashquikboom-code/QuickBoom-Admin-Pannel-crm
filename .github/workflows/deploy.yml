@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AWS_REGION: ap-south-1
+  AWS_REGION: ap-southeast-2
   # Must match ADMIN_ECR_REPOSITORY in deploy/docker/config.sh on the server.
   ECR_REPOSITORY: qcrm-admin-panel
   # Path on the server where deploy/docker/ was copied by hand (see deploy/README.md
