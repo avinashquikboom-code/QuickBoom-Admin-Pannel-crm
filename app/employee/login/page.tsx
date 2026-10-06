@@ -32,7 +32,7 @@ export default function EmployeeLoginPage() {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
-      toast.error('Email address or Employee ID is required.');
+      toast.error('Email, Mobile No, or Emp Code is required.');
       return;
     }
     if (!password || password.length < 6) {
@@ -173,7 +173,7 @@ export default function EmployeeLoginPage() {
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-1.5">
               <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                Email / ID
+                Email / Mobile No / Emp Code
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
@@ -182,7 +182,7 @@ export default function EmployeeLoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email or employee ID"
+                  placeholder="Enter email, mobile no, or emp code"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:bg-white transition-all font-semibold"
                 />
               </div>
