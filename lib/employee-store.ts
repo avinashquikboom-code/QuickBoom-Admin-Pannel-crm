@@ -11,6 +11,7 @@ interface EmployeeAuthState {
   _hasHydrated: boolean;
   
   setAuth: (user: UserType, token: string, refreshToken?: string) => void;
+  updateTokens: (token: string, refreshToken?: string) => void;
   logout: () => void;
   updateUser: (data: Partial<UserType>) => void;
   setHasHydrated: (state: boolean) => void;
@@ -33,6 +34,13 @@ export const useEmployeeAuthStore = create<EmployeeAuthState>()(
           isAuthenticated: true,
           _hasHydrated: true,
         });
+      },
+
+      updateTokens: (token, refreshToken) => {
+        set((state) => ({
+          token,
+          refreshToken: refreshToken || state.refreshToken,
+        }));
       },
 
       logout: () => {

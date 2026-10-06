@@ -1,6 +1,7 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from './store';
+import { useEmployeeAuthStore } from './employee-store';
 import { getErrorMessage } from './utils';
 
 const apiBaseURL =
@@ -78,8 +79,35 @@ export function getPersistedAuthSession() {
   if (typeof window === 'undefined') {
     return { token: null, refreshToken: null, user: null, customerId: null };
   }
+  
+  const isEmployeeRoute = window.location.pathname.startsWith('/employee');
+  const activeStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
+  const storageKey = isEmployeeRoute ? 'qb-employee-auth-storage' : 'quikboom-next-auth-storage';
 
-  const state = useAuthStore.getState();
+  let token = isValidTokenString(activeStore.token) ? activeStore.token.trim() : null;
+  let refreshToken = isValidTokenString(activeStore.refreshToken) ? activeStore.refreshToken.trim() : null;
+  let user = activeStore.user;
+  let customerId = (activeStore as any).customerId || user?.customerId;
+
+  if (!token || !refreshToken || !user) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.state) {
+          if (!token && isValidTokenString(parsed.state.token)) token = parsed.state.token.trim();
+          if (!refreshToken && isValidTokenString(parsed.state.refreshToken)) refreshToken = parsed.state.refreshToken.trim();
+          user = user || parsed.state.user || null;
+          customerId = customerId || parsed.state.customerId || null;
+        }
+      }
+    } catch {}
+  }
+  return { token, refreshToken, user, customerId };
+}
+
+// dummy block to allow replacement of the old block if needed
+/*
   let token = isValidTokenString(state.token) ? state.token.trim() : null;
   let refreshToken = isValidTokenString(state.refreshToken) ? state.refreshToken.trim() : null;
   let user = state.user;
@@ -137,12 +165,7 @@ export function getPersistedAuthSession() {
       // ignore user parse error
     }
   }
-  if (!customerId && user) {
-    customerId = user.customerId || null;
-  }
-
-  return { token, refreshToken, user, customerId };
-}
+*/
 
 const SENSITIVE_KEYS = [
   'password',
@@ -189,13 +212,15 @@ export async function performTokenRefresh(): Promise<string> {
 
   refreshPromise = (async () => {
     try {
+      const isEmployeeRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/employee');
+      const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
+      const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
       const { refreshToken } = getPersistedAuthSession();
-      const authStore = useAuthStore.getState();
 
       if (!refreshToken) {
         authStore.logout();
-        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
+          window.location.href = loginRoute;
         }
         throw new Error('No refresh token available');
       }
@@ -254,11 +279,14 @@ export async function performTokenRefresh(): Promise<string> {
 
       return newAccessToken;
     } catch (refreshErr: any) {
-      const authStore = useAuthStore.getState();
+      const isEmployeeRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/employee');
+      const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
+      const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
+
       authStore.logout();
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
         toast.error('Your session has expired. Please login again.');
-        window.location.href = '/login';
+        window.location.href = loginRoute;
       }
       throw refreshErr;
     } finally {
@@ -452,11 +480,13 @@ api.interceptors.response.use(
       !isAuthUrl &&
       typeof window !== 'undefined'
     ) {
-      const authStore = useAuthStore.getState();
+      const isEmployeeRoute = window.location.pathname.startsWith('/employee');
+      const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
+      const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
       authStore.logout();
-      if (window.location.pathname !== '/login') {
+      if (window.location.pathname !== loginRoute) {
         toast.error('Your session has expired. Please login again.');
-        window.location.href = '/login';
+        window.location.href = loginRoute;
       }
       return Promise.reject(error);
     }
