@@ -19,6 +19,7 @@ import {
 } from '@/lib/access-control';
 
 interface SidebarProps {
+  userOverride?: any;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onNavigate?: () => void;
@@ -199,11 +200,12 @@ export function isItemActive(
   return activeHref === itemHref;
 }
 
-function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNavigate }: SidebarProps) {
+function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNavigate, userOverride }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const logout = useAuthStore((state) => state.logout);
-  const user = useAuthStore((state) => state.user);
+  const storeUser = useAuthStore((state) => state.user);
+  const user = userOverride || storeUser;
   const role = getUserRole(user);
 
   const [internalCollapsed, setInternalCollapsed] = useState(false);

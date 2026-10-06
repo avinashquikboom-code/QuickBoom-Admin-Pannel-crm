@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Mail,
   Lock,
@@ -45,11 +46,18 @@ export default function LoginPage() {
       // Clear previous authentication session
       useAuthStore.getState().logout();
 
-      // Backend API authentication via dedicated Admin login endpoint
-      const res: any = await api.post('/admin/auth/login/super-admin', {
-        email: cleanEmail,
-        password,
-      });
+      // Try unified login endpoint first, then fall back to super-admin if necessary
+      let res: any;
+      try {
+        res = await api.post('/auth/login', { email: cleanEmail, password });
+      } catch (e: any) {
+        if (e?.response?.status === 404) {
+          // fallback for legacy backend routing
+          res = await api.post('/admin/auth/login/super-admin', { email: cleanEmail, password });
+        } else {
+          throw e;
+        }
+      }
 
       const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
       const user = payload?.user;
@@ -61,7 +69,7 @@ export default function LoginPage() {
         throw new Error('Invalid response structure received from authentication service');
       }
 
-      // ADMIN ROLE CHECK: Inspect database/backend authenticated roles
+      // ROLE CHECK: Allow Admins and Customers
       const userRoles: string[] = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
       const isAdmin = userRoles.some(
         (r: string) => {
@@ -69,15 +77,22 @@ export default function LoginPage() {
           return normalized === 'SUPER_ADMIN' || normalized === 'ADMIN' || normalized === 'COMPANY_ADMIN';
         }
       );
+      
+      const isCustomer = userRoles.some(
+        (r: string) => {
+          const normalized = String(r).toUpperCase().replace(/\s+/g, '_');
+          return normalized === 'CUSTOMER_OWNER' || normalized === 'CUSTOMER_ADMIN' || normalized === 'CUSTOMER';
+        }
+      );
 
-      if (!isAdmin) {
-        throw new Error('Access Denied: The Admin Panel is strictly for Administrators only. Other roles must use the mobile application.');
+      if (!isAdmin && !isCustomer) {
+        throw new Error('Access Denied: You must be an Administrator or a Customer to access the Web Application.');
       }
 
       const mappedUser = {
         ...user,
-        role: 'SUPER_ADMIN',
-        roles: ['SUPER_ADMIN'],
+        role: isAdmin ? 'SUPER_ADMIN' : 'Customer',
+        roles: isAdmin ? ['SUPER_ADMIN'] : userRoles,
       };
 
       setAuth(mappedUser, accessToken, refreshToken || '');
@@ -269,6 +284,18 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+          
+          <div className="pt-6 border-t border-slate-200/80 text-center space-y-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">For Company Employees & Staff</p>
+            <Link 
+              href="/employee/login" 
+              className="inline-flex items-center justify-center w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs sm:text-sm rounded-xl transition-all gap-2 cursor-pointer active:scale-[0.99] border border-slate-200 shadow-sm"
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Employee Login</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </div>
     </div>

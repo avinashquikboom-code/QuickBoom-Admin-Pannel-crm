@@ -8,14 +8,18 @@ import { ShieldAlert, Lock, ArrowLeft, LayoutDashboard, Layers, Loader2 } from '
 
 interface RouteGuardProps {
   children: React.ReactNode;
+  userOverride?: any;
 }
 
-export function RouteGuard({ children }: RouteGuardProps) {
+export function RouteGuard({ children, userOverride }: RouteGuardProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const hasHydrated = useAuthStore((state) => state._hasHydrated);
+  const storeUser = useAuthStore((state) => state.user);
+  const user = userOverride || storeUser;
+  const storeIsAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isAuthenticated = userOverride ? true : storeIsAuthenticated;
+  const storeHasHydrated = useAuthStore((state) => state._hasHydrated);
+  const hasHydrated = userOverride ? true : storeHasHydrated;
   const [isClientReady, setIsClientReady] = useState(false);
 
   useEffect(() => {
@@ -76,13 +80,13 @@ export function RouteGuard({ children }: RouteGuardProps) {
 
           <div className="space-y-2">
             <span className="px-3.5 py-1 bg-rose-100 text-rose-800 rounded-full text-[11px] font-black uppercase tracking-wider">
-              403 • Super Admin Only
+              403 • Web Access Denied
             </span>
             <h2 className="text-2xl font-black text-slate-900">
-              Super Admin Access Only
+              Web Access Denied
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed max-w-md mx-auto">
-              Access Denied: The Admin Panel is strictly for SUPER_ADMIN only. Other roles must use the mobile application.
+              Access Denied: The Web Application is restricted. Employee roles must use the mobile application.
             </p>
           </div>
 
@@ -94,8 +98,8 @@ export function RouteGuard({ children }: RouteGuardProps) {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-400">Permitted Admin Role:</span>
-              <span className="font-bold text-[#1AA14D]">Super Admin</span>
+              <span className="font-bold text-slate-400">Permitted Roles:</span>
+              <span className="font-bold text-[#1AA14D]">Super Admin, Customer</span>
             </div>
             <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
               <span className="font-bold text-slate-500">Employee Workspace:</span>

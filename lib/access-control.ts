@@ -1,4 +1,5 @@
-import {
+import { Clock3, MonitorSmartphone, CalendarDays,
+
   LayoutDashboard,
   Users,
   Building2,
@@ -263,6 +264,8 @@ export interface NavSectionConfig {
 export const adminNavigation: {
   superAdmin: NavSectionConfig[];
   hr: NavSectionConfig[];
+  customer: NavSectionConfig[];
+  employee: NavSectionConfig[];
 } = {
   superAdmin: [
     // 1. Dashboard
@@ -469,6 +472,123 @@ export const adminNavigation: {
     },
   ],
 
+    customer: [
+    {
+      id: 'dashboard',
+      category: 'Dashboard',
+      sectionIcon: LayoutDashboard,
+      roles: ['Customer'],
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'CUSTOMER_HOME' },
+      ],
+    },
+    {
+      id: 'subscription-plans',
+      category: 'Subscriptions',
+      sectionIcon: Layers,
+      roles: ['Customer'],
+      items: [
+        { name: 'Subscription Plans', href: '/customers/plans', icon: Layers, permission: 'CUSTOMER_PLANS' },
+      ],
+    },
+    {
+      id: 'invoices',
+      category: 'Billing',
+      sectionIcon: FileText,
+      roles: ['Customer'],
+      items: [
+        { name: 'Invoices & Billing', href: '/invoices', icon: FileText, permission: 'CUSTOMER_INVOICES' },
+      ],
+    },
+    {
+      id: 'profile',
+      category: 'Account',
+      sectionIcon: User,
+      roles: ['Customer'],
+      items: [
+        { name: 'Profile', href: '/profile', icon: User, permission: 'CUSTOMER_PROFILE' },
+      ],
+    },
+    {
+      id: 'social-media',
+      category: 'Social Media',
+      sectionIcon: Share2,
+      roles: ['Customer'],
+      items: [
+        { name: 'SSM Account Access', href: '/marketing/social-media', icon: Share2, permission: 'CUSTOMER_SSM' },
+      ],
+    },
+    {
+      id: 'influencers',
+      category: 'Influencers',
+      sectionIcon: Megaphone,
+      roles: ['Customer'],
+      items: [
+        { name: 'Influencer Hub', href: '/influencers', icon: Award, permission: 'CUSTOMER_INFLUENCERS' },
+        { name: 'My Influencer Bookings', href: '/influencers/bookings', icon: CheckSquare, permission: 'CUSTOMER_INFLUENCER_BOOKINGS' },
+      ],
+    },
+    {
+      id: 'notifications',
+      category: 'Notifications',
+      sectionIcon: Bell,
+      roles: ['Customer'],
+      items: [
+        { name: 'Notifications', href: '/settings/notifications', icon: Bell, permission: 'CUSTOMER_NOTIFICATIONS' },
+      ],
+    }
+  ],
+    employee: [
+    {
+      id: 'dashboard',
+      category: 'Dashboard',
+      sectionIcon: LayoutDashboard,
+      roles: ['Employee'],
+      items: [
+        { name: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard, permission: 'employee.dashboard.view' },
+      ],
+    },
+    {
+      id: 'attendance',
+      category: 'Workplace',
+      sectionIcon: Clock3,
+      roles: ['Employee'],
+      items: [
+        { name: 'Attendance', href: '/employee/attendance', icon: Clock3, permission: 'employee.attendance.view' },
+        { name: 'Requests & Leaves', href: '/employee/leaves', icon: Calendar, permission: 'employee.leave.view' },
+        { name: 'Remote Work', href: '/employee/remote-work', icon: MonitorSmartphone, permission: 'employee.remote_work.view' },
+      ],
+    },
+    {
+      id: 'calendar',
+      category: 'Schedule',
+      sectionIcon: Calendar,
+      roles: ['Employee'],
+      items: [
+        { name: 'Calendar & Schedule', href: '/employee/calendar', icon: CalendarDays, permission: 'employee.calendar.view' },
+      ],
+    },
+    {
+      id: 'salary',
+      category: 'Finance',
+      sectionIcon: FileText,
+      roles: ['Employee'],
+      items: [
+        { name: 'Salary Slips', href: '/employee/salary-slips', icon: FileText, permission: 'employee.salary.view' },
+      ],
+    },
+    {
+      id: 'account',
+      category: 'Account',
+      sectionIcon: User,
+      roles: ['Employee'],
+      items: [
+        { name: 'Profile', href: '/employee/profile', icon: User, permission: 'employee.profile.view' },
+        { name: 'Notifications', href: '/employee/notifications', icon: Bell, permission: 'employee.notifications.view' },
+        { name: 'Settings', href: '/employee/settings', icon: Settings, permission: 'employee.settings.view' },
+      ],
+    }
+  ],
   hr: [
     // 1. Dashboard
     {
@@ -663,6 +783,16 @@ export function getUserRole(user: UserType | null): string {
     }
   );
   if (hasAdmin) return 'Super Admin';
+  const hasCustomer = roleList.some((r) => {
+    const norm = String(r).toUpperCase().replace(/\s+/g, '_');
+    return norm === 'CUSTOMER_OWNER' || norm === 'CUSTOMER_ADMIN' || norm === 'CUSTOMER';
+  });
+  if (hasCustomer) return 'Customer';
+  const hasEmployee = roleList.some((r) => {
+    const norm = String(r).toUpperCase().replace(/\s+/g, '_');
+    return norm === 'EMPLOYEE' || norm === 'STAFF';
+  });
+  if (hasEmployee) return 'Employee';
   return roleList[0];
 }
 
@@ -802,11 +932,15 @@ export function filterNavigation(
 ): NavSectionConfig[] {
   const role = getUserRole(user);
 
-  if (role !== 'Super Admin') {
-    return [];
-  }
+  const baseSections = role === 'Super Admin' 
+    ? adminNavigation.superAdmin 
+    : role === 'Customer' 
+      ? adminNavigation.customer 
+      : role === 'Employee' 
+        ? adminNavigation.employee 
+        : [];
 
-  const baseSections = adminNavigation.superAdmin;
+  if (baseSections.length === 0) return [];
 
   return baseSections
     .filter((section) => canAccessSection(user, section))
@@ -865,16 +999,28 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
 
   const role = getUserRole(user);
 
-  // STRICT REQUIREMENT: Admin Panel is strictly accessible to Super Admin only
-  if (role !== 'Super Admin') {
+  // Route matching is handled below. But enforce path restrictions based on role
+  if (role === 'Employee' && !pathname.startsWith('/employee')) {
+    return {
+      allowed: false,
+      reason: 'NO_PERMISSION',
+      message: 'Employees can only access the /employee sections.',
+    };
+  }
+  
+  if (role !== 'Super Admin' && role !== 'Customer' && role !== 'Employee') {
     return {
       allowed: false,
       reason: 'ADMIN_ONLY',
-      message: 'Access Denied: The Admin Panel is strictly for SUPER_ADMIN only. Other roles must use the mobile application.',
+      message: 'Access Denied: Unrecognized role context.',
     };
   }
 
-  const activeNav = adminNavigation.superAdmin;
+  const activeNav = role === 'Super Admin' 
+    ? adminNavigation.superAdmin 
+    : role === 'Customer' 
+      ? adminNavigation.customer 
+      : adminNavigation.employee;
 
   // Find if route matches any navigation item
   for (const section of activeNav) {
