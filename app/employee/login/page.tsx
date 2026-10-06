@@ -69,7 +69,7 @@ export default function EmployeeLoginPage() {
 
       // Fetch permissions from backend exactly like Employee Mobile
       try {
-        const permsRes: any = await api.get('/employees/me/permissions', {
+        const permsRes: any = await api.get('/works/my-permissions', {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
         const rawData = permsRes?.data?.data || permsRes?.data || permsRes;
@@ -148,7 +148,7 @@ export default function EmployeeLoginPage() {
       setAuth(user, accessToken, refreshToken || '');
 
       try {
-        const permsRes: any = await api.get('/employees/me/permissions', {
+        const permsRes: any = await api.get('/works/my-permissions', {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
         const rawData = permsRes?.data?.data || permsRes?.data || permsRes;
