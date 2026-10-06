@@ -1,16 +1,47 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import api from '@/lib/api';
+import { useEmployeeAuthStore } from '@/lib/employee-store';
 
-export default function EmployeePage() {
+export default function ProfilePage() {
+  const token = useEmployeeAuthStore((state) => state.token);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchData = async () => {
+      try {
+        const res = await api.get('/employees/profile/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setProfile(res.data?.data || res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
+
+  if (loading) return <div className="p-8">Loading Profile...</div>;
+
   return (
-    <div className="p-8 max-w-4xl mx-auto text-center">
-      <h1 className="text-2xl font-black text-slate-900 mb-4 capitalize">
-        Employee Module
-      </h1>
-      <p className="text-slate-500">
-        This module is currently being optimized for the Employee Web Portal.
-        Please check the Employee Mobile App for full access.
-      </p>
+    <div className="p-8 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-black text-slate-900 mb-6">Profile</h1>
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+        <div className="flex items-center gap-6 mb-8">
+          <div className="w-24 h-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl font-bold">
+            {profile?.name?.charAt(0) || 'U'}
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">{profile?.name || 'User'}</h2>
+            <p className="text-slate-500">{profile?.email || 'No email'}</p>
+            <p className="text-slate-500">{profile?.mobile || 'No mobile'}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
