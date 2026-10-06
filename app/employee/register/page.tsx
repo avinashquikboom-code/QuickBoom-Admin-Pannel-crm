@@ -122,7 +122,7 @@ export default function EmployeeRegisterPage() {
     }
     setIsLoading(true);
     try {
-      await api.post('/auth/email-otp/verify', { email: formData.email, otp: emailOtp });
+      await api.post('/auth/email/verify-otp', { email: formData.email, otp: emailOtp });
       toast.success('Email verified successfully');
       setEmailVerified(true);
       submitFinalRegistration();

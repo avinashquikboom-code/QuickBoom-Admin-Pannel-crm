@@ -105,7 +105,7 @@ export default function EmployeeLoginPage() {
 
     setLoading(true);
     try {
-      const res: any = await api.post('/auth/login/employee/send-otp', {
+      const res: any = await api.post('/auth/send-otp', {
         email: cleanEmail,
       });
       toast.success(res?.data?.message || res?.message || 'OTP sent successfully!');
@@ -130,7 +130,7 @@ export default function EmployeeLoginPage() {
     try {
       useEmployeeAuthStore.getState().logout();
       
-      const res: any = await api.post('/auth/login/employee/verify-otp', {
+      const res: any = await api.post('/auth/verify-otp', {
         email: email.trim().toLowerCase(),
         otp: cleanOtp,
       });
