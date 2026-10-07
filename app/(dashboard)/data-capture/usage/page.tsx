@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Activity,
   Layers,
@@ -25,6 +26,12 @@ import api from '@/lib/api';
 import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
 
 export default function DataCaptureUsagePage() {
+  const isEmployeeRoute = usePathname()?.startsWith('/employee/') ?? false;
+  const dataCaptureHref = isEmployeeRoute ? '/employee/data-capture' : '/data-capture';
+  const crmHref = isEmployeeRoute ? '/employee/leads' : '/crm';
+  const historyHref = isEmployeeRoute
+    ? '/employee/data-capture/history'
+    : '/data-capture/history';
   const { data: usage, isLoading, refetch } = useQuery({
     queryKey: ['data-capture-usage'],
     queryFn: async () => {
@@ -70,8 +77,8 @@ export default function DataCaptureUsagePage() {
           variant: 'emerald',
         }}
         breadcrumbs={[
-          { label: 'CRM', href: '/crm' },
-          { label: 'Data Capture', href: '/data-capture' },
+          { label: 'CRM', href: crmHref },
+          { label: 'Data Capture', href: dataCaptureHref },
           { label: 'Usage & Quota' },
         ]}
         actions={
@@ -86,7 +93,7 @@ export default function DataCaptureUsagePage() {
               Refresh
             </AdminButton>
 
-            <Link href="/data-capture/history">
+            <Link href={historyHref}>
               <AdminButton
                 variant="outline"
                 size="md"
@@ -96,7 +103,7 @@ export default function DataCaptureUsagePage() {
               </AdminButton>
             </Link>
 
-            <Link href="/data-capture">
+            <Link href={dataCaptureHref}>
               <AdminButton
                 variant="primary"
                 size="md"

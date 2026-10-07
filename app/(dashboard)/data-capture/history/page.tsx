@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   History,
   Search,
@@ -28,9 +29,24 @@ import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
+import { useEmployeeAuthStore } from '@/lib/employee-store';
+import { hasPermission } from '@/lib/access-control';
 
 export default function DataCaptureHistoryPage() {
   const queryClient = useQueryClient();
+  const pathname = usePathname();
+  const isEmployeeRoute = pathname?.startsWith('/employee/') ?? false;
+  const employeeUser = useEmployeeAuthStore((state) => state.user);
+  const canImport = !isEmployeeRoute || hasPermission(employeeUser, [
+    'DATA_CAPTURE:EDIT',
+    'employee.data_capture.edit',
+    'data_capture.edit',
+  ]);
+  const dataCaptureHref = isEmployeeRoute ? '/employee/data-capture' : '/data-capture';
+  const crmHref = isEmployeeRoute ? '/employee/leads' : '/crm';
+  const usageHref = isEmployeeRoute
+    ? '/employee/data-capture/usage'
+    : '/data-capture/usage';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJob, setSelectedJob] = useState<any | null>(null);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<string[]>([]);
@@ -105,7 +121,11 @@ export default function DataCaptureHistoryPage() {
 
   const handleOpenPlaceDetails = (job: any) => {
     setSelectedJob(job);
-    setSelectedPlaceIds((job.places || []).map((p: any) => p.googlePlaceId || String(p.id)));
+    setSelectedPlaceIds(
+      canImport
+        ? (job.places || []).map((p: any) => p.googlePlaceId || String(p.id))
+        : []
+    );
   };
 
   const handleToggleSelectPlace = (placeId: string) => {
@@ -155,8 +175,8 @@ export default function DataCaptureHistoryPage() {
           variant: 'emerald',
         }}
         breadcrumbs={[
-          { label: 'CRM', href: '/crm' },
-          { label: 'Data Capture', href: '/data-capture' },
+          { label: 'CRM', href: crmHref },
+          { label: 'Data Capture', href: dataCaptureHref },
           { label: 'Job History' },
         ]}
         actions={
@@ -174,7 +194,7 @@ export default function DataCaptureHistoryPage() {
               Refresh
             </AdminButton>
 
-            <Link href="/data-capture/usage">
+            <Link href={usageHref}>
               <AdminButton
                 variant="outline"
                 size="md"
@@ -184,7 +204,7 @@ export default function DataCaptureHistoryPage() {
               </AdminButton>
             </Link>
 
-            <Link href="/data-capture">
+            <Link href={dataCaptureHref}>
               <AdminButton
                 variant="primary"
                 size="md"
@@ -264,7 +284,7 @@ export default function DataCaptureHistoryPage() {
         ) : filteredJobs.length === 0 ? (
           <div className="py-16 text-center text-slate-400 font-bold text-xs space-y-2">
             <p>No extraction history matches your search.</p>
-            <Link href="/data-capture" className="text-emerald-600 font-black hover:underline inline-block">
+            <Link href={dataCaptureHref} className="text-emerald-600 font-black hover:underline inline-block">
               Start a new extraction →
             </Link>
           </div>
@@ -343,16 +363,19 @@ export default function DataCaptureHistoryPage() {
                   </h3>
                 </div>
                 <p className="text-xs text-slate-500 font-medium mt-1">
-                  {(selectedJob.places || []).length} verified businesses extracted. Select prospects to import into CRM Leads.
+                  {(selectedJob.places || []).length} verified businesses extracted.
+                  {canImport && ' Select prospects to import into CRM Leads.'}
                 </p>
               </div>
 
-              <button
-                onClick={handleSelectAllPlaces}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
-              >
-                {selectedPlaceIds.length === (selectedJob.places || []).length ? 'Deselect All' : 'Select All'}
-              </button>
+              {canImport && (
+                <button
+                  onClick={handleSelectAllPlaces}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  {selectedPlaceIds.length === (selectedJob.places || []).length ? 'Deselect All' : 'Select All'}
+                </button>
+              )}
             </div>
 
             {/* Places List */}
@@ -363,20 +386,22 @@ export default function DataCaptureHistoryPage() {
                 return (
                   <div
                     key={placeId}
-                    onClick={() => handleToggleSelectPlace(placeId)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
-                      isSelected
+                    onClick={canImport ? () => handleToggleSelectPlace(placeId) : undefined}
+                    className={`p-4 rounded-2xl border transition-all flex items-start justify-between gap-4 ${
+                      canImport && isSelected
                         ? 'bg-emerald-50/60 border-emerald-300 shadow-2xs'
-                        : 'bg-slate-50 border-slate-200/80 hover:bg-white'
+                        : 'bg-slate-50 border-slate-200/80'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="w-4 h-4 mt-3 rounded text-[#23C45E] focus:ring-[#23C45E] pointer-events-none"
-                      />
+                      {canImport && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="w-4 h-4 mt-3 rounded text-[#23C45E] focus:ring-[#23C45E] pointer-events-none"
+                        />
+                      )}
 
                       <div>
                         <h4 className="font-black text-slate-900 text-sm">{place.businessName}</h4>
@@ -421,9 +446,13 @@ export default function DataCaptureHistoryPage() {
 
             {/* Footer */}
             <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500">
-                {selectedPlaceIds.length} of {(selectedJob.places || []).length} selected
-              </span>
+              {canImport ? (
+                <span className="text-xs font-bold text-slate-500">
+                  {selectedPlaceIds.length} of {(selectedJob.places || []).length} selected
+                </span>
+              ) : (
+                <span />
+              )}
 
               <div className="flex items-center gap-3">
                 <button
@@ -433,16 +462,18 @@ export default function DataCaptureHistoryPage() {
                   Cancel
                 </button>
 
-                <button
-                  onClick={handleConfirmImport}
-                  disabled={importMutation.isPending || selectedPlaceIds.length === 0}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>
-                    {importMutation.isPending ? 'Importing Leads...' : `Import Selected (${selectedPlaceIds.length})`}
-                  </span>
-                </button>
+                {canImport && (
+                  <button
+                    onClick={handleConfirmImport}
+                    disabled={importMutation.isPending || selectedPlaceIds.length === 0}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>
+                      {importMutation.isPending ? 'Importing Leads...' : `Import Selected (${selectedPlaceIds.length})`}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
