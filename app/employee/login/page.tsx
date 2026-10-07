@@ -19,6 +19,7 @@ import {
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
+import { isBpoEmployee } from '@/lib/access-control';
 
 export default function EmployeeLoginPage() {
   const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
@@ -53,6 +54,7 @@ export default function EmployeeLoginPage() {
       const res: any = await api.post('/auth/login/employee', {
         email: cleanEmail,
         password,
+        appType: 'EMPLOYEE_WEB',
       });
 
       const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
@@ -63,6 +65,12 @@ export default function EmployeeLoginPage() {
 
       if (!user || !accessToken) {
         throw new Error('Invalid response structure received from authentication service');
+      }
+
+      if (!isBpoEmployee(user)) {
+        useEmployeeAuthStore.getState().logout();
+        toast.error('Employee Workspace is available only for BPO employees.');
+        return;
       }
 
       setAuth(user, accessToken, refreshToken || '');
@@ -133,6 +141,7 @@ export default function EmployeeLoginPage() {
       const res: any = await api.post('/auth/verify-otp', {
         email: email.trim().toLowerCase(),
         otp: cleanOtp,
+        appType: 'EMPLOYEE_WEB',
       });
 
       const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
@@ -143,6 +152,12 @@ export default function EmployeeLoginPage() {
 
       if (!user || !accessToken) {
         throw new Error('Invalid response structure received from authentication service');
+      }
+
+      if (!isBpoEmployee(user)) {
+        useEmployeeAuthStore.getState().logout();
+        toast.error('Employee Workspace is available only for BPO employees.');
+        return;
       }
 
       setAuth(user, accessToken, refreshToken || '');

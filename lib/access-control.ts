@@ -806,6 +806,54 @@ export function getUserRole(user: UserType | null): string {
   return roleList[0];
 }
 
+export function isBpoEmployee(user: any): boolean {
+  if (!user) return false;
+
+  // 1. Explicit boolean flag from backend
+  if (user.isBpo === true || user.employee?.isBpo === true) {
+    return true;
+  }
+  if (user.isBpo === false || user.employee?.isBpo === false) {
+    return false;
+  }
+
+  // 2. Department check
+  const dept = String(
+    user.department ||
+    user.departmentName ||
+    user.employee?.department ||
+    user.employee?.departmentName ||
+    user.employee?.department?.name ||
+    user.employee?.department?.code ||
+    ''
+  ).toUpperCase();
+  if (dept.includes('BPO')) return true;
+
+  // 3. Designation check
+  const desig = String(
+    user.designation ||
+    user.designationName ||
+    user.employee?.designation ||
+    user.employee?.designationName ||
+    user.employee?.designation?.name ||
+    user.employee?.designation?.code ||
+    ''
+  ).toUpperCase();
+  if (desig.includes('BPO') || desig.includes('TELE')) return true;
+
+  // 4. Team check
+  const team = String(
+    user.team ||
+    user.teamName ||
+    user.employee?.team ||
+    user.employee?.teamName ||
+    ''
+  ).toUpperCase();
+  if (team.includes('BPO')) return true;
+
+  return false;
+}
+
 export function getUserPermissions(user: UserType | null): string[] {
   if (!user) return [];
   const role = getUserRole(user);
@@ -1017,6 +1065,16 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
       reason: 'NO_PERMISSION',
       message: 'Employees can only access the /employee sections.',
     };
+  }
+
+  if (pathname.startsWith('/employee')) {
+    if (role === 'Employee' && !isBpoEmployee(user)) {
+      return {
+        allowed: false,
+        reason: 'NO_PERMISSION',
+        message: 'Employee Workspace is available only for BPO employees.',
+      };
+    }
   }
   
   if (role !== 'Super Admin' && role !== 'Customer' && role !== 'Employee') {

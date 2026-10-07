@@ -44,11 +44,13 @@ export function RouteGuard({ children, userOverride }: RouteGuardProps) {
       pathname === '/login' ||
       pathname === '/forgot-password' ||
       pathname === '/reset-password' ||
-      pathname === '/verify-otp';
+      pathname === '/verify-otp' ||
+      pathname === '/employee/login';
 
     if (!isPublicRoute) {
+      const loginTarget = pathname.startsWith('/employee') ? '/employee/login' : '/login';
       if (typeof window !== 'undefined') {
-        router.replace('/login');
+        router.replace(loginTarget);
       }
       return (
         <div className="min-h-[70vh] flex items-center justify-center p-4">
@@ -221,7 +223,7 @@ export function RouteGuard({ children, userOverride }: RouteGuardProps) {
             Go Back
           </button>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push(pathname.startsWith('/employee') ? '/employee/dashboard' : '/dashboard')}
             className="flex-1 py-3 px-4 bg-[#23C45E] hover:bg-[#1AA14D] text-white rounded-xl text-xs font-black transition-all shadow-md shadow-[#23C45E]/20 flex items-center justify-center gap-2 cursor-pointer"
           >
             <LayoutDashboard className="w-4 h-4" />

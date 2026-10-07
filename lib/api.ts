@@ -378,6 +378,16 @@ api.interceptors.request.use(
         }
       }
 
+      const isEmployeeRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/employee');
+      if (isEmployeeRoute) {
+        if (typeof config.headers?.set === 'function') {
+          config.headers.set('x-portal-type', 'employee-web');
+        } else {
+          config.headers = config.headers || {};
+          config.headers['x-portal-type'] = 'employee-web';
+        }
+      }
+
       let tokenExpired = false;
       let jwtUserId: any = null;
       let jwtEmployeeId: any = null;
