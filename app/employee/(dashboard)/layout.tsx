@@ -8,9 +8,9 @@ import { Sidebar } from '@/components/Sidebar';
 import { EmployeeSidebar } from '@/components/EmployeeSidebar';
 import { RouteGuard } from '@/components/RouteGuard';
 import { FcmProvider } from '@/components/FcmProvider';
-import { Bell, LogOut, Menu, Lock, Loader2 } from 'lucide-react';
+import { Bell, LogOut, Menu, Loader2 } from 'lucide-react';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { getUserRole, isBpoEmployee } from '@/lib/access-control';
+import { getUserRole } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -44,7 +44,7 @@ export default function EmployeeDashboardLayout({ children }: { children: React.
         return 0;
       }
     },
-    enabled: Boolean(user && isBpoEmployee(user)),
+    enabled: Boolean(user),
     refetchInterval: 30000,
   });
 
@@ -76,54 +76,6 @@ export default function EmployeeDashboardLayout({ children }: { children: React.
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-[#2563EB] animate-spin" />
           <span className="text-xs font-bold text-slate-500">Redirecting to employee login...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // If authenticated employee is not BPO, reject workspace access immediately
-  if (!isBpoEmployee(user)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-xl p-8 text-center space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
-            <Lock className="w-8 h-8" />
-          </div>
-
-          <div className="space-y-2">
-            <span className="px-3 py-1 bg-rose-100/80 text-rose-800 rounded-full text-[10px] font-black uppercase tracking-wider">
-              403 • Access Denied
-            </span>
-            <h2 className="text-xl font-black text-slate-900">Access Restricted</h2>
-            <p className="text-xs text-slate-600 font-semibold leading-relaxed">
-              Employee Workspace is available only for BPO employees.
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left space-y-1.5 text-xs text-slate-600">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-400">Current Role / Designation:</span>
-              <span className="font-extrabold text-slate-900">
-                {(user as any)?.employee?.designation || (user as any)?.designation || getUserRole(user)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-400">Department / Team:</span>
-              <span className="font-extrabold text-slate-900">
-                {(user as any)?.employee?.department || (user as any)?.department || 'Non-BPO'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              onClick={handleLogout}
-              className="flex-1 py-3 px-4 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out / Back to Login
-            </button>
-          </div>
         </div>
       </div>
     );

@@ -19,7 +19,6 @@ import {
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { isBpoEmployee } from '@/lib/access-control';
 
 function getOtpIdentifier(value: string): { email: string } | { mobile: string } | null {
   const identifier = value.trim();
@@ -81,12 +80,6 @@ export default function EmployeeLoginPage() {
 
       if (!user || !accessToken) {
         throw new Error('Invalid response structure received from authentication service');
-      }
-
-      if (!isBpoEmployee(user)) {
-        useEmployeeAuthStore.getState().logout();
-        toast.error('Employee Workspace is available only for BPO employees.');
-        return;
       }
 
       setAuth(user, accessToken, refreshToken || '');
@@ -172,12 +165,6 @@ export default function EmployeeLoginPage() {
 
       if (!user || !accessToken) {
         throw new Error('Invalid response structure received from authentication service');
-      }
-
-      if (!isBpoEmployee(user)) {
-        useEmployeeAuthStore.getState().logout();
-        toast.error('Employee Workspace is available only for BPO employees.');
-        return;
       }
 
       setAuth(user, accessToken, refreshToken || '');

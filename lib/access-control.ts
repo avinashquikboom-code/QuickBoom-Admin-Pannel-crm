@@ -1067,16 +1067,6 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
     };
   }
 
-  if (pathname.startsWith('/employee')) {
-    if (role === 'Employee' && !isBpoEmployee(user)) {
-      return {
-        allowed: false,
-        reason: 'NO_PERMISSION',
-        message: 'Employee Workspace is available only for BPO employees.',
-      };
-    }
-  }
-  
   if (role !== 'Super Admin' && role !== 'Customer' && role !== 'Employee') {
     return {
       allowed: false,
