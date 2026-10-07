@@ -217,15 +217,31 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ],
   'Employee': [
     'mobile.access',
+    'employee.dashboard.view',
+    'dashboard.view',
     'attendance.view_own',
+    'attendance.view',
+    'employee.attendance.view',
     'leave.view_own',
+    'leave.view',
+    'employee.leave.view',
     'remote.view_own',
+    'remote.view',
+    'employee.remote_work.view',
+    'calendar.view',
+    'employee.calendar.view',
     'visits.view_own',
     'payroll.view_own',
     'salary_slips.view_own',
+    'salary.view',
+    'employee.salary.view',
     'tasks.view_own',
     'notifications.view',
+    'employee.notifications.view',
     'profile.view',
+    'employee.profile.view',
+    'settings.view',
+    'employee.settings.view',
   ],
 };
 
@@ -545,47 +561,42 @@ export const adminNavigation: {
       sectionIcon: LayoutDashboard,
       roles: ['Employee'],
       items: [
-        { name: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard, permission: 'employee.dashboard.view' },
+        { name: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard, permission: ['employee.dashboard.view', 'dashboard.view'] },
       ],
     },
     {
-      id: 'attendance',
-      category: 'Workplace',
+      id: 'crm',
+      category: 'CRM / Sales',
+      sectionIcon: Layers,
+      roles: ['Employee'],
+      items: [
+        { name: 'Data Capture', href: '/employee/data-capture', icon: Database, permission: ['data_capture', 'employee.data_capture.view', 'DATA_CAPTURE'] },
+        { name: 'Leads', href: '/employee/leads', icon: Users, permission: ['leads', 'employee.leads.view', 'LEADS'] },
+        { name: 'Customers', href: '/employee/customers', icon: Building2, permission: ['customers', 'employee.customers.view', 'CUSTOMERS'] },
+      ],
+    },
+    {
+      id: 'workplace',
+      category: 'HRM & Workplace',
       sectionIcon: Clock3,
       roles: ['Employee'],
       items: [
-        { name: 'Attendance', href: '/employee/attendance', icon: Clock3, permission: 'employee.attendance.view' },
-        { name: 'Requests & Leaves', href: '/employee/leaves', icon: Calendar, permission: 'employee.leave.view' },
-        { name: 'Remote Work', href: '/employee/remote-work', icon: MonitorSmartphone, permission: 'employee.remote_work.view' },
+        { name: 'Attendance', href: '/employee/attendance', icon: Clock3, permission: ['employee.attendance.view', 'attendance.view_own', 'attendance.view'] },
+        { name: 'Calendar & Schedule', href: '/employee/calendar', icon: CalendarDays, permission: ['employee.calendar.view', 'calendar.view'] },
+        { name: 'Requests & Leaves', href: '/employee/leaves', icon: Calendar, permission: ['employee.leave.view', 'leave.view_own', 'leave.view'] },
+        { name: 'Remote Work', href: '/employee/remote-work', icon: MonitorSmartphone, permission: ['employee.remote_work.view', 'remote.view_own', 'remote.view'] },
+        { name: 'Salary Slips', href: '/employee/salary-slips', icon: FileText, permission: ['employee.salary.view', 'salary_slips.view_own', 'salary.view'] },
       ],
     },
     {
-      id: 'calendar',
-      category: 'Schedule',
-      sectionIcon: Calendar,
+      id: 'system',
+      category: 'System',
+      sectionIcon: Settings,
       roles: ['Employee'],
       items: [
-        { name: 'Calendar & Schedule', href: '/employee/calendar', icon: CalendarDays, permission: 'employee.calendar.view' },
-      ],
-    },
-    {
-      id: 'salary',
-      category: 'Finance',
-      sectionIcon: FileText,
-      roles: ['Employee'],
-      items: [
-        { name: 'Salary Slips', href: '/employee/salary-slips', icon: FileText, permission: 'employee.salary.view' },
-      ],
-    },
-    {
-      id: 'account',
-      category: 'Account',
-      sectionIcon: User,
-      roles: ['Employee'],
-      items: [
-        { name: 'Profile', href: '/employee/profile', icon: User, permission: 'employee.profile.view' },
-        { name: 'Notifications', href: '/employee/notifications', icon: Bell, permission: 'employee.notifications.view' },
-        { name: 'Settings', href: '/employee/settings', icon: Settings, permission: 'employee.settings.view' },
+        { name: 'Profile', href: '/employee/profile', icon: User, permission: ['employee.profile.view', 'profile.view'] },
+        { name: 'Notifications', href: '/employee/notifications', icon: Bell, permission: ['employee.notifications.view', 'notifications.view'] },
+        { name: 'Settings', href: '/employee/settings', icon: Settings, permission: ['employee.settings.view', 'settings.view'] },
       ],
     }
   ],
@@ -802,10 +813,11 @@ export function getUserPermissions(user: UserType | null): string[] {
   if (role === 'Super Admin') {
     return Array.from(new Set([...SUPER_ADMIN_PERMISSIONS, ...(user.permissions || [])]));
   }
+  const defaultRolePerms = ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS['Employee'] || [];
   if (user.permissions && user.permissions.length > 0) {
-    return user.permissions;
+    return Array.from(new Set([...defaultRolePerms, ...user.permissions]));
   }
-  return ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS['Employee'];
+  return defaultRolePerms;
 }
 
 export function getUserFeatures(user: UserType | null): SubscriptionFeatures {
