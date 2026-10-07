@@ -206,7 +206,9 @@ export default function EmployeeLeadsPage() {
         if (stagesRes.status === 'fulfilled') {
           const val = stagesRes.value as any;
           const sItems = val?.data?.data || val?.data?.items || val?.data || val?.items || (Array.isArray(val) ? val : []);
-          setStages(Array.isArray(sItems) ? sItems : []);
+          const rawStages = Array.isArray(sItems) ? sItems.filter((s: any) => s.isActive !== false) : [];
+          const sorted = [...rawStages].sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+          setStages(sorted);
         }
 
         if (metricsRes.status === 'fulfilled') {
@@ -368,38 +370,53 @@ export default function EmployeeLeadsPage() {
   };
 
   // ── Filter Tabs Configuration ──────────────────────────────────────────────
-  // Construct filter tabs using actual backend stages and metrics
+  // Construct filter tabs using authoritative backend stage counts (leadsCount)
   const filterTabs = useMemo(() => {
+    // 1. Calculate total count across all active stages for this employee
+    const totalStageCount = stages.reduce(
+      (acc: number, s: any) => acc + (Number(s.leadsCount ?? s._count?.leads) || 0),
+      0
+    );
+
+    // Use metrics?.total if available, or the sum of stage counts, or loaded leads length
+    const allCount =
+      metrics?.total !== undefined && metrics?.total !== null && !isNaN(Number(metrics.total))
+        ? Math.max(Number(metrics.total), totalStageCount)
+        : totalStageCount > 0
+        ? totalStageCount
+        : leads.length;
+
     const tabs: Array<{ id: string; name: string; count: number; color?: string }> = [
-      { id: 'ALL', name: 'All', count: Number(metrics?.total || leads.length) },
+      { id: 'ALL', name: 'All', count: allCount },
     ];
 
     if (stages.length > 0) {
       stages.forEach((stg: any) => {
-        const stageKey = (stg.key || '').toLowerCase();
-        let c = 0;
-        if (metrics) {
-          if (stageKey === 'new') c = Number(metrics.new || 0);
-          else if (stageKey === 'contacted') c = Number(metrics.contacted || 0);
-          else if (stageKey === 'qualified' || stageKey === 'follow_up' || stageKey === 'follow-up')
-            c = Number(metrics.qualified || 0);
-          else if (stageKey === 'converted' || stageKey === 'won') c = Number(metrics.converted || 0);
-          else if (stageKey === 'lost') c = Number(metrics.lost || 0);
-          else if (metrics[stageKey] !== undefined) c = Number(metrics[stageKey]);
-          else c = leads.filter((l) => String(l.stageId) === String(stg.id)).length;
+        // Direct authoritative count from /leads/stages (scoped strictly to current employee by backend)
+        let count = 0;
+        if (stg.leadsCount !== undefined && stg.leadsCount !== null) {
+          count = Number(stg.leadsCount);
+        } else if (stg._count?.leads !== undefined && stg._count?.leads !== null) {
+          count = Number(stg._count.leads);
         } else {
-          c = leads.filter((l) => String(l.stageId) === String(stg.id)).length;
+          // Fallback only if backend count field is missing
+          const stageKey = (stg.key || '').toLowerCase();
+          if (metrics && metrics[stageKey] !== undefined) {
+            count = Number(metrics[stageKey]);
+          } else {
+            count = leads.filter((l) => String(l.stageId) === String(stg.id)).length;
+          }
         }
 
         tabs.push({
           id: String(stg.id),
           name: stg.name || stg.label || 'Stage',
-          count: c,
+          count: isNaN(count) ? 0 : Math.max(0, count),
           color: stg.color,
         });
       });
     } else {
-      // Default common stages fallback
+      // Default common stages fallback when stages are empty
       const defaults = [
         { id: 'NEW', name: 'New', count: Number(metrics?.new || 0) },
         { id: 'CONTACTED', name: 'Contacted', count: Number(metrics?.contacted || 0) },
@@ -415,7 +432,7 @@ export default function EmployeeLeadsPage() {
     }
 
     return tabs;
-  }, [stages, metrics, leads]);
+  }, [stages, metrics, leads.length]);
 
   if (!canView) {
     return (
@@ -513,17 +530,17 @@ export default function EmployeeLeadsPage() {
               }`}
             >
               {isSelected ? (
-                <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                <Check className="w-3.5 h-3.5 text-white shrink-0" strokeWidth={3} />
               ) : tab.color ? (
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tab.color }} />
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tab.color }} />
               ) : null}
-              <span>{tab.name}</span>
+              <span className="whitespace-nowrap">{tab.name}</span>
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-black leading-tight ${
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black leading-tight shrink-0 inline-flex items-center justify-center min-w-[20px] ${
                   isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                {tab.count}
+                {loading && stages.length === 0 ? '...' : tab.count}
               </span>
             </button>
           );
