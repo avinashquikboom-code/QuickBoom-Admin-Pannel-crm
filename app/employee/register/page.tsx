@@ -155,14 +155,15 @@ export default function EmployeeRegisterPage() {
   const submitFinalRegistration = async () => {
     setIsLoading(true);
     try {
+      const effectivePassword = formData.password.trim() || '123456';
       // Calls the EXACT same endpoint as Employee Mobile: '/mobile/auth/register/employee'
       await api.post('/mobile/auth/register/employee', {
         fullName: formData.fullName,
         city: formData.city,
         mobile: formData.mobile,
         email: formData.email.toLowerCase(),
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
+        password: effectivePassword,
+        confirmPassword: effectivePassword,
         employeeType: formData.employeeType,
         companyName: formData.employeeType === 'COMPANY' ? formData.companyName : undefined,
         referralCode: formData.referralCode || undefined,
@@ -182,8 +183,8 @@ export default function EmployeeRegisterPage() {
     if (formData.fullName.length < 2) return 'Please enter a valid full name.';
     if (formData.mobile.length < 10) return 'Please enter a valid 10-digit mobile number.';
     if (!formData.email.includes('@')) return 'Please enter a valid email address.';
-    if (formData.password.length < 6) return 'Password must be at least 6 characters.';
-    if (formData.password !== formData.confirmPassword) return 'Passwords do not match.';
+    if (formData.password && formData.password.length < 6) return 'Password must be at least 6 characters.';
+    if (formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword) return 'Passwords do not match.';
     if (formData.employeeType === 'COMPANY' && !formData.companyName) return 'Company name is required.';
     return null;
   };
@@ -357,20 +358,20 @@ export default function EmployeeRegisterPage() {
 
               <section>
                 <h3 className="text-sm font-bold text-slate-900">Access</h3>
-                <p className="mt-1 text-xs text-slate-500">Password used to sign in after verification</p>
+                <p className="mt-1 text-xs text-slate-500">Password used to sign in after verification (default is 123456 if left blank)</p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="block text-xs font-semibold text-slate-600">
-                    Password *
+                    Password <span className="font-normal text-slate-400">(Default: 123456)</span>
                     <span className="relative mt-1.5 block">
                       <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                      <input name="password" type="password" value={formData.password} onChange={handleInputChange} placeholder="At least 6 characters" className={`${fieldClass} pl-10`} />
+                      <input name="password" type="password" value={formData.password} onChange={handleInputChange} placeholder="Leave blank for 123456" className={`${fieldClass} pl-10`} />
                     </span>
                   </label>
                   <label className="block text-xs font-semibold text-slate-600">
-                    Confirm Password *
+                    Confirm Password
                     <span className="relative mt-1.5 block">
                       <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                      <input name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleInputChange} placeholder="Re-enter password" className={`${fieldClass} pl-10`} />
+                      <input name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleInputChange} placeholder="Leave blank for 123456" className={`${fieldClass} pl-10`} />
                     </span>
                   </label>
                 </div>
