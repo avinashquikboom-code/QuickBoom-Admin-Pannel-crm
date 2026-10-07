@@ -21,6 +21,22 @@ import { toast } from 'react-hot-toast';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { isBpoEmployee } from '@/lib/access-control';
 
+function getOtpIdentifier(value: string): { email: string } | { mobile: string } | null {
+  const identifier = value.trim();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+    return { email: identifier.toLowerCase() };
+  }
+
+  let mobileDigits = identifier.replace(/[\s+\-()]/g, '');
+  if (mobileDigits.startsWith('0') && mobileDigits.length === 11) {
+    mobileDigits = mobileDigits.slice(1);
+  } else if (mobileDigits.startsWith('91') && mobileDigits.length === 12) {
+    mobileDigits = mobileDigits.slice(2);
+  }
+
+  return /^[6-9]\d{9}$/.test(mobileDigits) ? { mobile: identifier } : null;
+}
+
 export default function EmployeeLoginPage() {
   const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
   const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request');
@@ -105,17 +121,15 @@ export default function EmployeeLoginPage() {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      toast.error('Email, Mobile No, or Emp Code is required to send OTP.');
+    const otpIdentifier = getOtpIdentifier(email);
+    if (!otpIdentifier) {
+      toast.error('Enter a valid registered email address or mobile number to receive an OTP.');
       return;
     }
 
     setLoading(true);
     try {
-      const res: any = await api.post('/auth/send-otp', {
-        email: cleanEmail,
-      });
+      const res: any = await api.post('/auth/send-otp', otpIdentifier);
       toast.success(res?.data?.message || res?.message || 'OTP sent successfully!');
       setOtpStep('verify');
     } catch (err: any) {
@@ -133,13 +147,19 @@ export default function EmployeeLoginPage() {
       toast.error('Please enter a valid OTP code.');
       return;
     }
+    const otpIdentifier = getOtpIdentifier(email);
+    if (!otpIdentifier) {
+      toast.error('Enter a valid registered email address or mobile number.');
+      setOtpStep('request');
+      return;
+    }
 
     setLoading(true);
     try {
       useEmployeeAuthStore.getState().logout();
       
       const res: any = await api.post('/auth/verify-otp', {
-        email: email.trim().toLowerCase(),
+        ...otpIdentifier,
         otp: cleanOtp,
         appType: 'EMPLOYEE_WEB',
       });
@@ -375,7 +395,7 @@ export default function EmployeeLoginPage() {
               <form onSubmit={handleSendOtp} className="space-y-5">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                    Email / Mobile No / Emp Code
+                    Email / Mobile No
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
@@ -384,7 +404,7 @@ export default function EmployeeLoginPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter email, mobile no, or emp code"
+                      placeholder="Enter registered email or mobile number"
                       className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:bg-white transition-all font-semibold"
                     />
                   </div>
