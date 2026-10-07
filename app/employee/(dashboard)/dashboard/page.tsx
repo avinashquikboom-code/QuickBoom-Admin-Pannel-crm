@@ -384,7 +384,7 @@ export default function EmployeeDashboardPage() {
         <div>
           <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Welcome back, {employeeName}!
+              Welcome back, {employeeName}! 👋
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 tracking-wide uppercase">
               {designationName}
