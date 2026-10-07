@@ -11,16 +11,14 @@ import {
   Globe,
   ShieldCheck,
   FileText,
-  Info,
   ChevronRight,
   LogOut,
   Check,
-  X,
   Eye,
   EyeOff,
-  Settings as SettingsIcon,
 } from 'lucide-react';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
+import { getUserRole } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
 import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
@@ -80,56 +78,48 @@ export default function AccountSettingsPage() {
     }, 600);
   };
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* ── 1. Page Header ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-xl bg-emerald-100 text-[#16A34A] flex items-center justify-center shrink-0 shadow-xs">
-              <SettingsIcon className="w-5 h-5 text-[#16A34A]" />
-            </span>
-            Account Settings
-          </h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">
-            Manage your profile, security, preferences and account information.
-          </p>
-        </div>
+  const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Employee';
+  const roleLabel = getUserRole(user);
 
-        {/* Quick User Summary Badge */}
-        <div className="hidden sm:flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-white border border-slate-200/80 text-xs shadow-2xs">
-          <div className="w-6 h-6 rounded-full bg-[#E8F9EE] text-[#1AA14D] font-bold text-[10px] flex items-center justify-center">
-            {(user?.firstName?.[0] || 'E').toUpperCase()}
-          </div>
-          <span className="font-bold text-slate-800">
-            {user?.firstName} {user?.lastName}
-          </span>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 text-[#1AA14D] uppercase">
-            Active
-          </span>
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Account Settings</h1>
+        <p className="mt-1 text-sm text-slate-500">Manage your profile, security, preferences and account information.</p>
+      </div>
+
+      <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1AA14D] text-lg font-bold text-white">
+          {(user?.firstName?.[0] || 'E').toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-base font-bold text-slate-900">{displayName}</p>
+          <p className="truncate text-sm text-slate-500">{user?.email || 'Signed in'}</p>
+          {roleLabel && (
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#1AA14D]">{roleLabel}</p>
+          )}
         </div>
       </div>
 
-      {/* ── Content Sections ──────────────────────────────────────────────── */}
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-5">
           {/* ── 3. Profile & Security ──────────────────────────────────────── */}
-          <div id="section-security" className="space-y-2.5 scroll-mt-24">
-            <h2 className="text-xs font-black tracking-wider text-slate-400 uppercase px-1">
+          <div id="section-security" className="space-y-2">
+            <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
               Profile & Security
             </h2>
 
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden divide-y divide-slate-100">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100">
               {/* Card 1: Profile Information */}
               <Link
                 href="/employee/profile"
-                className="p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                className="flex items-center justify-between p-4 hover:bg-slate-50 sm:p-5"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F9EE] text-[#1AA14D]">
                     <User className="w-5 h-5 text-[#1AA14D]" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#16A34A] transition-colors truncate">
+                    <h3 className="truncate text-sm font-semibold text-slate-900">
                       Profile Information
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5 truncate">
@@ -137,21 +127,21 @@ export default function AccountSettingsPage() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
+                <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-slate-300" />
               </Link>
 
               {/* Card 2: Change Password */}
               <button
                 type="button"
                 onClick={() => setIsPasswordModalOpen(true)}
-                className="w-full text-left p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50 sm:p-5"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F9EE] text-[#1AA14D]">
                     <Lock className="w-5 h-5 text-[#1AA14D]" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#16A34A] transition-colors truncate">
+                    <h3 className="truncate text-sm font-semibold text-slate-900">
                       Change Password
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5 truncate">
@@ -159,29 +149,29 @@ export default function AccountSettingsPage() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
+                <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-slate-300" />
               </button>
             </div>
           </div>
 
           {/* ── 4. Preferences ─────────────────────────────────────────────── */}
-          <div id="section-preferences" className="space-y-2.5 scroll-mt-24">
-            <h2 className="text-xs font-black tracking-wider text-slate-400 uppercase px-1">
+          <div id="section-preferences" className="space-y-2">
+            <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
               Preferences
             </h2>
 
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden divide-y divide-slate-100">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100">
               {/* Notifications */}
               <Link
                 href="/employee/notifications"
-                className="p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                className="flex items-center justify-between p-4 hover:bg-slate-50 sm:p-5"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F9EE] text-[#1AA14D]">
                     <Bell className="w-5 h-5 text-[#1AA14D]" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#16A34A] transition-colors truncate">
+                    <h3 className="truncate text-sm font-semibold text-slate-900">
                       Notifications
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5 truncate">
@@ -189,21 +179,21 @@ export default function AccountSettingsPage() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
+                <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-slate-300" />
               </Link>
 
               {/* Appearance */}
               <button
                 type="button"
                 onClick={() => setIsAppearanceModalOpen(true)}
-                className="w-full text-left p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50 sm:p-5"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F9EE] text-[#1AA14D]">
                     <Palette className="w-5 h-5 text-[#1AA14D]" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#16A34A] transition-colors truncate">
+                    <h3 className="truncate text-sm font-semibold text-slate-900">
                       Appearance
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5 truncate">
@@ -215,7 +205,7 @@ export default function AccountSettingsPage() {
                   <span className="text-xs font-semibold text-slate-400 capitalize hidden sm:inline">
                     {selectedTheme}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5 transition-all" />
+                  <ChevronRight className="h-4 w-4 text-slate-300" />
                 </div>
               </button>
 
@@ -223,14 +213,14 @@ export default function AccountSettingsPage() {
               <button
                 type="button"
                 onClick={() => setIsLanguageModalOpen(true)}
-                className="w-full text-left p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50 sm:p-5"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F9EE] text-[#1AA14D]">
                     <Globe className="w-5 h-5 text-[#1AA14D]" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#16A34A] transition-colors truncate">
+                    <h3 className="truncate text-sm font-semibold text-slate-900">
                       Language
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5 truncate">
@@ -238,75 +228,55 @@ export default function AccountSettingsPage() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
+                <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-slate-300" />
               </button>
             </div>
           </div>
 
           {/* ── 5. About ───────────────────────────────────────────────────── */}
-          <div id="section-about" className="space-y-2.5 scroll-mt-24">
-            <h2 className="text-xs font-black tracking-wider text-slate-400 uppercase px-1">
+          <div id="section-about" className="space-y-2">
+            <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
               About
             </h2>
 
-            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden divide-y divide-slate-100">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100">
               {/* Privacy Policy */}
               <button
                 type="button"
                 onClick={() => setIsPrivacyModalOpen(true)}
-                className="w-full text-left p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50 sm:p-5"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F9EE] text-[#1AA14D]">
                     <ShieldCheck className="w-5 h-5 text-[#1AA14D]" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#16A34A] transition-colors truncate">
+                    <h3 className="truncate text-sm font-semibold text-slate-900">
                       Privacy Policy
                     </h3>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
+                <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-slate-300" />
               </button>
 
               {/* Terms of Service */}
               <button
                 type="button"
                 onClick={() => setIsTermsModalOpen(true)}
-                className="w-full text-left p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50 sm:p-5"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F9EE] text-[#1AA14D]">
                     <FileText className="w-5 h-5 text-[#1AA14D]" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#16A34A] transition-colors truncate">
+                    <h3 className="truncate text-sm font-semibold text-slate-900">
                       Terms of Service
                     </h3>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#16A34A] group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
+                <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-slate-300" />
               </button>
-
-              {/* App Version */}
-              <div className="p-4 sm:p-5 flex items-center justify-between">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E8F9EE] text-[#1AA14D] flex items-center justify-center shrink-0">
-                    <Info className="w-5 h-5 text-[#1AA14D]" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 truncate">
-                      App Version
-                    </h3>
-                    <p className="text-xs font-mono text-slate-500 mt-0.5">
-                      v1.0.0 (Build 12)
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-[#1AA14D] text-[10px] font-extrabold uppercase border border-emerald-200/50">
-                  Latest
-                </span>
-              </div>
             </div>
           </div>
 
@@ -315,22 +285,22 @@ export default function AccountSettingsPage() {
             <button
               type="button"
               onClick={handleLogout}
-              className="w-full p-4 sm:p-5 rounded-2xl bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200/60 flex items-center justify-between text-rose-600 transition-colors cursor-pointer group shadow-2xs"
+              className="flex w-full items-center justify-between rounded-2xl border border-rose-200 bg-white p-4 text-rose-600 hover:bg-rose-50 sm:p-5"
             >
               <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <LogOut className="w-5 h-5 text-rose-600" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                  <LogOut className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 text-left">
-                  <h3 className="text-sm font-bold text-rose-700 truncate">
+                  <h3 className="truncate text-sm font-semibold text-rose-700">
                     Sign Out
                   </h3>
-                  <p className="text-xs text-rose-500/90 mt-0.5 truncate">
+                  <p className="mt-0.5 truncate text-xs text-rose-500">
                     Sign out of your account on this device
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-rose-400 group-hover:text-rose-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
+              <ChevronRight className="ml-3 h-4 w-4 shrink-0 text-rose-300" />
             </button>
           </div>
         </div>

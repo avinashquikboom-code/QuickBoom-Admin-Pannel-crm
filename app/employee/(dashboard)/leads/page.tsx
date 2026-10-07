@@ -126,6 +126,54 @@ function getStageDisplay(
   }
 }
 
+function stageNameKey(value: unknown) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+}
+
+/** Map a lead onto one pipeline stage id using the same stageId, then status/key rules as the badge. */
+function resolveLeadStageTabId(lead: { stageId?: number | string | null; status?: string | null; stage?: { id?: number | string; key?: string; name?: string } | null }, stagesList: Array<{ id?: number | string; key?: string; name?: string }>) {
+  const stageId = lead.stageId ?? lead.stage?.id;
+  if (stageId != null && stagesList.length > 0) {
+    const byId = stagesList.find((stage) => String(stage.id) === String(stageId));
+    if (byId) return String(byId.id);
+  }
+
+  const statusKey = stageNameKey(lead.status || lead.stage?.key || lead.stage?.name);
+  if (!statusKey) return '';
+
+  if (stagesList.length > 0) {
+    const byStatus = stagesList.find((stage) => stageNameKey(stage.key) === statusKey || stageNameKey(stage.name) === statusKey);
+    return byStatus ? String(byStatus.id) : '';
+  }
+
+  return statusKey;
+}
+
+function readRecordList(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== 'object') return [];
+  const record = value as Record<string, unknown>;
+  if (Array.isArray(record.data)) return record.data;
+  if (Array.isArray(record.items)) return record.items;
+  if (record.data && typeof record.data === 'object') {
+    const nested = record.data as Record<string, unknown>;
+    if (Array.isArray(nested.data)) return nested.data;
+    if (Array.isArray(nested.items)) return nested.items;
+  }
+  return [];
+}
+
+function readPageCount(value: unknown) {
+  if (!value || typeof value !== 'object') return 1;
+  const record = value as Record<string, unknown>;
+  const meta = (record.meta && typeof record.meta === 'object' ? record.meta : record.pagination) as Record<string, unknown> | undefined;
+  const pages = Number(meta?.totalPages);
+  return Number.isFinite(pages) && pages > 0 ? pages : 1;
+}
+
 export default function EmployeeLeadsPage() {
   const user = useEmployeeAuthStore((state) => state.user);
   const token = useEmployeeAuthStore((state) => state.token);
@@ -138,7 +186,6 @@ export default function EmployeeLeadsPage() {
   // Data States
   const [leads, setLeads] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -183,37 +230,55 @@ export default function EmployeeLeadsPage() {
       try {
         const authHeader = { headers: { Authorization: `Bearer ${token}` } };
 
-        const [leadsRes, stagesRes, metricsRes] = await Promise.allSettled([
-          api.get('/leads', {
-            ...authHeader,
-            params: {
-              search: searchQuery.trim() || undefined,
-              stageId: selectedStageId !== 'ALL' && !isNaN(Number(selectedStageId)) ? selectedStageId : undefined,
-              status: selectedStageId !== 'ALL' && isNaN(Number(selectedStageId)) ? selectedStageId : undefined,
-              limit: 100,
-            },
-          }),
+        const [leadsRes, stagesRes] = await Promise.allSettled([
+          (async () => {
+            const collected: unknown[] = [];
+            const seen = new Set<string>();
+            let page = 1;
+            let totalPages = 1;
+            while (page <= totalPages && page <= 10) {
+              const response: unknown = await api.get('/leads', {
+                ...authHeader,
+                params: {
+                  search: searchQuery.trim() || undefined,
+                  page,
+                  limit: 100,
+                },
+              });
+              for (const item of readRecordList(response)) {
+                const id = item && typeof item === 'object' ? String((item as { id?: unknown }).id ?? '') : '';
+                if (id && seen.has(id)) continue;
+                if (id) seen.add(id);
+                collected.push(item);
+              }
+              totalPages = readPageCount(response);
+              page += 1;
+            }
+            return collected;
+          })(),
           api.get('/leads/stages', authHeader),
-          api.get('/leads/metrics', authHeader),
         ]);
 
         if (leadsRes.status === 'fulfilled') {
-          const val = leadsRes.value as any;
-          const items = val?.data?.data || val?.data?.items || val?.data || val?.items || (Array.isArray(val) ? val : []);
-          setLeads(Array.isArray(items) ? items : []);
+          setLeads(Array.isArray(leadsRes.value) ? leadsRes.value : []);
         }
 
         if (stagesRes.status === 'fulfilled') {
-          const val = stagesRes.value as any;
-          const sItems = val?.data?.data || val?.data?.items || val?.data || val?.items || (Array.isArray(val) ? val : []);
-          const rawStages = Array.isArray(sItems) ? sItems.filter((s: any) => s.isActive !== false) : [];
-          const sorted = [...rawStages].sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+          const rawStages = readRecordList(stagesRes.value).filter((stage) => {
+            if (!stage || typeof stage !== 'object') return false;
+            return (stage as { isActive?: boolean }).isActive !== false;
+          });
+          const sorted = [...rawStages].sort((a, b) => {
+            const left = a && typeof a === 'object' ? Number((a as { sortOrder?: number }).sortOrder ?? 0) : 0;
+            const right = b && typeof b === 'object' ? Number((b as { sortOrder?: number }).sortOrder ?? 0) : 0;
+            return left - right;
+          });
           setStages(sorted);
-        }
-
-        if (metricsRes.status === 'fulfilled') {
-          const val = metricsRes.value as any;
-          setMetrics(val?.data?.data || val?.data || val);
+          setSelectedStageId((current) => {
+            if (current === 'ALL') return current;
+            const stillExists = sorted.some((stage) => stage && typeof stage === 'object' && String((stage as { id?: unknown }).id) === current);
+            return stillExists ? current : 'ALL';
+          });
         }
       } catch (err) {
         console.error('[EMPLOYEE_LEADS] Error loading leads:', err);
@@ -222,7 +287,7 @@ export default function EmployeeLeadsPage() {
         setRefreshing(false);
       }
     },
-    [token, searchQuery, selectedStageId]
+    [token, searchQuery]
   );
 
   useEffect(() => {
@@ -235,10 +300,10 @@ export default function EmployeeLeadsPage() {
   };
 
   const handleSelectAll = () => {
-    if (selectedLeadIds.length === leads.length) {
+    if (selectedLeadIds.length === visibleLeads.length) {
       setSelectedLeadIds([]);
     } else {
-      setSelectedLeadIds(leads.map((l) => l.id).filter(Boolean));
+      setSelectedLeadIds(visibleLeads.map((lead) => lead.id).filter(Boolean));
     }
   };
 
@@ -369,70 +434,38 @@ export default function EmployeeLeadsPage() {
     }
   };
 
-  // ── Filter Tabs Configuration ──────────────────────────────────────────────
-  // Construct filter tabs using authoritative backend stage counts (leadsCount)
+  // Counts and the visible list both come from the employee-scoped lead response.
   const filterTabs = useMemo(() => {
-    // 1. Calculate total count across all active stages for this employee
-    const totalStageCount = stages.reduce(
-      (acc: number, s: any) => acc + (Number(s.leadsCount ?? s._count?.leads) || 0),
-      0
-    );
-
-    // Use metrics?.total if available, or the sum of stage counts, or loaded leads length
-    const allCount =
-      metrics?.total !== undefined && metrics?.total !== null && !isNaN(Number(metrics.total))
-        ? Math.max(Number(metrics.total), totalStageCount)
-        : totalStageCount > 0
-        ? totalStageCount
-        : leads.length;
+    const counts = new Map<string, number>();
+    for (const lead of leads) {
+      const stageId = resolveLeadStageTabId(lead, stages);
+      if (!stageId) continue;
+      counts.set(stageId, (counts.get(stageId) || 0) + 1);
+    }
 
     const tabs: Array<{ id: string; name: string; count: number; color?: string }> = [
-      { id: 'ALL', name: 'All', count: allCount },
+      { id: 'ALL', name: 'All', count: leads.length },
     ];
 
     if (stages.length > 0) {
-      stages.forEach((stg: any) => {
-        // Direct authoritative count from /leads/stages (scoped strictly to current employee by backend)
-        let count = 0;
-        if (stg.leadsCount !== undefined && stg.leadsCount !== null) {
-          count = Number(stg.leadsCount);
-        } else if (stg._count?.leads !== undefined && stg._count?.leads !== null) {
-          count = Number(stg._count.leads);
-        } else {
-          // Fallback only if backend count field is missing
-          const stageKey = (stg.key || '').toLowerCase();
-          if (metrics && metrics[stageKey] !== undefined) {
-            count = Number(metrics[stageKey]);
-          } else {
-            count = leads.filter((l) => String(l.stageId) === String(stg.id)).length;
-          }
-        }
-
+      stages.forEach((stage) => {
+        const id = String(stage.id);
         tabs.push({
-          id: String(stg.id),
-          name: stg.name || stg.label || 'Stage',
-          count: isNaN(count) ? 0 : Math.max(0, count),
-          color: stg.color,
+          id,
+          name: stage.name || stage.label || 'Stage',
+          count: counts.get(id) || 0,
+          color: stage.color,
         });
       });
-    } else {
-      // Default common stages fallback when stages are empty
-      const defaults = [
-        { id: 'NEW', name: 'New', count: Number(metrics?.new || 0) },
-        { id: 'CONTACTED', name: 'Contacted', count: Number(metrics?.contacted || 0) },
-        { id: 'FOLLOW_UP', name: 'Follow-up', count: Number(metrics?.qualified || 0) },
-        { id: 'VISIT_SCHEDULED', name: 'Visit Scheduled', count: 0 },
-        { id: 'VISIT_DONE', name: 'Visit Done', count: 0 },
-        { id: 'DETAILS_SENT', name: 'Details Sent', count: 0 },
-        { id: 'FINAL_CALL', name: 'Final Call', count: 0 },
-        { id: 'WON', name: 'Won', count: Number(metrics?.converted || 0) },
-        { id: 'LOST', name: 'Lost', count: Number(metrics?.lost || 0) },
-      ];
-      tabs.push(...defaults);
     }
 
     return tabs;
-  }, [stages, metrics, leads.length]);
+  }, [stages, leads]);
+
+  const visibleLeads = useMemo(() => {
+    if (selectedStageId === 'ALL') return leads;
+    return leads.filter((lead) => resolveLeadStageTabId(lead, stages) === selectedStageId);
+  }, [leads, stages, selectedStageId]);
 
   if (!canView) {
     return (
@@ -548,25 +581,25 @@ export default function EmployeeLeadsPage() {
       </div>
 
       {/* ── SELECTION CONTROL BAR ───────────────────────────────────────────── */}
-      {leads.length > 0 && (
+      {visibleLeads.length > 0 && (
         <div className="flex items-center justify-between text-xs text-slate-500 px-1">
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
               id="select-all-leads"
-              checked={selectedLeadIds.length > 0 && selectedLeadIds.length === leads.length}
+              checked={selectedLeadIds.length > 0 && selectedLeadIds.length === visibleLeads.length}
               onChange={handleSelectAll}
               className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
             />
             <label htmlFor="select-all-leads" className="font-bold text-slate-700 cursor-pointer">
               {selectedLeadIds.length === 0
                 ? 'Select All Leads'
-                : `Selected ${selectedLeadIds.length} of ${leads.length}`}
+                : `Selected ${selectedLeadIds.length} of ${visibleLeads.length}`}
             </label>
           </div>
 
           <span className="font-semibold text-slate-400">
-            Showing {leads.length} lead{leads.length === 1 ? '' : 's'}
+            Showing {visibleLeads.length} lead{visibleLeads.length === 1 ? '' : 's'}
           </span>
         </div>
       )}
@@ -578,7 +611,7 @@ export default function EmployeeLeadsPage() {
             <div key={i} className="h-48 bg-white rounded-2xl border border-slate-200" />
           ))}
         </div>
-      ) : leads.length === 0 ? (
+      ) : visibleLeads.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 max-w-lg mx-auto space-y-3">
           <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
             <Layers className="w-7 h-7" />
@@ -610,7 +643,7 @@ export default function EmployeeLeadsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-          {leads.map((lead) => {
+          {visibleLeads.map((lead) => {
             const isChecked = selectedLeadIds.includes(lead.id);
             const leadTitle =
               lead.companyName ||

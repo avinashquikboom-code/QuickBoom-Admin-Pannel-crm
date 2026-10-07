@@ -582,7 +582,6 @@ export const adminNavigation: {
       roles: ['Employee'],
       items: [
         { name: 'Attendance', href: '/employee/attendance', icon: Clock3, permission: ['employee.attendance.view', 'attendance.view_own', 'attendance.view'] },
-        { name: 'Calendar & Schedule', href: '/employee/calendar', icon: CalendarDays, permission: ['employee.calendar.view', 'calendar.view'] },
         { name: 'Requests & Leaves', href: '/employee/leaves', icon: Calendar, permission: ['employee.leave.view', 'leave.view_own', 'leave.view'] },
         { name: 'Remote Work', href: '/employee/remote-work', icon: MonitorSmartphone, permission: ['employee.remote_work.view', 'remote.view_own', 'remote.view'] },
         { name: 'Salary Slips', href: '/employee/salary-slips', icon: FileText, permission: ['employee.salary.view', 'salary_slips.view_own', 'salary.view'] },

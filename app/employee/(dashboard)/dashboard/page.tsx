@@ -5,8 +5,7 @@ import Link from 'next/link';
 import {
   Clock,
   Clock3,
-  Calendar,
-  CalendarDays,
+  Fingerprint,
   MapPin,
   Compass,
   Coffee,
@@ -854,17 +853,17 @@ export default function EmployeeDashboardPage() {
               </Link>
 
               <Link
-                href="/employee/calendar"
+                href="/employee/attendance"
                 className="p-3.5 bg-amber-50/70 hover:bg-amber-100/70 border border-amber-100 rounded-xl text-left transition-colors flex flex-col justify-between gap-3 group"
               >
                 <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-xs">
-                  <CalendarDays className="w-4 h-4" />
+                  <Fingerprint className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="font-black text-xs text-slate-900 group-hover:text-amber-700 transition-colors">
-                    Calendar
+                    Attendance
                   </div>
-                  <div className="text-[10px] text-slate-500">Schedules & tasks</div>
+                  <div className="text-[10px] text-slate-500">Punch in & records</div>
                 </div>
               </Link>
             </div>
