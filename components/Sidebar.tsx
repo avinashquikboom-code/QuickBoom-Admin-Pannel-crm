@@ -17,6 +17,7 @@ import {
   getUserRole,
   NavSectionConfig,
 } from '@/lib/access-control';
+import { EmployeeSidebar } from '@/components/EmployeeSidebar';
 
 interface SidebarProps {
   userOverride?: any;
@@ -225,24 +226,16 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
   // Get filtered navigation sections based on user role, permissions, and subscription features
   let accessibleSections = filterNavigation(CENTRAL_NAVIGATION, user);
 
-  // FLATTEN Employee Web Sidebar:
-  // Required by business logic to render Employee Web sidebar as a flat list
-  // instead of an accordion/dropdown structure.
+  // Delegate to dedicated EmployeeSidebar when role is Employee
   if (role === 'Employee') {
-    // Limited to the primary modules of the mobile employee bottom navigation.
-    // Other employee routes (attendance, leaves, etc.) remain available, just not listed here.
-    const primaryEmployeeRoutes = ['/employee/dashboard', '/employee/data-capture', '/employee/leads', '/employee/customers', '/employee/profile'];
-    const flatItems = primaryEmployeeRoutes
-      .map(href => accessibleSections.flatMap(section => section.items).find(item => item.href === href))
-      .filter((item): item is NonNullable<typeof item> => !!item)
-      .map(item => (item.href === '/employee/dashboard' ? { ...item, name: 'Home' } : item));
-    accessibleSections = flatItems.map((item, index) => ({
-      id: `flat-employee-nav-${index}`,
-      category: item.name,
-      sectionIcon: item.icon,
-      roles: ['Employee'],
-      items: [item]
-    }));
+    return (
+      <EmployeeSidebar
+        user={user}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleSidebar}
+        onNavigate={onNavigate}
+      />
+    );
   }
 
   // ACCORDION SINGLE SOURCE OF TRUTH: Only ONE expandable parent section open at a time

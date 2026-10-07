@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
+import { EmployeeSidebar } from '@/components/EmployeeSidebar';
 import { RouteGuard } from '@/components/RouteGuard';
 import { FcmProvider } from '@/components/FcmProvider';
 import { Bell, Menu, X, Check } from 'lucide-react';
@@ -49,11 +50,11 @@ export default function EmployeeDashboardLayout({ children }: { children: React.
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-800">
       {/* Desktop Sidebar (Hidden on Mobile) */}
-      <div className="hidden lg:block">
-        <Sidebar
+      <div className="hidden lg:block sticky top-0 h-screen">
+        <EmployeeSidebar
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
-          userOverride={user}
+          user={user}
         />
       </div>
 
@@ -61,38 +62,15 @@ export default function EmployeeDashboardLayout({ children }: { children: React.
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="relative flex-1 max-w-xs w-full bg-white shadow-2xl z-10 flex flex-col">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2.5 font-black text-slate-900 text-sm">
-                <Image
-                  src="/logo.png"
-                  alt="QuikBoom"
-                  width={110}
-                  height={28}
-                  className="h-7 w-auto object-contain"
-                />
-              </div>
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="p-1 text-slate-500 hover:text-slate-900 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <Sidebar onNavigate={() => setMobileOpen(false)} userOverride={user} />
-            </div>
-            <div className="p-4 border-t border-slate-200 bg-slate-50">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
-              >
-                Sign Out
-              </button>
-            </div>
+          <div className="relative flex-1 max-w-[320px] w-full bg-white shadow-2xl z-10 flex flex-col h-full animate-in slide-in-from-left duration-200">
+            <EmployeeSidebar
+              onClose={() => setMobileOpen(false)}
+              onNavigate={() => setMobileOpen(false)}
+              user={user}
+            />
           </div>
         </div>
       )}
