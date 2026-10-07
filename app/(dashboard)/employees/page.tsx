@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminPageHeader, AdminButton, AdminPagination } from '@/components/admin';
 
@@ -340,24 +341,21 @@ export default function EmployeesPage() {
     isLoading,
     isFetching,
     isError,
+    error: employeesError,
     refetch,
   } = useQuery({
     queryKey: ['admin-employees', search, officeFilter, departmentFilter, designationFilter, statusFilter, typeFilter, page, limit],
     queryFn: async () => {
-      try {
-        const params: Record<string, any> = { page, limit, excludeAdmins: 'true' };
-        if (search) params.search = search;
-        if (officeFilter !== 'ALL') params.branch = officeFilter;
-        if (departmentFilter !== 'ALL') params.department = departmentFilter;
-        if (designationFilter !== 'ALL') params.designation = designationFilter;
-        if (statusFilter !== 'ALL') params.status = statusFilter;
-        if (typeFilter !== 'ALL') params.employmentType = typeFilter;
+      const params: Record<string, any> = { page, limit, excludeAdmins: 'true' };
+      if (search) params.search = search;
+      if (officeFilter !== 'ALL') params.branch = officeFilter;
+      if (departmentFilter !== 'ALL') params.department = departmentFilter;
+      if (designationFilter !== 'ALL') params.designation = designationFilter;
+      if (statusFilter !== 'ALL') params.status = statusFilter;
+      if (typeFilter !== 'ALL') params.employmentType = typeFilter;
 
-        const res: any = await api.get('/employees', { params });
-        return res || {};
-      } catch {
-        return {};
-      }
+      const res: any = await api.get('/employees', { params });
+      return res;
     },
   });
 
@@ -1078,7 +1076,7 @@ export default function EmployeesPage() {
               Total Employees
             </span>
             <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
-              {isLoading ? '...' : totalCount}
+              {isLoading ? '...' : isError ? '—' : totalCount}
             </p>
             <span className="text-xs font-bold text-slate-500 mt-0.5 block">
               Registered workforce profiles
@@ -1096,7 +1094,7 @@ export default function EmployeesPage() {
               Active Employees
             </span>
             <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">
-              {isLoading ? '...' : activeCount}
+              {isLoading ? '...' : isError ? '—' : activeCount}
             </p>
             <span className="text-xs font-bold text-emerald-700 mt-0.5 block">
               Currently operational
@@ -1114,7 +1112,7 @@ export default function EmployeesPage() {
               Inactive Employees
             </span>
             <p className="text-2xl sm:text-3xl font-black text-rose-600 mt-1">
-              {isLoading ? '...' : inactiveCount}
+              {isLoading ? '...' : isError ? '—' : inactiveCount}
             </p>
             <span className="text-xs font-bold text-rose-700 mt-0.5 block">
               Deactivated or archived
@@ -1247,7 +1245,7 @@ export default function EmployeesPage() {
               </div>
               <p className="text-sm font-bold text-slate-800">Unable to load employees.</p>
               <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto">
-                There was a problem connecting to the employee service. Please try again.
+                {getErrorMessage(employeesError)}
               </p>
               <button
                 onClick={() => refetch()}

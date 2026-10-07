@@ -9,6 +9,11 @@ const apiBaseURL =
   process.env.NEXT_PUBLIC_API_URL ||
   'https://api.qbapp.online/api/v1';
 
+const isEmployeePortalRoute = () =>
+  typeof window !== 'undefined' &&
+  (window.location.pathname === '/employee' ||
+    window.location.pathname.startsWith('/employee/'));
+
 const api = axios.create({
   baseURL: apiBaseURL,
   headers: {
@@ -80,7 +85,7 @@ export function getPersistedAuthSession() {
     return { token: null, refreshToken: null, user: null, customerId: null };
   }
   
-  const isEmployeeRoute = window.location.pathname.startsWith('/employee');
+  const isEmployeeRoute = isEmployeePortalRoute();
   const activeStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
   const storageKey = isEmployeeRoute ? 'qb-employee-auth-storage' : 'quikboom-next-auth-storage';
 
@@ -212,7 +217,7 @@ export async function performTokenRefresh(): Promise<string> {
 
   refreshPromise = (async () => {
     try {
-      const isEmployeeRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/employee');
+      const isEmployeeRoute = isEmployeePortalRoute();
       const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
       const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
       const { refreshToken } = getPersistedAuthSession();
@@ -279,7 +284,7 @@ export async function performTokenRefresh(): Promise<string> {
 
       return newAccessToken;
     } catch (refreshErr: any) {
-      const isEmployeeRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/employee');
+      const isEmployeeRoute = isEmployeePortalRoute();
       const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
       const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
 
@@ -378,7 +383,7 @@ api.interceptors.request.use(
         }
       }
 
-      const isEmployeeRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/employee');
+      const isEmployeeRoute = isEmployeePortalRoute();
       if (isEmployeeRoute) {
         if (typeof config.headers?.set === 'function') {
           config.headers.set('x-portal-type', 'employee-web');
@@ -490,7 +495,7 @@ api.interceptors.response.use(
       !isAuthUrl &&
       typeof window !== 'undefined'
     ) {
-      const isEmployeeRoute = window.location.pathname.startsWith('/employee');
+      const isEmployeeRoute = isEmployeePortalRoute();
       const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
       const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
       authStore.logout();
