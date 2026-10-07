@@ -2,16 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, HeartPulse, Palmtree, Plus, Wallet, X } from 'lucide-react';
+import { CalendarDays, HeartPulse, Palmtree, Plus, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { hasPermission } from '@/lib/access-control';
 import { getErrorMessage } from '@/lib/utils';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import EmployeeRemoteWorkPage from '../remote-work/page';
 import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
-type Section = 'leaves' | 'expenses' | 'remote';
+type Section = 'leaves' | 'expenses';
 type LeaveList = 'pending' | 'history';
 
 interface LeaveBalance {
@@ -32,6 +31,8 @@ interface LeaveRequest {
   appliedOn: string;
   reason: string;
   days: number;
+  rejectionReason: string;
+  reviewedOn: string;
 }
 
 const STATUS_CLS: Record<string, string> = {
@@ -49,12 +50,20 @@ const CARD_TONE = [
 ];
 
 function asList(payload: any): any[] {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.balances)) return payload.balances;
-  if (Array.isArray(payload?.items)) return payload.items;
-  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  const candidates = [payload, payload?.items, payload?.data, payload?.balances, payload?.data?.items, payload?.data?.data, payload?.records];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
   return [];
+}
+
+function normalizeStatus(value: unknown) {
+  const raw = typeof value === 'string' ? value : '';
+  const status = raw.trim().toUpperCase().replace(/\s+/g, '_');
+  if (status === 'APPROVE' || status === 'ACCEPTED') return 'APPROVED';
+  if (status === 'REJECT' || status === 'DECLINED') return 'REJECTED';
+  if (status === 'CANCEL' || status === 'CANCELED' || status === 'CANCELLED') return 'CANCELLED';
+  return status || 'PENDING';
 }
 
 function formatDay(value: string) {
@@ -80,15 +89,18 @@ function mapBalance(raw: any): LeaveBalance {
 }
 
 function mapRequest(raw: any): LeaveRequest {
+  const reviewed = String(raw.updatedAt || raw.reviewedOn || raw.approvedOn || '').split('T')[0];
   return {
     id: Number(raw.id),
-    leaveType: String(raw.leaveType || raw.leaveTypeName || 'Leave'),
+    leaveType: String(raw.leaveType || raw.leaveTypeName || raw.leaveType?.name || 'Leave'),
     fromDate: String(raw.fromDate || '').split('T')[0],
     toDate: String(raw.toDate || '').split('T')[0],
-    status: String(raw.status || 'PENDING').toUpperCase(),
+    status: normalizeStatus(raw.status),
     appliedOn: String(raw.appliedOn || raw.createdAt || '').split('T')[0],
     reason: String(raw.reason || ''),
     days: Number(raw.days || raw.totalDays || 1),
+    rejectionReason: String(raw.rejectionReason || ''),
+    reviewedOn: reviewed,
   };
 }
 
@@ -120,8 +132,23 @@ export default function LeavesPage() {
     queryKey: ['employee-leave-requests'],
     enabled: canView && section === 'leaves',
     queryFn: async () => {
-      const response: any = await api.get('/leaves/requests', { params: { limit: 100 } });
-      return asList(response).map(mapRequest).filter((item) => item.id);
+      const collected: any[] = [];
+      let page = 1;
+      let totalPages = 1;
+      while (page <= totalPages && page <= 5) {
+        const response: any = await api.get('/leaves/requests', { params: { page, limit: 100 } });
+        collected.push(...asList(response));
+        totalPages = Number(response?.pagination?.totalPages || response?.meta?.totalPages || 1);
+        page += 1;
+      }
+      const seen = new Set<number>();
+      return collected
+        .map(mapRequest)
+        .filter((item) => {
+          if (!item.id || seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
     },
   });
 
@@ -184,13 +211,12 @@ export default function LeavesPage() {
     <div className="mx-auto w-full max-w-6xl space-y-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Requests & Applications</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage your leave, expenses and remote work requests.</p>
+        <p className="mt-1 text-sm text-slate-500">Manage your leave and expense requests.</p>
         <div className="mt-4 flex gap-6 border-b border-slate-200">
           {(
             [
               ['leaves', 'Leaves'],
               ['expenses', 'Expenses'],
-              ['remote', 'Remote Work'],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -236,7 +262,7 @@ export default function LeavesPage() {
                     const tone = CARD_TONE[index % CARD_TONE.length];
                     const Icon = tone.icon;
                     return (
-                      <div key={`${item.leaveTypeId}-${item.name}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div key={`${item.leaveTypeId}-${item.name}`} className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-medium text-slate-500">{item.name}</p>
                           <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${tone.wash}`}>
@@ -298,13 +324,15 @@ export default function LeavesPage() {
                     </button>
                   </div>
                 ) : visible.length === 0 ? (
-                  <div className="px-5 py-14 text-center text-sm text-slate-500">No leave applications in this list.</div>
+                  <div className="px-5 py-14 text-center text-sm text-slate-500">
+                    {list === 'history' ? 'No previous leave applications.' : 'No active or pending leave applications.'}
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-left text-sm">
+                    <table className="w-full min-w-[920px] text-left text-sm">
                       <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-400">
                         <tr>
-                          {['#', 'Leave Type', 'Date Range', 'Status', 'Applied On', 'Actions'].map((heading) => (
+                          {['#', 'Leave Type', 'Date Range', 'Days', 'Reason', 'Status', 'Applied On', 'Actions'].map((heading) => (
                             <th key={heading} className="whitespace-nowrap px-4 py-3 font-semibold">
                               {heading}
                             </th>
@@ -315,14 +343,16 @@ export default function LeavesPage() {
                         {visible.map((item, index) => (
                           <tr key={item.id} className="hover:bg-slate-50/70">
                             <td className="px-4 py-3 text-slate-400">{index + 1}</td>
-                            <td className="px-4 py-3 font-semibold text-slate-900">{item.leaveType}</td>
+                            <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-900">{item.leaveType}</td>
                             <td className="whitespace-nowrap px-4 py-3 text-slate-600">
                               {formatDay(item.fromDate)}
-                              {item.toDate && item.toDate !== item.fromDate ? ` – ${formatDay(item.toDate)}` : ''}
+                              {item.toDate && item.toDate !== item.fromDate ? ` - ${formatDay(item.toDate)}` : ''}
                             </td>
+                            <td className="px-4 py-3 text-slate-600">{item.days}</td>
+                            <td className="max-w-[220px] truncate px-4 py-3 text-slate-600" title={item.reason}>{item.reason || '—'}</td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_CLS[item.status] || STATUS_CLS.CANCELLED}`}>
-                                {item.status.charAt(0) + item.status.slice(1).toLowerCase()}
+                                {item.status}
                               </span>
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDay(item.appliedOn)}</td>
@@ -502,8 +532,6 @@ export default function LeavesPage() {
       </EmployeeSideSheet>
 
 
-      {section === 'remote' && <EmployeeRemoteWorkPage />}
-
       {/* View Leave Application Drawer */}
       <EmployeeSideSheet
         open={!!selected}
@@ -542,6 +570,26 @@ export default function LeavesPage() {
               <dt className="text-xs font-semibold text-slate-400">To Date</dt>
               <dd className="mt-0.5 font-bold text-slate-900">{formatDay(selected.toDate)}</dd>
             </div>
+            <div>
+              <dt className="text-xs font-semibold text-slate-400">Days</dt>
+              <dd className="mt-0.5 font-bold text-slate-900">{selected.days}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold text-slate-400">Applied On</dt>
+              <dd className="mt-0.5 font-bold text-slate-900">{formatDay(selected.appliedOn)}</dd>
+            </div>
+            {selected.status !== 'PENDING' && selected.reviewedOn && (
+              <div>
+                <dt className="text-xs font-semibold text-slate-400">Updated On</dt>
+                <dd className="mt-0.5 font-bold text-slate-900">{formatDay(selected.reviewedOn)}</dd>
+              </div>
+            )}
+            {selected.rejectionReason && (
+              <div className="col-span-2">
+                <dt className="text-xs font-semibold text-red-500">Rejection Reason</dt>
+                <dd className="mt-1 rounded-xl border border-red-100 bg-red-50 p-3 font-medium text-red-700">{selected.rejectionReason}</dd>
+              </div>
+            )}
             <div className="col-span-2">
               <dt className="text-xs font-semibold text-slate-400">Reason for Leave</dt>
               <dd className="mt-1 whitespace-pre-wrap rounded-xl bg-slate-50 border border-slate-100 p-3 text-slate-700 leading-relaxed">
