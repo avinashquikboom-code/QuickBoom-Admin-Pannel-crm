@@ -8,7 +8,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { EmployeeSidebar } from '@/components/EmployeeSidebar';
 import { RouteGuard } from '@/components/RouteGuard';
 import { FcmProvider } from '@/components/FcmProvider';
-import { Bell, Menu, X, Check } from 'lucide-react';
+import { Bell, LogOut, Menu } from 'lucide-react';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { getUserRole } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
@@ -78,66 +78,73 @@ export default function EmployeeDashboardLayout({ children }: { children: React.
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm transition-all h-16">
-          <div className="flex items-center justify-between px-4 sm:px-6 h-full gap-4">
-            {/* Mobile Menu Toggle & Title */}
-            <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-40 h-16 border-b border-slate-200 bg-white">
+          <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
               <button
+                type="button"
                 onClick={() => setMobileOpen(true)}
-                className="lg:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+                aria-label="Open menu"
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="h-5 w-5" />
               </button>
-              
-              <div className="hidden lg:flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center shadow-sm">
-                  <Image src="/app_logo.png" alt="Logo" width={18} height={18} className="object-contain" />
+
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#E8F9EE] ring-1 ring-[#23C45E]/20">
+                  <Image src="/app_logo.png" alt="QuikBoom" width={20} height={20} className="object-contain" />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-black text-slate-900 tracking-tight leading-tight">Employee Workspace</span>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-tight">QuikBoom</span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold leading-tight text-slate-900">Employee Workspace</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">QuikBoom</p>
                 </div>
               </div>
             </div>
 
-            {/* Header Right Actions */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Notification Bell */}
+            <div className="flex items-center gap-2">
               <Link
                 href="/employee/notifications"
-                className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                aria-label="Notifications"
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="h-[18px] w-[18px]" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white ring-2 ring-rose-500/20 shadow-sm" />
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
                 )}
               </Link>
 
-              {/* Desktop Profile Display */}
-              <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-slate-200">
-                <div className="text-right">
-                  <div className="text-sm font-bold text-slate-900 leading-tight">
-                    {user?.firstName} {user?.lastName}
-                  </div>
-                  <div className="text-[10px] font-black text-[#2563EB] uppercase tracking-wider leading-tight mt-0.5">
-                    {getUserRole(user)}
-                  </div>
+              <div className="hidden items-center gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 py-1 pl-1 pr-1.5 sm:flex">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#1AA14D] text-sm font-bold text-white">
+                  {user?.firstName?.[0] || 'E'}
                 </div>
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm border-2 border-white shadow-sm ring-1 ring-slate-200">
-                    {user?.firstName?.[0] || 'E'}
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
-                    <Check className="w-2 h-2 text-white" strokeWidth={4} />
-                  </div>
+                <div className="min-w-0 pr-1">
+                  <p className="truncate text-sm font-semibold leading-tight text-slate-900">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#1AA14D]">
+                    {getUserRole(user)}
+                  </p>
                 </div>
                 <button
+                  type="button"
                   onClick={handleLogout}
-                  className="ml-2 text-[11px] font-bold text-slate-500 hover:text-rose-600 transition-colors"
+                  className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:bg-white hover:text-rose-600"
                 >
+                  <LogOut className="h-3.5 w-3.5" />
                   Logout
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:text-rose-600 sm:hidden"
+                aria-label="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </header>

@@ -18,10 +18,7 @@ import {
   X,
   Eye,
   EyeOff,
-  Sliders,
   Settings as SettingsIcon,
-  HelpCircle,
-  ExternalLink,
 } from 'lucide-react';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { toast } from 'react-hot-toast';
@@ -30,9 +27,6 @@ export default function AccountSettingsPage() {
   const router = useRouter();
   const user = useEmployeeAuthStore((state) => state.user);
   const logout = useEmployeeAuthStore((state) => state.logout);
-
-  // Active navigation tab on desktop
-  const [activeTab, setActiveTab] = useState<'all' | 'security' | 'preferences' | 'about'>('all');
 
   // Modals state
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -85,14 +79,6 @@ export default function AccountSettingsPage() {
     }, 600);
   };
 
-  const scrollToSection = (sectionId: string, tabKey: 'all' | 'security' | 'preferences' | 'about') => {
-    setActiveTab(tabKey);
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* ── 1. Page Header ─────────────────────────────────────────────────── */}
@@ -123,83 +109,8 @@ export default function AccountSettingsPage() {
         </div>
       </div>
 
-      {/* ── 2. Desktop Two-Column Settings Layout ───────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Settings Navigation Sidebar */}
-        <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-20">
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-3">
-            <p className="px-3 pt-2 pb-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400">
-              Settings Navigation
-            </p>
-
-            <nav className="space-y-1">
-              <button
-                type="button"
-                onClick={() => scrollToSection('section-security', 'security')}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'security'
-                    ? 'bg-[#E8F9EE] text-[#1AA14D] shadow-2xs'
-                    : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <User className="w-4 h-4 text-[#1AA14D]" />
-                  <span>Profile & Security</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => scrollToSection('section-preferences', 'preferences')}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'preferences'
-                    ? 'bg-[#E8F9EE] text-[#1AA14D] shadow-2xs'
-                    : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Sliders className="w-4 h-4 text-[#1AA14D]" />
-                  <span>Preferences</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => scrollToSection('section-about', 'about')}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'about'
-                    ? 'bg-[#E8F9EE] text-[#1AA14D] shadow-2xs'
-                    : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Info className="w-4 h-4 text-[#1AA14D]" />
-                  <span>About</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-            </nav>
-
-            <div className="mt-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50/70 hover:bg-rose-100 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <LogOut className="w-4 h-4 text-rose-600" />
-                  <span>Sign Out</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-rose-400" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Content Sections */}
-        <div className="lg:col-span-8 space-y-6">
+      {/* ── Content Sections ──────────────────────────────────────────────── */}
+      <div className="space-y-6 max-w-4xl">
           {/* ── 3. Profile & Security ──────────────────────────────────────── */}
           <div id="section-security" className="space-y-2.5 scroll-mt-24">
             <h2 className="text-xs font-black tracking-wider text-slate-400 uppercase px-1">
@@ -397,10 +308,33 @@ export default function AccountSettingsPage() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── Change Password Modal ─────────────────────────────────────────── */}
+          {/* ── Sign Out ────────────────────────────────────────────────────── */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full p-4 sm:p-5 rounded-2xl bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200/60 flex items-center justify-between text-rose-600 transition-colors cursor-pointer group shadow-2xs"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <LogOut className="w-5 h-5 text-rose-600" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <h3 className="text-sm font-bold text-rose-700 truncate">
+                    Sign Out
+                  </h3>
+                  <p className="text-xs text-rose-500/90 mt-0.5 truncate">
+                    Sign out of your account on this device
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-rose-400 group-hover:text-rose-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Change Password Modal ─────────────────────────────────────────── */}
       {isPasswordModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
