@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { hasPermission } from '@/lib/access-control';
 import { getErrorMessage } from '@/lib/utils';
+import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
 type Filter = 'ACTIVE' | 'APPROVED' | 'PENDING' | 'HISTORY';
 
@@ -279,103 +280,118 @@ export default function EmployeeRemoteWorkPage() {
         )}
       </div>
 
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setSelected(null)}>
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-black text-slate-900">Remote Work Application</h2>
-              <button type="button" aria-label="Close" onClick={() => setSelected(null)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              {[
-                ['From Date', formatDay(selected.fromDate)],
-                ['To Date', formatDay(selected.toDate)],
-                ['Start Time', selected.startTime],
-                ['End Time', selected.endTime],
-                ['Duration', selected.duration],
-                ['Status', selected.status],
-              ].map(([k, v]) => (
-                <div key={k}>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{k}</dt>
-                  <dd className="mt-0.5 font-bold text-slate-900">{v}</dd>
-                </div>
-              ))}
-              <div className="col-span-2">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Reason & Deliverables</dt>
-                <dd className="mt-0.5 whitespace-pre-wrap text-slate-700">{selected.reason || '—'}</dd>
+      {/* View Remote Work Application Drawer */}
+      <EmployeeSideSheet
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title="Remote Work Application"
+        subtitle={selected ? `Status: ${selected.status}` : undefined}
+        footer={
+          <button
+            type="button"
+            onClick={() => setSelected(null)}
+            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            Close
+          </button>
+        }
+      >
+        {selected && (
+          <dl className="grid grid-cols-2 gap-4 text-sm">
+            {[
+              ['From Date', formatDay(selected.fromDate)],
+              ['To Date', formatDay(selected.toDate)],
+              ['Start Time', selected.startTime],
+              ['End Time', selected.endTime],
+              ['Duration', selected.duration],
+              ['Status', selected.status],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{k}</dt>
+                <dd className="mt-0.5 font-bold text-slate-900">{v}</dd>
               </div>
-              {selected.rejectionReason && (
-                <div className="col-span-2">
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-red-400">Rejection Reason</dt>
-                  <dd className="mt-0.5 text-red-700">{selected.rejectionReason}</dd>
-                </div>
-              )}
-            </dl>
-          </div>
-        </div>
-      )}
+            ))}
+            <div className="col-span-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Reason & Deliverables</dt>
+              <dd className="mt-1 whitespace-pre-wrap rounded-xl bg-slate-50 border border-slate-100 p-3 text-slate-700 leading-relaxed font-medium">
+                {selected.reason || '—'}
+              </dd>
+            </div>
+            {selected.rejectionReason && (
+              <div className="col-span-2">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-red-400">Rejection Reason</dt>
+                <dd className="mt-1 rounded-xl bg-red-50 border border-red-100 p-3 text-red-700 font-medium">
+                  {selected.rejectionReason}
+                </dd>
+              </div>
+            )}
+          </dl>
+        )}
+      </EmployeeSideSheet>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onClick={() => !submit.isPending && setOpen(false)}>
-          <div className="w-full max-w-[640px] rounded-3xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-black text-slate-900">Apply for Remote Work (WFH)</h2>
-              <button type="button" aria-label="Close" disabled={submit.isPending} onClick={() => setOpen(false)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-1.5 text-xs font-bold text-slate-600">
-                From Date
-                <input
-                  type="date"
-                  className={inputCls}
-                  value={form.fromDate}
-                  onChange={(e) => setForm((f) => ({ ...f, fromDate: e.target.value, toDate: f.toDate < e.target.value ? e.target.value : f.toDate }))}
-                />
-              </label>
-              <label className="space-y-1.5 text-xs font-bold text-slate-600">
-                To Date
-                <input type="date" className={inputCls} min={form.fromDate} value={form.toDate} onChange={(e) => setForm((f) => ({ ...f, toDate: e.target.value }))} />
-              </label>
-              <label className="space-y-1.5 text-xs font-bold text-slate-600">
-                Start Time
-                <input type="time" className={inputCls} value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
-              </label>
-              <label className="space-y-1.5 text-xs font-bold text-slate-600">
-                End Time
-                <input type="time" className={inputCls} value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
-              </label>
-              <label className="space-y-1.5 text-xs font-bold text-slate-600 sm:col-span-2">
-                Reason & Deliverables Plan *
-                <textarea
-                  rows={4}
-                  className="w-full rounded-xl border border-slate-200 p-3 text-sm font-medium text-slate-800 outline-none focus:border-[#23C45E] focus:ring-4 focus:ring-[#23C45E]/15"
-                  placeholder="Explain reason and planned deliverables during remote work..."
-                  value={form.reason}
-                  onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-                />
-              </label>
-            </div>
-            {formError && <p className="mt-3 text-sm font-semibold text-red-600">{formError}</p>}
-            <div className="mt-5 flex justify-end gap-3">
-              <button type="button" disabled={submit.isPending} onClick={() => setOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={submit.isPending}
-                onClick={handleSubmit}
-                className="rounded-xl bg-[#23C45E] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#1AA14D] disabled:opacity-60"
-              >
-                {submit.isPending ? 'Submitting...' : 'Submit Application'}
-              </button>
-            </div>
-          </div>
+      {/* Apply for Remote Work (WFH) Drawer */}
+      <EmployeeSideSheet
+        open={open}
+        onClose={() => !submit.isPending && setOpen(false)}
+        title="Apply for Remote Work"
+        subtitle="Submit a Work-From-Home (WFH) request"
+        footer={
+          <>
+            <button
+              type="button"
+              disabled={submit.isPending}
+              onClick={() => setOpen(false)}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={submit.isPending}
+              onClick={handleSubmit}
+              className="rounded-xl bg-[#23C45E] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#1AA14D] disabled:opacity-60 transition-colors cursor-pointer"
+            >
+              {submit.isPending ? 'Submitting...' : 'Submit Application'}
+            </button>
+          </>
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="space-y-1.5 text-xs font-bold text-slate-600">
+            From Date
+            <input
+              type="date"
+              className={inputCls}
+              value={form.fromDate}
+              onChange={(e) => setForm((f) => ({ ...f, fromDate: e.target.value, toDate: f.toDate < e.target.value ? e.target.value : f.toDate }))}
+            />
+          </label>
+          <label className="space-y-1.5 text-xs font-bold text-slate-600">
+            To Date
+            <input type="date" className={inputCls} min={form.fromDate} value={form.toDate} onChange={(e) => setForm((f) => ({ ...f, toDate: e.target.value }))} />
+          </label>
+          <label className="space-y-1.5 text-xs font-bold text-slate-600">
+            Start Time
+            <input type="time" className={inputCls} value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
+          </label>
+          <label className="space-y-1.5 text-xs font-bold text-slate-600">
+            End Time
+            <input type="time" className={inputCls} value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+          </label>
+          <label className="space-y-1.5 text-xs font-bold text-slate-600 sm:col-span-2">
+            Reason & Deliverables Plan *
+            <textarea
+              rows={4}
+              className="w-full rounded-xl border border-slate-200 p-3 text-sm font-medium text-slate-800 outline-none focus:border-[#23C45E] focus:ring-4 focus:ring-[#23C45E]/15 resize-none"
+              placeholder="Explain reason and planned deliverables during remote work..."
+              value={form.reason}
+              onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+            />
+          </label>
         </div>
-      )}
+        {formError && <p className="mt-2 text-sm font-semibold text-red-600">{formError}</p>}
+      </EmployeeSideSheet>
     </div>
   );
 }
+

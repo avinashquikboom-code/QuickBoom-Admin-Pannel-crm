@@ -23,6 +23,7 @@ import {
 import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { toast } from 'react-hot-toast';
+import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
 // ── Formatting Utilities ─────────────────────────────────────────────────────
 
@@ -862,165 +863,25 @@ export default function SalarySlipsPage() {
         </>
       )}
 
-      {/* ── 7. Detailed Salary Slip Modal ───────────────────────────────────── */}
-      {selectedSlip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] shadow-2xl flex flex-col border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-5 sm:p-6 bg-gradient-to-r from-emerald-800 to-[#16A34A] text-white flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200">
-                  OFFICIAL SALARY SLIP
-                </span>
-                <h3 className="text-lg sm:text-xl font-black text-white mt-0.5">
-                  Payslip for {selectedSlip.month}
-                </h3>
-                <span className="text-xs text-emerald-100/90 font-mono mt-0.5 block">
-                  Slip No: {selectedSlip.slipNumber || selectedSlip.id}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedSlip(null)}
-                className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* ── 7. Detailed Salary Slip Drawer ───────────────────────────────────── */}
+      <EmployeeSideSheet
+        open={!!selectedSlip}
+        onClose={() => setSelectedSlip(null)}
+        title={selectedSlip ? `Payslip for ${selectedSlip.month}` : 'Official Salary Slip'}
+        subtitle={selectedSlip ? `Slip No: ${selectedSlip.slipNumber || selectedSlip.id}` : undefined}
+        icon={<FileText className="w-5 h-5" />}
+        maxWidthClass="sm:max-w-[560px] md:max-w-[640px]"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setSelectedSlip(null)}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs cursor-pointer transition-colors"
+            >
+              Close
+            </button>
 
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar text-xs">
-              {/* Employee Summary Card */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Employee</span>
-                  <p className="font-bold text-slate-900 truncate">
-                    {profile?.name || (profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}`.trim() : user?.firstName || 'Employee')}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase">ID</span>
-                  <p className="font-bold text-[#16A34A] truncate">
-                    {profile?.employeeCode || (user as any)?.employeeCode || 'EMP-004'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Designation</span>
-                  <p className="font-bold text-slate-900 truncate">
-                    {profile?.designation?.name || profile?.designation || (user as any)?.designation || 'Telesales Executive'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Disbursed</span>
-                  <p className="font-bold text-slate-900 truncate">
-                    {formatDisplayDate(selectedSlip.date)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Earnings & Deductions Tables */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Earnings Column */}
-                <div className="bg-slate-50/60 rounded-2xl p-4 border border-slate-200/80 space-y-2">
-                  <h4 className="font-black text-[#16A34A] uppercase tracking-wider text-[11px] pb-1.5 border-b border-slate-200 flex items-center justify-between">
-                    <span>Earnings</span>
-                    <span>Amount</span>
-                  </h4>
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>Basic Salary</span>
-                    <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.basicSalary)}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>HRA Allowance</span>
-                    <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.hra)}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>Allowances & Special</span>
-                    <span className="font-bold text-slate-900">
-                      {formatCurrency(selectedSlip.allowances + selectedSlip.specialAllowance)}
-                    </span>
-                  </div>
-                  {selectedSlip.commission > 0 && (
-                    <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                      <span>Earned Commission</span>
-                      <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.commission)}</span>
-                    </div>
-                  )}
-                  {selectedSlip.reimbursement > 0 && (
-                    <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-700">
-                      <span>Expense Reimbursement</span>
-                      <span className="font-bold text-emerald-700">{formatCurrency(selectedSlip.reimbursement)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between pt-2 font-black text-slate-900 text-sm">
-                    <span>Gross Salary:</span>
-                    <span>{formatCurrency(selectedSlip.grossSalary)}</span>
-                  </div>
-                </div>
-
-                {/* Deductions Column */}
-                <div className="bg-slate-50/60 rounded-2xl p-4 border border-slate-200/80 space-y-2">
-                  <h4 className="font-black text-rose-700 uppercase tracking-wider text-[11px] pb-1.5 border-b border-slate-200 flex items-center justify-between">
-                    <span>Deductions</span>
-                    <span>Amount</span>
-                  </h4>
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>Provident Fund (PF)</span>
-                    <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.pf)}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>ESI Contribution</span>
-                    <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.esi)}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>TDS / Income Tax</span>
-                    <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.tds)}</span>
-                  </div>
-                  {selectedSlip.loanDeduction > 0 && (
-                    <div className="flex justify-between py-1 border-b border-slate-100 text-rose-700">
-                      <span>Loan EMI</span>
-                      <span className="font-bold text-rose-700">{formatCurrency(selectedSlip.loanDeduction)}</span>
-                    </div>
-                  )}
-                  {selectedSlip.unpaidLeaveDeduction > 0 && (
-                    <div className="flex justify-between py-1 border-b border-slate-100 text-rose-700">
-                      <span>Loss of Pay (LOP)</span>
-                      <span className="font-bold text-rose-700">{formatCurrency(selectedSlip.unpaidLeaveDeduction)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between pt-2 font-black text-rose-600 text-sm">
-                    <span>Total Deductions:</span>
-                    <span>- {formatCurrency(selectedSlip.deductions)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Net Payout Banner */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-[#E8F9EE] border border-emerald-200/80 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] uppercase font-black text-[#1AA14D] block tracking-wider">
-                    TOTAL NET TAKE-HOME PAY
-                  </span>
-                  <p className="text-2xl font-black text-[#16A34A] mt-0.5">
-                    {formatCurrency(selectedSlip.netSalary)}
-                  </p>
-                </div>
-                <span className="px-3 py-1 rounded-full bg-emerald-100 text-[#1AA14D] border border-emerald-200/60 font-black text-xs uppercase tracking-wider">
-                  {selectedSlip.status || 'PAID'}
-                </span>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedSlip(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs cursor-pointer transition-colors"
-              >
-                Close
-              </button>
-
+            {selectedSlip && (
               <button
                 type="button"
                 onClick={() => handleDownloadPdf(selectedSlip)}
@@ -1030,10 +891,135 @@ export default function SalarySlipsPage() {
                 <Download className="w-3.5 h-3.5 text-white" />
                 <span>Download PDF</span>
               </button>
+            )}
+          </>
+        }
+      >
+        {selectedSlip && (
+          <div className="space-y-5 text-xs">
+            {/* Employee Summary Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase">Employee</span>
+                <p className="font-bold text-slate-900 truncate">
+                  {profile?.name || (profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}`.trim() : user?.firstName || 'Employee')}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase">ID</span>
+                <p className="font-bold text-[#16A34A] truncate">
+                  {profile?.employeeCode || (user as any)?.employeeCode || 'EMP-004'}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase">Designation</span>
+                <p className="font-bold text-slate-900 truncate">
+                  {profile?.designation?.name || profile?.designation || (user as any)?.designation || 'Telesales Executive'}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase">Disbursed</span>
+                <p className="font-bold text-slate-900 truncate">
+                  {formatDisplayDate(selectedSlip.date)}
+                </p>
+              </div>
+            </div>
+
+            {/* Earnings & Deductions Tables */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Earnings Column */}
+              <div className="bg-slate-50/60 rounded-2xl p-4 border border-slate-200/80 space-y-2">
+                <h4 className="font-black text-[#16A34A] uppercase tracking-wider text-[11px] pb-1.5 border-b border-slate-200 flex items-center justify-between">
+                  <span>Earnings</span>
+                  <span>Amount</span>
+                </h4>
+                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
+                  <span>Basic Salary</span>
+                  <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.basicSalary)}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
+                  <span>HRA Allowance</span>
+                  <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.hra)}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
+                  <span>Allowances & Special</span>
+                  <span className="font-bold text-slate-900">
+                    {formatCurrency(selectedSlip.allowances + selectedSlip.specialAllowance)}
+                  </span>
+                </div>
+                {selectedSlip.commission > 0 && (
+                  <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
+                    <span>Earned Commission</span>
+                    <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.commission)}</span>
+                  </div>
+                )}
+                {selectedSlip.reimbursement > 0 && (
+                  <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-700">
+                    <span>Expense Reimbursement</span>
+                    <span className="font-bold text-emerald-700">{formatCurrency(selectedSlip.reimbursement)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-2 font-black text-slate-900 text-sm">
+                  <span>Gross Salary:</span>
+                  <span>{formatCurrency(selectedSlip.grossSalary)}</span>
+                </div>
+              </div>
+
+              {/* Deductions Column */}
+              <div className="bg-slate-50/60 rounded-2xl p-4 border border-slate-200/80 space-y-2">
+                <h4 className="font-black text-rose-700 uppercase tracking-wider text-[11px] pb-1.5 border-b border-slate-200 flex items-center justify-between">
+                  <span>Deductions</span>
+                  <span>Amount</span>
+                </h4>
+                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
+                  <span>Provident Fund (PF)</span>
+                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.pf)}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
+                  <span>ESI Contribution</span>
+                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.esi)}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
+                  <span>TDS / Income Tax</span>
+                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.tds)}</span>
+                </div>
+                {selectedSlip.loanDeduction > 0 && (
+                  <div className="flex justify-between py-1 border-b border-slate-100 text-rose-700">
+                    <span>Loan EMI</span>
+                    <span className="font-bold text-rose-700">{formatCurrency(selectedSlip.loanDeduction)}</span>
+                  </div>
+                )}
+                {selectedSlip.unpaidLeaveDeduction > 0 && (
+                  <div className="flex justify-between py-1 border-b border-slate-100 text-rose-700">
+                    <span>Loss of Pay (LOP)</span>
+                    <span className="font-bold text-rose-700">{formatCurrency(selectedSlip.unpaidLeaveDeduction)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-2 font-black text-rose-600 text-sm">
+                  <span>Total Deductions:</span>
+                  <span>- {formatCurrency(selectedSlip.deductions)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Net Payout Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-[#E8F9EE] border border-emerald-200/80 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-black text-[#1AA14D] block tracking-wider">
+                  TOTAL NET TAKE-HOME PAY
+                </span>
+                <p className="text-2xl font-black text-[#16A34A] mt-0.5">
+                  {formatCurrency(selectedSlip.netSalary)}
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-emerald-100 text-[#1AA14D] border border-emerald-200/60 font-black text-xs uppercase tracking-wider">
+                {selectedSlip.status || 'PAID'}
+              </span>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </EmployeeSideSheet>
+
     </div>
   );
 }

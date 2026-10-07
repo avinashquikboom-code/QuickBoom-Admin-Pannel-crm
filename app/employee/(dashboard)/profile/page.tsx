@@ -28,6 +28,7 @@ import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { hasPermission } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
+import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
 // ── Date Formatting Helpers ───────────────────────────────────────────────────
 
@@ -659,107 +660,93 @@ export default function EmployeeProfilePage() {
         </div>
       </div>
 
-      {/* ── 9. EDIT PROFILE MODAL ───────────────────────────────────────────── */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <Pencil className="w-4 h-4" />
-                </div>
-                <h3 className="font-black text-slate-900 text-base">Edit Personal Information</h3>
-              </div>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* ── 9. EDIT PROFILE DRAWER ───────────────────────────────────────────── */}
+      <EmployeeSideSheet
+        open={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Personal Information"
+        subtitle="Update your contact and residential details"
+        icon={<Pencil className="w-4 h-4" />}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="edit-profile-form"
+              disabled={isSaving}
+              className="px-5 py-2 rounded-xl text-xs font-bold bg-[#23C45E] hover:bg-[#1AA14D] text-white shadow-md shadow-[#23C45E]/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              {isSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+            </button>
+          </>
+        }
+      >
+        <form id="edit-profile-form" onSubmit={handleSaveProfile} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">First Name *</label>
+              <input
+                type="text"
+                required
+                value={editForm.firstName}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500"
+                placeholder="First Name"
+              />
             </div>
-
-            {/* Modal Form */}
-            <form onSubmit={handleSaveProfile} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">First Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={editForm.firstName}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, firstName: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500"
-                    placeholder="First Name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    value={editForm.lastName}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, lastName: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500"
-                    placeholder="Last Name"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Phone Number</label>
-                <input
-                  type="tel"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500"
-                  placeholder="+91..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Residential Address</label>
-                <textarea
-                  rows={2}
-                  value={editForm.address}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, address: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500 resize-none"
-                  placeholder="Street, City, State..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Emergency Contact</label>
-                <input
-                  type="text"
-                  value={editForm.emergencyContact}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, emergencyContact: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500"
-                  placeholder="Contact Name & Phone"
-                />
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#23C45E] hover:bg-[#1AA14D] text-white shadow-md shadow-[#23C45E]/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {isSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
-                </button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1">Last Name</label>
+              <input
+                type="text"
+                value={editForm.lastName}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500"
+                placeholder="Last Name"
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Phone Number</label>
+            <input
+              type="tel"
+              value={editForm.phone}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500"
+              placeholder="+91..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Residential Address</label>
+            <textarea
+              rows={2}
+              value={editForm.address}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, address: e.target.value }))}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500 resize-none"
+              placeholder="Street, City, State..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Emergency Contact</label>
+            <input
+              type="text"
+              value={editForm.emergencyContact}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, emergencyContact: e.target.value }))}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-emerald-500 focus:border-emerald-500"
+              placeholder="Contact Name & Phone"
+            />
+          </div>
+        </form>
+      </EmployeeSideSheet>
     </div>
   );
 }

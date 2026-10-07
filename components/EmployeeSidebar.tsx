@@ -122,7 +122,7 @@ export function EmployeeSidebar({
       permission: ['employee.attendance.view', 'attendance.view_own', 'attendance.view'],
     },
     {
-      name: 'Requests & Leaves',
+      name: 'Requests & Applications',
       href: '/employee/leaves',
       icon: FileText,
       permission: ['employee.leave.view', 'leave.view_own', 'leave.view'],

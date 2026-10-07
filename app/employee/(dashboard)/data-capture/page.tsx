@@ -23,6 +23,7 @@ import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { hasPermission } from '@/lib/access-control';
 import { getErrorMessage } from '@/lib/utils';
+import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
 interface CaptureUsage {
   totalExtractions?: number;
@@ -357,105 +358,84 @@ export default function EmployeeDataCapturePage() {
         )}
       </section>
 
-      {isCaptureOpen && canCreate && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setIsCaptureOpen(false);
+      {/* ── Start New Capture Drawer ─────────────────────────────────── */}
+      <EmployeeSideSheet
+        open={Boolean(isCaptureOpen && canCreate)}
+        onClose={() => setIsCaptureOpen(false)}
+        title="Start New Capture"
+        subtitle="Search Google Places for businesses and prospects"
+        icon={<Search className="w-4 h-4" />}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsCaptureOpen(false)}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="capture-form"
+              disabled={captureMutation.isPending}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-extrabold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer shadow-md shadow-emerald-600/20"
+            >
+              {captureMutation.isPending ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
+              {captureMutation.isPending ? 'Capturing…' : 'Search Google Places'}
+            </button>
+          </>
+        }
+      >
+        <form
+          id="capture-form"
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            captureMutation.mutate();
           }}
         >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="new-capture-title"
-            className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-7"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 id="new-capture-title" className="text-xl font-black text-slate-900">
-                  Start New Capture
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Search Google Places for businesses and prospects.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCaptureOpen(false)}
-                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Close capture form"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form
-              className="mt-6 space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                captureMutation.mutate();
-              }}
-            >
-              <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-700">Search term</span>
-                <input
-                  required
-                  value={keyword}
-                  onChange={(event) => setKeyword(event.target.value)}
-                  placeholder="e.g. cafes, accountants"
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-700">Location</span>
-                <input
-                  required
-                  value={location}
-                  onChange={(event) => setLocation(event.target.value)}
-                  placeholder="City, region, or address"
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-700">Maximum results</span>
-                <input
-                  required
-                  type="number"
-                  min={1}
-                  value={maxResults}
-                  onChange={(event) => setMaxResults(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsCaptureOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={captureMutation.isPending}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-extrabold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {captureMutation.isPending ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4" />
-                  )}
-                  {captureMutation.isPending ? 'Capturing…' : 'Search Google Places'}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
+          <label className="block space-y-1.5">
+            <span className="text-xs font-bold text-slate-700">Search term *</span>
+            <input
+              required
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder="e.g. cafes, accountants"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-bold text-slate-700">Location *</span>
+            <input
+              required
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              placeholder="City, region, or address"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-bold text-slate-700">Maximum results *</span>
+            <input
+              required
+              type="number"
+              min={1}
+              value={maxResults}
+              onChange={(event) => setMaxResults(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+          </label>
+        </form>
+      </EmployeeSideSheet>
     </div>
   );
 }
+
+
 
 function StatCard({
   label,
