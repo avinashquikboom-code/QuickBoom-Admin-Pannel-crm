@@ -229,7 +229,13 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
   // Required by business logic to render Employee Web sidebar as a flat list
   // instead of an accordion/dropdown structure.
   if (role === 'Employee') {
-    const flatItems = accessibleSections.flatMap(section => section.items);
+    // Limited to the primary modules of the mobile employee bottom navigation.
+    // Other employee routes (attendance, leaves, etc.) remain available, just not listed here.
+    const primaryEmployeeRoutes = ['/employee/dashboard', '/employee/data-capture', '/employee/leads', '/employee/customers', '/employee/profile'];
+    const flatItems = primaryEmployeeRoutes
+      .map(href => accessibleSections.flatMap(section => section.items).find(item => item.href === href))
+      .filter((item): item is NonNullable<typeof item> => !!item)
+      .map(item => (item.href === '/employee/dashboard' ? { ...item, name: 'Home' } : item));
     accessibleSections = flatItems.map((item, index) => ({
       id: `flat-employee-nav-${index}`,
       category: item.name,
