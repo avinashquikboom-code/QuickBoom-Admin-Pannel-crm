@@ -41,7 +41,7 @@ import { formatDurationHoursMinutes } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminFormDrawer, AdminPageHeader, AdminButton } from '@/components/admin';
 
-type EmployeeTab = 'overview' | 'attendance' | 'breaks' | 'leave' | 'payroll' | 'permissions';
+type EmployeeTab = 'overview' | 'attendance' | 'breaks' | 'leave' | 'payroll' | 'communications' | 'permissions';
 
 export default function EmployeeDetailPage() {
   const params = useParams();
@@ -335,7 +335,7 @@ export default function EmployeeDetailPage() {
 
       {/* 3. Tabs Navigation */}
       <div className="flex items-center gap-1 border-b border-slate-200 pb-2 overflow-x-auto">
-        {(['overview', 'attendance', 'breaks', 'leave', 'payroll', 'permissions'] as EmployeeTab[]).map((t) => (
+        {(['overview', 'attendance', 'breaks', 'leave', 'payroll', 'communications', 'permissions'] as EmployeeTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
@@ -353,6 +353,8 @@ export default function EmployeeDetailPage() {
               ? 'Leaves & Time Off'
               : t === 'permissions'
               ? 'Permissions & Mobile Access'
+              : t === 'communications'
+              ? 'Communication'
               : t}
           </button>
         ))}
@@ -621,6 +623,10 @@ export default function EmployeeDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'communications' && (
+        <EmployeeCommunications employeeId={id} email={emp?.email} phone={emp?.phone} />
       )}
 
       {/* Tab 6: Permissions & Mobile Access */}
@@ -1232,6 +1238,149 @@ export default function EmployeeDetailPage() {
           </div>
         </div>
       </AdminFormDrawer>
+    </div>
+  );
+}
+
+function EmployeeCommunications({
+  employeeId,
+  email,
+  phone,
+}: {
+  employeeId: string;
+  email?: string;
+  phone?: string;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const now = new Date();
+  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const { data, refetch, isFetching } = useQuery({
+    queryKey: ['employee-communications', employeeId],
+    queryFn: async () => {
+      const res: any = await api.get(`/notifications/employee-communications?employeeId=${employeeId}`);
+      return res?.data || res;
+    },
+  });
+  const items = Array.isArray(data?.items) ? data.items : [];
+  const lastEmail = items.find((item: any) => item.channel === 'EMAIL');
+  const lastWhatsapp = items.find((item: any) => item.channel === 'WHATSAPP');
+
+  const resend = async (logId: number, channel: 'EMAIL' | 'WHATSAPP' | 'BOTH') => {
+    setBusy(`${logId}-${channel}`);
+    try {
+      await api.post(`/notifications/employee-communications/${logId}/resend`, { channel });
+      toast.success(channel === 'BOTH' ? 'Email and WhatsApp queued' : `${channel} queued`);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not resend');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const generateAttendance = async () => {
+    setBusy('attendance');
+    try {
+      await api.post('/notifications/employee-communications/attendance/generate', {
+        employeeId: Number(employeeId),
+        year: previous.getFullYear(),
+        month: previous.getMonth() + 1,
+      });
+      toast.success('Attendance report generated');
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not generate the attendance report');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const download = async (path: string, filename: string) => {
+    const file = await api.get(path, { responseType: 'blob' });
+    const blob = file instanceof Blob ? file : new Blob([file as any], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-4 text-xs">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white border border-slate-200 rounded-2xl p-3">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Email</p>
+          <p className="font-bold text-slate-900 truncate">{email || 'Missing'}</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-3">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">WhatsApp</p>
+          <p className="font-bold text-slate-900 truncate">{phone || 'Missing'}</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-3">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Last Email</p>
+          <p className="font-bold text-slate-900">{lastEmail ? `${lastEmail.eventType} · ${lastEmail.status}` : '—'}</p>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-3">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Last WhatsApp</p>
+          <p className="font-bold text-slate-900">{lastWhatsapp ? `${lastWhatsapp.eventType} · ${lastWhatsapp.status}` : '—'}</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={generateAttendance} disabled={busy === 'attendance'} className="px-3 py-2 rounded-xl bg-slate-900 text-white font-bold cursor-pointer">
+          Generate & Send attendance
+        </button>
+        <button
+          onClick={() => download(`/notifications/employee-communications/attendance/pdf?employeeId=${employeeId}&year=${previous.getFullYear()}&month=${previous.getMonth() + 1}`, 'attendance-report.pdf')}
+          className="px-3 py-2 rounded-xl border border-slate-200 font-bold cursor-pointer"
+        >
+          Download attendance PDF
+        </button>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
+        <table className="w-full text-left">
+          <thead className="text-[10px] uppercase text-slate-400">
+            <tr>
+              <th className="p-3">Event</th>
+              <th className="p-3">Channel</th>
+              <th className="p-3">Status</th>
+              <th className="p-3">Recipient</th>
+              <th className="p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 && (
+              <tr><td className="p-3 text-slate-500" colSpan={5}>{isFetching ? 'Loading…' : 'No employee communications yet.'}</td></tr>
+            )}
+            {items.map((item: any) => {
+              const parts = String(item.identifierKey || '').split(':');
+              const slipId = item.eventType === 'SALARY_SLIP' ? parts[2] : '';
+              const reportMonth = item.eventType === 'ATTENDANCE_REPORT' ? parts[2] : '';
+              return (
+                <tr key={item.id} className="border-t border-slate-100">
+                  <td className="p-3 font-bold">{item.eventType}</td>
+                  <td className="p-3">{item.channel}</td>
+                  <td className="p-3">{item.status}</td>
+                  <td className="p-3">{item.recipient}</td>
+                  <td className="p-3">
+                    <div className="flex flex-wrap gap-1">
+                      {slipId && (
+                        <button onClick={() => download(`/notifications/employee-communications/salary-slips/${slipId}/pdf`, `salary-slip-${slipId}.pdf`)} className="px-2 py-1 rounded-lg border cursor-pointer">Download</button>
+                      )}
+                      {reportMonth && (
+                        <button onClick={() => download(`/notifications/employee-communications/attendance/pdf?employeeId=${employeeId}&year=${reportMonth.split('-')[0]}&month=${Number(reportMonth.split('-')[1])}`, `attendance-report-${reportMonth}.pdf`)} className="px-2 py-1 rounded-lg border cursor-pointer">Download</button>
+                      )}
+                      <button disabled={busy === `${item.id}-EMAIL`} onClick={() => resend(item.id, 'EMAIL')} className="px-2 py-1 rounded-lg border cursor-pointer">Send Email</button>
+                      <button disabled={busy === `${item.id}-WHATSAPP`} onClick={() => resend(item.id, 'WHATSAPP')} className="px-2 py-1 rounded-lg border cursor-pointer">Send WhatsApp</button>
+                      <button disabled={busy === `${item.id}-BOTH`} onClick={() => resend(item.id, 'BOTH')} className="px-2 py-1 rounded-lg border cursor-pointer">Send Both</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
