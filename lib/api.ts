@@ -383,15 +383,6 @@ api.interceptors.request.use(
         }
       }
 
-      const isEmployeeRoute = isEmployeePortalRoute();
-      if (isEmployeeRoute) {
-        if (typeof config.headers?.set === 'function') {
-          config.headers.set('x-portal-type', 'employee-web');
-        } else {
-          config.headers = config.headers || {};
-          config.headers['x-portal-type'] = 'employee-web';
-        }
-      }
 
       let tokenExpired = false;
       let jwtUserId: any = null;
