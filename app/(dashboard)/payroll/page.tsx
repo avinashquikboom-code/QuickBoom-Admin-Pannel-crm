@@ -98,6 +98,7 @@ export default function PayrollPage() {
 
   // Client-side mount flag for Recharts & browser safety
   const [isMounted, setIsMounted] = useState(false);
+  const [payTarget, setPayTarget] = useState<any>(null);
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -342,6 +343,23 @@ export default function PayrollPage() {
     onSuccess: (res: any) => {
       const msg = res?.data?.message || 'Salary slips batch generated successfully!';
       toast.success(msg);
+      queryClient.invalidateQueries({ queryKey: ['admin-current-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-slips'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-payroll-history'] });
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  const payItemMutation = useMutation({
+    mutationFn: async (itemId: number) => api.post(`/admin/payroll/items/${itemId}/pay`, {}),
+    onSuccess: (res: any) => {
+      const item = res?.data?.data;
+      const email = item?.emailStatus || '';
+      const whatsapp = item?.whatsappStatus || '';
+      toast.success(`Payroll marked as paid. Email ${email || 'updated'}. WhatsApp ${whatsapp || 'updated'}.`);
+      setPayTarget(null);
       queryClient.invalidateQueries({ queryKey: ['admin-current-payroll'] });
       queryClient.invalidateQueries({ queryKey: ['admin-salary-slips'] });
       queryClient.invalidateQueries({ queryKey: ['admin-payroll-history'] });
@@ -812,12 +830,14 @@ export default function PayrollPage() {
                     <th className="p-3">Deductions</th>
                     <th className="p-3 font-black">Net Salary</th>
                     <th className="p-3">Status</th>
+                    <th className="p-3">Payable</th>
+                    <th className="p-3">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {!currentPayroll || !currentPayroll.items || currentPayroll.items.length === 0 ? (
                     <tr>
-                      <td colSpan={13} className="p-8 text-center text-slate-400">
+                      <td colSpan={15} className="p-8 text-center text-slate-400">
                         {isCurrentPayrollLoading
                           ? 'Loading current payroll items...'
                           : `No calculated payroll records for ${selectedMonth} ${selectedYear}. Click "1. Calculate Payroll" to run calculation.`}
@@ -853,6 +873,23 @@ export default function PayrollPage() {
                           }`}>
                             {item.status}
                           </span>
+                          {item.status === 'PAID' && (
+                            <span className="block text-[10px] text-slate-500 mt-1">{item.emailStatus || 'EMAIL_PENDING'} · {item.whatsappStatus || 'WHATSAPP_PENDING'}</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-slate-700">{item.calculationSnapshot?.payableDays ?? item.payableDays ?? '—'}</td>
+                        <td className="p-3">
+                          {item.status === 'PAID' ? (
+                            <span className="text-[11px] font-bold text-emerald-700">PAID</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setPayTarget(item)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold cursor-pointer"
+                            >
+                              Mark as Paid
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -1535,6 +1572,28 @@ export default function PayrollPage() {
                   <Printer className="w-4 h-4" /> Print / PDF
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {payTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-5 space-y-3">
+            <h3 className="font-extrabold text-slate-900">Are you sure you want to mark this payroll as Paid?</h3>
+            <p className="text-sm text-slate-600">Employee: {payTarget.employee?.firstName} {payTarget.employee?.lastName}</p>
+            <p className="text-sm text-slate-600">Payroll Month: {selectedMonth} {selectedYear}</p>
+            <p className="text-sm text-slate-600">Net Salary: ₹{Number(payTarget.netSalary || 0).toLocaleString('en-IN')}</p>
+            <p className="text-sm text-slate-600">Payment status: {payTarget.status}</p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setPayTarget(null)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold cursor-pointer">Cancel</button>
+              <button
+                type="button"
+                disabled={payItemMutation.isPending}
+                onClick={() => payItemMutation.mutate(payTarget.id)}
+                className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold cursor-pointer"
+              >
+                {payItemMutation.isPending ? 'Marking...' : 'Mark as Paid'}
+              </button>
             </div>
           </div>
         </div>
