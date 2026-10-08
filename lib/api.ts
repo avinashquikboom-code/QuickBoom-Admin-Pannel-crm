@@ -103,74 +103,38 @@ export function getPersistedAuthSession() {
           if (!token && isValidTokenString(parsed.state.token)) token = parsed.state.token.trim();
           if (!refreshToken && isValidTokenString(parsed.state.refreshToken)) refreshToken = parsed.state.refreshToken.trim();
           user = user || parsed.state.user || null;
-          customerId = customerId || parsed.state.customerId || null;
+          customerId = customerId || parsed.state.customerId || parsed.state.user?.customerId || null;
         }
       }
     } catch {}
   }
-  return { token, refreshToken, user, customerId };
-}
 
-// dummy block to allow replacement of the old block if needed
-/*
-  let token = isValidTokenString(state.token) ? state.token.trim() : null;
-  let refreshToken = isValidTokenString(state.refreshToken) ? state.refreshToken.trim() : null;
-  let user = state.user;
-  let customerId = state.customerId;
-
-  if (!token || !refreshToken || !user) {
-    try {
-      const raw = localStorage.getItem('quikboom-next-auth-storage');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state) {
-          if (!token && isValidTokenString(parsed.state.token)) {
-            token = parsed.state.token.trim();
-          }
-          if (!refreshToken && isValidTokenString(parsed.state.refreshToken)) {
-            refreshToken = parsed.state.refreshToken.trim();
-          }
-          user = user || parsed.state.user || null;
-          customerId = customerId || parsed.state.customerId || null;
-        }
-      }
-    } catch {
-      // ignore storage parsing error
-    }
-  }
-
-  // Fallback to direct localStorage keys if Zustand store hasn't been populated
+  // Login also writes these keys. Use them when the in-memory store is empty,
+  // and prefer the token that expires later when both exist.
   const rawAccessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
   if (isValidTokenString(rawAccessToken)) {
-    const cleanStorageToken = rawAccessToken.trim();
+    const storedAccessToken = rawAccessToken.trim();
     if (!token) {
-      token = cleanStorageToken;
-    } else if (token !== cleanStorageToken) {
-      const pState = safeDecodeJwtPayload(token);
-      const pStorage = safeDecodeJwtPayload(cleanStorageToken);
-      const expState = pState?.exp ? Number(pState.exp) : 0;
-      const expStorage = pStorage?.exp ? Number(pStorage.exp) : 0;
-      if (expStorage > expState) {
-        token = cleanStorageToken;
-        useAuthStore.getState().updateTokens(token, refreshToken || undefined);
-      }
+      token = storedAccessToken;
+    } else if (token !== storedAccessToken) {
+      const memoryExp = Number(safeDecodeJwtPayload(token)?.exp || 0);
+      const storedExp = Number(safeDecodeJwtPayload(storedAccessToken)?.exp || 0);
+      if (storedExp > memoryExp) token = storedAccessToken;
     }
   }
   if (!refreshToken) {
     const rawRefresh = localStorage.getItem('refreshToken');
-    if (isValidTokenString(rawRefresh)) {
-      refreshToken = rawRefresh.trim();
-    }
+    if (isValidTokenString(rawRefresh)) refreshToken = rawRefresh.trim();
   }
   if (!user) {
     try {
       const userStr = localStorage.getItem('user');
       if (userStr) user = JSON.parse(userStr);
-    } catch {
-      // ignore user parse error
-    }
+    } catch {}
   }
-*/
+
+  return { token, refreshToken, user, customerId };
+}
 
 const SENSITIVE_KEYS = [
   'password',
@@ -362,14 +326,6 @@ api.interceptors.request.use(
           delete (config.headers as any)['authorization'];
           config.headers['Authorization'] = `Bearer ${cleanToken}`;
         }
-      } else {
-        if (typeof config.headers?.delete === 'function') {
-          config.headers.delete('Authorization');
-          config.headers.delete('authorization');
-        } else if (config.headers) {
-          delete (config.headers as any)['Authorization'];
-          delete (config.headers as any)['authorization'];
-        }
       }
 
       if (customerId) {
@@ -400,16 +356,15 @@ api.interceptors.request.use(
         }
       }
 
-      if (process.env.NODE_ENV !== 'production') {
+      const isMetaTestSend = typeof config.url === 'string' && config.url.includes('/templates/meta/test-send');
+      if (isMetaTestSend || process.env.NODE_ENV !== 'production') {
         console.log(
           `[AUTH DEBUG]\n` +
           `endpoint: ${config.url}\n` +
-          `hasAccessToken: ${Boolean(token)}\n` +
-          `tokenLength: ${token ? token.length : 0}\n` +
+          `authorizationHeaderPresent: ${Boolean(token)}\n` +
+          `tokenType: ${token ? 'Bearer' : 'none'}\n` +
           `tokenExpired: ${tokenExpired}\n` +
-          `userId: ${jwtUserId || user?.id || 'none'}\n` +
-          `employeeId: ${jwtEmployeeId || (user as any)?.employeeId || 'none'}\n` +
-          `companyId: ${jwtCompanyId || customerId || 'none'}`
+          `userId: ${jwtUserId || user?.id || 'none'}`
         );
 
         console.debug(
