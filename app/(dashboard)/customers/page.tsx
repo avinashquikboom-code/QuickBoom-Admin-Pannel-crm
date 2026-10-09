@@ -1,6 +1,25 @@
 'use client';
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+
+/** Saved customers use a positive primary key. Lead rows in this list use a negated lead id. */
+function persistedCustomerId(value: unknown): number | null {
+  const num = typeof value === 'number' ? value : Number(String(value ?? '').trim());
+  if (!Number.isInteger(num) || num <= 0) return null;
+  return num;
+}
+
+function unsavedCustomerDeleteMessage(row?: { customerId?: string; leadId?: string | number; id?: unknown }): string {
+  const leadLabel =
+    row?.customerId ||
+    (row?.leadId != null && String(row.leadId).trim() !== ''
+      ? `LEAD-${String(row.leadId).padStart(4, '0')}`
+      : null);
+  if (leadLabel) {
+    return `${leadLabel} is an unconverted lead, not a saved customer. Customer delete was not sent.`;
+  }
+  return `Customer ID "${row?.id ?? ''}" is not a saved customer. Customer delete was not sent.`;
+}
 import Link from 'next/link';
 import {
   Building2,
@@ -343,7 +362,11 @@ export default function CustomersPage() {
   // Delete Customer Mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number | string) => {
-      return api.delete(`/customers/${id}`);
+      const customerId = persistedCustomerId(id);
+      if (customerId == null) {
+        throw new Error(unsavedCustomerDeleteMessage({ id }));
+      }
+      return api.delete(`/customers/${customerId}`);
     },
     onSuccess: () => {
       toast.success('Customer permanently deleted successfully.', { icon: '🗑️' });
@@ -366,14 +389,54 @@ export default function CustomersPage() {
   // Bulk Delete Customer Mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: number[]) => {
+      const validIds: number[] = [];
+      const rejected: Array<{ id: number; error: string }> = [];
+      for (const id of ids) {
+        const customerId = persistedCustomerId(id);
+        if (customerId == null) {
+          rejected.push({
+            id: Number(id),
+            error: unsavedCustomerDeleteMessage({ id }),
+          });
+        } else {
+          validIds.push(customerId);
+        }
+      }
+
+      if (validIds.length === 0) {
+        return {
+          success: false,
+          totalCount: ids.length,
+          succeededCount: 0,
+          failedCount: rejected.length,
+          succeeded: [] as number[],
+          failed: rejected,
+        };
+      }
+
+      const mergeRejected = (data: any) => {
+        const apiFailed: any[] = Array.isArray(data?.failed) ? data.failed : [];
+        const failed = [...apiFailed, ...rejected];
+        const succeeded: number[] = Array.isArray(data?.succeeded) ? data.succeeded : [];
+        return {
+          ...data,
+          success: failed.length === 0,
+          totalCount: ids.length,
+          succeeded,
+          succeededCount: data?.succeededCount ?? succeeded.length,
+          failed,
+          failedCount: failed.length,
+        };
+      };
+
       try {
-        const res: any = await api.post('/customers/bulk-delete', { ids });
-        return res?.data || res;
+        const res: any = await api.post('/customers/bulk-delete', { ids: validIds });
+        return mergeRejected(res?.data || res);
       } catch (err: any) {
         // Fallback: delete sequentially via single DELETE /customers/:id
         const succeeded: number[] = [];
-        const failed: Array<{ id: number; error: string }> = [];
-        for (const id of ids) {
+        const failed: Array<{ id: number; error: string }> = [...rejected];
+        for (const id of validIds) {
           try {
             await api.delete(`/customers/${id}`);
             succeeded.push(id);
@@ -402,7 +465,7 @@ export default function CustomersPage() {
       } else if (succeededCount > 0) {
         toast.error(`Deleted ${succeededCount} customer(s), but ${failedCount} customer(s) could not be deleted.`);
       } else {
-        toast.error(`Failed to delete selected customer(s).`);
+        toast.error(failedList[0]?.error || 'Failed to delete selected customer(s).');
       }
 
       setIsBulkDeleteModalOpen(false);
@@ -947,9 +1010,14 @@ export default function CustomersPage() {
                       <td className="px-4 py-4 w-10">
                         <input
                           type="checkbox"
-                          checked={selectedCustomerIds.includes(cust.id)}
-                          onChange={() => handleToggleRow(cust.id)}
-                          className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer"
+                          checked={persistedCustomerId(cust.id) != null && selectedCustomerIds.includes(persistedCustomerId(cust.id) as number)}
+                          disabled={persistedCustomerId(cust.id) == null}
+                          onChange={() => {
+                            const customerId = persistedCustomerId(cust.id);
+                            if (customerId == null) return;
+                            handleToggleRow(customerId);
+                          }}
+                          className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                         />
                       </td>
                       <td className="px-4 py-4 min-w-[280px]">
@@ -1142,7 +1210,13 @@ export default function CustomersPage() {
                           </button>
 
                           <button
-                            onClick={() => setDeletingCustomer(cust)}
+                            onClick={() => {
+                              if (persistedCustomerId(cust.id) == null) {
+                                toast.error(unsavedCustomerDeleteMessage(cust));
+                                return;
+                              }
+                              setDeletingCustomer(cust);
+                            }}
                             className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
                             title="Delete Customer"
                           >
@@ -1619,7 +1693,15 @@ export default function CustomersPage() {
               </button>
 
               <button
-                onClick={() => deleteMutation.mutate(deletingCustomer.id)}
+                onClick={() => {
+                  const customerId = persistedCustomerId(deletingCustomer.id);
+                  if (customerId == null) {
+                    toast.error(unsavedCustomerDeleteMessage(deletingCustomer));
+                    setDeletingCustomer(null);
+                    return;
+                  }
+                  deleteMutation.mutate(customerId);
+                }}
                 disabled={deleteMutation.isPending}
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
               >
