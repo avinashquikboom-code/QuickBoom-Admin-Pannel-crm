@@ -30,6 +30,7 @@ import {
   Check,
   Calendar,
   User,
+  ChevronDown,
 } from 'lucide-react';
 import {
   BarChart,
@@ -48,6 +49,8 @@ import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminPageHeader, AdminButton, AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
+import { useAuthStore } from '@/lib/store';
+import { generatePayrollGovernancePdf } from '@/lib/utils/payroll-pdf';
 
 type PayrollSubmodule = 'dashboard' | 'processing' | 'structures' | 'history' | 'slips' | 'settings';
 
@@ -99,6 +102,8 @@ export default function PayrollPage() {
   // Client-side mount flag for Recharts & browser safety
   const [isMounted, setIsMounted] = useState(false);
   const [payTarget, setPayTarget] = useState<any>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -499,6 +504,184 @@ export default function PayrollPage() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
   };
 
+  const handleExportPayrollPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      setIsExportDropdownOpen(false);
+
+      // 1. Fetch detailed payroll if current batch has an ID to get full relations
+      let payrollData = currentPayroll;
+      if (currentPayroll?.id) {
+        try {
+          const detailRes: any = await api.get(`/admin/payroll/${currentPayroll.id}`);
+          if (detailRes?.data?.data || detailRes?.data) {
+            payrollData = detailRes.data?.data || detailRes.data;
+          }
+        } catch {
+          // fallback to currentPayroll in state
+        }
+      }
+
+      // 2. Fetch slips for this period to enrich slipNumber if available
+      const slipMap: Record<number, string> = {};
+      try {
+        const slipsRes: any = await api.get('/admin/payroll/slips', {
+          params: { month: selectedMonthNum, year: Number(selectedYear), limit: 100 },
+        });
+        const slips = slipsRes?.data?.data || slipsRes?.data?.items || slipsRes?.data || [];
+        if (Array.isArray(slips)) {
+          slips.forEach((s: any) => {
+            if (s.employeeId && s.slipNumber) {
+              slipMap[s.employeeId] = s.slipNumber;
+            }
+          });
+        }
+      } catch {
+        // optional slips enrichment
+      }
+
+      // 3. Normalize items list for the report
+      let itemsList: any[] = [];
+      let totalGross = 0;
+      let totalDeductions = 0;
+      let totalNet = 0;
+      let totalDisbursed = 0;
+      let pendingPayments = 0;
+      let totalAdvances = 0;
+      let totalClaims = 0;
+
+      if (payrollData?.items && payrollData.items.length > 0) {
+        itemsList = payrollData.items.map((it: any) => {
+          const empCode = it.employee?.employeeCode || `EMP-${it.employeeId}`;
+          const empName = it.employee
+            ? `${it.employee.firstName || ''} ${it.employee.lastName || ''}`.trim()
+            : `Staff #${it.employeeId}`;
+          const dept = it.employee?.department?.name || it.employee?.designation?.name || 'General';
+          const basic = Number(it.basicSalary || 0);
+          const hra = Number(it.hra || 0);
+          const allowances = Number(it.allowances || 0);
+          const special = Number(it.specialAllowance || 0);
+          const bonus = Number(it.bonus || 0);
+          const commission = Number(it.commission || 0);
+          const reimbursement = Number(it.reimbursement || 0);
+          const gross = Number(
+            it.grossSalary || basic + hra + allowances + special + bonus + commission + reimbursement
+          );
+          const deductions = Number(
+            it.totalDeductions ??
+              Number(it.deductions || 0) +
+                Number(it.loanDeduction || 0) +
+                Number(it.unpaidLeaveDeduction || 0)
+          );
+          const net = Number(it.netSalary ?? gross - deductions);
+          const isPaid = it.status === 'PAID';
+
+          totalGross += gross;
+          totalDeductions += deductions;
+          totalNet += net;
+          if (isPaid) totalDisbursed += net;
+          else pendingPayments += net;
+          if (it.advanceDeduction) totalAdvances += Number(it.advanceDeduction);
+          if (it.reimbursement) totalClaims += Number(it.reimbursement);
+
+          const slipNumber = it.salarySlips?.[0]?.slipNumber || slipMap[it.employeeId] || undefined;
+
+          return {
+            employeeCode: empCode,
+            employeeName: empName,
+            department: dept,
+            basicSalary: basic,
+            hra: hra,
+            medical: 0,
+            travel: 0,
+            allowances,
+            specialAllowance: special,
+            bonus,
+            commission,
+            reimbursement,
+            grossSalary: gross,
+            totalDeductions: deductions,
+            netSalary: net,
+            status: it.status || payrollData.status || 'CALCULATED',
+            slipNumber,
+          };
+        });
+      } else if (salaryStructures && salaryStructures.length > 0) {
+        // If cycle not yet calculated into batch, export configured active staff structures
+        itemsList = salaryStructures.map((st: any) => {
+          const empCode = st.employee?.employeeCode || `EMP-${st.employeeId}`;
+          const empName = st.employee
+            ? `${st.employee.firstName || ''} ${st.employee.lastName || ''}`.trim()
+            : `Staff #${st.employeeId}`;
+          const dept = st.employee?.department?.name || st.employee?.designation?.name || 'General';
+          const basic = Number(st.basicSalary || 0);
+          const hra = Number(st.hra || 0);
+          const allowances = Number(st.allowances || 0);
+          const special = Number(st.specialAllowance || 0);
+          const bonus = Number(st.bonus || 0);
+          const gross = Number(st.grossSalary || basic + hra + allowances + special + bonus);
+          const deductions = Number(st.totalDeductions || 0);
+          const net = Number(st.netSalary || gross - deductions);
+
+          totalGross += gross;
+          totalDeductions += deductions;
+          totalNet += net;
+          pendingPayments += net;
+
+          return {
+            employeeCode: empCode,
+            employeeName: empName,
+            department: dept,
+            basicSalary: basic,
+            hra: hra,
+            allowances,
+            specialAllowance: special,
+            bonus,
+            grossSalary: gross,
+            totalDeductions: deductions,
+            netSalary: net,
+            status: 'CONFIGURED',
+          };
+        });
+      }
+
+      if (itemsList.length === 0) {
+        toast.error('No employee payroll records or salary structures available for the selected cycle.');
+        return;
+      }
+
+      const companyName = useAuthStore.getState().user?.customerName || 'QB Suite';
+
+      await generatePayrollGovernancePdf({
+        companyName,
+        month: selectedMonth,
+        year: selectedYear,
+        status: payrollData?.status || 'CONFIGURED',
+        departmentName:
+          selectedDept !== 'All'
+            ? departmentsList.find((d: any) => String(d.id) === String(selectedDept))?.name
+            : 'All Departments',
+        summary: {
+          totalEmployees: itemsList.length,
+          grossSalary: payrollData?.grossSalary || totalGross,
+          totalDeductions: payrollData?.totalDeductions || totalDeductions,
+          netSalary: payrollData?.netSalary || totalNet,
+          totalDisbursed: totalDisbursed,
+          pendingPayments: pendingPayments,
+          totalAdvances: totalAdvances,
+          totalExpenseClaims: totalClaims,
+        },
+        items: itemsList,
+      });
+
+      toast.success(`Payroll Governance Report for ${selectedMonth} ${selectedYear} downloaded successfully!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to export Payroll PDF');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
       {/* 1. STANDARD PAGE HEADER */}
@@ -517,14 +700,75 @@ export default function PayrollPage() {
           { label: 'Payroll' },
         ]}
         actions={
-          <AdminButton
-            variant="primary"
-            size="md"
-            icon={Zap}
-            onClick={() => setActiveTab('processing')}
-          >
-            Run Payroll Cycle
-          </AdminButton>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Export Payroll Data Dropdown - PDF only */}
+            <div className="relative">
+              <div className="inline-flex rounded-xl shadow-xs overflow-hidden border border-slate-200 bg-white">
+                <button
+                  type="button"
+                  onClick={handleExportPayrollPdf}
+                  disabled={isExportingPdf}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
+                  title="Download Payroll Report (.pdf)"
+                >
+                  {isExportingPdf ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5 text-slate-600" />
+                  )}
+                  <span>Export Payroll Data</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsExportDropdownOpen((prev) => !prev)}
+                  disabled={isExportingPdf}
+                  className="px-2 py-2 hover:bg-slate-50 text-slate-500 border-l border-slate-200 transition-all cursor-pointer"
+                  title="Export options"
+                  aria-label="Export options dropdown"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {isExportDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsExportDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in-50 duration-150">
+                    <button
+                      type="button"
+                      onClick={handleExportPayrollPdf}
+                      disabled={isExportingPdf}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="block text-xs font-black truncate text-slate-900">
+                          Download Payroll Report (.pdf)
+                        </span>
+                        <span className="block text-[10px] text-slate-400 font-medium">
+                          Print-ready audit & compensation PDF
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Zap}
+              onClick={() => setActiveTab('processing')}
+            >
+              Run Payroll Cycle
+            </AdminButton>
+          </div>
         }
       />
 
@@ -712,11 +956,26 @@ export default function PayrollPage() {
                   ))}
                 </select>
                 <button
+                  type="button"
                   onClick={() => refetchCurrentPayroll()}
-                  className="p-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50"
+                  className="p-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
                   title="Refresh Batch"
                 >
                   <RefreshCw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportPayrollPdf}
+                  disabled={isExportingPdf}
+                  className="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
+                  title="Download Payroll Report (.pdf)"
+                >
+                  {isExportingPdf ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5 text-emerald-600" />
+                  )}
+                  <span>Download Report (.pdf)</span>
                 </button>
               </div>
             </div>
