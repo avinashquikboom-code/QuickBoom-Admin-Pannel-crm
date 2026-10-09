@@ -109,6 +109,7 @@ export default function CustomersPage() {
   // Multiple Selection & Bulk Delete state
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
   const [isSelectAllPages, setIsSelectAllPages] = useState(false);
+  const [isSelectingInactive, setIsSelectingInactive] = useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
   const [deleteAllConfirmationInput, setDeleteAllConfirmationInput] = useState('');
@@ -320,6 +321,51 @@ export default function CustomersPage() {
     }
   };
 
+  const handleSelectAllInactiveCustomers = async () => {
+    setIsSelectingInactive(true);
+    try {
+      const ids: number[] = [];
+      let pageNo = 1;
+      let totalPages = 1;
+      do {
+        const res: any = await api.get('/customers', {
+          params: {
+            search: searchTerm || undefined,
+            status: 'INACTIVE',
+            source: sourceFilter !== 'ALL' ? sourceFilter : undefined,
+            teamId: teamFilter !== 'ALL' ? teamFilter : undefined,
+            company: companyFilter || undefined,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+            sortBy,
+            sortOrder,
+            page: pageNo,
+            limit: 100,
+            excludeAdmins: 'true',
+          },
+        });
+        const rawItems = res?.data?.data || res?.data?.items || (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : res?.items || []);
+        for (const row of Array.isArray(rawItems) ? rawItems : []) {
+          const customerId = savedCustomerPrimaryKey(row);
+          if (customerId != null) ids.push(customerId);
+        }
+        const pagination = res?.pagination || res?.data?.pagination || {};
+        totalPages = Number(pagination.totalPages) || 1;
+        pageNo += 1;
+      } while (pageNo <= totalPages && pageNo <= 50);
+
+      const uniqueIds = Array.from(new Set(ids));
+      setIsSelectAllPages(false);
+      setSelectedCustomerIds(uniqueIds);
+      if (uniqueIds.length === 0) {
+        toast.error('No saved inactive customers to delete. Lead records stay in the directory.');
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsSelectingInactive(false);
+    }
+  };
   const handleToggleRow = (customerId: number) => {
     setIsSelectAllPages(false);
     setSelectedCustomerIds((prev) =>
@@ -974,7 +1020,7 @@ export default function CustomersPage() {
               className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>{isSelectAllPages ? 'Delete All Customers' : 'Delete Selected'}</span>
+              <span>{isSelectAllPages ? 'Delete All Customers' : statusFilter === 'INACTIVE' ? 'Delete Inactive Customers' : 'Delete Selected'}</span>
             </button>
 
             <button
@@ -1045,10 +1091,19 @@ export default function CustomersPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => setIsSelectAllPages(true)}
-                  className="font-bold underline text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                  disabled={isSelectingInactive}
+                  onClick={() => {
+                    if (statusFilter === 'INACTIVE') {
+                      handleSelectAllInactiveCustomers();
+                      return;
+                    }
+                    setIsSelectAllPages(true);
+                  }}
+                  className="font-bold underline text-emerald-700 hover:text-emerald-900 cursor-pointer disabled:opacity-50"
                 >
-                  Select all {meta.total} customers across all pages
+                  {statusFilter === 'INACTIVE'
+                    ? 'Select all inactive customers across all pages'
+                    : `Select all ${meta.total} customers across all pages`}
                 </button>
               )}
             </div>
@@ -1850,7 +1905,11 @@ export default function CustomersPage() {
             </div>
 
             <div className="p-3.5 bg-rose-50/50 border border-rose-100 rounded-2xl text-xs text-rose-800">
-              Are you sure you want to delete the selected <strong>{selectedCustomerIds.length} {selectedCustomerIds.length === 1 ? 'customer' : 'customers'}</strong>? All associated customer accounts, profiles, and transactional data will be permanently removed. This action cannot be undone.
+              Are you sure you want to delete the selected <strong>{selectedCustomerIds.length} {selectedCustomerIds.length === 1 ? 'customer' : 'customers'}</strong>?
+              {statusFilter === 'INACTIVE'
+                ? ' Only these inactive customers are included. Active customers and lead records are not deleted.'
+                : ' All associated customer accounts, profiles, and transactional data will be permanently removed.'}{' '}
+              This action cannot be undone.
             </div>
 
             <div className="flex items-center justify-end gap-2.5 pt-2">
