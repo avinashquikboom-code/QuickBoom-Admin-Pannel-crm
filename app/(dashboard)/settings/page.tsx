@@ -37,6 +37,8 @@ import {
   AlertCircle,
   Copy,
   Check,
+  Phone,
+  UserX,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -3161,6 +3163,60 @@ export default function SettingsPage() {
           </form>
         </div>
       )}
+      {/* 6. QB SUITE ACCOUNT DELETION REQUEST */}
+      <div id="account-deletion-request" className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200/60 flex items-center justify-center font-bold shadow-2xs shrink-0">
+            <UserX className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-slate-900">QB Suite Account Deletion Request</h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Account deletion and data management policy</p>
+          </div>
+        </div>
+
+        <div className="pt-4 border-t border-slate-100 space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
+          <p>
+            If you would like to request the deletion of your QB Suite account, please contact us using the support details below. Our team will be happy to assist you.
+          </p>
+
+          <div className="p-4 bg-amber-50/80 border border-amber-200/70 rounded-xl text-amber-900 text-xs sm:text-sm font-medium leading-relaxed flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <span>
+              For security and verification purposes, please contact us using the same email address or mobile number associated with your QB Suite account authentication.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Support Team</span>
+              <span className="font-extrabold text-slate-900 text-sm block">QB Suite</span>
+            </div>
+
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Email</span>
+              <a
+                href="mailto:support@quikboom.in"
+                className="font-extrabold text-[#1AA14D] hover:text-[#15803d] hover:underline text-sm inline-flex items-center gap-1.5 transition-colors break-all"
+              >
+                <Mail className="w-4 h-4 shrink-0" />
+                <span>support@quikboom.in</span>
+              </a>
+            </div>
+
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Phone</span>
+              <a
+                href="tel:+919284216276"
+                className="font-extrabold text-[#1AA14D] hover:text-[#15803d] hover:underline text-sm inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Phone className="w-4 h-4 shrink-0" />
+                <span>+91 9284216276</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
