@@ -138,6 +138,7 @@ export default function DataManagementPage() {
     }
   };
   const [isLoading, setIsLoading] = useState(true);
+  const [summaryLoadError, setSummaryLoadError] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
 
   // Bin state
@@ -166,6 +167,9 @@ export default function DataManagementPage() {
   const [showResetAllModal, setShowResetAllModal] = useState(false);
   const [isResettingAllCustomers, setIsResettingAllCustomers] = useState(false);
   const [resetAllConfirmationInput, setResetAllConfirmationInput] = useState('');
+  const [showResetAllCustomerDataModal, setShowResetAllCustomerDataModal] = useState(false);
+  const [isResettingAllCustomerData, setIsResettingAllCustomerData] = useState(false);
+  const [resetAllCustomerDataInput, setResetAllCustomerDataInput] = useState('');
   const [allCustomersSummary, setAllCustomersSummary] = useState<{
     totalCustomers: number;
     totalRelatedRecords: number;
@@ -309,22 +313,30 @@ export default function DataManagementPage() {
 
   const loadSummaryAndHistory = async () => {
     setIsLoading(true);
+    setSummaryLoadError(null);
     try {
       const [sumRes, histRes]: any = await Promise.all([
-        api.get('/admin/data-management/summary').catch(() => null),
+        api.get('/admin/data-management/summary'),
         api.get('/admin/data-management/history').catch(() => []),
       ]);
 
       const s = sumRes?.data || sumRes;
-      if (s && s.transactional) {
-        setSummary(s);
+      if (!s?.transactional) {
+        throw new Error('Module record counts were not returned.');
       }
+      setSummary(s);
       const h = histRes?.data || histRes;
       if (Array.isArray(h)) {
         setHistory(h);
       }
-    } catch (e) {
-      // Fallback state
+    } catch (e: any) {
+      const message =
+        e?.response?.data?.message ||
+        e?.message ||
+        'Failed to load module record counts';
+      const text = Array.isArray(message) ? message.join(', ') : String(message);
+      setSummaryLoadError(text);
+      toast.error(text);
     } finally {
       setIsLoading(false);
     }
@@ -444,6 +456,36 @@ export default function DataManagementPage() {
       setAllCustomersSummary(null);
     } finally {
       setIsLoadingAllCustomersSummary(false);
+    }
+  };
+
+  const handleExecuteResetAllCustomerData = async () => {
+    if (resetAllCustomerDataInput.trim().toUpperCase() !== 'DELETE ALL CUSTOMER DATA') {
+      toast.error('Please type "DELETE ALL CUSTOMER DATA" exactly to confirm.');
+      return;
+    }
+    setIsResettingAllCustomerData(true);
+    const toastId = toast.loading('Resetting all saved customer data...');
+    try {
+      const res: any = await api.post('/admin/data-management/customers/reset-all', {
+        confirmation: 'DELETE ALL CUSTOMER DATA',
+        reason: 'Admin executed Reset All Customer Data',
+      });
+      const data = res?.data || res;
+      toast.dismiss(toastId);
+      toast.success(data?.message || 'Reset all customer data completed.');
+      setShowResetAllCustomerDataModal(false);
+      setResetAllCustomerDataInput('');
+      setSelectedCustomerIds(new Set());
+      await Promise.all([
+        searchCustomers(''),
+        loadSummaryAndHistory(),
+      ]);
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error(err?.response?.data?.message || 'Failed to reset all customer data');
+    } finally {
+      setIsResettingAllCustomerData(false);
     }
   };
 
@@ -794,6 +836,12 @@ export default function DataManagementPage() {
         }
       />
 
+      {summaryLoadError && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
+          Module counts could not be loaded: {summaryLoadError}
+        </div>
+      )}
+
       {/* High-Visibility Warning Banner */}
       <div className="bg-amber-500/10 border border-amber-500/30 p-4 sm:p-5 rounded-2xl flex items-start gap-3 text-amber-900">
         <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -986,7 +1034,47 @@ export default function DataManagementPage() {
 
       {/* TAB 2: MODULE-WISE RESET */}
       {activeTab === 'modules' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-6">
+          <div className="p-6 rounded-3xl bg-rose-50/70 border border-rose-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-600/20">
+                <Users className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-black text-rose-950">Customer Data</h2>
+                  <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase">
+                    Destructive Action
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-rose-900/80 font-medium leading-relaxed max-w-2xl">
+                  Deletes every saved customer profile and that customer&apos;s schedules, work, visits, tasks, notifications, invoices, and subscription links. Unconverted leads, employees, attendance, payroll, shared plans, and coupons are not deleted.
+                </p>
+              </div>
+            </div>
+            <AdminButton
+              variant="danger"
+              size="md"
+              icon={Trash2}
+              onClick={() => {
+                setResetAllCustomerDataInput('');
+                setShowResetAllCustomerDataModal(true);
+                setIsLoadingAllCustomersSummary(true);
+                api.get('/admin/data-management/customers/summary/all')
+                  .then((res: any) => setAllCustomersSummary(res?.data || res))
+                  .catch(() => {
+                    toast.error('Failed to load total customer record preview');
+                    setAllCustomersSummary(null);
+                  })
+                  .finally(() => setIsLoadingAllCustomersSummary(false));
+              }}
+              className="w-full md:w-auto shadow-md shadow-rose-600/20"
+            >
+              Reset All Customer Data
+            </AdminButton>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* CRM Module Card */}
           <AdminCard
             title="CRM Data"
@@ -1236,6 +1324,7 @@ export default function DataManagementPage() {
               </div>
             </div>
           </AdminCard>
+          </div>
         </div>
       )}
 
@@ -2445,6 +2534,84 @@ export default function DataManagementPage() {
                 loading={isResettingSelected}
               >
                 {isResettingSelected ? 'Resetting Customers...' : `Confirm & Reset (${selectedCustomers.length})`}
+              </AdminButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESET ALL CUSTOMER DATA — Module-wise Customer Data section */}
+      {showResetAllCustomerDataModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-rose-200 text-left space-y-5">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-rose-950">Reset All Customer Data</h3>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  This deletes every saved customer profile and that customer&apos;s schedules, work assignments, visits, tasks, notifications, invoices, and subscription links. Unconverted leads, employees, attendance, payroll, shared plans, coupons, and payment history are kept.
+                </p>
+              </div>
+            </div>
+
+            {isLoadingAllCustomersSummary ? (
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                Loading customer counts...
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-3 bg-slate-50 rounded-xl">Customers: {allCustomersSummary?.totalCustomers ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Work: {allCustomersSummary?.breakdown?.works ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Schedules: {allCustomersSummary?.breakdown?.monthlySchedules ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Visits: {allCustomersSummary?.breakdown?.visits ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Tasks: {allCustomersSummary?.breakdown?.tasks ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Contacts: {allCustomersSummary?.breakdown?.contacts ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Deals: {allCustomersSummary?.breakdown?.deals ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Invoices: {allCustomersSummary?.breakdown?.invoices ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Subscriptions: {allCustomersSummary?.breakdown?.subscriptions ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Related records: {allCustomersSummary?.totalRelatedRecords ?? 0}</div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-slate-700">
+                Type <span className="text-rose-600 font-mono font-black">DELETE ALL CUSTOMER DATA</span> to confirm.
+              </p>
+              <input
+                value={resetAllCustomerDataInput}
+                onChange={(e) => setResetAllCustomerDataInput(e.target.value)}
+                placeholder="DELETE ALL CUSTOMER DATA"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold"
+                disabled={isResettingAllCustomerData}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <AdminButton
+                variant="secondary"
+                onClick={() => {
+                  if (isResettingAllCustomerData) return;
+                  setShowResetAllCustomerDataModal(false);
+                  setResetAllCustomerDataInput('');
+                }}
+                disabled={isResettingAllCustomerData}
+              >
+                Cancel
+              </AdminButton>
+              <AdminButton
+                variant="danger"
+                icon={Trash2}
+                onClick={handleExecuteResetAllCustomerData}
+                loading={isResettingAllCustomerData}
+                disabled={
+                  isResettingAllCustomerData ||
+                  resetAllCustomerDataInput.trim().toUpperCase() !== 'DELETE ALL CUSTOMER DATA'
+                }
+              >
+                {isResettingAllCustomerData ? 'Resetting customer data...' : 'Reset All Customer Data'}
               </AdminButton>
             </div>
           </div>
