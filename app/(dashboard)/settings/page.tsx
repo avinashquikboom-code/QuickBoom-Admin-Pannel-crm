@@ -59,7 +59,7 @@ function WhatsAppIcon({ className = 'w-5 h-5' }: { className?: string }) {
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'INTEGRATIONS' | 'WORKFORCE' | 'SECURITY' | 'NOTIFICATIONS'>('INTEGRATIONS');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'INTEGRATIONS' | 'WORKFORCE' | 'SECURITY' | 'NOTIFICATIONS' | 'ACCOUNT_DELETION'>('INTEGRATIONS');
 
   // General Settings State
   const [companyName, setCompanyName] = useState('QuikBoom Enterprise');
@@ -1196,6 +1196,18 @@ export default function SettingsPage() {
           }`}
         >
           <Bell className="w-4 h-4" /> Notifications
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('ACCOUNT_DELETION')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'ACCOUNT_DELETION'
+              ? 'bg-[#23C45E] text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          }`}
+        >
+          <UserX className="w-4 h-4" /> Account Deletion
         </button>
       </div>
 
