@@ -73,7 +73,15 @@ export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const customerId = params.id as string;
+  const rawCustomerId = (params?.id as string) || '';
+  const customerId = rawCustomerId.trim();
+  const numericCustomerId = Number(customerId);
+  const isValidCustomerId =
+    Boolean(customerId) &&
+    !isNaN(numericCustomerId) &&
+    Number.isInteger(numericCustomerId) &&
+    numericCustomerId > 0 &&
+    !customerId.startsWith('-');
 
   const [activeTab, setActiveTab] = useState<
     'OVERVIEW' | 'SUBSCRIPTIONS' | 'INVOICES' | 'ACTIVITIES' | 'TASKS' | 'VISITS' | 'DEALS' | 'NOTES' | 'HISTORY' | 'SOCIAL_MEDIA' | 'AI_CREDITS'
@@ -106,7 +114,7 @@ export default function CustomerDetailPage() {
     refetch: refetchAiCredits,
   } = useQuery({
     queryKey: ['customer-ai-credits', customerId],
-    enabled: !!customerId,
+    enabled: isValidCustomerId,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/customers/${customerId}/ai-credits`);
@@ -120,7 +128,8 @@ export default function CustomerDetailPage() {
   // 1. Fetch Customer Profile Details
   const { data: customer, isLoading: isCustomerLoading, refetch: refetchCustomer } = useQuery({
     queryKey: ['customer-detail', customerId],
-    refetchInterval: 10000,
+    enabled: isValidCustomerId,
+    refetchInterval: isValidCustomerId ? 10000 : false,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/customers/${customerId}`);
@@ -134,7 +143,8 @@ export default function CustomerDetailPage() {
   // 2. Fetch Customer Subscriptions (Current & History)
   const { data: subData, isLoading: isSubLoading, refetch: refetchSubscriptions } = useQuery({
     queryKey: ['customer-subscriptions', customerId],
-    refetchInterval: 10000,
+    enabled: isValidCustomerId,
+    refetchInterval: isValidCustomerId ? 10000 : false,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/admin/customers/${customerId}/subscriptions`);
@@ -154,7 +164,8 @@ export default function CustomerDetailPage() {
     refetch: refetchInvoices,
   } = useQuery({
     queryKey: ['customer-invoices', customerId],
-    refetchInterval: 10000,
+    enabled: isValidCustomerId,
+    refetchInterval: isValidCustomerId ? 10000 : false,
     queryFn: async () => {
       // Use dedicated admin endpoint to avoid CustomerGuard cross-customer 403
       const res: any = await api.get(`/invoices/customers/${customerId}/invoices`);
@@ -165,7 +176,6 @@ export default function CustomerDetailPage() {
         (Array.isArray(res) ? res : []);
       return Array.isArray(items) ? items : [];
     },
-    enabled: Boolean(customerId),
   });
 
   // 2c. Fetch Customer Installments & Buffer Summary
@@ -175,7 +185,8 @@ export default function CustomerDetailPage() {
     refetch: refetchInstallments,
   } = useQuery({
     queryKey: ['customer-installments', customerId],
-    refetchInterval: 10000,
+    enabled: isValidCustomerId,
+    refetchInterval: isValidCustomerId ? 10000 : false,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/admin/customers/${customerId}/installments`);
@@ -184,7 +195,6 @@ export default function CustomerDetailPage() {
         return null;
       }
     },
-    enabled: Boolean(customerId),
   });
 
   // Record Manual Installment Payment Mutation
@@ -238,7 +248,8 @@ export default function CustomerDetailPage() {
     refetch: refetchSocialMedia,
   } = useQuery({
     queryKey: ['customer-social-media', customerId],
-    refetchInterval: 10000,
+    enabled: isValidCustomerId,
+    refetchInterval: isValidCustomerId ? 10000 : false,
     queryFn: async () => {
       try {
         return await SocialMediaService.getCustomerHandlers(customerId);
@@ -251,6 +262,7 @@ export default function CustomerDetailPage() {
   // 3. Fetch Customer Activities & Schedules
   const { data: activities = [] } = useQuery({
     queryKey: ['customer-activities', customerId],
+    enabled: isValidCustomerId,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/customers/${customerId}/activities`);
@@ -265,6 +277,7 @@ export default function CustomerDetailPage() {
   // 4. Fetch Customer Tasks
   const { data: tasks = [] } = useQuery({
     queryKey: ['customer-tasks', customerId],
+    enabled: isValidCustomerId,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/customers/${customerId}/tasks`);
@@ -279,6 +292,7 @@ export default function CustomerDetailPage() {
   // 5. Fetch Customer Visits
   const { data: visits = [] } = useQuery({
     queryKey: ['customer-visits', customerId],
+    enabled: isValidCustomerId,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/customers/${customerId}/visits`);
@@ -293,6 +307,7 @@ export default function CustomerDetailPage() {
   // 6. Fetch Customer Deals
   const { data: deals = [] } = useQuery({
     queryKey: ['customer-deals', customerId],
+    enabled: isValidCustomerId,
     queryFn: async () => {
       try {
         const res: any = await api.get(`/customers/${customerId}/deals`);
@@ -635,6 +650,28 @@ export default function CustomerDetailPage() {
       </span>
     );
   };
+
+  if (!isValidCustomerId) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center space-y-4">
+        <div className="w-16 h-16 rounded-3xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-sm">
+          <AlertTriangle className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900">Invalid Customer ID</h2>
+        <p className="text-sm text-slate-500 max-w-md mx-auto">
+          The requested customer identifier &quot;{rawCustomerId}&quot; is invalid. Customer identifiers in QuikBoom CRM must be positive integers.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/customers"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all shadow-md cursor-pointer"
+          >
+            Return to Customers Directory
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">

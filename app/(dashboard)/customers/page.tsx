@@ -77,6 +77,10 @@ export default function CustomersPage() {
   const [assigningTeamCustomer, setAssigningTeamCustomer] = useState<any | null>(null);
   const [quickAssignTeamId, setQuickAssignTeamId] = useState<string>('');
 
+  // Multiple Selection & Bulk Delete state
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+
   // Form State for Add / Edit
   const [customerForm, setCustomerForm] = useState({
     name: '',
@@ -253,6 +257,37 @@ export default function CustomersPage() {
   const customers: any[] = customerData?.items || [];
   const meta = customerData?.pagination || { total: customers.length, page: 1, pageSize: 20, totalPages: 1 };
 
+  // Clear selection when filters or page change to avoid accidental cross-page/filter deletion
+  useEffect(() => {
+    setSelectedCustomerIds([]);
+  }, [searchTerm, statusFilter, sourceFilter, teamFilter, companyFilter, dateFrom, dateTo, page]);
+
+  // Current page selection helpers
+  const pageCustomerIds = useMemo(() => {
+    return customers.map((c: any) => Number(c.id)).filter((id: number) => !isNaN(id) && id > 0);
+  }, [customers]);
+
+  const pageSelectedCount = useMemo(() => {
+    return pageCustomerIds.filter((id) => selectedCustomerIds.includes(id)).length;
+  }, [pageCustomerIds, selectedCustomerIds]);
+
+  const isAllPageSelected = pageCustomerIds.length > 0 && pageSelectedCount === pageCustomerIds.length;
+  const isSomePageSelected = pageSelectedCount > 0 && pageSelectedCount < pageCustomerIds.length;
+
+  const handleToggleSelectAll = () => {
+    if (isAllPageSelected) {
+      setSelectedCustomerIds((prev) => prev.filter((id) => !pageCustomerIds.includes(id)));
+    } else {
+      setSelectedCustomerIds((prev) => Array.from(new Set([...prev, ...pageCustomerIds])));
+    }
+  };
+
+  const handleToggleRow = (customerId: number) => {
+    setSelectedCustomerIds((prev) =>
+      prev.includes(customerId) ? prev.filter((id) => id !== customerId) : [...prev, customerId],
+    );
+  };
+
   // Create Customer Mutation
   const createMutation = useMutation({
     mutationFn: async (payload: typeof customerForm) => {
@@ -312,7 +347,11 @@ export default function CustomersPage() {
     },
     onSuccess: () => {
       toast.success('Customer permanently deleted successfully.', { icon: '🗑️' });
+      setSelectedCustomerIds((prev) => prev.filter((id) => id !== deletingCustomer?.id));
       setDeletingCustomer(null);
+      if (customers.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      }
       queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -320,6 +359,69 @@ export default function CustomersPage() {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
     },
     onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
+  // Bulk Delete Customer Mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      try {
+        const res: any = await api.post('/customers/bulk-delete', { ids });
+        return res?.data || res;
+      } catch (err: any) {
+        // Fallback: delete sequentially via single DELETE /customers/:id
+        const succeeded: number[] = [];
+        const failed: Array<{ id: number; error: string }> = [];
+        for (const id of ids) {
+          try {
+            await api.delete(`/customers/${id}`);
+            succeeded.push(id);
+          } catch (e: any) {
+            failed.push({ id, error: e?.response?.data?.message || e?.message || 'Delete failed' });
+          }
+        }
+        return {
+          success: failed.length === 0,
+          totalCount: ids.length,
+          succeededCount: succeeded.length,
+          failedCount: failed.length,
+          succeeded,
+          failed,
+        };
+      }
+    },
+    onSuccess: (data: any) => {
+      const succeededIds: number[] = data?.succeeded || [];
+      const failedList: any[] = data?.failed || [];
+      const succeededCount = data?.succeededCount ?? succeededIds.length;
+      const failedCount = data?.failedCount ?? failedList.length;
+
+      if (failedCount === 0) {
+        toast.success(`Successfully deleted ${succeededCount} ${succeededCount === 1 ? 'customer' : 'customers'}.`, { icon: '🗑️' });
+      } else if (succeededCount > 0) {
+        toast.error(`Deleted ${succeededCount} customer(s), but ${failedCount} customer(s) could not be deleted.`);
+      } else {
+        toast.error(`Failed to delete selected customer(s).`);
+      }
+
+      setIsBulkDeleteModalOpen(false);
+
+      if (succeededIds.length > 0) {
+        setSelectedCustomerIds((prev) => prev.filter((id) => !succeededIds.includes(id)));
+        const remainingOnPage = customers.filter((cust: any) => !succeededIds.includes(cust.id)).length;
+        if (remainingOnPage === 0 && page > 1) {
+          setPage((p) => p - 1);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+    },
+    onError: (err: any) => {
       toast.error(getErrorMessage(err));
     },
   });
@@ -717,6 +819,38 @@ export default function CustomersPage() {
         )}
       </div>
 
+      {/* BULK ACTIONS BAR (When records selected) */}
+      {selectedCustomerIds.length > 0 && (
+        <div className="bg-[#1B2533] text-white rounded-2xl px-5 py-3 shadow-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5 text-xs font-bold">
+            <span className="w-6 h-6 rounded-full bg-[#23C45E] text-slate-950 flex items-center justify-center font-black text-[11px]">
+              {selectedCustomerIds.length}
+            </span>
+            <span>{selectedCustomerIds.length === 1 ? 'customer selected' : `${selectedCustomerIds.length} customers selected`}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              disabled={bulkDeleteMutation.isPending}
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedCustomerIds([])}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 4. CUSTOMER MASTER TABLE */}
       <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
@@ -751,6 +885,18 @@ export default function CustomersPage() {
             <table className="w-full text-left text-xs min-w-[1150px]">
               <thead className="bg-slate-50 text-slate-400 font-black uppercase border-b border-slate-200 whitespace-nowrap">
                 <tr>
+                  <th className="px-4 py-3.5 w-10">
+                    <input
+                      type="checkbox"
+                      checked={isAllPageSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomePageSelected;
+                      }}
+                      onChange={handleToggleSelectAll}
+                      className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer"
+                      title="Select All Current Page"
+                    />
+                  </th>
                   <th className="px-4 py-3.5 min-w-[280px]">Customer</th>
                   <th className="px-4 py-3.5 min-w-[180px]">Active Plan & Billing</th>
                   <th className="px-4 py-3.5 min-w-[170px]">Validity Dates</th>
@@ -798,6 +944,14 @@ export default function CustomersPage() {
 
                   return (
                     <tr key={cust.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-4 w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedCustomerIds.includes(cust.id)}
+                          onChange={() => handleToggleRow(cust.id)}
+                          className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-4 min-w-[280px]">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-900 font-bold text-sm flex items-center justify-center border border-slate-200 shrink-0">
@@ -1470,6 +1624,60 @@ export default function CustomersPage() {
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50"
               >
                 {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            onClick={() => !bulkDeleteMutation.isPending && setIsBulkDeleteModalOpen(false)}
+          />
+          <div className="relative bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 z-10 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Delete {selectedCustomerIds.length} {selectedCustomerIds.length === 1 ? 'Customer' : 'Customers'}?
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Selected: <strong className="text-slate-800 font-bold">{selectedCustomerIds.length} {selectedCustomerIds.length === 1 ? 'customer' : 'customers'}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50/50 border border-rose-100 rounded-2xl text-xs text-rose-800">
+              Are you sure you want to delete the selected <strong>{selectedCustomerIds.length} {selectedCustomerIds.length === 1 ? 'customer' : 'customers'}</strong>? All associated customer accounts, profiles, and transactional data will be permanently removed. This action cannot be undone.
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => setIsBulkDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => bulkDeleteMutation.mutate(selectedCustomerIds)}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {bulkDeleteMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Delete {selectedCustomerIds.length} Customers</span>
               </button>
             </div>
           </div>

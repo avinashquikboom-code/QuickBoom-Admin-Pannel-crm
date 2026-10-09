@@ -46,6 +46,13 @@ export function CustomerDetailsDrawer({
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'SUBSCRIPTION' | 'USERS' | 'CONTACT'>('OVERVIEW');
   const [isResetOpen, setIsResetOpen] = useState(false);
 
+  const numericCustomerId = customerId !== null && customerId !== undefined ? Number(String(customerId).trim()) : null;
+  const isValidCustomerId =
+    typeof numericCustomerId === 'number' &&
+    Number.isInteger(numericCustomerId) &&
+    numericCustomerId > 0 &&
+    !String(customerId).trim().startsWith('-');
+
   // Fetch real customer data from existing API
   const {
     data: customer,
@@ -55,10 +62,10 @@ export function CustomerDetailsDrawer({
     refetch,
   } = useQuery({
     queryKey: ['admin-customer-details-drawer', customerId],
-    enabled: isOpen && !!customerId,
+    enabled: isOpen && isValidCustomerId,
     queryFn: async () => {
-      if (!customerId) return null;
-      const res: any = await api.get(`/customers/${customerId}`);
+      if (!isValidCustomerId || !numericCustomerId) return null;
+      const res: any = await api.get(`/customers/${numericCustomerId}`);
       return res?.data || res;
     },
   });
@@ -74,29 +81,33 @@ export function CustomerDetailsDrawer({
       isOpen={isOpen}
       onClose={onClose}
       title={customer?.name || customer?.customerName || customer?.companyName || 'Customer Details'}
-      description={customer ? `${customer.companyName || customer.workspaceName || customer.company || 'Direct Client'} • ${customer.customerId || `CUST-${String(customerId).padStart(4, '0')}`}` : 'Loading customer account...'}
+      description={customer ? `${customer.companyName || customer.workspaceName || customer.company || 'Direct Client'} • ${customer.customerId || `CUST-${String(customerId).padStart(4, '0')}`}` : (isValidCustomerId ? 'Loading customer account...' : 'Invalid Customer Identifier')}
       icon={Building2}
       maxWidth="sm:max-w-[620px]"
       footer={
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
-            <Link
-              href={`/customers/${customerId}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-all cursor-pointer"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Full Page View</span>
-            </Link>
+            {isValidCustomerId && (
+              <Link
+                href={`/customers/${customerId}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-all cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Full Page View</span>
+              </Link>
+            )}
 
-            <button
-              type="button"
-              onClick={() => setIsResetOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
-              title="Reset Customer Data"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-              <span>Reset Data</span>
-            </button>
+            {isValidCustomerId && (
+              <button
+                type="button"
+                onClick={() => setIsResetOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                title="Reset Customer Data"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                <span>Reset Data</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -123,7 +134,17 @@ export function CustomerDetailsDrawer({
         </div>
       }
     >
-      {isLoading ? (
+      {!isValidCustomerId ? (
+        <div className="py-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <p className="text-sm font-bold text-slate-800">Invalid Customer Identifier</p>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Customer ID &quot;{String(customerId)}&quot; is invalid. Customer identifiers in QuikBoom CRM must be positive integers.
+          </p>
+        </div>
+      ) : isLoading ? (
         <div className="py-16 flex flex-col items-center justify-center space-y-3">
           <div className="w-8 h-8 border-3 border-[#23C45E] border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold text-slate-400">Loading customer profile & subscription...</p>
@@ -144,6 +165,7 @@ export function CustomerDetailsDrawer({
             <RefreshCw className="w-3.5 h-3.5" /> Retry
           </button>
         </div>
+
       ) : (
         <div className="space-y-5">
           {/* Top Customer Summary Card */}
