@@ -163,7 +163,6 @@ export default function DataManagementPage() {
     breakdown: any;
   } | null>(null);
   const [isLoadingAllCustomersSummary, setIsLoadingAllCustomersSummary] = useState(false);
-  const customerSearchDropdownRef = useRef<HTMLDivElement>(null);
 
   // Summary state – starts at zeros; filled by API on mount
   const [summary, setSummary] = useState<SummaryData>({
@@ -205,9 +204,6 @@ export default function DataManagementPage() {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target as Node)) {
         setShowSearchDropdown(false);
-      }
-      if (customerSearchDropdownRef.current && !customerSearchDropdownRef.current.contains(e.target as Node)) {
-        setShowCustomerSearchDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -2307,57 +2303,202 @@ export default function DataManagementPage() {
         </div>
       )}
 
-      {/* CUSTOMER RESET CONFIRMATION MODAL */}
-      {showCustomerResetModal && selectedCustomer && (
+      {/* RESET SELECTED CUSTOMERS CONFIRMATION MODAL */}
+      {showResetSelectedModal && selectedCustomers.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in-50 duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-
-            <div>
-              <h3 className="text-lg font-black text-slate-900">Reset Customer Data?</h3>
-              <p className="text-xs text-slate-600 font-medium mt-2 leading-relaxed">
-                This will permanently delete all application data belonging to this customer. This action cannot be undone.
-              </p>
-              <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-left text-xs space-y-1">
-                <p className="font-bold text-slate-800">
-                  Customer: <span className="font-black text-slate-950">{selectedCustomer.customer.displayName}</span>
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Email: {selectedCustomer.customer.email || 'N/A'}
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 text-left space-y-5">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-slate-900">
+                  Reset {selectedCustomers.length} Customer{selectedCustomers.length !== 1 ? 's' : ''}?
+                </h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  You are about to permanently delete the selected customer accounts along with all their linked operational data.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowCustomerResetModal(false)}
-                disabled={isResettingCustomer}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+            {/* Impact Summary Box */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                <span>Selected Customers:</span>
+                <span className="font-black text-rose-600">{selectedCustomers.length}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                <span>Estimated Affected Records:</span>
+                <span className="font-black text-indigo-700">
+                  ~{selectedRelatedRecordsCount.toLocaleString()} records
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200">
+                <p className="text-[11px] font-bold text-slate-500 mb-1.5">Customers to be deleted:</p>
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                  {selectedCustomers.map((c) => (
+                    <span
+                      key={c.id}
+                      className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-[11px] font-semibold flex items-center gap-1"
+                    >
+                      <span>{c.companyName || c.name}</span>
+                      <span className="text-[10px] text-slate-400">#{c.id}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] leading-relaxed">
+                <strong>Warning:</strong> This deletion is permanent and cannot be undone. Schedules, tasks, visits, invoices, and subscriptions belonging to these customers will be purged. Employee accounts and unrelated CRM leads remain safe.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <AdminButton
+                variant="secondary"
+                size="md"
+                onClick={() => setShowResetSelectedModal(false)}
+                disabled={isResettingSelected}
               >
                 Cancel
-              </button>
+              </AdminButton>
 
-              <button
-                type="button"
-                onClick={handleExecuteCustomerReset}
-                disabled={isResettingCustomer}
-                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-2"
+              <AdminButton
+                variant="danger"
+                size="md"
+                icon={Trash2}
+                onClick={handleExecuteResetSelected}
+                loading={isResettingSelected}
               >
-                {isResettingCustomer ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Resetting Data...</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Yes, Reset Customer Data</span>
-                  </>
-                )}
-              </button>
+                {isResettingSelected ? 'Resetting Customers...' : `Confirm & Reset (${selectedCustomers.length})`}
+              </AdminButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RESET ALL CUSTOMERS CONFIRMATION MODAL */}
+      {showResetAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in-50 duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-rose-200 text-left space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-rose-600/30">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-rose-950">Reset All Customers</h3>
+                  <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black uppercase">
+                    Extreme Action
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  This operation permanently wipes ALL customer client accounts and cascades through all customer-dependent records across the system.
+                </p>
+              </div>
+            </div>
+
+            {/* Breakdown & Preview Box */}
+            <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200/80 space-y-3">
+              <h4 className="text-[11px] font-black uppercase tracking-wider text-rose-950">
+                Total Affected Scope:
+              </h4>
+
+              {isLoadingAllCustomersSummary ? (
+                <div className="py-6 flex flex-col items-center justify-center gap-2 text-rose-700">
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span className="text-xs font-bold">Calculating affected records...</span>
+                </div>
+              ) : allCustomersSummary ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                    <div className="p-2.5 bg-white rounded-xl border border-rose-200 text-rose-950">
+                      Total Customers: <span className="font-black text-rose-600">{allCustomersSummary.totalCustomers}</span>
+                    </div>
+                    <div className="p-2.5 bg-white rounded-xl border border-rose-200 text-rose-950">
+                      Total Dependencies: <span className="font-black text-rose-600">~{allCustomersSummary.totalRelatedRecords.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {allCustomersSummary.breakdown && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-semibold text-slate-700">
+                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
+                        Works: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.works ?? 0}</span>
+                      </div>
+                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
+                        Tasks: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.tasks ?? 0}</span>
+                      </div>
+                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
+                        Invoices: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.invoices ?? 0}</span>
+                      </div>
+                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
+                        Schedules: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.monthlySchedules ?? 0}</span>
+                      </div>
+                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
+                        Subscriptions: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.subscriptions ?? 0}</span>
+                      </div>
+                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
+                        Quotations: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.quotations ?? 0}</span>
+                      </div>
+                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
+                        Tickets: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.tickets ?? 0}</span>
+                      </div>
+                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
+                        Visits: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.visits ?? 0}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-rose-800">Preview unavailable. Action will target all client customer records.</p>
+              )}
+            </div>
+
+            {/* Type Confirmation Input */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/90 space-y-2">
+              <label className="block text-[11px] font-black uppercase text-slate-600">
+                To confirm permanent deletion of ALL customers, type:{' '}
+                <span className="text-rose-600 font-mono font-black select-all">DELETE ALL CUSTOMERS</span>
+              </label>
+              <input
+                type="text"
+                value={resetAllConfirmationInput}
+                onChange={(e) => setResetAllConfirmationInput(e.target.value)}
+                placeholder="DELETE ALL CUSTOMERS"
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono uppercase"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <AdminButton
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  setShowResetAllModal(false);
+                  setResetAllConfirmationInput('');
+                }}
+                disabled={isResettingAllCustomers}
+              >
+                Cancel
+              </AdminButton>
+
+              <AdminButton
+                variant="danger"
+                size="md"
+                icon={Trash2}
+                onClick={handleExecuteResetAll}
+                loading={isResettingAllCustomers}
+                disabled={
+                  isResettingAllCustomers ||
+                  resetAllConfirmationInput.trim().toUpperCase() !== 'DELETE ALL CUSTOMERS'
+                }
+              >
+                {isResettingAllCustomers ? 'Deleting All Customers...' : 'Permanently Delete All Customers'}
+              </AdminButton>
             </div>
           </div>
         </div>
