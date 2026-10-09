@@ -1518,6 +1518,26 @@ export default function RolesPermissionsPage() {
     }
   };
 
+  const handleDeleteRole = async () => {
+    if (!selectedRole) return;
+    if (selectedRole.isSystem || selectedRole.code === 'CUSTOMER') {
+      toast.error('Default system role cannot be deleted');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete the role "${selectedRole.name}"?`)) {
+      return;
+    }
+    try {
+      await api.delete(`/designations/${selectedRole.id}`);
+      toast.success(`Role "${selectedRole.name}" deleted successfully`);
+      setSelectedRoleId('');
+      await queryClient.invalidateQueries({ queryKey: ['admin-rbac-roles'] });
+      await refetchRoles();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to delete role');
+    }
+  };
+
   const handleOpenCreateRole = () => {
     // Roles derive from Designations — redirect admin to Designation management
     setIsRoleDrawerOpen(true);
@@ -2134,6 +2154,17 @@ export default function RolesPermissionsPage() {
                         >
                           <Power className="w-3.5 h-3.5" />
                         </button>
+
+                        {roleAudience === 'customer' && !selectedRole.isSystem && selectedRole.code !== 'CUSTOMER' && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteRole}
+                            className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors cursor-pointer"
+                            title="Delete custom customer role"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
                         <button
                           type="button"
