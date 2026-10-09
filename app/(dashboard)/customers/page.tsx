@@ -19,10 +19,11 @@ function isUnconvertedLeadDirectoryRow(row?: {
   customerType?: unknown;
   id?: unknown;
 }): boolean {
+  if (persistedCustomerId(row?.id) != null) return false;
   const displayCode = String(row?.customerId ?? '').trim().toUpperCase();
   if (displayCode.startsWith('LEAD-')) return true;
   const type = String(row?.customerType ?? '').trim().toUpperCase();
-  return type === 'LEAD' && persistedCustomerId(row?.id) == null;
+  return type === 'LEAD';
 }
 
 function savedCustomerPrimaryKey(row?: { customerId?: unknown; customerType?: unknown; id?: unknown }): number | null {
@@ -299,7 +300,7 @@ export default function CustomersPage() {
   // Current page selection helpers
   const pageCustomerIds = useMemo(() => {
     return customers
-      .map((c: any) => savedCustomerPrimaryKey(c))
+      .map((c: any) => persistedCustomerId(c?.id))
       .filter((id): id is number => id != null);
   }, [customers]);
 
@@ -1181,13 +1182,13 @@ export default function CustomersPage() {
                       <td className="px-4 py-4 w-10">
                         <input
                           type="checkbox"
-                          checked={savedCustomerPrimaryKey(cust) != null && selectedCustomerIds.includes(savedCustomerPrimaryKey(cust) as number)}
-                          disabled={savedCustomerPrimaryKey(cust) == null}
-                          onChange={() => {
-                            const customerId = savedCustomerPrimaryKey(cust);
-                            if (customerId == null) return;
-                            handleToggleRow(customerId);
-                          }}
+                          checked={persistedCustomerId(cust.id) != null && selectedCustomerIds.includes(persistedCustomerId(cust.id) as number)}
+                      disabled={persistedCustomerId(cust.id) == null}
+                      onChange={() => {
+                        const customerId = persistedCustomerId(cust.id);
+                        if (customerId == null) return;
+                        handleToggleRow(customerId);
+                      }}
                           className="w-4 h-4 rounded text-[#23C45E] focus:ring-[#23C45E] border-slate-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
                         />
                       </td>
