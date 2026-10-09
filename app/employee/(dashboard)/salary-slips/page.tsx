@@ -28,17 +28,20 @@ import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 // ── Formatting Utilities ─────────────────────────────────────────────────────
 
 function formatCurrency(amount?: number | null): string {
-  if (amount === undefined || amount === null || isNaN(amount)) return '₹0';
+  if (amount === undefined || amount === null || isNaN(amount)) return '₹0.00';
   const isNegative = amount < 0;
-  const abs = Math.abs(Math.round(amount));
-  const str = abs.toString();
-  if (str.length <= 3) {
-    return `${isNegative ? '-' : ''}₹${str}`;
+  const abs = Math.abs(amount);
+  const parts = abs.toFixed(2).split('.');
+  const intPart = parts[0];
+  const decPart = parts[1];
+  let formattedInt = intPart;
+  if (intPart.length > 3) {
+    const lastThree = intPart.substring(intPart.length - 3);
+    const rest = intPart.substring(0, intPart.length - 3);
+    const formattedRest = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+    formattedInt = `${formattedRest},${lastThree}`;
   }
-  const lastThree = str.substring(str.length - 3);
-  const otherNumbers = str.substring(0, str.length - 3);
-  const formattedOther = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
-  return `${isNegative ? '-' : ''}₹${formattedOther},${lastThree}`;
+  return `${isNegative ? '-' : ''}₹${formattedInt}.${decPart}`;
 }
 
 function formatDisplayDate(raw?: string | null): string {
@@ -239,7 +242,33 @@ export default function SalarySlipsPage() {
     const toastId = toast.loading(`Generating salary slip PDF for ${slip.month}...`);
 
     try {
-      // 1. Try server endpoint first if direct download url is given
+      // 1. Try server official PDF stream first
+      try {
+        const authHeader = {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob' as const,
+        };
+        const res = await api.get(`/admin/payroll/slips/${slip.id}/pdf`, authHeader);
+        if (res.data) {
+          const blob = new Blob([res.data], { type: 'application/pdf' });
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          const safeFilename = `salary_slip_${slip.month.replace(/[\/\\:*?"<>| ]+/g, '_')}.pdf`;
+          link.download = safeFilename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          toast.success('Salary slip downloaded successfully', { id: toastId });
+          setIsDownloadingPdf(false);
+          return;
+        }
+      } catch (_) {
+        // Fallback to client-side branded PDF generation
+      }
+
+      // If direct download url is given, open it
       if (slip.downloadUrl && slip.downloadUrl.startsWith('http')) {
         window.open(slip.downloadUrl, '_blank');
         toast.success('Salary slip downloaded successfully', { id: toastId });
@@ -321,32 +350,38 @@ export default function SalarySlipsPage() {
 
       cursorY += 4;
 
-      const earningsRows = [
+      const earningsItems = [
         ['Basic Salary', formatCurrency(slip.basicSalary)],
         ['HRA Allowance', formatCurrency(slip.hra)],
         ['Allowances & Special', formatCurrency(slip.allowances + slip.specialAllowance)],
         ...(slip.commission > 0 ? [['Earned Commission', formatCurrency(slip.commission)]] : []),
         ...(slip.reimbursement > 0 ? [['Expense Reimbursement', formatCurrency(slip.reimbursement)]] : []),
-        ['Total Gross Salary', formatCurrency(slip.grossSalary)],
       ];
 
-      const deductionsRows = [
+      const deductionsItems = [
         ['Provident Fund (PF)', formatCurrency(slip.pf)],
         ['ESI Contribution', formatCurrency(slip.esi)],
         ['TDS / Income Tax', formatCurrency(slip.tds)],
         ...(slip.loanDeduction > 0 ? [['Loan EMI Deduction', formatCurrency(slip.loanDeduction)]] : []),
         ...(slip.unpaidLeaveDeduction > 0 ? [['Loss of Pay (LOP)', formatCurrency(slip.unpaidLeaveDeduction)]] : []),
-        ['Total Deductions', formatCurrency(slip.deductions)],
       ];
 
-      const maxRows = Math.max(earningsRows.length, deductionsRows.length);
+      const maxRows = Math.max(earningsItems.length, deductionsItems.length);
       const combinedBody: string[][] = [];
 
       for (let i = 0; i < maxRows; i++) {
-        const earn = earningsRows[i] || ['', ''];
-        const ded = deductionsRows[i] || ['', ''];
+        const earn = earningsItems[i] || ['', ''];
+        const ded = deductionsItems[i] || ['', ''];
         combinedBody.push([earn[0], earn[1], ded[0], ded[1]]);
       }
+
+      // Append distinct totals row as the final row
+      combinedBody.push([
+        'Total Gross Salary',
+        formatCurrency(slip.grossSalary),
+        'Total Deductions',
+        formatCurrency(slip.deductions),
+      ]);
 
       autoTable(doc, {
         startY: cursorY,
@@ -366,6 +401,12 @@ export default function SalarySlipsPage() {
           3: { cellWidth: 35, halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] },
         },
         body: combinedBody,
+        didParseCell: (data) => {
+          if (data.row.index === combinedBody.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [241, 245, 249];
+          }
+        },
       });
 
       cursorY = (doc as any).lastAutoTable.finalY + 8;
@@ -925,97 +966,89 @@ export default function SalarySlipsPage() {
               </div>
             </div>
 
-            {/* Earnings & Deductions Tables */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Earnings Column */}
-              <div className="bg-slate-50/60 rounded-2xl p-4 border border-slate-200/80 space-y-2">
-                <h4 className="font-black text-[#16A34A] uppercase tracking-wider text-[11px] pb-1.5 border-b border-slate-200 flex items-center justify-between">
-                  <span>Earnings</span>
-                  <span>Amount</span>
-                </h4>
-                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                  <span>Basic Salary</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.basicSalary)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                  <span>HRA Allowance</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.hra)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                  <span>Allowances & Special</span>
-                  <span className="font-bold text-slate-900">
-                    {formatCurrency(selectedSlip.allowances + selectedSlip.specialAllowance)}
-                  </span>
-                </div>
-                {selectedSlip.commission > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                    <span>Earned Commission</span>
-                    <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.commission)}</span>
-                  </div>
-                )}
-                {selectedSlip.reimbursement > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-700">
-                    <span>Expense Reimbursement</span>
-                    <span className="font-bold text-emerald-700">{formatCurrency(selectedSlip.reimbursement)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between pt-2 font-black text-slate-900 text-sm">
-                  <span>Gross Salary:</span>
-                  <span>{formatCurrency(selectedSlip.grossSalary)}</span>
-                </div>
-              </div>
+            {/* Salary Breakdown Table */}
+            {(() => {
+              const earningsItems: [string, number][] = [
+                ['Basic Salary', selectedSlip.basicSalary || 0],
+                ['HRA Allowance', selectedSlip.hra || 0],
+                ['Allowances & Special', (selectedSlip.allowances || 0) + (selectedSlip.specialAllowance || 0)],
+              ];
+              if (selectedSlip.commission > 0) earningsItems.push(['Earned Commission', selectedSlip.commission]);
+              if (selectedSlip.reimbursement > 0) earningsItems.push(['Expense Reimbursement', selectedSlip.reimbursement]);
 
-              {/* Deductions Column */}
-              <div className="bg-slate-50/60 rounded-2xl p-4 border border-slate-200/80 space-y-2">
-                <h4 className="font-black text-rose-700 uppercase tracking-wider text-[11px] pb-1.5 border-b border-slate-200 flex items-center justify-between">
-                  <span>Deductions</span>
-                  <span>Amount</span>
-                </h4>
-                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                  <span>Provident Fund (PF)</span>
-                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.pf)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                  <span>ESI Contribution</span>
-                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.esi)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100 text-slate-600">
-                  <span>TDS / Income Tax</span>
-                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.tds)}</span>
-                </div>
-                {selectedSlip.loanDeduction > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-rose-700">
-                    <span>Loan EMI</span>
-                    <span className="font-bold text-rose-700">{formatCurrency(selectedSlip.loanDeduction)}</span>
-                  </div>
-                )}
-                {selectedSlip.unpaidLeaveDeduction > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-rose-700">
-                    <span>Loss of Pay (LOP)</span>
-                    <span className="font-bold text-rose-700">{formatCurrency(selectedSlip.unpaidLeaveDeduction)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between pt-2 font-black text-rose-600 text-sm">
-                  <span>Total Deductions:</span>
-                  <span>- {formatCurrency(selectedSlip.deductions)}</span>
-                </div>
-              </div>
-            </div>
+              const deductionsItems: [string, number][] = [
+                ['Provident Fund (PF)', selectedSlip.pf || 0],
+                ['ESI Contribution', selectedSlip.esi || 0],
+                ['TDS / Income Tax', selectedSlip.tds || 0],
+              ];
+              if (selectedSlip.loanDeduction > 0) deductionsItems.push(['Loan EMI Deduction', selectedSlip.loanDeduction]);
+              if (selectedSlip.unpaidLeaveDeduction > 0) deductionsItems.push(['Loss of Pay (LOP)', selectedSlip.unpaidLeaveDeduction]);
 
-            {/* Net Payout Banner */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-[#E8F9EE] border border-emerald-200/80 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase font-black text-[#1AA14D] block tracking-wider">
-                  TOTAL NET TAKE-HOME PAY
-                </span>
-                <p className="text-2xl font-black text-[#16A34A] mt-0.5">
-                  {formatCurrency(selectedSlip.netSalary)}
-                </p>
-              </div>
-              <span className="px-3 py-1 rounded-full bg-emerald-100 text-[#1AA14D] border border-emerald-200/60 font-black text-xs uppercase tracking-wider">
-                {selectedSlip.status || 'PAID'}
-              </span>
-            </div>
+              const maxRows = Math.max(earningsItems.length, deductionsItems.length);
+
+              return (
+                <div className="space-y-4">
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#0F763E] text-white">
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] w-[30%]">EARNINGS</th>
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] text-right w-[20%]">AMOUNT</th>
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] w-[30%] border-l border-emerald-700/60">DEDUCTIONS</th>
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] text-right w-[20%]">AMOUNT</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {Array.from({ length: maxRows }).map((_, idx) => {
+                          const earn = earningsItems[idx];
+                          const ded = deductionsItems[idx];
+                          return (
+                            <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                              <td className="py-2.5 px-3.5 text-slate-700 font-medium">{earn ? earn[0] : ''}</td>
+                              <td className="py-2.5 px-3.5 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                                {earn ? formatCurrency(earn[1]) : ''}
+                              </td>
+                              <td className="py-2.5 px-3.5 text-slate-700 font-medium border-l border-slate-100">{ded ? ded[0] : ''}</td>
+                              <td className="py-2.5 px-3.5 text-right font-bold text-rose-600 whitespace-nowrap tabular-nums">
+                                {ded ? formatCurrency(ded[1]) : ''}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Totals Row */}
+                        <tr className="bg-slate-100/80 font-bold border-t-2 border-slate-200">
+                          <td className="py-2.5 px-3.5 text-slate-900 font-black">Total Gross Salary</td>
+                          <td className="py-2.5 px-3.5 text-right font-black text-slate-900 whitespace-nowrap tabular-nums">
+                            {formatCurrency(selectedSlip.grossSalary)}
+                          </td>
+                          <td className="py-2.5 px-3.5 text-slate-900 font-black border-l border-slate-200">Total Deductions</td>
+                          <td className="py-2.5 px-3.5 text-right font-black text-rose-600 whitespace-nowrap tabular-nums">
+                            {formatCurrency(selectedSlip.deductions)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Net Payable Section */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#E8F9EE] border border-[#86EFAC] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-black uppercase text-[#15803D] tracking-wider block">
+                        NET PAYABLE (TAKE HOME SALARY)
+                      </span>
+                      <p className="text-2xl sm:text-3xl font-black text-[#15803D] mt-0.5 tabular-nums">
+                        {formatCurrency(selectedSlip.netSalary)}
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
+                        Confidential Document — Generated electronically by QB Suite
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </EmployeeSideSheet>

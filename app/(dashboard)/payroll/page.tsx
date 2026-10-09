@@ -496,7 +496,7 @@ export default function PayrollPage() {
   ];
 
   const formatCurrency = (val?: number) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
   };
 
   return (
@@ -1485,94 +1485,99 @@ export default function PayrollPage() {
               </div>
             </div>
 
-            {/* Earnings & Deductions Tables */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              {/* Earnings */}
-              <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 space-y-2">
-                <h4 className="font-black text-emerald-800 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-200">
-                  Earnings Breakdown
-                </h4>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Basic Salary</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.basicSalary)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">HRA Allowance</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.hra)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Allowances & Special</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.allowances)}</span>
-                </div>
-                {selectedSlip.payrollItem?.commission > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-600">Earned Commission</span>
-                    <span className="font-bold text-slate-900">{formatCurrency(selectedSlip.payrollItem.commission)}</span>
-                  </div>
-                )}
-                {selectedSlip.payrollItem?.reimbursement > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-emerald-700 font-semibold">Expense Reimbursement</span>
-                    <span className="font-bold text-emerald-700">{formatCurrency(selectedSlip.payrollItem.reimbursement)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between pt-2 font-black text-slate-900 text-sm">
-                  <span>Gross Salary:</span>
-                  <span>{formatCurrency(selectedSlip.grossSalary)}</span>
-                </div>
-              </div>
+            {/* Salary Breakdown Table */}
+            {(() => {
+              const earningsItems: [string, number][] = [
+                ['Basic Salary', selectedSlip.basicSalary || 0],
+                ['HRA Allowance', selectedSlip.hra || 0],
+                ['Allowances & Special', selectedSlip.allowances || 0],
+              ];
+              if (selectedSlip.payrollItem?.commission > 0) earningsItems.push(['Earned Commission', selectedSlip.payrollItem.commission]);
+              if (selectedSlip.payrollItem?.reimbursement > 0) earningsItems.push(['Expense Reimbursement', selectedSlip.payrollItem.reimbursement]);
 
-              {/* Deductions */}
-              <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 space-y-2">
-                <h4 className="font-black text-rose-800 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-200">
-                  Deductions Breakdown
-                </h4>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Provident Fund (PF)</span>
-                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.pf)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">ESI Contribution</span>
-                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.esi)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">TDS / Income Tax</span>
-                  <span className="font-bold text-rose-600">{formatCurrency(selectedSlip.tds)}</span>
-                </div>
-                {selectedSlip.payrollItem?.loanDeduction > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-rose-700 font-semibold">Loan EMI Deduction</span>
-                    <span className="font-bold text-rose-700">{formatCurrency(selectedSlip.payrollItem.loanDeduction)}</span>
-                  </div>
-                )}
-                {selectedSlip.payrollItem?.unpaidLeaveDeduction > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-rose-700 font-semibold">Loss of Pay (Unpaid Leave)</span>
-                    <span className="font-bold text-rose-700">{formatCurrency(selectedSlip.payrollItem.unpaidLeaveDeduction)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between pt-2 font-black text-rose-600 text-sm">
-                  <span>Total Deductions:</span>
-                  <span>- {formatCurrency(selectedSlip.totalDeductions)}</span>
-                </div>
-              </div>
-            </div>
+              const deductionsItems: [string, number][] = [
+                ['Provident Fund (PF)', selectedSlip.pf || 0],
+                ['ESI Contribution', selectedSlip.esi || 0],
+                ['TDS / Income Tax', selectedSlip.tds || 0],
+              ];
+              if (selectedSlip.payrollItem?.loanDeduction > 0) deductionsItems.push(['Loan EMI Deduction', selectedSlip.payrollItem.loanDeduction]);
+              if (selectedSlip.payrollItem?.unpaidLeaveDeduction > 0) deductionsItems.push(['Loss of Pay (LOP)', selectedSlip.payrollItem.unpaidLeaveDeduction]);
 
-            {/* Net Payout Banner */}
-            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200/80 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase font-black text-emerald-800 block">Total Net Take-Home Salary</span>
-                <p className="text-xl sm:text-2xl font-black text-emerald-700">{formatCurrency(selectedSlip.netSalary)}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" /> Print / PDF
-                </button>
-              </div>
-            </div>
+              const maxRows = Math.max(earningsItems.length, deductionsItems.length);
+
+              return (
+                <div className="space-y-4 text-xs">
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#0F763E] text-white">
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] w-[30%]">EARNINGS</th>
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] text-right w-[20%]">AMOUNT</th>
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] w-[30%] border-l border-emerald-700/60">DEDUCTIONS</th>
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] text-right w-[20%]">AMOUNT</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {Array.from({ length: maxRows }).map((_, idx) => {
+                          const earn = earningsItems[idx];
+                          const ded = deductionsItems[idx];
+                          return (
+                            <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                              <td className="py-2.5 px-3.5 text-slate-700 font-medium">{earn ? earn[0] : ''}</td>
+                              <td className="py-2.5 px-3.5 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                                {earn ? formatCurrency(earn[1]) : ''}
+                              </td>
+                              <td className="py-2.5 px-3.5 text-slate-700 font-medium border-l border-slate-100">{ded ? ded[0] : ''}</td>
+                              <td className="py-2.5 px-3.5 text-right font-bold text-rose-600 whitespace-nowrap tabular-nums">
+                                {ded ? formatCurrency(ded[1]) : ''}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Totals Row */}
+                        <tr className="bg-slate-100/80 font-bold border-t-2 border-slate-200">
+                          <td className="py-2.5 px-3.5 text-slate-900 font-black">Total Gross Salary</td>
+                          <td className="py-2.5 px-3.5 text-right font-black text-slate-900 whitespace-nowrap tabular-nums">
+                            {formatCurrency(selectedSlip.grossSalary)}
+                          </td>
+                          <td className="py-2.5 px-3.5 text-slate-900 font-black border-l border-slate-200">Total Deductions</td>
+                          <td className="py-2.5 px-3.5 text-right font-black text-rose-600 whitespace-nowrap tabular-nums">
+                            {formatCurrency(selectedSlip.totalDeductions)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Net Payable Section */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#E8F9EE] border border-[#86EFAC] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-black uppercase text-[#15803D] tracking-wider block">
+                        NET PAYABLE (TAKE HOME SALARY)
+                      </span>
+                      <p className="text-2xl sm:text-3xl font-black text-[#15803D] mt-0.5 tabular-nums">
+                        {formatCurrency(selectedSlip.netSalary)}
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:items-end gap-2">
+                      <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
+                        Confidential Document — Generated electronically by QB Suite
+                      </p>
+                      <button
+                        onClick={() => {
+                          const token = localStorage.getItem('token') || '';
+                          const win = window.open(`/api/v1/admin/payroll/slips/${selectedSlip.id}/pdf`, '_blank');
+                          if (!win) window.print();
+                        }}
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer self-start sm:self-auto transition-colors"
+                      >
+                        <Printer className="w-4 h-4" /> Download Official PDF
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

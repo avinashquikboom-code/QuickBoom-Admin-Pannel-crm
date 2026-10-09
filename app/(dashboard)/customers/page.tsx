@@ -2,23 +2,32 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 
-/** Saved customers use a positive primary key. Lead rows in this list use a negated lead id. */
+/** Positive Customer.id from the API. Display codes such as LEAD-0904 are not primary keys. */
 function persistedCustomerId(value: unknown): number | null {
   const num = typeof value === 'number' ? value : Number(String(value ?? '').trim());
   if (!Number.isInteger(num) || num <= 0) return null;
   return num;
 }
 
-function unsavedCustomerDeleteMessage(row?: { customerId?: string; leadId?: string | number; id?: unknown }): string {
-  const leadLabel =
-    row?.customerId ||
-    (row?.leadId != null && String(row.leadId).trim() !== ''
-      ? `LEAD-${String(row.leadId).padStart(4, '0')}`
-      : null);
-  if (leadLabel) {
-    return `${leadLabel} is an unconverted lead, not a saved customer. Customer delete was not sent.`;
-  }
-  return `Customer ID "${row?.id ?? ''}" is not a saved customer. Customer delete was not sent.`;
+/**
+ * Unconverted lead cards from mapLeadToCustomerItem.
+ * They use customerId "LEAD-####" and customerType "LEAD". Their `id` is a list key, not Customer.id.
+ * A converted customer keeps a positive Customer.id and a CUST- code even when leadId is present.
+ */
+function isUnconvertedLeadDirectoryRow(row?: {
+  customerId?: unknown;
+  customerType?: unknown;
+  id?: unknown;
+}): boolean {
+  const displayCode = String(row?.customerId ?? '').trim().toUpperCase();
+  if (displayCode.startsWith('LEAD-')) return true;
+  const type = String(row?.customerType ?? '').trim().toUpperCase();
+  return type === 'LEAD' && persistedCustomerId(row?.id) == null;
+}
+
+function savedCustomerPrimaryKey(row?: { customerId?: unknown; customerType?: unknown; id?: unknown }): number | null {
+  if (!row || isUnconvertedLeadDirectoryRow(row)) return null;
+  return persistedCustomerId(row.id);
 }
 import Link from 'next/link';
 import {
@@ -283,7 +292,9 @@ export default function CustomersPage() {
 
   // Current page selection helpers
   const pageCustomerIds = useMemo(() => {
-    return customers.map((c: any) => Number(c.id)).filter((id: number) => !isNaN(id) && id > 0);
+    return customers
+      .map((c: any) => savedCustomerPrimaryKey(c))
+      .filter((id): id is number => id != null);
   }, [customers]);
 
   const pageSelectedCount = useMemo(() => {
@@ -364,7 +375,7 @@ export default function CustomersPage() {
     mutationFn: async (id: number | string) => {
       const customerId = persistedCustomerId(id);
       if (customerId == null) {
-        throw new Error(unsavedCustomerDeleteMessage({ id }));
+        throw new Error('Customer delete requires a saved customer primary key.');
       }
       return api.delete(`/customers/${customerId}`);
     },
@@ -396,7 +407,7 @@ export default function CustomersPage() {
         if (customerId == null) {
           rejected.push({
             id: Number(id),
-            error: unsavedCustomerDeleteMessage({ id }),
+            error: 'Not a saved customer. Lead records are not sent to customer delete.',
           });
         } else {
           validIds.push(customerId);
@@ -1010,10 +1021,10 @@ export default function CustomersPage() {
                       <td className="px-4 py-4 w-10">
                         <input
                           type="checkbox"
-                          checked={persistedCustomerId(cust.id) != null && selectedCustomerIds.includes(persistedCustomerId(cust.id) as number)}
-                          disabled={persistedCustomerId(cust.id) == null}
+                          checked={savedCustomerPrimaryKey(cust) != null && selectedCustomerIds.includes(savedCustomerPrimaryKey(cust) as number)}
+                          disabled={savedCustomerPrimaryKey(cust) == null}
                           onChange={() => {
-                            const customerId = persistedCustomerId(cust.id);
+                            const customerId = savedCustomerPrimaryKey(cust);
                             if (customerId == null) return;
                             handleToggleRow(customerId);
                           }}
@@ -1209,19 +1220,19 @@ export default function CustomersPage() {
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
 
+                          {savedCustomerPrimaryKey(cust) != null && (
                           <button
                             onClick={() => {
-                              if (persistedCustomerId(cust.id) == null) {
-                                toast.error(unsavedCustomerDeleteMessage(cust));
-                                return;
-                              }
-                              setDeletingCustomer(cust);
+                              const customerId = savedCustomerPrimaryKey(cust);
+                              if (customerId == null) return;
+                              setDeletingCustomer({ ...cust, id: customerId });
                             }}
                             className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-all cursor-pointer"
                             title="Delete Customer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
+                          )}
 
                           <button
                             type="button"
@@ -1694,9 +1705,8 @@ export default function CustomersPage() {
 
               <button
                 onClick={() => {
-                  const customerId = persistedCustomerId(deletingCustomer.id);
+                  const customerId = savedCustomerPrimaryKey(deletingCustomer);
                   if (customerId == null) {
-                    toast.error(unsavedCustomerDeleteMessage(deletingCustomer));
                     setDeletingCustomer(null);
                     return;
                   }
