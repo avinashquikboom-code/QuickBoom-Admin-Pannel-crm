@@ -43,6 +43,7 @@ import { Clock3, MonitorSmartphone, CalendarDays,
   Mail,
   MessageSquare,
   Copy,
+  UserX,
 } from 'lucide-react';
 import { User as UserType } from './store';
 
@@ -484,6 +485,7 @@ export const adminNavigation: {
         { name: 'Roles & Permissions', href: '/roles-permissions', icon: ShieldCheck, permission: 'roles.manage' },
         { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
         { name: 'Integrations', href: '/settings', icon: Zap, permission: 'settings.global' },
+        { name: 'Account Deletion', href: '/settings/account-deletion', icon: UserX },
         { name: 'Activity Logs', href: '/activity-logs', icon: Activity, permission: 'audit_logs.view' },
       ],
     },
@@ -768,6 +770,7 @@ export const adminNavigation: {
       roles: ['HR'],
       items: [
         { name: 'Notification Center', href: '/settings/notifications', icon: Bell, permission: 'notifications.view' },
+        { name: 'Account Deletion', href: '/settings/account-deletion', icon: UserX },
       ],
     },
   ],
