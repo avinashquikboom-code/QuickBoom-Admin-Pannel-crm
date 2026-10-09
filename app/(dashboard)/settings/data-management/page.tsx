@@ -146,13 +146,23 @@ export default function DataManagementPage() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerSearchResults, setCustomerSearchResults] = useState<any[]>([]);
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
-  const [isLoadingCustomerSummary, setIsLoadingCustomerSummary] = useState(false);
-  const [showCustomerSearchDropdown, setShowCustomerSearchDropdown] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
   const [hasSearchedCustomers, setHasSearchedCustomers] = useState(false);
-  const [isResettingCustomer, setIsResettingCustomer] = useState(false);
-  const [showCustomerResetModal, setShowCustomerResetModal] = useState(false);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<number>>(new Set());
+
+  // Customer Reset Action Modals
+  const [showResetSelectedModal, setShowResetSelectedModal] = useState(false);
+  const [isResettingSelected, setIsResettingSelected] = useState(false);
+
+  const [showResetAllModal, setShowResetAllModal] = useState(false);
+  const [isResettingAllCustomers, setIsResettingAllCustomers] = useState(false);
+  const [resetAllConfirmationInput, setResetAllConfirmationInput] = useState('');
+  const [allCustomersSummary, setAllCustomersSummary] = useState<{
+    totalCustomers: number;
+    totalRelatedRecords: number;
+    breakdown: any;
+  } | null>(null);
+  const [isLoadingAllCustomersSummary, setIsLoadingAllCustomersSummary] = useState(false);
   const customerSearchDropdownRef = useRef<HTMLDivElement>(null);
 
   // Summary state – starts at zeros; filled by API on mount
@@ -314,23 +324,16 @@ export default function DataManagementPage() {
     }
   };
 
-  const searchCustomers = useCallback(async (query: string) => {
-    if (!query.trim() || query.trim().length < 2) {
-      setCustomerSearchResults([]);
-      setShowCustomerSearchDropdown(false);
-      setHasSearchedCustomers(false);
-      setCustomerSearchError(null);
-      return;
-    }
+  const searchCustomers = useCallback(async (query: string = '') => {
     setIsSearchingCustomers(true);
     setCustomerSearchError(null);
     setHasSearchedCustomers(true);
     try {
       const res: any = await api.get('/admin/data-management/customers', {
-        params: { search: query.trim(), limit: 10, page: 1 },
+        params: { search: query.trim() || undefined, limit: 50, page: 1 },
       }).catch(async () => {
         return api.get('/customers', {
-          params: { search: query.trim(), limit: 10, page: 1, excludeAdmins: 'true' },
+          params: { search: query.trim() || undefined, limit: 50, page: 1, excludeAdmins: 'true' },
         });
       });
       const data = res?.data || res;
@@ -342,13 +345,20 @@ export default function DataManagementPage() {
         const email = (cust.email || '').trim().toLowerCase();
         const isSuperAdmin = name.includes('super admin') || company.includes('super admin') || email.includes('superadmin');
         const isAdmin = name === 'admin' || company === 'admin' || email === 'admin@quickboom.com';
-        return !isSuperAdmin && !isAdmin;
+        return !isSuperAdmin && !isAdmin && cust.id !== 1;
       });
       setCustomerSearchResults(customers);
-      setShowCustomerSearchDropdown(customers.length > 0);
+      // Clean up selection of items no longer present
+      const validIds = new Set(customers.map((c: any) => c.id));
+      setSelectedCustomerIds((prev) => {
+        const next = new Set<number>();
+        for (const id of prev) {
+          if (validIds.has(id)) next.add(id);
+        }
+        return next;
+      });
     } catch (err: any) {
       setCustomerSearchResults([]);
-      setShowCustomerSearchDropdown(false);
       const msg = err?.response?.data?.message || err?.message || 'Failed to search customers. Please try again.';
       setCustomerSearchError(msg);
     } finally {
@@ -356,54 +366,105 @@ export default function DataManagementPage() {
     }
   }, []);
 
-  const handleSelectCustomer = async (cust: any) => {
-    setShowCustomerSearchDropdown(false);
-    setCustomerSearch(cust.companyName || cust.name);
-    setIsLoadingCustomerSummary(true);
-    try {
-      const res: any = await api.get(`/admin/data-management/customers/${cust.id}/summary`);
-      const data = res?.data || res;
-      setSelectedCustomer(data);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to load customer summary');
-      setSelectedCustomer(null);
-    } finally {
-      setIsLoadingCustomerSummary(false);
-    }
-  };
-
   const handleCustomerSearchChange = (value: string) => {
     setCustomerSearch(value);
     setCustomerSearchError(null);
-    if (!value) {
-      setSelectedCustomer(null);
-      setCustomerSearchResults([]);
-      setShowCustomerSearchDropdown(false);
-      setHasSearchedCustomers(false);
-    } else if (value.trim().length >= 2) {
-      searchCustomers(value);
+    searchCustomers(value);
+  };
+
+  const selectedCustomers = useMemo(() => {
+    return customerSearchResults.filter((c) => selectedCustomerIds.has(c.id));
+  }, [customerSearchResults, selectedCustomerIds]);
+
+  const selectedRelatedRecordsCount = useMemo(() => {
+    return selectedCustomers.reduce((acc, c) => acc + (c.relatedRecordsCount || 0), 0);
+  }, [selectedCustomers]);
+
+  const isAllCustomersSelected = customerSearchResults.length > 0 && customerSearchResults.every((c) => selectedCustomerIds.has(c.id));
+  const isSomeCustomersSelected = customerSearchResults.some((c) => selectedCustomerIds.has(c.id)) && !isAllCustomersSelected;
+
+  const handleToggleSelectAllCustomers = () => {
+    if (isAllCustomersSelected) {
+      setSelectedCustomerIds(new Set());
+    } else {
+      setSelectedCustomerIds(new Set(customerSearchResults.map((c) => c.id)));
     }
   };
 
-  const handleExecuteCustomerReset = async () => {
-    if (!selectedCustomer) return;
-    setIsResettingCustomer(true);
+  const handleToggleSelectCustomer = (id: number) => {
+    setSelectedCustomerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleExecuteResetSelected = async () => {
+    if (selectedCustomerIds.size === 0) return;
+    setIsResettingSelected(true);
     try {
-      const res: any = await api.post(`/admin/data-management/customers/${selectedCustomer.customer.id}/reset`, {
-        reason: 'Admin customer data reset console',
+      const res: any = await api.post('/admin/data-management/customers/reset-selected', {
+        customerIds: Array.from(selectedCustomerIds),
+        reason: 'Admin executed Reset Selected Customers',
       });
       const data = res?.data || res;
-      toast.success(data?.message || 'Customer application data reset successfully!');
-      setShowCustomerResetModal(false);
-      // Reload customer summary (counts should now be 0)
-      const refreshed: any = await api.get(`/admin/data-management/customers/${selectedCustomer.customer.id}/summary`);
-      setSelectedCustomer(refreshed?.data || refreshed);
-      // Reload overview summary & history
-      await loadSummaryAndHistory();
+      toast.success(data?.message || `Successfully reset ${selectedCustomerIds.size} customer(s)!`);
+      setShowResetSelectedModal(false);
+      setSelectedCustomerIds(new Set());
+      await Promise.all([
+        searchCustomers(customerSearch),
+        loadSummaryAndHistory(),
+      ]);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to reset customer data');
+      toast.error(err?.response?.data?.message || 'Failed to reset selected customers');
     } finally {
-      setIsResettingCustomer(false);
+      setIsResettingSelected(false);
+    }
+  };
+
+  const handleOpenResetAllModal = async () => {
+    setResetAllConfirmationInput('');
+    setShowResetAllModal(true);
+    setIsLoadingAllCustomersSummary(true);
+    try {
+      const res: any = await api.get('/admin/data-management/customers/summary/all');
+      setAllCustomersSummary(res?.data || res);
+    } catch (err: any) {
+      toast.error('Failed to load total customer record preview');
+      setAllCustomersSummary(null);
+    } finally {
+      setIsLoadingAllCustomersSummary(false);
+    }
+  };
+
+  const handleExecuteResetAll = async () => {
+    if (resetAllConfirmationInput.trim().toUpperCase() !== 'DELETE ALL CUSTOMERS') {
+      toast.error('Please type "DELETE ALL CUSTOMERS" exactly to confirm.');
+      return;
+    }
+    setIsResettingAllCustomers(true);
+    try {
+      const res: any = await api.post('/admin/data-management/customers/reset-all', {
+        confirmation: 'DELETE ALL CUSTOMERS',
+        reason: 'Admin executed Reset All Customers',
+      });
+      const data = res?.data || res;
+      toast.success(data?.message || 'Successfully reset all client customers!');
+      setShowResetAllModal(false);
+      setResetAllConfirmationInput('');
+      setSelectedCustomerIds(new Set());
+      await Promise.all([
+        searchCustomers(''),
+        loadSummaryAndHistory(),
+      ]);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to reset all customers');
+    } finally {
+      setIsResettingAllCustomers(false);
     }
   };
 
@@ -499,6 +560,8 @@ export default function DataManagementPage() {
   useEffect(() => {
     if (activeTab === 'bin') {
       loadBinItems();
+    } else if (activeTab === 'customers') {
+      searchCustomers(customerSearch);
     }
   }, [activeTab]);
 
@@ -1511,279 +1574,303 @@ export default function DataManagementPage() {
       {/* TAB: CUSTOMER-WISE RESET */}
       {activeTab === 'customers' && (
         <div className="space-y-6">
-          {/* Customer Search Box */}
-          <AdminCard title="Select Customer for Data Reset" description="Search customer by Company Name, Contact Name, or Email">
-            <div className="space-y-4">
-              {/* Responsive Search Controls */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  searchCustomers(customerSearch);
-                }}
-                className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
+          {/* Top Banner with Reset All Customers action */}
+          <div className="p-6 rounded-3xl bg-rose-50/70 border border-rose-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-600/20">
+                <Users className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-black text-rose-950">Customer-wise Data Reset</h2>
+                  <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase">
+                    Destructive Action
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-rose-900/80 font-medium leading-relaxed max-w-2xl">
+                  Permanently delete specific or all customer client accounts and their associated operational records (calendar events, tasks, works, visits, invoices, and subscriptions). System settings, master plans, coupons, employee accounts, and payroll records are strictly protected.
+                </p>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-3">
+              <AdminButton
+                variant="danger"
+                size="md"
+                icon={Trash2}
+                onClick={handleOpenResetAllModal}
+                className="w-full md:w-auto shadow-md shadow-rose-600/20"
               >
-                <div className="flex-1 w-full" ref={customerSearchDropdownRef}>
+                Reset All Customers
+              </AdminButton>
+            </div>
+          </div>
+
+          <AdminCard
+            title="Persisted Customers Directory"
+            description="Search customers by name, company name, email, phone, or customer ID to select and reset"
+          >
+            <div className="space-y-4">
+              {/* Search & Actions Bar */}
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    searchCustomers(customerSearch);
+                  }}
+                  className="flex-1 flex gap-2"
+                >
                   <AdminSearchInput
                     value={customerSearch}
                     onChange={handleCustomerSearchChange}
-                    placeholder="Search by customer name, company, or email (min. 2 chars)..."
+                    placeholder="Search by name, company, email, phone, or customer ID..."
                     className="w-full"
                   />
-                </div>
-                <AdminButton
-                  variant="primary"
-                  type="submit"
-                  loading={isSearchingCustomers || isLoadingCustomerSummary}
-                  className="w-full sm:w-auto shrink-0 justify-center"
-                >
-                  Search
-                </AdminButton>
-              </form>
+                  <AdminButton
+                    variant="primary"
+                    type="submit"
+                    loading={isSearchingCustomers}
+                    className="shrink-0"
+                  >
+                    Search
+                  </AdminButton>
+                </form>
 
-              {/* In-flow Customer Search Results / States */}
-              {/* 1. Loading State */}
-              {isSearchingCustomers && (
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                    <span>Searching customers...</span>
+                <AdminButton
+                  variant="secondary"
+                  icon={RefreshCw}
+                  onClick={() => searchCustomers(customerSearch)}
+                  loading={isSearchingCustomers}
+                  className="shrink-0"
+                >
+                  Refresh
+                </AdminButton>
+              </div>
+
+              {/* Bulk Selection Action Toolbar */}
+              {selectedCustomerIds.size > 0 && (
+                <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in-50 duration-150">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                      {selectedCustomerIds.size}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-indigo-950">
+                        {selectedCustomerIds.size} customer{selectedCustomerIds.size !== 1 ? 's' : ''} selected
+                      </p>
+                      <p className="text-[11px] text-indigo-700 font-medium">
+                        ~{selectedRelatedRecordsCount.toLocaleString()} total related records will be permanently deleted
+                      </p>
+                    </div>
                   </div>
-                  <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50/40">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="p-3.5 flex items-center justify-between gap-4 animate-pulse">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
-                          <div className="space-y-2 flex-1 min-w-0">
-                            <div className="h-3.5 bg-slate-200 rounded w-1/3" />
-                            <div className="h-2.5 bg-slate-200 rounded w-1/2" />
-                          </div>
-                        </div>
-                        <div className="h-8 w-16 bg-slate-200 rounded-xl shrink-0" />
-                      </div>
-                    ))}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCustomerIds(new Set())}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors cursor-pointer"
+                    >
+                      Deselect All
+                    </button>
+                    <AdminButton
+                      variant="danger"
+                      size="sm"
+                      icon={Trash2}
+                      onClick={() => setShowResetSelectedModal(true)}
+                    >
+                      Reset Selected Customers ({selectedCustomerIds.size})
+                    </AdminButton>
                   </div>
                 </div>
               )}
 
-              {/* 2. Error State with Retry */}
+              {/* Error State */}
               {!isSearchingCustomers && customerSearchError && (
-                <div className="p-4 rounded-2xl bg-rose-50/90 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start sm:items-center gap-3 min-w-0">
-                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
-                    <div>
-                      <p className="text-xs font-bold">{customerSearchError}</p>
-                      <p className="text-[11px] text-rose-600 font-medium">Please check your query or network connection and try again.</p>
-                    </div>
+                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                    <p className="text-xs font-bold">{customerSearchError}</p>
                   </div>
                   <AdminButton
                     variant="secondary"
                     size="sm"
                     onClick={() => searchCustomers(customerSearch)}
-                    className="w-full sm:w-auto shrink-0 border-rose-200 hover:bg-rose-100 text-rose-900 justify-center"
                   >
                     Retry
                   </AdminButton>
                 </div>
               )}
 
-              {/* 3. Empty State */}
-              {!isSearchingCustomers && !customerSearchError && hasSearchedCustomers && customerSearchResults.length === 0 && (
-                <div className="p-6 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-center flex flex-col items-center justify-center gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center">
-                    <UserX className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">No customers found</p>
-                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                      No active customer matches &ldquo;{customerSearch}&rdquo;. Try searching by name, company, or email.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* 4. Results List (Scrollable if many results: max-h-80 = 320px) */}
-              {!isSearchingCustomers && !customerSearchError && customerSearchResults.length > 0 && (
-                <div className="border border-slate-200/90 rounded-2xl bg-white shadow-xs overflow-hidden">
-                  <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-600">
-                    <span>Matching Customers ({customerSearchResults.length})</span>
-                    <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">Click a customer to select</span>
-                  </div>
-                  <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                    {customerSearchResults.map((cust: any) => {
-                      const isSelected = selectedCustomer?.customer?.id === cust.id;
-                      return (
-                        <div
-                          key={cust.id}
-                          onClick={() => handleSelectCustomer(cust)}
-                          className={`w-full p-3.5 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left transition-colors cursor-pointer group ${
-                            isSelected ? 'bg-indigo-50/70 border-l-4 border-l-indigo-600' : 'hover:bg-slate-50/80'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-xs">
-                              {(cust.companyName?.[0] || cust.name?.[0] || '?').toUpperCase()}
+              {/* Customers Table */}
+              <div className="border border-slate-200/90 rounded-2xl bg-white shadow-xs overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                        <th className="py-3 px-4 w-10">
+                          <input
+                            type="checkbox"
+                            checked={isAllCustomersSelected}
+                            ref={(el) => {
+                              if (el) el.indeterminate = isSomeCustomersSelected;
+                            }}
+                            onChange={handleToggleSelectAllCustomers}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                            aria-label="Select all customers"
+                          />
+                        </th>
+                        <th className="py-3 px-4">Customer / Organization</th>
+                        <th className="py-3 px-4">Contact Info</th>
+                        <th className="py-3 px-4 text-center">Status</th>
+                        <th className="py-3 px-4 text-center">Related Records</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {isSearchingCustomers && (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-slate-400">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <RefreshCw className="w-5 h-5 animate-spin text-indigo-600" />
+                              <span className="text-xs font-bold text-slate-600">Loading customers...</span>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">
-                                  {cust.companyName || cust.name}
-                                </p>
-                                {isSelected && (
-                                  <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-extrabold flex items-center gap-1">
-                                    <Check className="w-3 h-3" /> Selected
-                                  </span>
-                                )}
+                          </td>
+                        </tr>
+                      )}
+
+                      {!isSearchingCustomers && customerSearchResults.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-slate-400">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <UserX className="w-8 h-8 opacity-40 text-slate-400" />
+                              <p className="text-xs font-bold text-slate-700">No customers found</p>
+                              <p className="text-[11px] text-slate-500">
+                                {customerSearch ? `No customer matches "${customerSearch}"` : 'No persisted customer records available.'}
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+
+                      {!isSearchingCustomers && customerSearchResults.map((cust: any) => {
+                        const isSelected = selectedCustomerIds.has(cust.id);
+                        const relCount = cust.relatedRecordsCount ?? 0;
+                        return (
+                          <tr
+                            key={cust.id}
+                            className={`transition-colors hover:bg-slate-50/70 ${
+                              isSelected ? 'bg-indigo-50/40' : ''
+                            }`}
+                          >
+                            <td className="py-3 px-4">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectCustomer(cust.id)}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                                aria-label={`Select ${cust.name || cust.companyName}`}
+                              />
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                                  {(cust.companyName?.[0] || cust.name?.[0] || 'C').toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-900 truncate">
+                                      {cust.companyName || cust.name}
+                                    </span>
+                                    <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px] font-bold border border-slate-200">
+                                      #{cust.id}
+                                    </span>
+                                  </div>
+                                  {cust.companyName && cust.name && cust.companyName !== cust.name && (
+                                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                      Contact: {cust.name}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[11px] text-slate-500">
-                                {cust.name && cust.companyName && (
-                                  <span className="font-semibold text-slate-600 truncate max-w-[200px]">
-                                    {cust.name}
-                                  </span>
-                                )}
-                                {cust.email && (
-                                  <span className="text-slate-400 truncate max-w-[220px]">
-                                    {cust.name && cust.companyName ? '• ' : ''}{cust.email}
-                                  </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="space-y-0.5 text-[11px]">
+                                {cust.email ? (
+                                  <p className="text-slate-700 truncate">{cust.email}</p>
+                                ) : (
+                                  <p className="text-slate-400 italic">No email</p>
                                 )}
                                 {cust.phone && (
-                                  <span className="text-slate-400 truncate">
-                                    • {cust.phone}
-                                  </span>
+                                  <p className="text-slate-500">{cust.phone}</p>
                                 )}
                               </div>
-                            </div>
-                          </div>
-                          <div className="shrink-0 flex items-center sm:justify-end">
-                            <button
-                              type="button"
-                              className={`w-full sm:w-auto px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                                isSelected
-                                  ? 'bg-indigo-600 text-white shadow-xs'
-                                  : 'bg-slate-100 text-slate-700 group-hover:bg-indigo-600 group-hover:text-white'
-                              }`}
-                            >
-                              {isSelected ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5" />
-                                  Active
-                                </>
-                              ) : (
-                                <>
-                                  Select
-                                  <ArrowRight className="w-3.5 h-3.5" />
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                  cust.isActive
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                }`}
+                              >
+                                {cust.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl font-bold text-xs ${
+                                  relCount > 0
+                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
+                                    : 'bg-slate-100 text-slate-500'
+                                }`}
+                                title="Works, tasks, invoices, schedules, subscriptions"
+                              >
+                                {relCount.toLocaleString()} record{relCount !== 1 ? 's' : ''}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCustomerIds(new Set([cust.id]));
+                                  setShowResetSelectedModal(true);
+                                }}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Reset</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
-          </AdminCard>
 
-          {/* Loading Skeleton */}
-          {isLoadingCustomerSummary && (
-            <div className="space-y-4 animate-pulse">
-              <div className="h-24 bg-slate-100 rounded-3xl" />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-slate-100 rounded-2xl" />)}
-              </div>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!isLoadingCustomerSummary && !selectedCustomer && (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-3 text-slate-400">
-              <Search className="w-10 h-10 opacity-30" />
-              <p className="text-sm font-bold">Search and select a customer above</p>
-              <p className="text-xs">Enter at least 2 characters to see matching customer records</p>
-            </div>
-          )}
-
-          {/* Selected Customer View */}
-          {!isLoadingCustomerSummary && selectedCustomer && (
-            <div className="space-y-6">
-              {/* Customer Header Card */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white flex items-center justify-center font-black text-xl shadow-md shadow-indigo-600/20">
-                    {(selectedCustomer.customer.displayName || 'C').slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-black text-slate-900">{selectedCustomer.customer.displayName}</h3>
-                      <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-mono text-[10px] font-extrabold border border-indigo-100">
-                        ID #{selectedCustomer.customer.id}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${selectedCustomer.customer.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                        {selectedCustomer.customer.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <p className="text-xs font-bold text-slate-500 mt-0.5">
-                      {selectedCustomer.customer.name} {selectedCustomer.customer.companyName ? `(${selectedCustomer.customer.companyName})` : ''}
-                    </p>
-                    <span className="text-[11px] text-slate-400 block">
-                      {selectedCustomer.customer.email || 'No email provided'} {selectedCustomer.customer.phone ? `• ${selectedCustomer.customer.phone}` : ''}
+                {/* Table Footer */}
+                {!isSearchingCustomers && customerSearchResults.length > 0 && (
+                  <div className="px-4 py-3 bg-slate-50/80 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-500">
+                    <span>Showing {customerSearchResults.length} customers</span>
+                    <span className="font-semibold text-slate-600">
+                      Master tenant #1 and accounts with employees are strictly excluded from deletion.
                     </span>
                   </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowCustomerResetModal(true)}
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer shrink-0"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Reset Customer Data</span>
-                </button>
+                )}
               </div>
 
-              {/* Data Summary Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <AdminStatCard
-                  title="CRM Records"
-                  value={(selectedCustomer.transactional?.crm?.total ?? 0).toLocaleString()}
-                  description={`${selectedCustomer.transactional?.crm?.leads ?? 0} Leads • ${selectedCustomer.transactional?.crm?.contacts ?? 0} Contacts`}
-                  icon={Briefcase}
-                  iconBg="blue"
-                />
-                <AdminStatCard
-                  title="Attendance Records"
-                  value={(selectedCustomer.transactional?.attendance?.total ?? 0).toLocaleString()}
-                  description={`${selectedCustomer.transactional?.attendance?.attendances ?? 0} Shifts • ${selectedCustomer.transactional?.attendance?.breaks ?? 0} Breaks`}
-                  icon={Clock}
-                  iconBg="primary"
-                />
-                <AdminStatCard
-                  title="Billing & Payroll"
-                  value={((selectedCustomer.transactional?.payroll?.total ?? 0)).toLocaleString()}
-                  description={`${selectedCustomer.transactional?.payroll?.payrolls ?? 0} Payrolls • ${selectedCustomer.transactional?.payroll?.salarySlips ?? 0} Slips`}
-                  icon={FileSpreadsheet}
-                  iconBg="purple"
-                />
-                <AdminStatCard
-                  title="Operations & Tasks"
-                  value={(selectedCustomer.transactional?.operations?.total ?? 0).toLocaleString()}
-                  description={`${selectedCustomer.transactional?.operations?.works ?? 0} Works • ${selectedCustomer.transactional?.operations?.tickets ?? 0} Tickets`}
-                  icon={Layers}
-                  iconBg="amber"
-                />
-              </div>
-
-              {/* Protected Master Data Note */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-xs text-slate-600">
-                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span>
-                    <strong>Master Data Protected:</strong> Resetting will wipe all transactional data (CRM, attendance, payroll, tasks). The Customer account, {selectedCustomer.masterDataProtected?.employees ?? 0} employees, departments, designations, and login credentials remain completely preserved.
-                  </span>
+              {/* Protected Master Data Banner */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex items-start gap-3 text-xs text-slate-600">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-slate-800">Tenant & Employee Safety Guarantee</p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Customer data reset only removes client customer records and customer-owned dependencies (schedules, works, tasks, visits, invoices, and subscriptions). Global plans, coupons, master lead pipelines, employee profiles, attendance, and payroll records are never touched.
+                  </p>
                 </div>
               </div>
             </div>
-          )}
+          </AdminCard>
         </div>
       )}
 
