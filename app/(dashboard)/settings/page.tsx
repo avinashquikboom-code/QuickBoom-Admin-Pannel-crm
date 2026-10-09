@@ -3177,14 +3177,24 @@ export default function SettingsPage() {
       )}
       {/* 6. QB SUITE ACCOUNT DELETION REQUEST */}
       <div id="account-deletion-request" className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200/60 flex items-center justify-center font-bold shadow-2xs shrink-0">
-            <UserX className="w-6 h-6" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200/60 flex items-center justify-center font-bold shadow-2xs shrink-0">
+              <UserX className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900">QB Suite Account Deletion Request</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Account deletion and data management policy</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base sm:text-lg font-black text-slate-900">QB Suite Account Deletion Request</h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">Account deletion and data management policy</p>
-          </div>
+          <Link
+            href="/settings/account-deletion"
+            target="_blank"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/70 text-slate-700 rounded-xl text-xs font-bold transition-all w-fit"
+          >
+            <span>Public Page: /settings/account-deletion</span>
+            <Globe className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
         <div className="pt-4 border-t border-slate-100 space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
