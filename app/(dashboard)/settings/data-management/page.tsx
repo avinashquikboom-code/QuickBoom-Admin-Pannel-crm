@@ -18,6 +18,7 @@ import {
   Building2,
   Clock,
   Briefcase,
+  Calendar,
   FileSpreadsheet,
   MapPin,
   Bell,
@@ -47,6 +48,14 @@ interface SummaryData {
     remote: { remoteRequests: number };
     visits: { visits: number };
     payroll: { total: number; payrolls: number; salarySlips: number };
+    operations?: {
+      total: number;
+      works: number;
+      schedules: number;
+      tickets: number;
+      claims: number;
+      loans: number;
+    };
     notifications: { notifications: number };
     location: { locationLogs: number };
   };
@@ -173,6 +182,7 @@ export default function DataManagementPage() {
       remote: { remoteRequests: 0 },
       visits: { visits: 0 },
       payroll: { total: 0, payrolls: 0, salarySlips: 0 },
+      operations: { total: 0, works: 0, schedules: 0, tickets: 0, claims: 0, loans: 0 },
       notifications: { notifications: 0 },
       location: { locationLogs: 0 },
     },
@@ -1010,6 +1020,66 @@ export default function DataManagementPage() {
               <div className="flex justify-between py-1">
                 <span>Deals & Tasks</span>
                 <span className="font-extrabold text-slate-900">{summary.transactional.crm.deals + summary.transactional.crm.tasks}</span>
+              </div>
+            </div>
+          </AdminCard>
+
+          <AdminCard
+            title="Customer Work Assignments"
+            description="Production works and task steps for this company. Reset removes them from Customer Calendar, Employee Calendar, and My Work. CRM tasks stay on the CRM Data card."
+            footer={
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-900">
+                  {(summary.transactional.operations?.works ?? 0).toLocaleString()} Records
+                </span>
+                <AdminButton
+                  variant="danger"
+                  size="sm"
+                  icon={Trash2}
+                  disabled={(summary.transactional.operations?.works ?? 0) === 0}
+                  onClick={() => handleResetModule('works', 'Customer Work', summary.transactional.operations?.works ?? 0)}
+                >
+                  Reset Work
+                </AdminButton>
+              </div>
+            }
+          >
+            <div className="space-y-1.5 text-xs text-slate-600">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span>Work assignments</span>
+                <span className="font-extrabold text-slate-900">{summary.transactional.operations?.works ?? 0}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span>Monthly plan schedules</span>
+                <span className="font-extrabold text-slate-500">Separate card</span>
+              </div>
+            </div>
+          </AdminCard>
+
+          <AdminCard
+            title="Customer Calendar Schedules"
+            description="Monthly customer plan schedules. Reset deletes those schedule rows only. Plans, subscriptions, invoices, and work assignments are not deleted."
+            footer={
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-900">
+                  {(summary.transactional.operations?.schedules ?? 0).toLocaleString()} Records
+                </span>
+                <AdminButton
+                  variant="danger"
+                  size="sm"
+                  icon={Trash2}
+                  disabled={(summary.transactional.operations?.schedules ?? 0) === 0}
+                  onClick={() => handleResetModule('schedules', 'Customer Schedules', summary.transactional.operations?.schedules ?? 0)}
+                >
+                  Reset Schedules
+                </AdminButton>
+              </div>
+            }
+          >
+            <div className="space-y-1.5 text-xs text-slate-600">
+              <div className="flex items-center gap-2 py-1 text-slate-500">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Does not remove payroll, subscriptions, or shared plans.</span>
               </div>
             </div>
           </AdminCard>
