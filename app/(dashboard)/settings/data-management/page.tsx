@@ -108,14 +108,13 @@ export default function DataManagementPage() {
   const searchParams = useSearchParams();
 
   // Valid tab values — includes 'employee' alias for sidebar backward-compat
-  // Valid tab values — includes 'employee' alias for sidebar backward-compat
-  type TabValue = 'summary' | 'customers' | 'modules' | 'employees' | 'employee' | 'bin' | 'reset-all' | 'history';
+  type TabValue = 'summary' | 'customers' | 'all-customers' | 'modules' | 'employees' | 'employee' | 'bin' | 'reset-all' | 'history';
 
   const getTabFromUrl = (): TabValue => {
     const raw = searchParams.get('tab') || 'summary';
     // Normalize aliases
     if (raw === 'employee') return 'employees';
-    const valid: TabValue[] = ['summary', 'customers', 'modules', 'employees', 'bin', 'reset-all', 'history'];
+    const valid: TabValue[] = ['summary', 'customers', 'all-customers', 'modules', 'employees', 'bin', 'reset-all', 'history'];
     return valid.includes(raw as TabValue) ? (raw as TabValue) : 'summary';
   };
 
@@ -444,9 +443,7 @@ export default function DataManagementPage() {
     }
   };
 
-  const handleOpenResetAllModal = async () => {
-    setResetAllConfirmationInput('');
-    setShowResetAllModal(true);
+  const loadAllCustomersSummary = async () => {
     setIsLoadingAllCustomersSummary(true);
     try {
       const res: any = await api.get('/admin/data-management/customers/summary/all');
@@ -457,6 +454,12 @@ export default function DataManagementPage() {
     } finally {
       setIsLoadingAllCustomersSummary(false);
     }
+  };
+
+  const handleOpenResetAllModal = async () => {
+    setResetAllConfirmationInput('');
+    setShowResetAllModal(true);
+    await loadAllCustomersSummary();
   };
 
   const handleExecuteResetAllCustomerData = async () => {
@@ -478,6 +481,7 @@ export default function DataManagementPage() {
       setResetAllCustomerDataInput('');
       setSelectedCustomerIds(new Set());
       await Promise.all([
+        loadAllCustomersSummary(),
         searchCustomers(''),
         loadSummaryAndHistory(),
       ]);
@@ -610,6 +614,8 @@ export default function DataManagementPage() {
       loadBinItems();
     } else if (activeTab === 'customers') {
       searchCustomers(customerSearch);
+    } else if (activeTab === 'all-customers') {
+      loadAllCustomersSummary();
     }
   }, [activeTab]);
 
@@ -901,6 +907,18 @@ export default function DataManagementPage() {
         </button>
 
         <button
+          onClick={() => goToTab('all-customers')}
+          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === 'all-customers'
+              ? 'bg-rose-700 text-white shadow-md'
+              : 'text-rose-700 hover:bg-rose-50'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>Reset All Customer Data</span>
+        </button>
+
+        <button
           onClick={() => goToTab('bin')}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
             activeTab === 'bin'
@@ -1035,45 +1053,6 @@ export default function DataManagementPage() {
       {/* TAB 2: MODULE-WISE RESET */}
       {activeTab === 'modules' && (
         <div className="space-y-6">
-          <div className="p-6 rounded-3xl bg-rose-50/70 border border-rose-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-600/20">
-                <Users className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg font-black text-rose-950">Customer Data</h2>
-                  <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase">
-                    Destructive Action
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-rose-900/80 font-medium leading-relaxed max-w-2xl">
-                  Deletes every saved customer profile and that customer&apos;s schedules, work, visits, tasks, notifications, invoices, and subscription links. Unconverted leads, employees, attendance, payroll, shared plans, and coupons are not deleted.
-                </p>
-              </div>
-            </div>
-            <AdminButton
-              variant="danger"
-              size="md"
-              icon={Trash2}
-              onClick={() => {
-                setResetAllCustomerDataInput('');
-                setShowResetAllCustomerDataModal(true);
-                setIsLoadingAllCustomersSummary(true);
-                api.get('/admin/data-management/customers/summary/all')
-                  .then((res: any) => setAllCustomersSummary(res?.data || res))
-                  .catch(() => {
-                    toast.error('Failed to load total customer record preview');
-                    setAllCustomersSummary(null);
-                  })
-                  .finally(() => setIsLoadingAllCustomersSummary(false));
-              }}
-              className="w-full md:w-auto shadow-md shadow-rose-600/20"
-            >
-              Reset All Customer Data
-            </AdminButton>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* CRM Module Card */}
           <AdminCard
@@ -2023,6 +2002,169 @@ export default function DataManagementPage() {
                     Customer data reset only removes client customer records and customer-owned dependencies (schedules, works, tasks, visits, invoices, and subscriptions). Global plans, coupons, master lead pipelines, employee profiles, attendance, and payroll records are never touched.
                   </p>
                 </div>
+              </div>
+            </div>
+          </AdminCard>
+        </div>
+      )}
+
+      {/* TAB: ALL CUSTOMERS / RESET ALL CUSTOMER DATA */}
+      {activeTab === 'all-customers' && (
+        <div className="space-y-6">
+          {/* Hero Section */}
+          <div className="p-6 rounded-3xl bg-rose-50/70 border border-rose-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-600/20">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-black text-rose-950">All Customers / Reset All Customer Data</h2>
+                  <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase">
+                    Destructive Action
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-rose-900/80 font-medium leading-relaxed max-w-2xl">
+                  Permanently deletes all eligible customer accounts and their associated operational records (calendar events, tasks, works, visits, customer invoices, and subscriptions). Unconverted leads, employee accounts, attendance, payroll records, and shared plans are strictly protected.
+                </p>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-3">
+              <AdminButton
+                variant="danger"
+                size="md"
+                icon={Trash2}
+                onClick={() => {
+                  setResetAllCustomerDataInput('');
+                  setShowResetAllCustomerDataModal(true);
+                  loadAllCustomersSummary();
+                }}
+                className="w-full md:w-auto shadow-md shadow-rose-600/20"
+              >
+                Reset All Customer Data
+              </AdminButton>
+            </div>
+          </div>
+
+          {/* Metric KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Total Saved Customers</p>
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                  <Building2 className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-rose-600 mt-2">
+                {isLoadingAllCustomersSummary ? '...' : (allCustomersSummary?.totalCustomers ?? 0)}
+              </p>
+              <p className="text-[10px] text-slate-400 font-bold mt-0.5">Eligible client accounts</p>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Total Dependent Records</p>
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <Layers className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 mt-2">
+                {isLoadingAllCustomersSummary ? '...' : (allCustomersSummary?.totalRelatedRecords?.toLocaleString() ?? 0)}
+              </p>
+              <p className="text-[10px] text-slate-400 font-bold mt-0.5">Across works, tasks, billing, schedules</p>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Security & Retention</p>
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-emerald-600 mt-2">Protected</p>
+              <p className="text-[10px] text-emerald-700 font-bold mt-0.5">Leads & Employees Excluded</p>
+            </div>
+          </div>
+
+          {/* Breakdown Card */}
+          <AdminCard
+            title="Eligible Related Records Breakdown"
+            description="Actual live counts of customer-owned records that will be permanently removed upon confirmation."
+            headerActions={
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                icon={RefreshCw}
+                onClick={loadAllCustomersSummary}
+                loading={isLoadingAllCustomersSummary}
+              >
+                Refresh Counts
+              </AdminButton>
+            }
+          >
+            {isLoadingAllCustomersSummary ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500">
+                <RefreshCw className="w-6 h-6 animate-spin text-rose-600" />
+                <span className="text-xs font-bold">Calculating affected customer records...</span>
+              </div>
+            ) : allCustomersSummary?.breakdown ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 pt-2">
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Works</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.works ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Tasks</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.tasks ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Schedules</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.monthlySchedules ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Visits</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.visits ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Invoices</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.invoices ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Subscriptions</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.subscriptions ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Contacts</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.contacts ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Deals</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.deals ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Quotations</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.quotations ?? 0}</p>
+                </div>
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Tickets</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.tickets ?? 0}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-xs text-slate-400 font-bold">
+                No customer records currently found.
+              </div>
+            )}
+
+            {/* Scope Safety Box */}
+            <div className="mt-4 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 text-xs text-emerald-950 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold text-emerald-900">Tenant Isolation & Master Data Retention Guarantee</p>
+                <p className="text-[11px] text-emerald-800/80 leading-relaxed">
+                  Resetting customer data removes customer client accounts and cascades only to customer-owned child items. Unconverted CRM Leads, Employee accounts, Attendance logs, Payroll slips, Shared Subscription Plans, Coupons, and Root Organization #1 remain strictly preserved.
+                </p>
               </div>
             </div>
           </AdminCard>

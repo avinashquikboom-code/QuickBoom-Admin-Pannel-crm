@@ -65,6 +65,7 @@ import {
   RotateCcw,
   Check,
   User,
+  AlertTriangle,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -107,7 +108,10 @@ export default function CustomersPage() {
 
   // Multiple Selection & Bulk Delete state
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
+  const [isSelectAllPages, setIsSelectAllPages] = useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
+  const [deleteAllConfirmationInput, setDeleteAllConfirmationInput] = useState('');
 
   // Form State for Add / Edit
   const [customerForm, setCustomerForm] = useState({
@@ -288,6 +292,7 @@ export default function CustomersPage() {
   // Clear selection when filters or page change to avoid accidental cross-page/filter deletion
   useEffect(() => {
     setSelectedCustomerIds([]);
+    setIsSelectAllPages(false);
   }, [searchTerm, statusFilter, sourceFilter, teamFilter, companyFilter, dateFrom, dateTo, page]);
 
   // Current page selection helpers
@@ -305,7 +310,10 @@ export default function CustomersPage() {
   const isSomePageSelected = pageSelectedCount > 0 && pageSelectedCount < pageCustomerIds.length;
 
   const handleToggleSelectAll = () => {
-    if (isAllPageSelected) {
+    if (isSelectAllPages) {
+      setIsSelectAllPages(false);
+      setSelectedCustomerIds([]);
+    } else if (isAllPageSelected) {
       setSelectedCustomerIds((prev) => prev.filter((id) => !pageCustomerIds.includes(id)));
     } else {
       setSelectedCustomerIds((prev) => Array.from(new Set([...prev, ...pageCustomerIds])));
@@ -313,6 +321,7 @@ export default function CustomersPage() {
   };
 
   const handleToggleRow = (customerId: number) => {
+    setIsSelectAllPages(false);
     setSelectedCustomerIds((prev) =>
       prev.includes(customerId) ? prev.filter((id) => id !== customerId) : [...prev, customerId],
     );
@@ -500,6 +509,34 @@ export default function CustomersPage() {
     },
   });
 
+  // Delete All Customers Mutation
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      const res: any = await api.post('/customers/delete-all', {
+        confirmation: 'DELETE ALL CUSTOMERS',
+        reason: 'Admin executed Delete All Customers from Customer Directory',
+      });
+      return res?.data || res;
+    },
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'Successfully deleted all eligible customers.', { icon: '🗑️' });
+      setIsDeleteAllModalOpen(false);
+      setDeleteAllConfirmationInput('');
+      setSelectedCustomerIds([]);
+      setIsSelectAllPages(false);
+      setPage(1);
+      queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      refetch();
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
+    },
+  });
+
   const resetForm = () => {
     setCustomerForm({
       name: '',
@@ -680,17 +717,30 @@ export default function CustomersPage() {
           { label: 'Customers' },
         ]}
         actions={
-          <AdminButton
-            variant="primary"
-            size="md"
-            icon={Plus}
-            onClick={() => {
-              resetForm();
-              setIsCreateOpen(true);
-            }}
-          >
-            Add Customer
-          </AdminButton>
+          <div className="flex items-center gap-2.5">
+            <AdminButton
+              variant="danger"
+              size="md"
+              icon={Trash2}
+              onClick={() => {
+                setDeleteAllConfirmationInput('');
+                setIsDeleteAllModalOpen(true);
+              }}
+            >
+              Delete All Customers
+            </AdminButton>
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={Plus}
+              onClick={() => {
+                resetForm();
+                setIsCreateOpen(true);
+              }}
+            >
+              Add Customer
+            </AdminButton>
+          </div>
         }
       />
 
@@ -894,29 +944,45 @@ export default function CustomersPage() {
       </div>
 
       {/* BULK ACTIONS BAR (When records selected) */}
-      {selectedCustomerIds.length > 0 && (
+      {(selectedCustomerIds.length > 0 || isSelectAllPages) && (
         <div className="bg-[#1B2533] text-white rounded-2xl px-5 py-3 shadow-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center gap-2.5 text-xs font-bold">
             <span className="w-6 h-6 rounded-full bg-[#23C45E] text-slate-950 flex items-center justify-center font-black text-[11px]">
-              {selectedCustomerIds.length}
+              {isSelectAllPages ? meta.total : selectedCustomerIds.length}
             </span>
-            <span>{selectedCustomerIds.length === 1 ? 'customer selected' : `${selectedCustomerIds.length} customers selected`}</span>
+            <span>
+              {isSelectAllPages
+                ? `All ${meta.total} customers selected across all pages`
+                : selectedCustomerIds.length === 1
+                ? '1 customer selected'
+                : `${selectedCustomerIds.length} customers selected`}
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setIsBulkDeleteModalOpen(true)}
-              disabled={bulkDeleteMutation.isPending}
+              onClick={() => {
+                if (isSelectAllPages) {
+                  setDeleteAllConfirmationInput('');
+                  setIsDeleteAllModalOpen(true);
+                } else {
+                  setIsBulkDeleteModalOpen(true);
+                }
+              }}
+              disabled={bulkDeleteMutation.isPending || deleteAllMutation.isPending}
               className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-50"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Selected</span>
+              <span>{isSelectAllPages ? 'Delete All Customers' : 'Delete Selected'}</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setSelectedCustomerIds([])}
+              onClick={() => {
+                setSelectedCustomerIds([]);
+                setIsSelectAllPages(false);
+              }}
               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
             >
               Deselect
@@ -949,6 +1015,45 @@ export default function CustomersPage() {
             </select>
           </div>
         </div>
+
+        {/* Cross-page selection banner */}
+        {isAllPageSelected && meta.total > pageCustomerIds.length && (
+          <div className="bg-emerald-50 border-b border-emerald-100 px-5 py-2.5 text-xs text-emerald-900 flex items-center justify-between">
+            <div>
+              {isSelectAllPages ? (
+                <span>
+                  All <strong>{meta.total}</strong> customers across all pages are selected.
+                </span>
+              ) : (
+                <span>
+                  All <strong>{pageCustomerIds.length}</strong> customers on this page are selected.
+                </span>
+              )}
+            </div>
+            <div>
+              {isSelectAllPages ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSelectAllPages(false);
+                    setSelectedCustomerIds([]);
+                  }}
+                  className="font-bold underline text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                >
+                  Clear selection
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsSelectAllPages(true)}
+                  className="font-bold underline text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                >
+                  Select all {meta.total} customers across all pages
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {customers.length === 0 ? (
           <div className="py-16 text-center text-slate-400 font-bold text-xs">
@@ -1770,6 +1875,86 @@ export default function CustomersPage() {
                   <Trash2 className="w-3.5 h-3.5" />
                 )}
                 <span>Delete {selectedCustomerIds.length} Customers</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Customers Confirmation Modal */}
+      {isDeleteAllModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in-50 duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-rose-200 text-left space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-rose-600/30">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-rose-950">Delete All Customers</h3>
+                  <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black uppercase">
+                    Extreme Action
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  Permanently delete all eligible client customer accounts and their associated operational records (tasks, works, visits, schedules, customer invoices, and subscriptions). System accounts, organization #1, unconverted leads, and employees are strictly protected.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200/80 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-rose-950">
+                <span>Eligible Customers to Delete:</span>
+                <span className="font-black text-rose-600 text-sm">{meta.total}</span>
+              </div>
+              <p className="text-[11px] text-rose-800 leading-normal">
+                This action is irreversible. All client customer profiles and customer-owned data will be permanently wiped from the database.
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/90 space-y-2">
+              <label className="block text-[11px] font-black uppercase text-slate-600">
+                To confirm permanent deletion of ALL customers, type:{' '}
+                <span className="text-rose-600 font-mono font-black select-all">DELETE ALL CUSTOMERS</span>
+              </label>
+              <input
+                type="text"
+                value={deleteAllConfirmationInput}
+                onChange={(e) => setDeleteAllConfirmationInput(e.target.value)}
+                placeholder="DELETE ALL CUSTOMERS"
+                disabled={deleteAllMutation.isPending}
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 font-mono uppercase"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={deleteAllMutation.isPending}
+                onClick={() => {
+                  setIsDeleteAllModalOpen(false);
+                  setDeleteAllConfirmationInput('');
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  deleteAllMutation.isPending ||
+                  deleteAllConfirmationInput.trim().toUpperCase() !== 'DELETE ALL CUSTOMERS'
+                }
+                onClick={() => deleteAllMutation.mutate()}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-rose-600/20 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {deleteAllMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>{deleteAllMutation.isPending ? 'Deleting all customers...' : 'Delete All Customers'}</span>
               </button>
             </div>
           </div>
