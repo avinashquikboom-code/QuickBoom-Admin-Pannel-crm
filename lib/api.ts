@@ -248,14 +248,23 @@ export async function performTokenRefresh(): Promise<string> {
 
       return newAccessToken;
     } catch (refreshErr: any) {
-      const isEmployeeRoute = isEmployeePortalRoute();
-      const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
-      const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
+      const status = refreshErr?.response?.status;
+      const isAuthFailure =
+        status === 401 ||
+        status === 403 ||
+        refreshErr?.message === 'No refresh token available' ||
+        refreshErr?.message === 'Refresh endpoint did not return an access token';
 
-      authStore.logout();
-      if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
-        toast.error('Your session has expired. Please login again.');
-        window.location.href = loginRoute;
+      if (isAuthFailure) {
+        const isEmployeeRoute = isEmployeePortalRoute();
+        const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
+        const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
+
+        authStore.logout();
+        if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
+          toast.error('Your session has expired. Please login again.');
+          window.location.href = loginRoute;
+        }
       }
       throw refreshErr;
     } finally {
@@ -282,8 +291,23 @@ api.interceptors.request.use(
       }
     }
 
-    // Ensure Content-Type is application/json for requests with payload (especially DELETE)
-    if (config.data && !(typeof FormData !== 'undefined' && config.data instanceof FormData)) {
+    // Bodyless DELETE/GET must not force application/json. That header triggers
+    // an extra CORS preflight and some proxies drop Authorization on DELETE.
+    const method = (config.method || 'get').toUpperCase();
+    const hasBody =
+      config.data !== undefined &&
+      config.data !== null &&
+      config.data !== '' &&
+      !(typeof FormData !== 'undefined' && config.data instanceof FormData);
+    if ((method === 'DELETE' || method === 'GET' || method === 'HEAD') && !hasBody) {
+      if (typeof config.headers?.delete === 'function') {
+        config.headers.delete('Content-Type');
+        config.headers.delete('content-type');
+      } else if (config.headers) {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    } else if (hasBody) {
       if (typeof config.headers?.set === 'function') {
         config.headers.set('Content-Type', 'application/json');
       } else if (config.headers) {
@@ -464,17 +488,24 @@ api.interceptors.response.use(
       try {
         const newAccessToken = await performTokenRefresh();
 
-        // Update Authorization header on the retried request
-        if (typeof originalRequest.headers?.set === 'function') {
-          originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
+        const retryConfig: AxiosRequestConfig = {
+          ...originalRequest,
+          method: originalRequest.method,
+          url: originalRequest.url,
+          params: originalRequest.params,
+          data: originalRequest.data,
+          headers: originalRequest.headers || {},
+        };
+
+        if (typeof retryConfig.headers?.set === 'function') {
+          retryConfig.headers.set('Authorization', `Bearer ${newAccessToken}`);
         } else {
-          originalRequest.headers = originalRequest.headers || {};
-          delete (originalRequest.headers as any)['authorization'];
-          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+          retryConfig.headers = retryConfig.headers || {};
+          delete (retryConfig.headers as any)['authorization'];
+          retryConfig.headers['Authorization'] = `Bearer ${newAccessToken}`;
         }
 
-        // Retry original request
-        return api(originalRequest);
+        return api.request(retryConfig);
       } catch (refreshErr) {
         return Promise.reject(refreshErr);
       }
