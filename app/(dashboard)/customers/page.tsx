@@ -413,7 +413,11 @@ export default function CustomersPage() {
   // Quick Assign Team Mutation
   const assignTeamMutation = useMutation({
     mutationFn: async ({ id, teamId }: { id: number | string; teamId: number | null }) => {
-      return api.patch(`/customers/${id}/assign-team`, { teamId });
+      const customerPk = persistedCustomerId(id);
+      if (!customerPk) {
+        throw new Error('Valid customer ID is required to assign team.');
+      }
+      return api.patch(`/customers/${customerPk}/assign-team`, { teamId });
     },
     onSuccess: () => {
       toast.success('Customer assigned to team successfully!', { icon: '👥' });
@@ -657,9 +661,10 @@ export default function CustomersPage() {
     setIsTeamDropdownOpen(false);
 
     // Fetch fresh assigned team from backend API to ensure 100% up-to-date data
-    if (cust.id) {
+    const customerPk = persistedCustomerId(cust.id);
+    if (customerPk != null) {
       api
-        .get(`/customers/${cust.id}/assign-team`)
+        .get(`/customers/${customerPk}/assign-team`)
         .then((res: any) => {
           const teamData = res?.data?.team || res?.team || res?.data;
           const apiTeamId = res?.data?.teamId ?? res?.teamId ?? teamData?.id;
@@ -2092,8 +2097,13 @@ export default function CustomersPage() {
                     toast.error('Please select a team to assign.');
                     return;
                   }
+                  const customerPk = persistedCustomerId(assigningTeamCustomer?.id);
+                  if (!customerPk) {
+                    toast.error('Cannot assign team: lead is not yet converted to a customer.');
+                    return;
+                  }
                   assignTeamMutation.mutate({
-                    id: assigningTeamCustomer.id,
+                    id: customerPk,
                     teamId: Number(quickAssignTeamId),
                   });
                 }}
