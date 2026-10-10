@@ -222,9 +222,6 @@ export default function TeamsPage() {
       toast.success(data?.message || 'Team deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['teams-list'] });
     },
-    onError: (err) => {
-      toast.error(getErrorMessage(err));
-    },
   });
 
   // Helpers
