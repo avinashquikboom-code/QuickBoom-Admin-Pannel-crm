@@ -142,8 +142,24 @@ export default function EmployeeCustomersPage() {
               ? response
               : null;
       if (!items) throw new Error('The customers response was invalid.');
+      const filtered = items.filter((cust: any) => {
+        const hasLeadLink = Boolean(cust.leadId || cust.originLeadId || cust.lead || cust.originLead);
+        const hasActiveSub = cust.subscriptionStatus === 'ACTIVE' || Boolean(cust.subscriptionStartDate && cust.subscriptionEndDate);
+        if (hasLeadLink && !hasActiveSub) {
+          const leadStatus = String(cust.leadStatus || cust.originLead?.status || cust.lead?.status || '').toUpperCase().trim();
+          const leadStageKey = String(cust.originLead?.stage?.key || cust.lead?.stage?.key || '').toUpperCase().trim();
+          const leadStageName = String(cust.leadStageName || cust.originLead?.stage?.name || cust.lead?.stage?.name || '').toUpperCase().trim();
+          const isWon =
+            ['WON', 'CONVERTED', 'WORK_STARTED'].includes(leadStatus) ||
+            ['WON', 'CONVERTED', 'WORK_STARTED'].includes(leadStageKey) ||
+            leadStageName.includes('WON') ||
+            leadStageName.includes('CONVERT');
+          if (!isWon) return false;
+        }
+        return true;
+      });
       const counts = response?.meta?.counts ?? response?.data?.meta?.counts ?? {};
-      return { customers: items.map(mapCustomer), counts };
+      return { customers: filtered.map(mapCustomer), counts };
     },
   });
 

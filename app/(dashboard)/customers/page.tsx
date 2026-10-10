@@ -261,6 +261,22 @@ export default function CustomersPage() {
               const contactName = (cust.contactFullName || '').trim().toLowerCase();
               const email = (cust.email || '').trim().toLowerCase();
               if (name === 'super admin' || contactName === 'super admin' || email === 'admin@quickboom.com') return false;
+
+              // In Admin Panel, a lead-derived customer row must only qualify when the origin lead is Won, unless a real purchase/plan exists
+              const hasLeadLink = Boolean(cust.leadId || cust.originLeadId || cust.lead || cust.originLead);
+              const hasActiveSub = cust.subscriptionStatus === 'ACTIVE' || Boolean(cust.subscriptionStartDate && cust.subscriptionEndDate);
+              if (hasLeadLink && !hasActiveSub) {
+                const leadStatus = String(cust.leadStatus || cust.originLead?.status || cust.lead?.status || '').toUpperCase().trim();
+                const leadStageKey = String(cust.originLead?.stage?.key || cust.lead?.stage?.key || '').toUpperCase().trim();
+                const leadStageName = String(cust.leadStageName || cust.originLead?.stage?.name || cust.lead?.stage?.name || '').toUpperCase().trim();
+                const isWon =
+                  ['WON', 'CONVERTED', 'WORK_STARTED'].includes(leadStatus) ||
+                  ['WON', 'CONVERTED', 'WORK_STARTED'].includes(leadStageKey) ||
+                  leadStageName.includes('WON') ||
+                  leadStageName.includes('CONVERT');
+                if (!isWon) return false;
+              }
+
               return true;
             })
           : [];
