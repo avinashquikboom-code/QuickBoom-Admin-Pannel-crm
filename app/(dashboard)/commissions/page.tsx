@@ -108,6 +108,13 @@ interface DesignationConfig {
   crmMobileAccess: boolean;
 }
 
+function apiErrorMessage(error: unknown): string {
+  const err = error as { response?: { status?: number; data?: { message?: string } }; message?: string } | null;
+  const status = err?.response?.status;
+  const message = err?.response?.data?.message || err?.message || 'Unknown error';
+  return status ? `HTTP ${status}: ${message}` : message;
+}
+
 function CommissionManagementContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -157,6 +164,8 @@ function CommissionManagementContent() {
     data: commissionsRes,
     isLoading: isCommissionsLoading,
     isRefetching: isCommissionsRefetching,
+    isError: isCommissionsError,
+    error: commissionsError,
     refetch: refetchCommissions,
   } = useQuery({
     queryKey: [
@@ -185,6 +194,8 @@ function CommissionManagementContent() {
   const {
     data: designationsRes,
     isLoading: isDesignationsLoading,
+    isError: isDesignationsError,
+    error: designationsError,
     refetch: refetchDesignations,
   } = useQuery({
     queryKey: ['admin-designation-commissions'],
@@ -348,6 +359,22 @@ function CommissionManagementContent() {
 
       {activeTab === 'records' ? (
         <>
+          {isCommissionsError && (
+            <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 text-sm">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-semibold">Commission records could not be loaded. The totals below are not real values.</p>
+                <p className="text-xs mt-0.5">{apiErrorMessage(commissionsError)}</p>
+              </div>
+              <button
+                onClick={() => refetchCommissions()}
+                className="px-3 py-1.5 bg-white border border-rose-200 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Total Commission */}
@@ -539,6 +566,14 @@ function CommissionManagementContent() {
                         <span>Loading commission records...</span>
                       </td>
                     </tr>
+                  ) : isCommissionsError ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-rose-700">
+                        <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+                        <p className="font-semibold">Failed to load commission records</p>
+                        <p className="text-xs mt-1">{apiErrorMessage(commissionsError)}</p>
+                      </td>
+                    </tr>
                   ) : commissions.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-slate-500">
@@ -586,7 +621,7 @@ function CommissionManagementContent() {
                           <td className="py-3.5 px-4">
                             <div className="font-medium text-slate-800">{planName}</div>
                             <div className="text-xs text-slate-500 font-mono mt-0.5">
-                              Paid: {formatCurrency(c.purchaseAmount)}
+                              Transaction: {formatCurrency(c.purchase?.totalAmount ?? c.purchaseAmount)} · Base: {formatCurrency(c.purchaseAmount)}
                             </div>
                           </td>
 
@@ -746,6 +781,13 @@ function CommissionManagementContent() {
                       <td colSpan={6} className="py-8 text-center text-slate-400">
                         <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-emerald-600" />
                         Loading designation configurations...
+                      </td>
+                    </tr>
+                  ) : isDesignationsError ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-rose-700">
+                        <p className="font-semibold">Failed to load commission eligibility settings</p>
+                        <p className="text-xs mt-1">{apiErrorMessage(designationsError)}</p>
                       </td>
                     </tr>
                   ) : desigConfigs.length === 0 ? (

@@ -13,9 +13,9 @@ export default function EditSalaryStructurePage() {
   const id = params?.id || '1';
   const router = useRouter();
 
-  const [baseSalary, setBaseSalary] = useState(35000);
-  const [hra, setHra] = useState(14000);
-  const [allowances, setAllowances] = useState(6000);
+  const [baseSalary, setBaseSalary] = useState(0);
+  const [hra, setHra] = useState(0);
+  const [allowances, setAllowances] = useState(0);
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [employeeName, setEmployeeName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -29,9 +29,9 @@ export default function EditSalaryStructurePage() {
         const found = items.find((s: any) => String(s.id) === String(id));
         if (found) {
           setEmployeeId(found.employeeId);
-          setBaseSalary(found.basicSalary || 35000);
-          setHra(found.hra || 14000);
-          setAllowances(found.allowances || 0);
+          setBaseSalary(found.basicSalary ?? 0);
+          setHra(found.hra ?? 0);
+          setAllowances(found.allowances ?? 0);
           if (found.employee) {
             setEmployeeName(`${found.employee.firstName || ''} ${found.employee.lastName || ''}`.trim());
           }

@@ -119,14 +119,15 @@ export default function PayrollPage() {
   const [isStructureOpen, setIsStructureOpen] = useState(false);
   const [editingStructureId, setEditingStructureId] = useState<number | null>(null);
   const [structEmployeeId, setStructEmployeeId] = useState('');
-  const [structBasic, setStructBasic] = useState<number>(35000);
-  const [structHra, setStructHra] = useState<number>(14000);
-  const [structAllowances, setStructAllowances] = useState<number>(6000);
-  const [structSpecial, setStructSpecial] = useState<number>(5000);
-  const [structPf, setStructPf] = useState<number>(4200);
-  const [structEsi, setStructEsi] = useState<number>(260);
-  const [structProfTax, setStructProfTax] = useState<number>(200);
-  const [structTds, setStructTds] = useState<number>(1500);
+  const [structBasic, setStructBasic] = useState<number>(0);
+  const [structHra, setStructHra] = useState<number>(0);
+  const [structAllowances, setStructAllowances] = useState<number>(0);
+  const [structSpecial, setStructSpecial] = useState<number>(0);
+  const [structPf, setStructPf] = useState<number>(0);
+  const [structEsi, setStructEsi] = useState<number>(0);
+  const [structProfTax, setStructProfTax] = useState<number>(0);
+  const [structTds, setStructTds] = useState<number>(0);
+  const [isLoadingEmployeeStructure, setIsLoadingEmployeeStructure] = useState(false);
 
   // Salary Slip Modal state
   const [selectedSlip, setSelectedSlip] = useState<any | null>(null);
@@ -439,14 +440,66 @@ export default function PayrollPage() {
   const resetStructureForm = () => {
     setEditingStructureId(null);
     setStructEmployeeId('');
-    setStructBasic(35000);
-    setStructHra(14000);
-    setStructAllowances(6000);
-    setStructSpecial(5000);
-    setStructPf(4200);
-    setStructEsi(260);
-    setStructProfTax(200);
-    setStructTds(1500);
+    setStructBasic(0);
+    setStructHra(0);
+    setStructAllowances(0);
+    setStructSpecial(0);
+    setStructPf(0);
+    setStructEsi(0);
+    setStructProfTax(0);
+    setStructTds(0);
+    setIsLoadingEmployeeStructure(false);
+  };
+
+  const handleEmployeeSelect = async (empId: string) => {
+    setStructEmployeeId(empId);
+    // Immediately clear fields to prevent inheriting values from previously selected employee
+    setEditingStructureId(null);
+    setStructBasic(0);
+    setStructHra(0);
+    setStructAllowances(0);
+    setStructSpecial(0);
+    setStructPf(0);
+    setStructEsi(0);
+    setStructProfTax(0);
+    setStructTds(0);
+
+    if (!empId) {
+      return;
+    }
+
+    try {
+      setIsLoadingEmployeeStructure(true);
+      // Fetch that employee's existing saved salary structure using API
+      const res: any = await api.get('/admin/payroll/structures', {
+        params: { employeeId: empId },
+      });
+      const items = res?.data?.data || res?.data?.items || res?.data || (Array.isArray(res) ? res : []);
+      const list = Array.isArray(items) ? items : [];
+      let found = list.find((s: any) => String(s.employeeId) === String(empId) && (s.status === 'ACTIVE' || !s.status)) || list[0];
+
+      // Local query cache fallback if needed
+      if (!found && Array.isArray(salaryStructures)) {
+        found = salaryStructures.find((s: any) => String(s.employeeId) === String(empId));
+      }
+
+      if (found) {
+        setEditingStructureId(found.id);
+        setStructBasic(Number(found.basicSalary) || 0);
+        setStructHra(Number(found.hra) || 0);
+        setStructAllowances(Number(found.allowances) || 0);
+        setStructSpecial(Number(found.specialAllowance) || 0);
+        setStructPf(Number(found.pf) || 0);
+        setStructEsi(Number(found.esi) || 0);
+        setStructProfTax(Number(found.professionalTax) || 0);
+        setStructTds(Number(found.tds) || 0);
+      }
+      // If no structure exists, form remains at 0 (clean Create mode)
+    } catch {
+      // Keep clean 0s on error
+    } finally {
+      setIsLoadingEmployeeStructure(false);
+    }
   };
 
   const handleStructureSubmit = (e: React.FormEvent) => {
@@ -458,22 +511,29 @@ export default function PayrollPage() {
     saveStructureMutation.mutate({
       id: editingStructureId || undefined,
       employeeId: Number(structEmployeeId),
-      basicSalary: Number(structBasic),
-      hra: Number(structHra),
-      allowances: Number(structAllowances),
-      specialAllowance: Number(structSpecial),
-      pf: Number(structPf),
-      esi: Number(structEsi),
-      professionalTax: Number(structProfTax),
-      tds: Number(structTds),
+      basicSalary: Number(structBasic) || 0,
+      hra: Number(structHra) || 0,
+      allowances: Number(structAllowances) || 0,
+      specialAllowance: Number(structSpecial) || 0,
+      pf: Number(structPf) || 0,
+      esi: Number(structEsi) || 0,
+      professionalTax: Number(structProfTax) || 0,
+      tds: Number(structTds) || 0,
     });
   };
 
   const handleBasicChange = (val: number) => {
-    setStructBasic(val);
-    setStructHra(Math.round(val * 0.4));
-    setStructPf(Math.round(val * 0.12));
-    setStructEsi(Math.round(val * 0.0075));
+    const basic = Math.max(0, val || 0);
+    setStructBasic(basic);
+    if (basic === 0) {
+      setStructHra(0);
+      setStructPf(0);
+      setStructEsi(0);
+    } else {
+      setStructHra(Math.round(basic * 0.4));
+      setStructPf(Math.round(basic * (pfRate / 100)));
+      setStructEsi(Math.round(basic * (esiRate / 100)));
+    }
   };
 
   const handleSavePolicy = () => {
@@ -1276,14 +1336,14 @@ export default function PayrollPage() {
                                 onClick={() => {
                                   setEditingStructureId(st.id);
                                   setStructEmployeeId(String(st.employeeId));
-                                  setStructBasic(st.basicSalary || 0);
-                                  setStructHra(st.hra || 0);
-                                  setStructAllowances(st.allowances || 0);
-                                  setStructSpecial(st.specialAllowance || 0);
-                                  setStructPf(st.pf || 0);
-                                  setStructEsi(st.esi || 0);
-                                  setStructProfTax(st.professionalTax || 200);
-                                  setStructTds(st.tds || 0);
+                                  setStructBasic(st.basicSalary ?? 0);
+                                  setStructHra(st.hra ?? 0);
+                                  setStructAllowances(st.allowances ?? 0);
+                                  setStructSpecial(st.specialAllowance ?? 0);
+                                  setStructPf(st.pf ?? 0);
+                                  setStructEsi(st.esi ?? 0);
+                                  setStructProfTax(st.professionalTax ?? 0);
+                                  setStructTds(st.tds ?? 0);
                                   setIsStructureOpen(true);
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
@@ -1524,16 +1584,48 @@ export default function PayrollPage() {
           resetStructureForm();
         }}
         title={editingStructureId ? 'Edit Salary Structure' : 'Formula & Salary Structure Builder'}
-        subtitle="Configure earnings components and statutory deduction percentages"
+        subtitle={editingStructureId ? 'Modify saved components and deduction configuration' : 'Configure earnings components and statutory deduction percentages'}
       >
         <form onSubmit={handleStructureSubmit} className="space-y-4">
+          {/* Mode Indicator Badge */}
+          <div className="flex items-center justify-between pb-1">
+            <span
+              className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${
+                editingStructureId
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                  : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+              }`}
+            >
+              {editingStructureId ? 'Edit Mode (Existing Saved Structure)' : 'Create Mode (New Structure)'}
+            </span>
+            {editingStructureId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingStructureId(null);
+                  setStructBasic(0);
+                  setStructHra(0);
+                  setStructAllowances(0);
+                  setStructSpecial(0);
+                  setStructPf(0);
+                  setStructEsi(0);
+                  setStructProfTax(0);
+                  setStructTds(0);
+                }}
+                className="text-[11px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
+              >
+                Reset to Clean Form
+              </button>
+            )}
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
               Select Employee <span className="text-red-500">*</span>
             </label>
             <select
               value={structEmployeeId}
-              onChange={(e) => setStructEmployeeId(e.target.value)}
+              onChange={(e) => handleEmployeeSelect(e.target.value)}
               required
               className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500"
             >
@@ -1544,11 +1636,16 @@ export default function PayrollPage() {
                 </option>
               ))}
             </select>
+            {isLoadingEmployeeStructure && (
+              <p className="text-[11px] text-emerald-600 mt-1 font-medium animate-pulse">
+                Fetching employee saved salary structure...
+              </p>
+            )}
           </div>
 
           <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 rounded-lg text-xs">
             <span className="font-bold text-emerald-800 dark:text-emerald-300">Auto-Formula Helper: </span>
-            Changing Basic Salary auto-calculates 40% HRA and 12% PF according to standard statutory rules.
+            Changing Basic Salary auto-calculates 40% HRA, {pfRate}% PF, and {esiRate}% ESI according to configured payroll policy.
           </div>
 
           <div className="border-t border-slate-100 pt-3">
@@ -1560,8 +1657,9 @@ export default function PayrollPage() {
                   type="number"
                   min="0"
                   required
-                  value={structBasic}
-                  onChange={(e) => handleBasicChange(Number(e.target.value))}
+                  placeholder="0"
+                  value={structBasic === 0 ? '' : structBasic}
+                  onChange={(e) => handleBasicChange(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
@@ -1570,8 +1668,9 @@ export default function PayrollPage() {
                 <input
                   type="number"
                   min="0"
-                  value={structHra}
-                  onChange={(e) => setStructHra(Number(e.target.value))}
+                  placeholder="0"
+                  value={structHra === 0 ? '' : structHra}
+                  onChange={(e) => setStructHra(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
@@ -1580,8 +1679,9 @@ export default function PayrollPage() {
                 <input
                   type="number"
                   min="0"
-                  value={structAllowances}
-                  onChange={(e) => setStructAllowances(Number(e.target.value))}
+                  placeholder="0"
+                  value={structAllowances === 0 ? '' : structAllowances}
+                  onChange={(e) => setStructAllowances(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
@@ -1590,8 +1690,9 @@ export default function PayrollPage() {
                 <input
                   type="number"
                   min="0"
-                  value={structSpecial}
-                  onChange={(e) => setStructSpecial(Number(e.target.value))}
+                  placeholder="0"
+                  value={structSpecial === 0 ? '' : structSpecial}
+                  onChange={(e) => setStructSpecial(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
@@ -1606,8 +1707,9 @@ export default function PayrollPage() {
                 <input
                   type="number"
                   min="0"
-                  value={structPf}
-                  onChange={(e) => setStructPf(Number(e.target.value))}
+                  placeholder="0"
+                  value={structPf === 0 ? '' : structPf}
+                  onChange={(e) => setStructPf(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
@@ -1616,8 +1718,9 @@ export default function PayrollPage() {
                 <input
                   type="number"
                   min="0"
-                  value={structEsi}
-                  onChange={(e) => setStructEsi(Number(e.target.value))}
+                  placeholder="0"
+                  value={structEsi === 0 ? '' : structEsi}
+                  onChange={(e) => setStructEsi(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
@@ -1626,8 +1729,9 @@ export default function PayrollPage() {
                 <input
                   type="number"
                   min="0"
-                  value={structProfTax}
-                  onChange={(e) => setStructProfTax(Number(e.target.value))}
+                  placeholder="0"
+                  value={structProfTax === 0 ? '' : structProfTax}
+                  onChange={(e) => setStructProfTax(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
@@ -1636,8 +1740,9 @@ export default function PayrollPage() {
                 <input
                   type="number"
                   min="0"
-                  value={structTds}
-                  onChange={(e) => setStructTds(Number(e.target.value))}
+                  placeholder="0"
+                  value={structTds === 0 ? '' : structTds}
+                  onChange={(e) => setStructTds(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg"
                 />
               </div>
@@ -1662,7 +1767,10 @@ export default function PayrollPage() {
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-200">
             <button
               type="button"
-              onClick={() => setIsStructureOpen(false)}
+              onClick={() => {
+                setIsStructureOpen(false);
+                resetStructureForm();
+              }}
               className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
             >
               Cancel
@@ -1672,7 +1780,7 @@ export default function PayrollPage() {
               disabled={saveStructureMutation.isPending}
               className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm disabled:opacity-50 cursor-pointer"
             >
-              {saveStructureMutation.isPending ? 'Saving...' : 'Save Structure'}
+              {saveStructureMutation.isPending ? 'Saving...' : editingStructureId ? 'Update Structure' : 'Save Structure'}
             </button>
           </div>
         </form>
