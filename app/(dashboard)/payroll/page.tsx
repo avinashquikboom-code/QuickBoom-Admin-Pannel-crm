@@ -1034,7 +1034,8 @@ export default function PayrollPage() {
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
               <button
                 onClick={() => calculateMutation.mutate()}
-                disabled={calculateMutation.isPending}
+                disabled={calculateMutation.isPending || currentBatchStatus === 'APPROVED' || currentBatchStatus === 'GENERATED' || currentBatchStatus === 'PAID'}
+                title={currentBatchStatus === 'APPROVED' || currentBatchStatus === 'GENERATED' || currentBatchStatus === 'PAID' ? 'Finalized payroll is locked and cannot be recalculated' : undefined}
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow-xs cursor-pointer disabled:opacity-50 active:scale-95 transition-all"
               >
                 <Play className="w-4 h-4" /> {calculateMutation.isPending ? 'Calculating...' : '1. Calculate Payroll'}
@@ -1078,13 +1079,13 @@ export default function PayrollPage() {
                   <tr>
                     <th className="p-3">Employee</th>
                     <th className="p-3">Department</th>
-                    <th className="p-3">Days (P / A / L)</th>
+                    <th className="p-3">Attendance</th>
                     <th className="p-3">Basic</th>
                     <th className="p-3">Allowances</th>
                     <th className="p-3">Comm.</th>
                     <th className="p-3 text-emerald-700">Reimbursement</th>
                     <th className="p-3 text-rose-600">Loan Ded.</th>
-                    <th className="p-3 text-rose-600">Unpaid Leave</th>
+                    <th className="p-3 text-rose-600" title="Loss of pay is already reflected in the prorated earnings, not deducted again">LOP (in pay)</th>
                     <th className="p-3">Gross</th>
                     <th className="p-3">Deductions</th>
                     <th className="p-3 font-black">Net Salary</th>
@@ -1110,19 +1111,27 @@ export default function PayrollPage() {
                           <span className="block text-[10px] text-slate-400 font-normal">{item.employee?.employeeCode}</span>
                         </td>
                         <td className="p-3 text-slate-600">{item.employee?.department?.name || 'General'}</td>
-                        <td className="p-3 text-slate-600">
+                        <td className="p-3 text-slate-600 whitespace-nowrap">
                           <span className="font-semibold text-emerald-700">{item.presentDays || 0}P</span> /{' '}
-                          <span className="font-semibold text-rose-600">{item.absentDays || 0}A</span> /{' '}
-                          <span className="font-semibold text-amber-600">{item.unpaidLeaves || 0}L</span>
+                          <span className="font-semibold text-amber-600">{item.halfDays || 0}H</span> /{' '}
+                          <span className="font-semibold text-rose-600">{item.absentDays || 0}A</span>
+                          <span className="block text-[10px] text-slate-400">
+                            PL {item.calculationSnapshot?.attendanceSummary?.paidLeaveDays ?? item.paidLeaveDays ?? 0} · UL {item.calculationSnapshot?.attendanceSummary?.unpaidLeaveDays ?? item.unpaidLeaveDays ?? 0} · Hol {item.holidayDays || 0} · WO {item.weeklyOffDays || 0}
+                          </span>
+                          {Number(item.calculationSnapshot?.missingPunchDays || 0) > 0 && (
+                            <span className="block text-[10px] font-bold text-rose-600">
+                              {item.calculationSnapshot.missingPunchDays} day(s) without punch-in counted absent
+                            </span>
+                          )}
                         </td>
                         <td className="p-3 text-slate-800">₹{Number(item.basicSalary || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3 text-slate-800">₹{Number(item.allowances || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3 text-slate-800">₹{Number(item.commission || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3 font-bold text-emerald-700">₹{Number(item.reimbursement || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3 font-bold text-rose-600">₹{Number(item.loanDeduction || 0).toLocaleString('en-IN')}</td>
-                        <td className="p-3 font-bold text-rose-600">₹{Number(item.unpaidLeaveDeduction || 0).toLocaleString('en-IN')}</td>
+                        <td className="p-3 font-bold text-rose-600">₹{Number(item.lopDeduction || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3 font-bold text-slate-900">₹{Number(item.grossSalary || 0).toLocaleString('en-IN')}</td>
-                        <td className="p-3 text-rose-600">₹{Number((Number(item.deductions || 0) + Number(item.loanDeduction || 0) + Number(item.unpaidLeaveDeduction || 0))).toLocaleString('en-IN')}</td>
+                        <td className="p-3 text-rose-600">₹{Number(item.totalDeductions || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3 font-black text-emerald-700">₹{Number(item.netSalary || 0).toLocaleString('en-IN')}</td>
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
@@ -1453,6 +1462,7 @@ export default function PayrollPage() {
                 onChange={(e) => setWorkingDays(Number(e.target.value))}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
               />
+              <p className="text-[10px] text-slate-400">Salary divisor: full attendance pays 100%; each unpaid day deducts monthly salary ÷ this value.</p>
             </div>
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700">Overtime Multiplier</label>

@@ -42,6 +42,10 @@ interface CommissionRecord {
   commissionRate: number;
   purchaseAmount: number;
   commissionAmount: number;
+  teamId?: number | null;
+  leaderId?: number | null;
+  reviewReason?: string | null;
+  shares?: Array<{ id: number; recipientRole: string; effectiveRate: number; amount: number; status: string; employee?: { firstName: string; lastName: string }; payrollItem?: { id: number; payroll: { month: number; year: number } } }>;
   status: 'PENDING' | 'APPROVED' | 'PAID' | 'CANCELLED';
   paidAt?: string | null;
   createdAt: string;
@@ -595,6 +599,14 @@ function CommissionManagementContent() {
                             <span className="font-black text-emerald-600 text-base">
                               {formatCurrency(c.commissionAmount)}
                             </span>
+                            {c.shares?.map(share => (
+                              <div key={share.id} className="text-xs mt-1">
+                                {share.recipientRole === 'LEADER' ? 'Team leader' : 'Employee'}: {share.employee?.firstName} {share.employee?.lastName} · {share.effectiveRate}{c.commissionType === 'PERCENTAGE' ? '%' : ' fixed'} · {formatCurrency(share.amount)} · {share.status}
+                                {share.payrollItem && ` · Payroll ${share.payrollItem.payroll.month}/${share.payrollItem.payroll.year} #${share.payrollItem.id}`}
+                              </div>
+                            ))}
+                            {c.teamId && <div className="text-xs">BPO team #{c.teamId} · Leader #{c.leaderId}</div>}
+                            {c.reviewReason && <div className="text-xs text-amber-700">Review: {c.reviewReason}</div>}
                           </td>
 
                           {/* Status */}
