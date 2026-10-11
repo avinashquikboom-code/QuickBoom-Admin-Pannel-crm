@@ -96,8 +96,18 @@ interface SalarySlipItem {
   paymentReference?: string;
   workingDays?: number;
   presentDays?: number;
+  absentDays?: number;
+  halfDays?: number;
+  paidLeaveDays?: number;
+  unpaidLeaveDays?: number;
+  weeklyOffDays?: number;
+  holidayDays?: number;
+  overtimeHours?: string;
+  overtimeMinutes?: number;
   paidLeaves?: number;
   unpaidLeaves?: number;
+  attendanceSummary?: Record<string, any>;
+  salaryBreakdown?: Record<string, any>;
   bankDetails?: Record<string, any>;
   employeeDetails?: Record<string, any>;
   payrollItem?: Record<string, any>;
@@ -338,6 +348,48 @@ export default function SalarySlipsPage() {
           ['Department:', String(dept), 'Bank Name:', bankName],
           ['Payment Ref:', slip.paymentReference || '—', 'Account No:', accNo],
         ],
+      });
+
+      cursorY = (doc as any).lastAutoTable.finalY + 8;
+
+      // Attendance Summary Table
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text('ATTENDANCE SUMMARY', 14, cursorY);
+
+      cursorY += 4;
+
+      const att = slip.attendanceSummary || {};
+      const formatDays = (v: any) => {
+        if (v === null || v === undefined) return '0';
+        const n = Number(v);
+        return Number.isInteger(n) ? String(n) : n.toFixed(1);
+      };
+
+      const attendanceRows = [
+        ['Total Working Days', formatDays(att.workingDays ?? slip.workingDays)],
+        ['Present Days', formatDays(att.presentDays ?? slip.presentDays)],
+        ['Absent Days', formatDays(att.absentDays ?? slip.absentDays)],
+        ['Half Days', formatDays(att.halfDays ?? slip.halfDays)],
+        ['Paid Leave Days', formatDays(att.paidLeaveDays ?? slip.paidLeaveDays)],
+        ['Unpaid Leave Days', formatDays(att.unpaidLeaveDays ?? slip.unpaidLeaveDays)],
+        ['Weekly Off Days', formatDays(att.weeklyOffDays ?? slip.weeklyOffDays)],
+        ['Holidays', formatDays(att.holidayDays ?? slip.holidayDays)],
+        ['Overtime Hours', att.overtimeLabel || slip.overtimeHours || '0h 00m'],
+      ];
+
+      autoTable(doc, {
+        startY: cursorY,
+        theme: 'grid',
+        head: [['ATTENDANCE DETAIL', 'VALUE']],
+        headStyles: { fillColor: [15, 118, 62], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        columnStyles: {
+          0: { cellWidth: 120, fontStyle: 'normal' },
+          1: { halign: 'right', fontStyle: 'bold' },
+        },
+        body: attendanceRows,
       });
 
       cursorY = (doc as any).lastAutoTable.finalY + 8;
@@ -965,6 +1017,62 @@ export default function SalarySlipsPage() {
                 </p>
               </div>
             </div>
+
+            {/* Attendance Summary Section */}
+            {(() => {
+              const att = selectedSlip.attendanceSummary || {};
+              const pi = selectedSlip.payrollItem || {};
+              const formatDays = (v: any) => {
+                if (v === null || v === undefined) return '0';
+                const n = Number(v);
+                return Number.isInteger(n) ? String(n) : n.toFixed(1);
+              };
+
+              const attendanceRows: [string, string][] = [
+                ['Total Working Days', formatDays(att.workingDays ?? selectedSlip.workingDays ?? pi.workingDays ?? 0)],
+                ['Present Days', formatDays(att.presentDays ?? selectedSlip.presentDays ?? pi.presentDays ?? 0)],
+                ['Absent Days', formatDays(att.absentDays ?? selectedSlip.absentDays ?? pi.absentDays ?? 0)],
+                ['Half Days', formatDays(att.halfDays ?? selectedSlip.halfDays ?? pi.halfDays ?? 0)],
+                ['Paid Leave Days', formatDays(att.paidLeaveDays ?? selectedSlip.paidLeaveDays ?? pi.paidLeaveDays ?? 0)],
+                ['Unpaid Leave Days', formatDays(att.unpaidLeaveDays ?? selectedSlip.unpaidLeaveDays ?? pi.unpaidLeaveDays ?? 0)],
+                ['Weekly Off Days', formatDays(att.weeklyOffDays ?? selectedSlip.weeklyOffDays ?? pi.weeklyOffDays ?? 0)],
+                ['Holidays', formatDays(att.holidayDays ?? selectedSlip.holidayDays ?? pi.holidayDays ?? 0)],
+                ['Overtime Hours', att.overtimeLabel || selectedSlip.overtimeHours || '0h 00m'],
+              ];
+
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-800">
+                      ATTENDANCE SUMMARY
+                    </h4>
+                    {att.periodStart && att.periodEnd && (
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Period: {att.periodStart} – {att.periodEnd}
+                      </span>
+                    )}
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#0F763E] text-white">
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] w-[65%]">ATTENDANCE DETAIL</th>
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] text-right w-[35%]">VALUE</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {attendanceRows.map(([label, val], idx) => (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                            <td className="py-2 px-3.5 text-slate-700 font-medium">{label}</td>
+                            <td className="py-2 px-3.5 text-right font-bold text-slate-900 tabular-nums">{val}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Salary Breakdown Table */}
             {(() => {

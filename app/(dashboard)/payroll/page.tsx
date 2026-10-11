@@ -1715,34 +1715,61 @@ export default function PayrollPage() {
               </div>
             </div>
 
-            {/* Attendance & Working Days Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-indigo-50/50 border border-indigo-100/80 p-4 rounded-2xl text-xs">
-              <div>
-                <span className="text-[10px] uppercase font-black text-slate-400 block">Working Days</span>
-                <span className="text-sm font-black text-slate-900">
-                  {selectedSlip.workingDays ?? selectedSlip.payrollItem?.workingDays ?? 0} days
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-black text-emerald-600 block">Present Days</span>
-                <span className="text-sm font-black text-emerald-700">
-                  {selectedSlip.presentDays ?? selectedSlip.payrollItem?.presentDays ?? 0} days
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-black text-rose-600 block">Absent Days</span>
-                <span className="text-sm font-black text-rose-700">
-                  {selectedSlip.absentDays ?? selectedSlip.payrollItem?.absentDays ?? 0} days
-                </span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-black text-amber-600 block">Approved Leave</span>
-                <span className="text-sm font-black text-amber-700">
-                  {selectedSlip.paidLeaveDays ?? selectedSlip.payrollItem?.paidLeaveDays ?? 0} paid
-                  {(selectedSlip.unpaidLeaveDays ?? selectedSlip.payrollItem?.unpaidLeaveDays ?? 0) > 0 ? ` + ${selectedSlip.unpaidLeaveDays ?? selectedSlip.payrollItem?.unpaidLeaveDays} LOP` : ''}
-                </span>
-              </div>
-            </div>
+            {/* Attendance Summary Section */}
+            {(() => {
+              const att = selectedSlip.attendanceSummary || {};
+              const pi = selectedSlip.payrollItem || {};
+              const formatDays = (v: any) => {
+                if (v === null || v === undefined) return '0';
+                const n = Number(v);
+                return Number.isInteger(n) ? String(n) : n.toFixed(1);
+              };
+
+              const attendanceRows: [string, string][] = [
+                ['Total Working Days', formatDays(att.workingDays ?? selectedSlip.workingDays ?? pi.workingDays ?? 0)],
+                ['Present Days', formatDays(att.presentDays ?? selectedSlip.presentDays ?? pi.presentDays ?? 0)],
+                ['Absent Days', formatDays(att.absentDays ?? selectedSlip.absentDays ?? pi.absentDays ?? 0)],
+                ['Half Days', formatDays(att.halfDays ?? selectedSlip.halfDays ?? pi.halfDays ?? 0)],
+                ['Paid Leave Days', formatDays(att.paidLeaveDays ?? selectedSlip.paidLeaveDays ?? pi.paidLeaveDays ?? 0)],
+                ['Unpaid Leave Days', formatDays(att.unpaidLeaveDays ?? selectedSlip.unpaidLeaveDays ?? pi.unpaidLeaveDays ?? 0)],
+                ['Weekly Off Days', formatDays(att.weeklyOffDays ?? selectedSlip.weeklyOffDays ?? pi.weeklyOffDays ?? 0)],
+                ['Holidays', formatDays(att.holidayDays ?? selectedSlip.holidayDays ?? pi.holidayDays ?? 0)],
+                ['Overtime Hours', att.overtimeLabel || selectedSlip.overtimeHours || '0h 00m'],
+              ];
+
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-800">
+                      ATTENDANCE SUMMARY
+                    </h4>
+                    {att.periodStart && att.periodEnd && (
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Period: {att.periodStart} – {att.periodEnd}
+                      </span>
+                    )}
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#0F763E] text-white">
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] w-[65%]">ATTENDANCE DETAIL</th>
+                          <th className="py-2.5 px-3.5 font-bold uppercase tracking-wider text-[11px] text-right w-[35%]">VALUE</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {attendanceRows.map(([label, val], idx) => (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                            <td className="py-2 px-3.5 text-slate-700 font-medium">{label}</td>
+                            <td className="py-2 px-3.5 text-right font-bold text-slate-900 tabular-nums">{val}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Salary Breakdown Table */}
             {(() => {
