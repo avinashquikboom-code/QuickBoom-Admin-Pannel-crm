@@ -46,6 +46,7 @@ import {
 } from 'recharts';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { downloadSalarySlip, viewSalarySlip } from '@/lib/salary-slip-pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminPageHeader, AdminButton, AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
@@ -372,6 +373,11 @@ export default function PayrollPage() {
     },
     onError: (err: any) => {
       toast.error(getErrorMessage(err));
+      if (err?.response?.status === 409) {
+        setPayTarget(null);
+        queryClient.invalidateQueries({ queryKey: ['admin-current-payroll'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-payroll-history'] });
+      }
     },
   });
 
@@ -2007,11 +2013,13 @@ export default function PayrollPage() {
                         Confidential Document — Generated electronically by QB Suite
                       </p>
                       <button
-                        onClick={() => {
-                          const token = localStorage.getItem('token') || '';
-                          const win = window.open(`/api/v1/admin/payroll/slips/${selectedSlip.id}/pdf`, '_blank');
-                          if (!win) window.print();
-                        }}
+                        onClick={() => { void viewSalarySlip(selectedSlip.id).catch(() => {}); }}
+                        className="px-4 py-2 border border-slate-200 text-slate-900 font-bold text-xs rounded-xl cursor-pointer"
+                      >
+                        View Official PDF
+                      </button>
+                      <button
+                        onClick={() => { void downloadSalarySlip(selectedSlip.id).catch(() => {}); }}
                         className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer self-start sm:self-auto transition-colors"
                       >
                         <Printer className="w-4 h-4" /> Download Official PDF
