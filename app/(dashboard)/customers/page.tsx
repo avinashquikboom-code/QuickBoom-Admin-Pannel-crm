@@ -1368,9 +1368,9 @@ export default function CustomersPage() {
                             <XCircle className="w-3 h-3" />
                             EXPIRED
                           </span>
-                        ) : cust.isActive ? (
-                          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-black text-[10px] inline-flex items-center gap-1">
-                            ACTIVE
+                        ) : (cust.customerStatus || cust.status) === 'UPCOMING' ? (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-black text-[10px] inline-flex items-center gap-1">
+                            UPCOMING
                           </span>
                         ) : (
                           <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 font-black text-[10px] inline-flex items-center gap-1">
