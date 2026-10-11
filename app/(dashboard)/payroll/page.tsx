@@ -1735,15 +1735,25 @@ export default function PayrollPage() {
                 return Number.isInteger(n) ? String(n) : n.toFixed(1);
               };
 
+              const extraDates: string[] = (
+                att.extraWorkingDates ||
+                selectedSlip.extraWorkingDates ||
+                pi.extraWorkingDates ||
+                []
+              );
+
               const attendanceRows: [string, string][] = [
+                ['Total Calendar Days', formatDays(att.calendarDays ?? selectedSlip.calendarDays ?? pi.calendarDays ?? 0)],
                 ['Total Working Days', formatDays(att.workingDays ?? selectedSlip.workingDays ?? pi.workingDays ?? 0)],
                 ['Present Days', formatDays(att.presentDays ?? selectedSlip.presentDays ?? pi.presentDays ?? 0)],
-                ['Absent Days', formatDays(att.absentDays ?? selectedSlip.absentDays ?? pi.absentDays ?? 0)],
                 ['Half Days', formatDays(att.halfDays ?? selectedSlip.halfDays ?? pi.halfDays ?? 0)],
+                ['Absent Days', formatDays(att.absentDays ?? selectedSlip.absentDays ?? pi.absentDays ?? 0)],
                 ['Paid Leave Days', formatDays(att.paidLeaveDays ?? selectedSlip.paidLeaveDays ?? pi.paidLeaveDays ?? 0)],
                 ['Unpaid Leave Days', formatDays(att.unpaidLeaveDays ?? selectedSlip.unpaidLeaveDays ?? pi.unpaidLeaveDays ?? 0)],
-                ['Weekly Off Days', formatDays(att.weeklyOffDays ?? selectedSlip.weeklyOffDays ?? pi.weeklyOffDays ?? 0)],
+                ['Weekly Offs', formatDays(att.weeklyOffDays ?? selectedSlip.weeklyOffDays ?? pi.weeklyOffDays ?? 0)],
                 ['Holidays', formatDays(att.holidayDays ?? selectedSlip.holidayDays ?? pi.holidayDays ?? 0)],
+                ['Extra Working Days', formatDays(att.extraWorkingDays ?? selectedSlip.extraWorkingDays ?? pi.extraWorkingDays ?? 0)],
+                ['Payable Attendance Days', formatDays(att.payableDays ?? selectedSlip.payableDays ?? pi.payableDays ?? 0)],
                 ['Overtime Hours', att.overtimeLabel || selectedSlip.overtimeHours || '0h 00m'],
               ];
 
@@ -1777,18 +1787,35 @@ export default function PayrollPage() {
                       </tbody>
                     </table>
                   </div>
+                  {extraDates.length > 0 && (
+                    <div className="p-2.5 bg-emerald-50/80 border border-emerald-200/80 rounded-xl text-[11px] text-emerald-800 flex items-center justify-between">
+                      <span className="font-semibold">Approved Extra Working Dates:</span>
+                      <span className="font-bold tabular-nums">{extraDates.join(', ')}</span>
+                    </div>
+                  )}
                 </div>
               );
             })()}
 
             {/* Salary Breakdown Table */}
             {(() => {
+              const pi = selectedSlip.payrollItem || {};
+              const monthlySalary = Number(selectedSlip.monthlySalary ?? pi.monthlySalary ?? (selectedSlip.employee?.baseSalary || selectedSlip.baseSalary || 0));
+              const attendanceSalary = Number(selectedSlip.attendanceSalary ?? pi.attendanceSalary ?? (selectedSlip.grossSalary || 0));
+              const extraWorkingPay = Number(selectedSlip.extraWorkingPay ?? pi.extraWorkingPay ?? 0);
+
+              const isBpo = /bpo|telecall|telesales/i.test(
+                `${selectedSlip.employee?.designation || ''} ${selectedSlip.employee?.department?.name || ''} ${selectedSlip.designation || ''} ${selectedSlip.department || ''}`
+              );
+              const commissionLabel = isBpo ? 'Approved BPO Commission' : 'Commission';
+
               const earningsItems: [string, number][] = [
                 ['Basic Salary', selectedSlip.basicSalary || 0],
                 ['HRA Allowance', selectedSlip.hra || 0],
                 ['Allowances & Special', selectedSlip.allowances || 0],
               ];
-              if (selectedSlip.payrollItem?.commission > 0) earningsItems.push(['Earned Commission', selectedSlip.payrollItem.commission]);
+              if (extraWorkingPay > 0) earningsItems.push(['Extra Working Pay', extraWorkingPay]);
+              if (selectedSlip.payrollItem?.commission > 0) earningsItems.push([commissionLabel, selectedSlip.payrollItem.commission]);
               if (selectedSlip.payrollItem?.reimbursement > 0) earningsItems.push(['Expense Reimbursement', selectedSlip.payrollItem.reimbursement]);
 
               const deductionsItems: [string, number][] = [
@@ -1803,6 +1830,18 @@ export default function PayrollPage() {
 
               return (
                 <div className="space-y-4 text-xs">
+                  {/* Salary Baseline Header */}
+                  <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase text-slate-500 block">Monthly Configured Salary</span>
+                      <span className="text-sm font-black text-slate-900 tabular-nums">{formatCurrency(monthlySalary)}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold uppercase text-slate-500 block">Attendance-Based Payable Salary</span>
+                      <span className="text-sm font-black text-emerald-700 tabular-nums">{formatCurrency(attendanceSalary)}</span>
+                    </div>
+                  </div>
+
                   <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
