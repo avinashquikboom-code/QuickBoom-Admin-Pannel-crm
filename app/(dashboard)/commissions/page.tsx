@@ -26,6 +26,7 @@ import {
   Layers,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { normalizeCommissionLedgerResponse } from '@/lib/commission-ledger';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminPageHeader } from '@/components/admin';
@@ -185,7 +186,7 @@ function CommissionManagementContent() {
       if (designationFilter !== 'ALL') params.designationId = Number(designationFilter);
 
       const res = await api.get('/commissions/admin', { params });
-      return res.data;
+      return normalizeCommissionLedgerResponse<CommissionRecord>(res);
     },
     enabled: activeTab === 'records',
   });
@@ -363,7 +364,7 @@ function CommissionManagementContent() {
             <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 text-sm">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="font-semibold">Commission records could not be loaded. The totals below are not real values.</p>
+                                <p className="font-semibold">Commission records could not be loaded.</p>
                 <p className="text-xs mt-0.5">{apiErrorMessage(commissionsError)}</p>
               </div>
               <button
@@ -384,10 +385,10 @@ function CommissionManagementContent() {
                   Total Generated
                 </p>
                 <p className="text-2xl font-black text-slate-900 mt-1">
-                  {formatCurrency(summary.totalCommission)}
+                  {commissionsRes && !isCommissionsError ? formatCurrency(summary.totalCommission) : '—'}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {summary.totalCount} total conversions
+                  {commissionsRes && !isCommissionsError ? `${summary.totalCount} recipient entries` : 'Totals unavailable'}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
@@ -402,10 +403,10 @@ function CommissionManagementContent() {
                   Earned / Approved
                 </p>
                 <p className="text-2xl font-black text-emerald-600 mt-1">
-                  {formatCurrency(summary.approvedCommission)}
+                  {commissionsRes && !isCommissionsError ? formatCurrency(summary.approvedCommission) : '—'}
                 </p>
                 <p className="text-xs text-emerald-600 mt-0.5">
-                  {summary.approvedCount} payable to staff
+                  {commissionsRes && !isCommissionsError ? `${summary.approvedCount} payable to staff` : 'Totals unavailable'}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
@@ -420,10 +421,10 @@ function CommissionManagementContent() {
                   Paid to Employees
                 </p>
                 <p className="text-2xl font-black text-blue-600 mt-1">
-                  {formatCurrency(summary.paidCommission)}
+                  {commissionsRes && !isCommissionsError ? formatCurrency(summary.paidCommission) : '—'}
                 </p>
                 <p className="text-xs text-blue-600 mt-0.5">
-                  {summary.paidCount} payouts settled
+                  {commissionsRes && !isCommissionsError ? `${summary.paidCount} payouts settled` : 'Totals unavailable'}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700">
@@ -438,10 +439,10 @@ function CommissionManagementContent() {
                   Pending Verification
                 </p>
                 <p className="text-2xl font-black text-amber-600 mt-1">
-                  {formatCurrency(summary.pendingCommission)}
+                  {commissionsRes && !isCommissionsError ? formatCurrency(summary.pendingCommission) : '—'}
                 </p>
                 <p className="text-xs text-amber-600 mt-0.5">
-                  {summary.pendingCount} awaiting approval
+                  {commissionsRes && !isCommissionsError ? `${summary.pendingCount} awaiting approval` : 'Totals unavailable'}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700">
