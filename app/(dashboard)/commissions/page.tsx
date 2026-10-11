@@ -33,7 +33,7 @@ import { AdminPageHeader } from '@/components/admin';
 interface CommissionRecord {
   id: number;
   customerId: number;
-  employeeId: number;
+  employeeId: number | null;
   leadId?: number | null;
   planId?: number | null;
   purchaseId?: number | null;
@@ -45,6 +45,8 @@ interface CommissionRecord {
   teamId?: number | null;
   leaderId?: number | null;
   reviewReason?: string | null;
+  qualifyingAt?: string | null;
+  history?: Array<{ action: string; at: string; reference?: string }>;
   shares?: Array<{ id: number; recipientRole: string; effectiveRate: number; amount: number; status: string; employee?: { firstName: string; lastName: string }; payrollItem?: { id: number; payroll: { month: number; year: number } } }>;
   status: 'PENDING' | 'APPROVED' | 'PAID' | 'CANCELLED';
   paidAt?: string | null;
@@ -607,6 +609,7 @@ function CommissionManagementContent() {
                             ))}
                             {c.teamId && <div className="text-xs">BPO team #{c.teamId} · Leader #{c.leaderId}</div>}
                             {c.reviewReason && <div className="text-xs text-amber-700">Review: {c.reviewReason}</div>}
+                            {c.history?.filter(entry => entry.action === 'REFUND_REQUESTED').map((entry, index) => <div key={index} className="text-xs text-amber-700">Refund review · {entry.at} · {entry.reference}</div>)}
                           </td>
 
                           {/* Status */}
@@ -639,7 +642,7 @@ function CommissionManagementContent() {
 
                           {/* Earned Date */}
                           <td className="py-3.5 px-4 text-xs text-slate-500">
-                            <div>{new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                            <div>{new Date(c.qualifyingAt || c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                             {c.paidAt && (
                               <div className="text-[11px] text-blue-600 mt-0.5">
                                 Paid: {new Date(c.paidAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
@@ -649,7 +652,7 @@ function CommissionManagementContent() {
 
                           {/* Actions */}
                           <td className="py-3.5 px-4 text-right">
-                            {c.status !== 'PAID' && c.status !== 'CANCELLED' ? (
+                            {c.reviewReason ? <span className="text-xs text-amber-700">Review required</span> : c.shares?.length && c.status !== 'PAID' && c.status !== 'CANCELLED' ? <span className="text-xs">Settle through payroll</span> : c.status !== 'PAID' && c.status !== 'CANCELLED' ? (
                               <button
                                 onClick={() => setPayingCommission(c)}
                                 className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
