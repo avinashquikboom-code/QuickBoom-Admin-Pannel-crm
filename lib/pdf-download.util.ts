@@ -64,6 +64,7 @@ export async function downloadPdfFromEndpoint(
   } = {}
 ) {
   const toastId = options.toastId || 'pdf-dl';
+  const responseInfo: { status?: number; contentType?: string } = {};
   try {
     const loadingMsg = options.loadingMessage ?? 'Downloading salary slip PDF...';
     if (loadingMsg) {
@@ -73,6 +74,12 @@ export async function downloadPdfFromEndpoint(
     const res = await api.get(endpoint, {
       responseType: 'blob',
       headers: { Accept: 'application/pdf' },
+      // Capture safe response metadata before the existing interceptor unwraps the Blob.
+      transformResponse: [(data, headers, status) => {
+        responseInfo.status = status;
+        responseInfo.contentType = String(headers['content-type'] || '');
+        return data;
+      }],
     });
 
     const blob = await extractPdfBlob(res);
@@ -112,7 +119,10 @@ export async function downloadPdfFromEndpoint(
     } else {
       errorMsg = getErrorMessage(err) || errorMsg;
     }
-    toast.error(errorMsg, { id: toastId });
+    const status = err?.response?.status ?? responseInfo.status;
+    const responseType = responseInfo.contentType ? `; ${responseInfo.contentType.split(';')[0]}` : '';
+    const detail = status ? `HTTP ${status}${responseType}` : 'no server response';
+    toast.error(`PDF request failed (${detail}): ${errorMsg}`, { id: toastId, duration: 12000 });
     throw err;
   }
 }
@@ -128,6 +138,7 @@ export async function viewPdfFromEndpoint(
   } = {}
 ) {
   const toastId = options.toastId || 'pdf-view';
+  const responseInfo: { status?: number; contentType?: string } = {};
   const preview = window.open('', '_blank');
   if (preview) preview.opener = null;
   try {
@@ -139,6 +150,12 @@ export async function viewPdfFromEndpoint(
     const res = await api.get(endpoint, {
       responseType: 'blob',
       headers: { Accept: 'application/pdf' },
+      // Capture safe response metadata before the existing interceptor unwraps the Blob.
+      transformResponse: [(data, headers, status) => {
+        responseInfo.status = status;
+        responseInfo.contentType = String(headers['content-type'] || '');
+        return data;
+      }],
     });
 
     const blob = await extractPdfBlob(res);
@@ -161,7 +178,10 @@ export async function viewPdfFromEndpoint(
     } else {
       errorMsg = getErrorMessage(err) || errorMsg;
     }
-    toast.error(errorMsg, { id: toastId });
+    const status = err?.response?.status ?? responseInfo.status;
+    const responseType = responseInfo.contentType ? `; ${responseInfo.contentType.split(';')[0]}` : '';
+    const detail = status ? `HTTP ${status}${responseType}` : 'no server response';
+    toast.error(`PDF request failed (${detail}): ${errorMsg}`, { id: toastId, duration: 12000 });
     throw err;
   }
 }

@@ -31,9 +31,11 @@ test('page actions use the authenticated adapter without direct API navigation',
 
 const pdfHelperPath = path.resolve(__dirname, '../lib/pdf-download.util.ts');
 const pdfHelper = new Module(pdfHelperPath);
+let pdfRequest;
+const pdfErrorToasts = [];
 pdfHelper.require = (name) => {
-  if (name === './api') return {};
-  if (name === 'react-hot-toast') return { toast: {} };
+  if (name === './api') return { default: { get: (...args) => pdfRequest(...args) } };
+  if (name === 'react-hot-toast') return { toast: { loading: () => {}, error: (message) => pdfErrorToasts.push(message) } };
   if (name === './utils') return { getErrorMessage: (err) => err.message };
   throw new Error(`Unexpected import ${name}`);
 };
@@ -50,4 +52,20 @@ test('rejects a server error response instead of downloading it as PDF', async (
 test('rejects empty and incomplete PDF responses', async () => {
   await assert.rejects(pdfHelper.exports.extractPdfBlob(new Blob([])), /empty PDF/);
   await assert.rejects(pdfHelper.exports.extractPdfBlob(new Blob(['%PDF-1.7\ntruncated'])), /incomplete PDF/);
+});
+
+test('shows status and response type when the API sends a placeholder instead of PDF', async () => {
+  pdfRequest = async (_endpoint, config) => {
+    const body = new Blob(['{"message":"Download salary slip PDF"}'], { type: 'application/json' });
+    return config.transformResponse[0](body, { 'content-type': 'application/json; charset=utf-8' }, 200);
+  };
+  await assert.rejects(pdfHelper.exports.downloadPdfFromEndpoint('/admin/payroll/slips/109/download', 'slip.pdf'), /Download salary slip PDF/);
+  assert.equal(pdfErrorToasts.at(-1), 'PDF request failed (HTTP 200; application/json): Download salary slip PDF');
+});
+test('shows the actual failure status and decoded server message', async () => {
+  pdfRequest = async () => {
+    throw { response: { status: 403, data: new Blob(['{"message":"Forbidden"}'], { type: 'application/json' }) } };
+  };
+  await assert.rejects(pdfHelper.exports.downloadPdfFromEndpoint('/admin/payroll/slips/109/download', 'slip.pdf'));
+  assert.equal(pdfErrorToasts.at(-1), 'PDF request failed (HTTP 403): Forbidden');
 });
