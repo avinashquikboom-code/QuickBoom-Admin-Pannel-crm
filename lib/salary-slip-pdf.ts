@@ -1,6 +1,7 @@
 import { downloadPdfFromEndpoint, viewPdfFromEndpoint } from './pdf-download.util';
 
 const slipFilenameMap = new Map<string, string>();
+const slipMetadataMap = new Map<string, any>();
 
 export function buildSalarySlipFilename(slip: any): string {
   if (!slip) return 'salary-slip.pdf';
@@ -23,6 +24,7 @@ export function buildSalarySlipFilename(slip: any): string {
 
 export function registerSalarySlipMetadata(slip: any) {
   if (slip && slip.id !== undefined && slip.id !== null) {
+    slipMetadataMap.set(String(slip.id), slip);
     slipFilenameMap.set(String(slip.id), buildSalarySlipFilename(slip));
   }
 }
@@ -32,11 +34,30 @@ export function salarySlipPdfEndpoint(id: number | string): string {
   return `/admin/payroll/slips/${encodeURIComponent(String(id))}/download`;
 }
 
-export function downloadSalarySlip(id: number | string) {
+export async function downloadSalarySlip(id: number | string) {
   const customFilename = slipFilenameMap.get(String(id));
-  return downloadPdfFromEndpoint(salarySlipPdfEndpoint(id), customFilename || `salary-slip-${id}.pdf`);
+  const filename = customFilename || `salary-slip-${id}.pdf`;
+  try {
+    return await downloadPdfFromEndpoint(salarySlipPdfEndpoint(id), filename);
+  } catch (err: any) {
+    const slip = slipMetadataMap.get(String(id));
+    if (slip) {
+      const { generateAndDownloadSalarySlipPdf } = await import('./utils/client-salary-slip-pdf');
+      return await generateAndDownloadSalarySlipPdf(slip, filename);
+    }
+    throw err;
+  }
 }
 
-export function viewSalarySlip(id: number | string) {
-  return viewPdfFromEndpoint(salarySlipPdfEndpoint(id));
+export async function viewSalarySlip(id: number | string) {
+  try {
+    return await viewPdfFromEndpoint(salarySlipPdfEndpoint(id));
+  } catch (err: any) {
+    const slip = slipMetadataMap.get(String(id));
+    if (slip) {
+      const { generateAndViewSalarySlipPdf } = await import('./utils/client-salary-slip-pdf');
+      return await generateAndViewSalarySlipPdf(slip);
+    }
+    throw err;
+  }
 }

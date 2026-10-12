@@ -2035,7 +2035,10 @@ export default function PayrollPage() {
                       </p>
                       <button
                         type="button"
-                        onClick={() => { void viewSalarySlip(selectedSlip.id).catch(() => {}); }}
+                        onClick={() => {
+                          registerSalarySlipMetadata(selectedSlip);
+                          void viewSalarySlip(selectedSlip.id).catch(() => {});
+                        }}
                         className="px-4 py-2 border border-slate-200 text-slate-900 font-bold text-xs rounded-xl cursor-pointer"
                       >
                         View Official PDF
@@ -2046,6 +2049,7 @@ export default function PayrollPage() {
                         onClick={async () => {
                           try {
                             setIsDownloadingSlip(true);
+                            registerSalarySlipMetadata(selectedSlip);
                             await downloadSalarySlip(selectedSlip.id);
                           } catch {
                             // Error notification is displayed by downloadPdfFromEndpoint
