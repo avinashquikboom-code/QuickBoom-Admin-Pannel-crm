@@ -1188,11 +1188,11 @@ export default function PayrollPage() {
                         </td>
                         <td className="p-3 text-slate-600">{item.employee?.department?.name || 'General'}</td>
                         <td className="p-3 text-slate-600 whitespace-nowrap">
-                          <span className="font-semibold text-emerald-700">{item.presentDays || 0}P</span> /{' '}
-                          <span className="font-semibold text-amber-600">{item.halfDays || 0}H</span> /{' '}
-                          <span className="font-semibold text-rose-600">{item.absentDays || 0}A</span>
+                          <span className="font-semibold text-emerald-700">{item.calculationSnapshot?.attendanceSummary?.presentDays ?? item.presentDays ?? 0}P</span> /{' '}
+                          <span className="font-semibold text-amber-600">{item.calculationSnapshot?.attendanceSummary?.halfDays ?? item.halfDays ?? 0}H</span> /{' '}
+                          <span className="font-semibold text-rose-600">{item.calculationSnapshot?.attendanceSummary?.absentDays ?? item.absentDays ?? 0}A</span>
                           <span className="block text-[10px] text-slate-400">
-                            PL {item.calculationSnapshot?.attendanceSummary?.paidLeaveDays ?? item.paidLeaveDays ?? 0} · UL {item.calculationSnapshot?.attendanceSummary?.unpaidLeaveDays ?? item.unpaidLeaveDays ?? 0} · Hol {item.holidayDays || 0} · WO {item.weeklyOffDays || 0}
+                            PL {item.calculationSnapshot?.attendanceSummary?.paidLeaveDays ?? item.paidLeaveDays ?? 0} · UL {item.calculationSnapshot?.attendanceSummary?.unpaidLeaveDays ?? item.unpaidLeaveDays ?? 0} · Hol {item.calculationSnapshot?.attendanceSummary?.holidayDays ?? item.holidayDays ?? 0} · WO {item.calculationSnapshot?.attendanceSummary?.weeklyOffDays ?? item.weeklyOffDays ?? 0}
                           </span>
                           {Number(item.calculationSnapshot?.missingPunchDays || 0) > 0 && (
                             <span className="block text-[10px] font-bold text-rose-600">
@@ -1461,19 +1461,19 @@ export default function PayrollPage() {
                       <td className="p-3">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
-                            {slip.workingDays ?? slip.payrollItem?.workingDays ?? 0} Working
+                            {slip.attendanceSummary?.workingDays ?? slip.workingDays ?? slip.payrollItem?.workingDays ?? 0} Working
                           </span>
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                            {slip.presentDays ?? slip.payrollItem?.presentDays ?? 0} Present
+                            {slip.attendanceSummary?.presentDays ?? slip.presentDays ?? slip.payrollItem?.presentDays ?? 0} Present
                           </span>
-                          {(slip.absentDays ?? slip.payrollItem?.absentDays ?? 0) > 0 && (
+                          {(slip.attendanceSummary?.absentDays ?? slip.absentDays ?? slip.payrollItem?.absentDays ?? 0) > 0 && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700">
-                              {slip.absentDays ?? slip.payrollItem?.absentDays} Absent
+                              {slip.attendanceSummary?.absentDays ?? slip.absentDays ?? slip.payrollItem?.absentDays} Absent
                             </span>
                           )}
-                          {((slip.paidLeaveDays ?? slip.payrollItem?.paidLeaveDays ?? 0) + (slip.unpaidLeaveDays ?? slip.payrollItem?.unpaidLeaveDays ?? 0)) > 0 && (
+                          {((slip.attendanceSummary?.paidLeaveDays ?? slip.paidLeaveDays ?? slip.payrollItem?.paidLeaveDays ?? 0) + (slip.attendanceSummary?.unpaidLeaveDays ?? slip.unpaidLeaveDays ?? slip.payrollItem?.unpaidLeaveDays ?? 0)) > 0 && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700">
-                              {(slip.paidLeaveDays ?? slip.payrollItem?.paidLeaveDays ?? 0) + (slip.unpaidLeaveDays ?? slip.payrollItem?.unpaidLeaveDays ?? 0)} Leave
+                              {(slip.attendanceSummary?.paidLeaveDays ?? slip.paidLeaveDays ?? slip.payrollItem?.paidLeaveDays ?? 0) + (slip.attendanceSummary?.unpaidLeaveDays ?? slip.unpaidLeaveDays ?? slip.payrollItem?.unpaidLeaveDays ?? 0)} Leave
                             </span>
                           )}
                         </div>
