@@ -277,9 +277,6 @@ interface LeadItem {
   convertedByEmployeeId?: number | null;
   convertedByEmployee?: { id: number; firstName: string; lastName: string } | null;
   convertedByEmployeeName?: string | null;
-  wonByEmployeeId?: number | null;
-  wonBy?: { id: number; firstName: string; lastName: string } | null;
-  wonByName?: string | null;
   wonAt?: string | null;
   visitedByEmployeeId?: number | null;
   visitedBy?: { id: number; firstName: string; lastName: string } | null;
