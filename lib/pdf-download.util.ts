@@ -32,22 +32,20 @@ export async function extractPdfBlob(res: unknown): Promise<Blob> {
     throw new Error('Invalid PDF data received from server');
   }
 
-  // If the server returned an error page or error JSON with content-type application/json as a blob
-  if (blob.type.includes('application/json') || blob.type.includes('text/html')) {
+  if (blob.size === 0) throw new Error('Received an empty PDF document.');
+  const signature = await blob.slice(0, 5).text();
+  if (signature !== '%PDF-') {
+    let message = 'The server returned an invalid PDF document.';
     try {
-      const text = await blob.text();
-      const json = JSON.parse(text);
-      throw new Error(json.message || json.error || 'Failed to generate PDF document.');
-    } catch (e: any) {
-      if (e.message && !e.message.includes('JSON')) {
-        throw e;
-      }
+      const error = JSON.parse(await blob.text());
+      message = Array.isArray(error.message) ? error.message.join(', ') : (error.message || error.error || message);
+    } catch {
+      if (blob.type.includes('text/html')) message = 'The server returned a web page instead of a PDF. Please check the API connection or sign in again.';
     }
+    throw new Error(message);
   }
-
-  if (blob.size === 0) {
-    throw new Error('Received an empty PDF document.');
-  }
+  const tail = await blob.slice(Math.max(0, blob.size - 1024)).text();
+  if (!tail.includes('%%EOF')) throw new Error('Received an incomplete PDF document. Please try again.');
 
   return blob;
 }
@@ -74,6 +72,7 @@ export async function downloadPdfFromEndpoint(
 
     const res = await api.get(endpoint, {
       responseType: 'blob',
+      headers: { Accept: 'application/pdf' },
     });
 
     const blob = await extractPdfBlob(res);
@@ -96,8 +95,8 @@ export async function downloadPdfFromEndpoint(
     a.download = targetFilename.endsWith('.pdf') ? targetFilename : `${targetFilename}.pdf`;
     document.body.appendChild(a);
     a.click();
-    window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
     toast.success(options.successMessage || 'PDF downloaded successfully', { id: toastId });
   } catch (err: any) {
@@ -129,6 +128,8 @@ export async function viewPdfFromEndpoint(
   } = {}
 ) {
   const toastId = options.toastId || 'pdf-view';
+  const preview = window.open('', '_blank');
+  if (preview) preview.opener = null;
   try {
     const loadingMsg = options.loadingMessage ?? 'Opening PDF document...';
     if (loadingMsg) {
@@ -137,13 +138,17 @@ export async function viewPdfFromEndpoint(
 
     const res = await api.get(endpoint, {
       responseType: 'blob',
+      headers: { Accept: 'application/pdf' },
     });
 
     const blob = await extractPdfBlob(res);
     const url = window.URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    if (!preview) { window.URL.revokeObjectURL(url); throw new Error('PDF viewing was blocked by the browser. Allow popups or use Download Official PDF.'); }
+    preview.location.href = url;
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 60000);
     toast.dismiss(toastId);
   } catch (err: any) {
+    preview?.close();
     let errorMsg = 'Unable to load PDF document. Please try again.';
     if (err?.response?.data instanceof Blob) {
       try {

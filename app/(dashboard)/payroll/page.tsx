@@ -1855,7 +1855,7 @@ export default function PayrollPage() {
               const att = selectedSlip.attendanceSummary || {};
               const pi = selectedSlip.payrollItem || {};
               const formatDays = (v: any) => {
-                if (v === null || v === undefined) return '0';
+                if (v === null || v === undefined) return '—';
                 const n = Number(v);
                 return Number.isInteger(n) ? String(n) : n.toFixed(1);
               };
@@ -1878,7 +1878,7 @@ export default function PayrollPage() {
                 ['Weekly Offs', formatDays(att.weeklyOffDays ?? selectedSlip.weeklyOffDays ?? pi.weeklyOffDays ?? 0)],
                 ['Holidays', formatDays(att.holidayDays ?? selectedSlip.holidayDays ?? pi.holidayDays ?? 0)],
                 ['Extra Working Days', formatDays(att.extraWorkingDays ?? selectedSlip.extraWorkingDays ?? pi.extraWorkingDays ?? 0)],
-                ['Payable Attendance Days', formatDays(att.payableDays ?? selectedSlip.payableDays ?? pi.payableDays ?? 0)],
+                ['Payable Attendance Days', formatDays(att.payableDays ?? pi.calculationSnapshot?.payableDays ?? pi.calculationSnapshot?.salaryBasis?.payableDays ?? selectedSlip.payableDays ?? pi.payableDays)],
                 ['Overtime Hours', att.overtimeLabel || selectedSlip.overtimeHours || '0h 00m'],
               ];
 
@@ -1922,11 +1922,21 @@ export default function PayrollPage() {
               );
             })()}
 
+            {selectedSlip.salaryDataWarnings?.length > 0 && (
+              <div role="alert" className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900">
+                {selectedSlip.salaryDataWarnings.join(' ')} Stored payroll amounts are preserved.
+              </div>
+            )}
+
             {/* Salary Breakdown Table */}
             {(() => {
               const pi = selectedSlip.payrollItem || {};
-              const monthlySalary = Number(selectedSlip.monthlySalary ?? pi.monthlySalary ?? (selectedSlip.employee?.baseSalary || selectedSlip.baseSalary || 0));
-              const attendanceSalary = Number(selectedSlip.attendanceSalary ?? pi.attendanceSalary ?? (selectedSlip.grossSalary || 0));
+              const snapshot = pi.calculationSnapshot || {};
+              // Configured monthly compensation is captured before attendance proration.
+              // Historical paid components cannot reliably reconstruct that original amount.
+              const recordedMonthlySalary = snapshot.monthlySalary ?? (selectedSlip.salaryBreakdown?.monthlySalaryRecorded === false ? null : (selectedSlip.monthlySalary ?? pi.monthlySalary));
+              const monthlySalary = recordedMonthlySalary == null ? null : Number(recordedMonthlySalary);
+              const attendanceSalary = Number(snapshot.attendanceSalary ?? selectedSlip.attendanceSalary ?? pi.attendanceSalary ?? (Number(selectedSlip.grossSalary ?? pi.grossSalary ?? 0) - Number(pi.reimbursement ?? selectedSlip.reimbursement ?? 0)));
               const extraWorkingPay = Number(selectedSlip.extraWorkingPay ?? pi.extraWorkingPay ?? 0);
 
               const isBpo = /bpo|telecall|telesales/i.test(
@@ -1959,7 +1969,7 @@ export default function PayrollPage() {
                   <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
                     <div>
                       <span className="text-[10px] font-bold uppercase text-slate-500 block">Monthly Configured Salary</span>
-                      <span className="text-sm font-black text-slate-900 tabular-nums">{formatCurrency(monthlySalary)}</span>
+                      <span className="text-sm font-black text-slate-900 tabular-nums">{monthlySalary == null ? 'Not recorded' : formatCurrency(monthlySalary)}</span>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] font-bold uppercase text-slate-500 block">Attendance-Based Payable Salary</span>

@@ -28,3 +28,26 @@ test('page actions use the authenticated adapter without direct API navigation',
   assert.match(source, /viewSalarySlip\(selectedSlip.id\)/);
   assert.doesNotMatch(source, /window.open\(`\/api\/v1\/admin\/payroll/);
 });
+
+const pdfHelperPath = path.resolve(__dirname, '../lib/pdf-download.util.ts');
+const pdfHelper = new Module(pdfHelperPath);
+pdfHelper.require = (name) => {
+  if (name === './api') return {};
+  if (name === 'react-hot-toast') return { toast: {} };
+  if (name === './utils') return { getErrorMessage: (err) => err.message };
+  throw new Error(`Unexpected import ${name}`);
+};
+pdfHelper._compile(ts.transpileModule(fs.readFileSync(pdfHelperPath, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, pdfHelperPath);
+test('accepts wrapped and interceptor-unwrapped valid PDF bytes', async () => {
+  const blob = new Blob(['%PDF-1.7\nfixture\n%%EOF\n'], { type: 'application/pdf' });
+  assert.equal(await pdfHelper.exports.extractPdfBlob(blob), blob);
+  assert.equal(await pdfHelper.exports.extractPdfBlob({ data: blob }), blob);
+});
+test('rejects a server error response instead of downloading it as PDF', async () => {
+  await assert.rejects(pdfHelper.exports.extractPdfBlob(new Blob(['{"message":"Salary slip not found"}'], { type: 'application/json' })), /Salary slip not found/);
+  await assert.rejects(pdfHelper.exports.extractPdfBlob(new Blob(['<html>Login<\/html>'], { type: 'text/html' })), /web page instead of a PDF/);
+});
+test('rejects empty and incomplete PDF responses', async () => {
+  await assert.rejects(pdfHelper.exports.extractPdfBlob(new Blob([])), /empty PDF/);
+  await assert.rejects(pdfHelper.exports.extractPdfBlob(new Blob(['%PDF-1.7\ntruncated'])), /incomplete PDF/);
+});
