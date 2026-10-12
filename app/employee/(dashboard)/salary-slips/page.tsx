@@ -244,6 +244,17 @@ export default function SalarySlipsPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') fetchData(true); };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [fetchData]);
+
+
   const latestSlip = useMemo(() => (slips.length > 0 ? slips[0] : null), [slips]);
 
   // ── PDF Generation & Download ──────────────────────────────────────────────
