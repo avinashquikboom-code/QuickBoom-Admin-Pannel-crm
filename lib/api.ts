@@ -430,6 +430,15 @@ api.interceptors.response.use(
       );
     }
 
+    if (response.data instanceof Blob) {
+      const cd =
+        response.headers?.['content-disposition'] ||
+        response.headers?.['Content-Disposition'];
+      if (cd && typeof cd === 'string') {
+        (response.data as any).__contentDisposition = cd;
+      }
+    }
+
     return response.data;
   },
   async (error) => {

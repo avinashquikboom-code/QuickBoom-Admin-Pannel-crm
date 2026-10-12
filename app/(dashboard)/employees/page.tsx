@@ -588,6 +588,14 @@ export default function EmployeesPage() {
       );
       setIsFormDrawerOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-edit-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-for-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-structures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-current-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-payroll-history'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-slips'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || 'Failed to save employee profile';
@@ -1782,8 +1790,8 @@ export default function EmployeesPage() {
                     <div className="p-3.5 bg-slate-50 rounded-xl">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Base Monthly Pay / CTC</span>
                       <p className="font-extrabold text-slate-900 mt-1">
-                        {selectedEmployee.bankDetails?.basicSalary
-                          ? `₹${Number(selectedEmployee.bankDetails.basicSalary).toLocaleString('en-IN')}`
+                        {(selectedEmployee.salaryStructure?.basicSalary ?? selectedEmployee.bankDetails?.basicSalary) != null
+                          ? `₹${Number(selectedEmployee.salaryStructure?.basicSalary ?? selectedEmployee.bankDetails?.basicSalary).toLocaleString('en-IN')}`
                           : '—'}
                       </p>
                     </div>

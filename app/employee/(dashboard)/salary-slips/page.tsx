@@ -258,10 +258,10 @@ export default function SalarySlipsPage() {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob' as const,
         };
-        const res = await api.get(`/admin/payroll/slips/${slip.id}/pdf`, authHeader);
-        if (res.data) {
-          const blob = new Blob([res.data], { type: 'application/pdf' });
-          const url = window.URL.createObjectURL(blob);
+        const res: any = await api.get(`/admin/payroll/slips/${slip.id}/pdf`, authHeader);
+        const rawBlob = res instanceof Blob ? res : (res?.data instanceof Blob ? res.data : (res?.data ? new Blob([res.data], { type: 'application/pdf' }) : null));
+        if (rawBlob && rawBlob.size > 0) {
+          const url = window.URL.createObjectURL(rawBlob);
           const link = document.createElement('a');
           link.href = url;
           const safeFilename = `salary_slip_${slip.month.replace(/[\/\\:*?"<>| ]+/g, '_')}.pdf`;
@@ -538,6 +538,20 @@ export default function SalarySlipsPage() {
           >
             Try Again
           </button>
+        </div>
+      )}
+
+      {profile?.salaryStructure && !loading && (
+        <div className="p-6 rounded-2xl bg-white border border-slate-200">
+          <h3 className="font-bold text-sm text-slate-900">Current Salary Structure</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+            {(['basicSalary', 'hra', 'allowances', 'grossSalary'] as const).map((key, index) => (
+              <div key={key}>
+                <p className="text-xs text-slate-500">{['Basic Salary', 'HRA', 'Allowances', 'Gross Salary'][index]}</p>
+                <p className="font-bold">{formatCurrency(Number(profile.salaryStructure[key] ?? 0))}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -31,6 +31,7 @@ import {
   Calendar,
   User,
   ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -46,7 +47,7 @@ import {
 } from 'recharts';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
-import { downloadSalarySlip, viewSalarySlip } from '@/lib/salary-slip-pdf';
+import { downloadSalarySlip, viewSalarySlip, registerSalarySlipMetadata } from '@/lib/salary-slip-pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminPageHeader, AdminButton, AdminFormDrawer, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
@@ -134,6 +135,7 @@ export default function PayrollPage() {
   const [selectedSlip, setSelectedSlip] = useState<any | null>(null);
   const [isSlipModalOpen, setIsSlipModalOpen] = useState(false);
   const [slipSearch, setSlipSearch] = useState('');
+  const [isDownloadingSlip, setIsDownloadingSlip] = useState(false);
 
   // Auto calculate Gross & Net for structure builder
   const structGross = Number(structBasic || 0) + Number(structHra || 0) + Number(structAllowances || 0) + Number(structSpecial || 0);
@@ -420,6 +422,14 @@ export default function PayrollPage() {
     },
     onSuccess: () => {
       toast.success(editingStructureId ? 'Salary structure updated' : 'Salary structure saved');
+      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-edit-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-for-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-structures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-current-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-payroll-history'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-slips'] });
       setIsStructureOpen(false);
       resetStructureForm();
       queryClient.invalidateQueries({ queryKey: ['admin-salary-structures'] });
@@ -1481,6 +1491,7 @@ export default function PayrollPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => {
+                              registerSalarySlipMetadata(slip);
                               setSelectedSlip(slip);
                               setIsSlipModalOpen(true);
                             }}
@@ -2013,16 +2024,33 @@ export default function PayrollPage() {
                         Confidential Document — Generated electronically by QB Suite
                       </p>
                       <button
+                        type="button"
                         onClick={() => { void viewSalarySlip(selectedSlip.id).catch(() => {}); }}
                         className="px-4 py-2 border border-slate-200 text-slate-900 font-bold text-xs rounded-xl cursor-pointer"
                       >
                         View Official PDF
                       </button>
                       <button
-                        onClick={() => { void downloadSalarySlip(selectedSlip.id).catch(() => {}); }}
-                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer self-start sm:self-auto transition-colors"
+                        type="button"
+                        disabled={isDownloadingSlip}
+                        onClick={async () => {
+                          try {
+                            setIsDownloadingSlip(true);
+                            await downloadSalarySlip(selectedSlip.id);
+                          } catch {
+                            // Error notification is displayed by downloadPdfFromEndpoint
+                          } finally {
+                            setIsDownloadingSlip(false);
+                          }
+                        }}
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer self-start sm:self-auto transition-colors"
                       >
-                        <Printer className="w-4 h-4" /> Download Official PDF
+                        {isDownloadingSlip ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Printer className="w-4 h-4" />
+                        )}
+                        {isDownloadingSlip ? 'Downloading PDF...' : 'Download Official PDF'}
                       </button>
                     </div>
                   </div>

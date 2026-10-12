@@ -67,8 +67,9 @@ export async function downloadPdfFromEndpoint(
 ) {
   const toastId = options.toastId || 'pdf-dl';
   try {
-    if (options.loadingMessage) {
-      toast.loading(options.loadingMessage, { id: toastId });
+    const loadingMsg = options.loadingMessage ?? 'Downloading salary slip PDF...';
+    if (loadingMsg) {
+      toast.loading(loadingMsg, { id: toastId });
     }
 
     const res = await api.get(endpoint, {
@@ -76,10 +77,23 @@ export async function downloadPdfFromEndpoint(
     });
 
     const blob = await extractPdfBlob(res);
+
+    let targetFilename = filename;
+    const cd =
+      (blob as any)?.__contentDisposition ||
+      (res as any)?.headers?.['content-disposition'] ||
+      (res as any)?.headers?.['Content-Disposition'];
+    if (cd && typeof cd === 'string') {
+      const match = cd.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/i);
+      if (match && match[1]) {
+        targetFilename = decodeURIComponent(match[1].trim());
+      }
+    }
+
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+    a.download = targetFilename.endsWith('.pdf') ? targetFilename : `${targetFilename}.pdf`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -87,7 +101,18 @@ export async function downloadPdfFromEndpoint(
 
     toast.success(options.successMessage || 'PDF downloaded successfully', { id: toastId });
   } catch (err: any) {
-    const errorMsg = getErrorMessage(err) || 'Unable to generate PDF. Please try again.';
+    let errorMsg = 'Unable to generate PDF. Please try again.';
+    if (err?.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const json = JSON.parse(text);
+        errorMsg = json.message || json.error || errorMsg;
+      } catch {
+        errorMsg = getErrorMessage(err) || errorMsg;
+      }
+    } else {
+      errorMsg = getErrorMessage(err) || errorMsg;
+    }
     toast.error(errorMsg, { id: toastId });
     throw err;
   }
@@ -105,8 +130,9 @@ export async function viewPdfFromEndpoint(
 ) {
   const toastId = options.toastId || 'pdf-view';
   try {
-    if (options.loadingMessage) {
-      toast.loading(options.loadingMessage, { id: toastId });
+    const loadingMsg = options.loadingMessage ?? 'Opening PDF document...';
+    if (loadingMsg) {
+      toast.loading(loadingMsg, { id: toastId });
     }
 
     const res = await api.get(endpoint, {
@@ -118,7 +144,18 @@ export async function viewPdfFromEndpoint(
     window.open(url, '_blank');
     toast.dismiss(toastId);
   } catch (err: any) {
-    const errorMsg = getErrorMessage(err) || 'Unable to load PDF document. Please try again.';
+    let errorMsg = 'Unable to load PDF document. Please try again.';
+    if (err?.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const json = JSON.parse(text);
+        errorMsg = json.message || json.error || errorMsg;
+      } catch {
+        errorMsg = getErrorMessage(err) || errorMsg;
+      }
+    } else {
+      errorMsg = getErrorMessage(err) || errorMsg;
+    }
     toast.error(errorMsg, { id: toastId });
     throw err;
   }

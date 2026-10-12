@@ -7,8 +7,10 @@ import { Banknote, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminPageHeader } from '@/components/admin';
 import api from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function EditSalaryStructurePage() {
+  const queryClient = useQueryClient();
   const params = useParams();
   const id = params?.id || '1';
   const router = useRouter();
@@ -61,6 +63,14 @@ export default function EditSalaryStructurePage() {
         allowances: Number(allowances),
       });
       toast.success('Salary structure updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-edit-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-for-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-structures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-current-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-payroll-history'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-slips'] });
       router.push('/payroll?tab=structures');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to update salary structure');

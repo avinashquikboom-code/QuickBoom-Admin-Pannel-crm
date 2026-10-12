@@ -169,6 +169,14 @@ export default function EditEmployeePage() {
     onSuccess: () => {
       toast.success('Employee updated successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employee-edit-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-for-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-structures'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-current-payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-payroll-history'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-salary-slips'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
       queryClient.invalidateQueries({ queryKey: ['admin-employee-edit-detail', id] });
       router.push('/employees');
     },

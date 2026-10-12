@@ -606,19 +606,19 @@ export default function EmployeeDetailPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-3 bg-slate-50 rounded-xl">
                 <span className="text-[10px] text-slate-400 uppercase font-bold">Basic Salary</span>
-                <p className="font-bold text-slate-900 text-sm">₹45,000</p>
+                <p className="font-bold text-slate-900 text-sm">{emp.salaryStructure?.basicSalary != null ? `₹${Number(emp.salaryStructure.basicSalary).toLocaleString('en-IN')}` : '—'}</p>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
                 <span className="text-[10px] text-slate-400 uppercase font-bold">HRA</span>
-                <p className="font-bold text-slate-900 text-sm">₹18,000</p>
+                <p className="font-bold text-slate-900 text-sm">{emp.salaryStructure?.hra != null ? `₹${Number(emp.salaryStructure.hra).toLocaleString('en-IN')}` : '—'}</p>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl">
                 <span className="text-[10px] text-slate-400 uppercase font-bold">Allowances</span>
-                <p className="font-bold text-slate-900 text-sm">₹12,000</p>
+                <p className="font-bold text-slate-900 text-sm">{emp.salaryStructure?.allowances != null ? `₹${Number(emp.salaryStructure.allowances).toLocaleString('en-IN')}` : '—'}</p>
               </div>
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                 <span className="text-[10px] text-emerald-800 uppercase font-bold">Gross Salary</span>
-                <p className="font-black text-emerald-800 text-sm">₹75,000</p>
+                <p className="font-black text-emerald-800 text-sm">{emp.salaryStructure?.grossSalary != null ? `₹${Number(emp.salaryStructure.grossSalary).toLocaleString('en-IN')}` : '—'}</p>
               </div>
             </div>
           </div>
