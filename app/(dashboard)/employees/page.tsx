@@ -42,7 +42,7 @@ import {
   Check,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import api from '@/lib/api';
+import api, { getPersistedAuthSession } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminPageHeader, AdminButton, AdminPagination } from '@/components/admin';
@@ -78,6 +78,7 @@ export interface EmployeeMaster {
   status: 'ACTIVE' | 'INACTIVE';
   mobileLoginEnabled?: boolean;
   managerId: number | null;
+  customerId?: number;
   documents?: {
     panNumber?: string;
     aadhaarNumber?: string;
@@ -131,6 +132,7 @@ export default function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeMaster | null>(null);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [activeDetailsTab, setActiveDetailsTab] = useState<FormTab>('personal');
+  const [managerSearch, setManagerSearch] = useState('');
 
   // Masking toggles for sensitive data
   const [showAadhaar, setShowAadhaar] = useState(false);
@@ -256,6 +258,69 @@ export default function EmployeesPage() {
   // Pagination state
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+
+  const authSession = getPersistedAuthSession();
+  const managerCompanyId = drawerMode === 'edit'
+    ? selectedEmployee?.customerId || authSession.customerId
+    : authSession.customerId;
+  const { data: teamLeaders = [], isLoading: isLoadingLeaders, error: leadersError, refetch: refetchLeaders } = useQuery({
+    queryKey: ['employee-form-team-leaders', authSession.user?.id, managerCompanyId],
+    enabled: isFormDrawerOpen,
+    retry: false,
+    queryFn: async () => {
+      const leaders = new Map<string, { id: string; name: string; code: string }>();
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const res: any = await api.get('/teams', { params: {
+          page, limit: 100, status: 'ALL',
+          ...(managerCompanyId ? { customerId: managerCompanyId } : {}),
+        } });
+        const payload = res?.data && !Array.isArray(res.data) ? res.data : res;
+        const teams = payload?.items || payload?.data;
+        const pagination = payload?.pagination || payload?.meta;
+        if (!Array.isArray(teams) || !pagination || !Number.isInteger(Number(pagination.totalPages))) {
+          throw new Error('Unable to load the complete team leader list.');
+        }
+        totalPages = Math.max(Number(pagination.totalPages), 1);
+        for (const team of teams) {
+          const leader = team.leader;
+          if (!leader?.id) continue;
+          const id = String(leader.id);
+          leaders.set(id, {
+            id,
+            name: [leader.firstName, leader.lastName].filter(Boolean).join(' ').trim() || leader.name,
+            code: leader.employeeCode || `ID ${id}`,
+          });
+        }
+        page++;
+      } while (page <= totalPages);
+      return [...leaders.values()].sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+
+  const assignedManagerId = drawerMode === 'edit' ? selectedEmployee?.managerId : null;
+  const { data: assignedManager, error: assignedManagerError, isLoading: isLoadingAssignedManager } = useQuery({
+    queryKey: ['employee-form-assigned-manager', authSession.user?.id, managerCompanyId, assignedManagerId],
+    enabled: isFormDrawerOpen && !!assignedManagerId,
+    retry: false,
+    queryFn: async () => {
+      const res: any = await api.get(`/employees/${assignedManagerId}`, { params:
+        managerCompanyId ? { customerId: managerCompanyId } : {},
+      });
+      const employee = res?.data || res;
+      return {
+        id: String(employee.id),
+        name: [employee.firstName, employee.lastName].filter(Boolean).join(' ').trim() || employee.name,
+        code: employee.employeeCode || employee.employeeId || `ID ${employee.id}`,
+      };
+    },
+  });
+  const managerOptions = teamLeaders.filter((leader) =>
+    leader.id === formData.managerId || `${leader.name} ${leader.code}`.toLowerCase().includes(managerSearch.toLowerCase()),
+  );
+  const retainedManager = assignedManager && !teamLeaders.some((leader) => leader.id === assignedManager.id)
+    ? assignedManager : null;
 
   // 1. Fetch Real Active Offices dynamically for Filter & Form
   const { data: officesData, isLoading: isLoadingOffices, refetch: refetchOffices } = useQuery({
@@ -430,6 +495,7 @@ export default function EmployeesPage() {
         status: e.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
         mobileLoginEnabled: e.mobileLoginEnabled !== false,
         managerId: e.managerId || null,
+        customerId: e.customerId,
         documents: e.documents || null,
         bankDetails: e.bankDetails || null,
         emergencyContact: emergencyParsed || null,
@@ -524,7 +590,7 @@ export default function EmployeesPage() {
         departmentName: formData.departmentName || undefined,
         designationId: formData.designationId ? Number(formData.designationId) : undefined,
         designationName: formData.designationName || undefined,
-        managerId: formData.managerId ? Number(formData.managerId) : undefined,
+        managerId: formData.managerId ? Number(formData.managerId) : (drawerMode === 'edit' ? null : undefined),
         documents: {
           panNumber: formData.panNumber || undefined,
           aadhaarNumber: formData.aadhaarNumber || undefined,
@@ -743,6 +809,7 @@ export default function EmployeesPage() {
     setDrawerMode('create');
     setSelectedEmployee(null);
     setCurrentStep(1);
+    setManagerSearch('');
     setShowPassword(false);
     setShowConfirmPassword(false);
 
@@ -809,6 +876,7 @@ export default function EmployeesPage() {
     setDrawerMode('edit');
     setSelectedEmployee(emp);
     setCurrentStep(1);
+    setManagerSearch('');
     setShowPassword(false);
     setShowConfirmPassword(false);
 
@@ -2352,15 +2420,43 @@ export default function EmployeesPage() {
 
                   <div>
                     <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                      Reporting Manager ID (Optional)
+                      Reporting Manager (Optional)
                     </label>
                     <input
-                      type="text"
+                      type="search"
+                      aria-label="Search team leaders"
+                      value={managerSearch}
+                      onChange={(e) => setManagerSearch(e.target.value)}
+                      placeholder="Search leader name or employee code"
+                      className="w-full px-3.5 py-2.5 mb-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
+                    />
+                    <select
+                      aria-label="Reporting Manager (Optional)"
                       value={formData.managerId}
                       onChange={(e) => setFormData({ ...formData, managerId: e.target.value })}
-                      placeholder="e.g. 1"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-                    />
+                    >
+                      <option value="">No reporting manager</option>
+                      {formData.managerId && !teamLeaders.some((leader) => leader.id === formData.managerId) && (
+                        <option value={formData.managerId} disabled>
+                          {retainedManager ? `${retainedManager.name} (${retainedManager.code}) — Current manager`
+                            : isLoadingAssignedManager ? 'Loading current manager...' : `Current manager (ID ${formData.managerId})`}
+                        </option>
+                      )}
+                      {managerOptions.map((leader) => (
+                        <option key={leader.id} value={leader.id}>{leader.name} ({leader.code})</option>
+                      ))}
+                    </select>
+                    {isLoadingLeaders && <p className="text-xs text-slate-500 mt-1" role="status">Loading team leaders...</p>}
+                    {leadersError && (
+                      <p className="text-xs text-red-600 mt-1" role="alert">
+                        {getErrorMessage(leadersError)}{' '}
+                        <button type="button" onClick={() => refetchLeaders()} className="underline">Retry</button>
+                      </p>
+                    )}
+                    {assignedManagerError && <p className="text-xs text-red-600 mt-1" role="alert">Unable to load the current manager: {getErrorMessage(assignedManagerError)}</p>}
+                    {!isLoadingLeaders && !leadersError && teamLeaders.length === 0 && <p className="text-xs text-slate-500 mt-1">No team leaders available.</p>}
+                    {!isLoadingLeaders && !leadersError && teamLeaders.length > 0 && managerOptions.length === 0 && <p className="text-xs text-slate-500 mt-1">No matching team leaders.</p>}
                   </div>
                 </div>
               )}
