@@ -21,7 +21,7 @@ import {
   Users,
 } from 'lucide-react';
 import api from '@/lib/api';
-import { formatTimeIST, formatDurationHoursMinutes } from '@/lib/utils';
+import { formatTimeIST, formatDurationHoursMinutes, getErrorMessage } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPageHeader, AdminButton, AdminPagination } from '@/components/admin';
 
@@ -100,33 +100,29 @@ export default function AttendancePage() {
   });
 
   // Fetch real attendance logs
-  const { data: attendanceResponse, isLoading, refetch: refetchLogs } = useQuery({
+  const { data: attendanceResponse, isLoading, error: attendanceError, refetch: refetchLogs } = useQuery({
     queryKey: ['admin-hrm-attendance-logs', selectedDate, officeFilter, page, pageSize],
     queryFn: async () => {
-      try {
-        const params: Record<string, any> = { page, limit: pageSize };
-        if (selectedDate) params.date = selectedDate;
-        if (officeFilter !== 'ALL') params.branch = officeFilter;
-        const res: any = await api.get('/employees/hrm/attendance', { params });
-        const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
-        const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
-          page,
-          pageSize,
-          total: Array.isArray(items) ? items.length : 0,
-          totalPages: 1,
-        };
-        return {
-          items: Array.isArray(items) ? items : [],
-          pagination: {
-            page: Number(pagination.page) || page,
-            pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
-            total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
-            totalPages: Number(pagination.totalPages) || 1,
-          },
-        };
-      } catch {
-        return { items: [], pagination: { page: 1, pageSize, total: 0, totalPages: 1 } };
-      }
+      const params: Record<string, any> = { page, limit: pageSize };
+      if (selectedDate) params.date = selectedDate;
+      if (officeFilter !== 'ALL') params.branch = officeFilter;
+      const res: any = await api.get('/employees/hrm/attendance', { params });
+      const items = res?.data?.items || res?.data?.data || res?.items || res?.data || (Array.isArray(res) ? res : []);
+      const pagination = res?.pagination || res?.meta || res?.data?.pagination || res?.data?.meta || {
+        page,
+        pageSize,
+        total: Array.isArray(items) ? items.length : 0,
+        totalPages: 1,
+      };
+      return {
+        items: Array.isArray(items) ? items : [],
+        pagination: {
+          page: Number(pagination.page) || page,
+          pageSize: Number(pagination.pageSize || pagination.limit) || pageSize,
+          total: Number(pagination.total) || (Array.isArray(items) ? items.length : 0),
+          totalPages: Number(pagination.totalPages) || 1,
+        },
+      };
     },
   });
 
@@ -394,7 +390,7 @@ export default function AttendancePage() {
             <Building2 className="w-3.5 h-3.5 text-slate-500" />
             <select
               value={officeFilter}
-              onChange={(e) => setOfficeFilter(e.target.value)}
+              onChange={(e) => { setOfficeFilter(e.target.value); setPage(1); }}
               className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Offices</option>
@@ -412,7 +408,7 @@ export default function AttendancePage() {
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => { setSelectedDate(e.target.value); setPage(1); }}
               className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
             />
           </div>
@@ -461,6 +457,12 @@ export default function AttendancePage() {
                       <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
                       <span>Loading attendance logs...</span>
                     </div>
+                  </td>
+                </tr>
+              ) : attendanceError ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-red-600 font-bold" role="alert">
+                    Unable to load attendance records: {getErrorMessage(attendanceError)}
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
