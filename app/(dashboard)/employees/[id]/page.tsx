@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
-import { formatDurationHoursMinutes } from '@/lib/utils';
+import { formatDurationHoursMinutes, getErrorMessage } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminFormDrawer, AdminPageHeader, AdminButton } from '@/components/admin';
 
@@ -52,16 +52,13 @@ export default function EmployeeDetailPage() {
   const queryClient = useQueryClient();
 
   // Fetch real employee profile with attendance, breaks, and leaves from backend
-  const { data: employeeData, isLoading, isFetching, refetch } = useQuery({
+  const { data: employeeData, error: employeeError, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['admin-employee-detail', id],
     queryFn: async () => {
-      try {
-        const res: any = await api.get(`/employees/${id}`);
-        return res?.data || res;
-      } catch {
-        return null;
-      }
+      const res: any = await api.get(`/employees/${id}`);
+      return res?.data || res;
     },
+    retry: false,
   });
 
   const [editForm, setEditForm] = useState({
@@ -226,6 +223,19 @@ export default function EmployeeDetailPage() {
   const isWorking = todayAtt.status === 'Present' || todayAtt.status === 'Late' || todayAtt.status === 'Half Day';
   const isOnBreak = todayAtt.status === 'On Break' || todayAtt.isCurrentlyOnBreak;
   const isOnLeave = todayAtt.status === 'On Leave';
+
+  if (employeeError) {
+    return (
+      <div className="space-y-6 max-w-5xl">
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">
+          {getErrorMessage(employeeError)}
+        </div>
+        <AdminButton variant="outline" icon={RefreshCw} loading={isFetching} onClick={() => refetch()}>
+          Refresh
+        </AdminButton>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-5xl">

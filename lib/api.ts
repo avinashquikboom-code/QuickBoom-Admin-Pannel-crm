@@ -89,49 +89,31 @@ export function getPersistedAuthSession() {
   const activeStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
   const storageKey = isEmployeeRoute ? 'qb-employee-auth-storage' : 'quikboom-next-auth-storage';
 
-  let token = isValidTokenString(activeStore.token) ? activeStore.token.trim() : null;
-  let refreshToken = isValidTokenString(activeStore.refreshToken) ? activeStore.refreshToken.trim() : null;
-  let user = activeStore.user;
-  let customerId = (activeStore as any).customerId || user?.customerId;
-
-  if (!token || !refreshToken || !user) {
+  // Read one complete session; never rank tokens from different sessions by expiry.
+  let session: any = activeStore;
+  if (!activeStore._hasHydrated) {
     try {
       const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state) {
-          if (!token && isValidTokenString(parsed.state.token)) token = parsed.state.token.trim();
-          if (!refreshToken && isValidTokenString(parsed.state.refreshToken)) refreshToken = parsed.state.refreshToken.trim();
-          user = user || parsed.state.user || null;
-          customerId = customerId || parsed.state.customerId || parsed.state.user?.customerId || null;
-        }
-      }
+      if (raw) session = JSON.parse(raw)?.state || activeStore;
     } catch {}
   }
 
-  // Login also writes these keys. Use them when the in-memory store is empty,
-  // and prefer the token that expires later when both exist.
-  const rawAccessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  if (isValidTokenString(rawAccessToken)) {
-    const storedAccessToken = rawAccessToken.trim();
-    if (!token) {
-      token = storedAccessToken;
-    } else if (token !== storedAccessToken) {
-      const memoryExp = Number(safeDecodeJwtPayload(token)?.exp || 0);
-      const storedExp = Number(safeDecodeJwtPayload(storedAccessToken)?.exp || 0);
-      if (storedExp > memoryExp) token = storedAccessToken;
-    }
-  }
-  if (!refreshToken) {
-    const rawRefresh = localStorage.getItem('refreshToken');
-    if (isValidTokenString(rawRefresh)) refreshToken = rawRefresh.trim();
-  }
-  if (!user) {
+  // Legacy admin keys are only a fallback before hydration when no session exists.
+  if (!isEmployeeRoute && !activeStore._hasHydrated && session === activeStore &&
+      !session.token && !session.user) {
     try {
-      const userStr = localStorage.getItem('user');
-      if (userStr) user = JSON.parse(userStr);
+      session = {
+        token: localStorage.getItem('accessToken') || localStorage.getItem('token'),
+        refreshToken: localStorage.getItem('refreshToken'),
+        user: JSON.parse(localStorage.getItem('user') || 'null'),
+      };
     } catch {}
   }
+
+  const token = isValidTokenString(session.token) ? session.token.trim() : null;
+  const refreshToken = isValidTokenString(session.refreshToken) ? session.refreshToken.trim() : null;
+  const user = session.user || null;
+  const customerId = session.customerId || user?.customerId || null;
 
   return { token, refreshToken, user, customerId };
 }
@@ -170,16 +152,25 @@ function redactData(obj: any): any {
 
 // Single-flight refresh promise: prevents duplicate concurrent /auth/refresh network calls
 let refreshPromise: Promise<string> | null = null;
+let refreshSessionKey: string | null = null;
+
+function currentSessionKey(): string {
+  const { token, refreshToken, user } = getPersistedAuthSession();
+  // Internal comparison only; this key must never be logged.
+  return JSON.stringify([isEmployeePortalRoute(), user?.id, token, refreshToken]);
+}
 
 /**
  * Executes a single-flight token refresh. Concurrent callers share the exact same promise.
  */
 export async function performTokenRefresh(): Promise<string> {
-  if (refreshPromise) {
+  const sessionKey = currentSessionKey();
+  if (refreshPromise && refreshSessionKey === sessionKey) {
     return refreshPromise;
   }
 
-  refreshPromise = (async () => {
+  refreshSessionKey = sessionKey;
+  const pendingRefresh = (async () => {
     try {
       const isEmployeeRoute = isEmployeePortalRoute();
       const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
@@ -238,13 +229,12 @@ export async function performTokenRefresh(): Promise<string> {
         throw new Error('Refresh endpoint did not return an access token');
       }
 
+      if (currentSessionKey() !== sessionKey) {
+        throw new Error('Authentication session changed during refresh');
+      }
+
       // 1. Update in-memory auth store and localStorage
       authStore.updateTokens(newAccessToken, newRefreshToken);
-
-      // 2. Update default Authorization header on api instance
-      if (api.defaults.headers.common) {
-        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-      }
 
       return newAccessToken;
     } catch (refreshErr: any) {
@@ -255,7 +245,7 @@ export async function performTokenRefresh(): Promise<string> {
         refreshErr?.message === 'No refresh token available' ||
         refreshErr?.message === 'Refresh endpoint did not return an access token';
 
-      if (isAuthFailure) {
+      if (isAuthFailure && currentSessionKey() === sessionKey) {
         const isEmployeeRoute = isEmployeePortalRoute();
         const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
         const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
@@ -268,11 +258,15 @@ export async function performTokenRefresh(): Promise<string> {
       }
       throw refreshErr;
     } finally {
-      refreshPromise = null;
+      if (refreshSessionKey === sessionKey) {
+        refreshPromise = null;
+        refreshSessionKey = null;
+      }
     }
   })();
 
-  return refreshPromise;
+  refreshPromise = pendingRefresh;
+  return pendingRefresh;
 }
 
 // Request interceptor: attach bearer token and customer headers + logging
@@ -335,13 +329,19 @@ api.interceptors.request.use(
             try {
               token = await performTokenRefresh();
             } catch (_) {
-              // If proactive refresh fails, allow request to proceed and let 401 response interceptor handle it
+              // Re-read after refresh failure: logout must not leave a stale bearer attached.
+              ({ token, refreshToken, customerId, user } = getPersistedAuthSession());
+              (config as any)._refreshAttempted = true;
             }
           }
         } catch (_) {}
       }
 
-      if (token) {
+      // Remove defaults or caller headers from a previous session first.
+      config.headers.delete('Authorization');
+      config.headers.delete('x-customer-id');
+      config.headers.delete('x-tenant-id');
+      if (token && !isAuthUrl) {
         const cleanToken = token.replace(/^["']|["']$/g, '').trim();
         if (typeof config.headers?.set === 'function') {
           config.headers.set('Authorization', `Bearer ${cleanToken}`);
@@ -352,7 +352,7 @@ api.interceptors.request.use(
         }
       }
 
-      if (customerId) {
+      if (customerId && !isAuthUrl) {
         if (typeof config.headers?.set === 'function') {
           config.headers.set('x-customer-id', String(customerId));
           config.headers.set('x-tenant-id', String(customerId));
@@ -362,6 +362,9 @@ api.interceptors.request.use(
           config.headers['x-tenant-id'] = String(customerId);
         }
       }
+
+      (config as any).__authUserId = user?.id;
+      (config as any).__employeePortal = isEmployeePortalRoute();
 
 
       let tokenExpired = false;
@@ -426,7 +429,7 @@ api.interceptors.response.use(
       console.debug(
         `[ADMIN_API_RESPONSE] ${response.config.method?.toUpperCase()} ${response.config.url} → ${response.status} (${duration}ms)`,
         recordsCount !== undefined ? `Records: ${recordsCount}` : '',
-        resData
+        redactData(resData)
       );
     }
 
@@ -455,6 +458,15 @@ api.interceptors.response.use(
 
     if (!originalRequest) {
       return Promise.reject(error);
+    }
+
+    // An old account's failed request must not refresh or log out the new account.
+    if (error?.response?.status === 401 && typeof window !== 'undefined') {
+      const currentUser = getPersistedAuthSession().user;
+      if (originalRequest.__authUserId !== currentUser?.id ||
+          originalRequest.__employeePortal !== isEmployeePortalRoute()) {
+        return Promise.reject(error);
+      }
     }
 
     // Skip token refresh if the failed endpoint was the refresh endpoint itself or any login endpoint
@@ -489,13 +501,20 @@ api.interceptors.response.use(
     if (
       error?.response?.status === 401 &&
       !originalRequest._retry &&
+      !originalRequest._refreshAttempted &&
       !isAuthUrl &&
       typeof window !== 'undefined'
     ) {
       originalRequest._retry = true;
 
       try {
-        const newAccessToken = await performTokenRefresh();
+        // A late 401 from the old token can reuse the token already refreshed.
+        const currentToken = getPersistedAuthSession().token;
+        const sentHeader = originalRequest.headers?.get?.('Authorization') ||
+          originalRequest.headers?.Authorization;
+        const newAccessToken = currentToken && sentHeader !== `Bearer ${currentToken}`
+          ? currentToken
+          : await performTokenRefresh();
 
         const retryConfig: AxiosRequestConfig = {
           ...originalRequest,
@@ -515,8 +534,8 @@ api.interceptors.response.use(
         }
 
         return api.request(retryConfig);
-      } catch (refreshErr) {
-        return Promise.reject(refreshErr);
+      } catch {
+        return Promise.reject(error);
       }
     }
 
