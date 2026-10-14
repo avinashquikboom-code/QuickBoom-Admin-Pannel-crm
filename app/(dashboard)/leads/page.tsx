@@ -2465,7 +2465,7 @@ export default function LeadsPage() {
                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Assigned To</p>
                           <p className="text-xs font-black text-slate-800">
                             {leadDetail.assignedTo
-                              ? `${leadDetail.assignedTo.firstName} ${leadDetail.assignedTo.lastName}`
+                              ? `${leadDetail.assignedTo.firstName || ''} ${leadDetail.assignedTo.lastName || ''}`.trim() || 'Unassigned Representative'
                               : 'Unassigned Representative'}
                           </p>
                         </div>
@@ -2517,7 +2517,7 @@ export default function LeadsPage() {
                             {leadDetail.createdBy?.firstName?.[0] || 'E'}
                           </div>
                           <p className="text-xs font-black text-slate-800 truncate">
-                            {`${leadDetail.createdBy?.firstName} ${leadDetail.createdBy?.lastName}`.trim() || 'Employee'}
+                            {`${leadDetail.createdBy?.firstName || ''} ${leadDetail.createdBy?.lastName || ''}`.trim() || '—'}
                           </p>
                         </div>
                       </div>

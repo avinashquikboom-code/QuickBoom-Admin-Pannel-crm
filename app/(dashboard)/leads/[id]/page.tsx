@@ -1052,7 +1052,7 @@ function isDetailsSendStage(lead: any): boolean {
                 <span className="text-slate-400 text-[10px] font-bold uppercase">Created By</span>
                 <span className="font-bold text-slate-800">
                   {lead.createdBy
-                    ? `${lead.createdBy.firstName || ''} ${lead.createdBy.lastName || ''}`.trim()
+                    ? `${lead.createdBy.firstName || ''} ${lead.createdBy.lastName || ''}`.trim() || '—'
                     : lead.createdByName || '—'}
                 </span>
               </div>
@@ -1061,7 +1061,7 @@ function isDetailsSendStage(lead: any): boolean {
                 <span className="text-slate-400 text-[10px] font-bold uppercase">Assigned To</span>
                 <span className="font-bold text-slate-800">
                   {lead.assignedTo
-                    ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
+                    ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() || 'Unassigned'
                     : 'Unassigned'}
                 </span>
               </div>
