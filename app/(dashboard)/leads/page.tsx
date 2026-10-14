@@ -1582,21 +1582,19 @@ export default function LeadsPage() {
                 <th className="py-4 px-4">Created From</th>
                 <th className="py-4 px-4">Stage Status</th>
                 <th className="py-4 px-4">Est. Value</th>
-                <th className="py-4 px-4">Assigned To</th>
-                <th className="py-4 px-4">Created By</th>
                 <th className="py-4 px-5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoadingLeads ? (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                  <td colSpan={9} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading CRM leads from database...
                   </td>
                 </tr>
               ) : isLeadsError ? (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center">
+                  <td colSpan={9} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <p className="font-bold text-sm text-rose-600">Unable to load leads. Please try again.</p>
                       <button
@@ -1837,42 +1835,6 @@ export default function LeadsPage() {
                         </span>
                       </td>
 
-                      {/* Assigned To */}
-                      <td className="py-4 px-4">
-                        {lead.assignedTo || lead.assignedToName ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center shrink-0">
-                              {(lead.assignedTo?.firstName || lead.assignedToName || 'U')[0]}
-                            </div>
-                            <span className="font-bold text-slate-800 text-xs truncate max-w-[120px]">
-                              {lead.assignedTo
-                                ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim()
-                                : lead.assignedToName}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 font-bold text-xs italic">Unassigned</span>
-                        )}
-                      </td>
-
-                      {/* Created By */}
-                      <td className="py-4 px-4">
-                        {lead.createdBy ? (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-[10px] font-black flex items-center justify-center">
-                              {lead.createdBy.firstName?.[0] || 'E'}
-                            </div>
-                            <span className="font-bold text-slate-700 text-xs">
-                              {lead.createdBy.firstName} {lead.createdBy.lastName}
-                            </span>
-                          </div>
-                        ) : lead.createdByName ? (
-                          <span className="font-bold text-slate-700 text-xs">{lead.createdByName}</span>
-                        ) : (
-                          <span className="text-slate-400 font-bold text-xs italic">—</span>
-                        )}
-                      </td>
-
                       {/* Action Buttons */}
                       <td className="py-4 px-5 text-right">
                         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -1928,7 +1890,7 @@ export default function LeadsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center text-slate-400">
+                  <td colSpan={9} className="py-16 text-center text-slate-400">
                     <p className="font-bold text-sm text-slate-600">No leads found in this view</p>
                     <p className="text-xs text-slate-400 mt-1">Try switching filters or search using Google Places</p>
                     <button
