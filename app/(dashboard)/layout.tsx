@@ -6,41 +6,19 @@ import { Sidebar } from '@/components/Sidebar';
 import { RouteGuard } from '@/components/RouteGuard';
 import { FcmProvider } from '@/components/FcmProvider';
 import Image from 'next/image';
-import {
-  Bell,
-  Search,
-  Menu,
-  X,
-  Shield,
-  ChevronDown,
-  Check,
-} from 'lucide-react';
+import { Bell, Search, Menu, X, Shield } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
-import { getUserRole, UserRole } from '@/lib/access-control';
-import { toast } from 'react-hot-toast';
+import { getUserRole } from '@/lib/access-control';
+
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
-  const switchRole = useAuthStore((state) => state.switchRole);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
 
   const currentRole = getUserRole(user);
-
-  const availableRoles: UserRole[] = [
-    'Super Admin',
-  ];
-
-  const handleRoleChange = (role: UserRole) => {
-    switchRole(role);
-    setShowRoleMenu(false);
-    toast.success(`Active role switched to: ${role}`, {
-      icon: '🛡️',
-    });
-  };
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['admin-notifications', 'unread-count'],
@@ -126,50 +104,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
 
-          {/* Right Header Actions & Role Switcher Simulator */}
+          {/* Right Header Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Role Switcher Pill */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRoleMenu(!showRoleMenu);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E8F9EE] border border-[#23C45E]/30 text-[#1AA14D] hover:bg-[#23C45E] hover:text-white transition-all text-xs font-black cursor-pointer shadow-2xs"
-                title="Switch Active Role for Testing"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Role:</span>
-                <span className="font-extrabold">{currentRole}</span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-70" />
-              </button>
-
-              {showRoleMenu && (
-                <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="px-3 py-1.5 border-b border-slate-100 mb-1">
-                    <p className="text-[10px] uppercase font-black tracking-wider text-slate-400">
-                      Switch Role Matrix
-                    </p>
-                  </div>
-                  <div className="space-y-0.5">
-                    {availableRoles.map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => handleRoleChange(r)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-xl transition-all ${
-                          currentRole === r
-                            ? 'bg-[#23C45E] text-white shadow-xs'
-                            : 'text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        <span>{r}</span>
-                        {currentRole === r && <Check className="w-3.5 h-3.5 text-white" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E8F9EE] border border-[#23C45E]/30 text-[#1AA14D] text-xs font-black shadow-2xs">
+              <Shield className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Role:</span>
+              <span className="font-extrabold">{currentRole}</span>
             </div>
 
             {/* Notification Bell */}
