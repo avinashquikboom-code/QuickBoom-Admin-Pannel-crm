@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, CheckCircle2, RefreshCw, Target, History, ShieldCheck, Zap, Globe, TrendingUp, Cpu } from 'lucide-react';
+import { Activity, CheckCircle2, RefreshCw, Target, ShieldCheck, Zap, Globe, TrendingUp, Cpu } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { AdminPageHeader, AdminStatCard, AdminButton } from '@/components/admin';
@@ -12,9 +12,6 @@ export default function DataCaptureUsagePage() {
   const isEmployeeRoute = usePathname()?.startsWith('/employee/') ?? false;
   const dataCaptureHref = isEmployeeRoute ? '/employee/data-capture' : '/data-capture';
   const crmHref = isEmployeeRoute ? '/employee/leads' : '/crm';
-  const historyHref = isEmployeeRoute
-    ? '/employee/data-capture/history'
-    : '/data-capture/history';
   const { data: usage, isLoading, refetch } = useQuery({
     queryKey: ['data-capture-usage'],
     queryFn: async () => {
@@ -76,15 +73,6 @@ export default function DataCaptureUsagePage() {
               Refresh
             </AdminButton>
 
-            <Link href={historyHref}>
-              <AdminButton
-                variant="outline"
-                size="md"
-                icon={History}
-              >
-                Capture History
-              </AdminButton>
-            </Link>
 
             <Link href={dataCaptureHref}>
               <AdminButton

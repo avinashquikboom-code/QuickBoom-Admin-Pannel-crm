@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity, History } from 'lucide-react';
+import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -711,15 +711,6 @@ export default function DataCapturePage() {
               Sync
             </AdminButton>
 
-            <Link href="/data-capture/history">
-              <AdminButton
-                variant="outline"
-                size="md"
-                icon={History}
-              >
-                Job History
-              </AdminButton>
-            </Link>
 
             <Link href="/data-capture/usage">
               <AdminButton
