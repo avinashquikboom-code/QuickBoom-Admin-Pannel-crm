@@ -592,7 +592,7 @@ export default function DataCapturePage() {
       setIsExtracting(false);
       setExtractModalOpen(false);
 
-      const capturedCount = res?.captured || res?.places?.length || requestedNum;
+      const capturedCount = res.data.captured;
       toast.success(`Google Places: Extracted & saved ${capturedCount} verified businesses!`);
       queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
       queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
@@ -746,14 +746,14 @@ export default function DataCapturePage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <AdminStatCard
           title="Total Captured"
-          value={usage?.totalLeadsCaptured || totalCount}
+          value={usage?.totalLeadsCaptured ?? totalCount}
           description="Verified business records"
           icon={Database}
           iconBg="primary"
         />
         <AdminStatCard
           title="Validated Prospects"
-          value={usage?.validatedCount || places.filter((p) => p.status === 'VALIDATED').length}
+          value={usage?.validatedCount ?? places.filter((p) => p.status === 'VALIDATED').length}
           description="Reviewed business records"
           icon={ShieldCheck}
           iconBg="primary"
@@ -761,7 +761,7 @@ export default function DataCapturePage() {
 
         <AdminStatCard
           title="API Quota Remaining"
-          value={`${usage?.quotaRemaining || 1000} / ${usage?.quotaLimit || 1000}`}
+          value={`${usage?.quotaRemaining ?? '—'} / ${usage?.quotaLimit ?? '—'}`}
           description={`${usage?.totalGoogleApiCalls || 0} API requests made`}
           icon={Layers}
           iconBg="blue"

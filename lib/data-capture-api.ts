@@ -23,7 +23,7 @@ export const dataCaptureApi = {
   update: (id: number, data: Record<string, unknown>) => request('patch', `/${id}`, data),
   remove: (id: number) => request('delete', `/${id}`),
   validate: (id: number) => request('post', `/${id}/validate`),
-  reject: (id: number, reason: string) => request('post', `/${id}/reject`, { reason }),
+  reject: (id: number, reason?: string) => request('post', `/${id}/reject`, { reason }),
   bulk: (ids: number[], action: string, reason?: string) => request('post', '/bulk', { ids, action, reason }),
   extract: (data: Record<string, unknown>) => request('post', '/extract', data),
 };
