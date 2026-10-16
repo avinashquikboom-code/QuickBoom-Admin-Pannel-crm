@@ -26,7 +26,6 @@ interface AuthState {
   setAuth: (user: User, token: string, refreshToken: string) => void;
   updateTokens: (token: string, refreshToken?: string) => void;
   setCustomerId: (customerId: number | string) => void;
-  switchRole: (role: string) => void;
   toggleSubscriptionFeature: (feature: keyof SubscriptionFeatures, enabled: boolean) => void;
   logout: () => void;
 }
@@ -97,45 +96,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setCustomerId: (customerId: number | string) => set({ customerId }),
-
-      switchRole: (role: string) => {
-        const currentUser = get().user;
-        if (!currentUser) return;
-
-        const rolePermissions = ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS['Employee'];
-        
-        let demoFirstName = 'Demo';
-        let demoLastName = 'User';
-        if (role === 'Super Admin') {
-          demoFirstName = 'Super';
-          demoLastName = 'Admin';
-        } else if (role === 'Customer Owner') {
-          demoFirstName = 'Customer';
-          demoLastName = 'Owner';
-        } else if (role === 'HR Manager') {
-          demoFirstName = 'HR';
-          demoLastName = 'Manager';
-        } else if (role === 'HR Executive') {
-          demoFirstName = 'HR';
-          demoLastName = 'Executive';
-        } else if (role === 'Manager') {
-          demoFirstName = 'Sales';
-          demoLastName = 'Manager';
-        } else if (role === 'Employee') {
-          demoFirstName = 'Staff';
-          demoLastName = 'Employee';
-        }
-
-        set({
-          user: {
-            ...currentUser,
-            firstName: demoFirstName,
-            lastName: demoLastName,
-            roles: [role],
-            permissions: [...rolePermissions],
-          },
-        });
-      },
 
       toggleSubscriptionFeature: (feature: keyof SubscriptionFeatures, enabled: boolean) => {
         const currentUser = get().user;
