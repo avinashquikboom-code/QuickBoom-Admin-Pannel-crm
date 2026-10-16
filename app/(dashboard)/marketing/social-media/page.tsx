@@ -1,43 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  Share2,
-  Plus,
-  Search,
-  Building2,
-  Edit2,
-  Trash2,
-  ExternalLink,
-  CheckCircle2,
-  XCircle,
-  Calendar,
-  RefreshCw,
-  SlidersHorizontal,
-  User,
-  Phone,
-  Mail,
-  Instagram,
-  Facebook,
-  Youtube,
-  Linkedin,
-  Twitter,
-  Globe,
-  Briefcase,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
+import { Share2, Plus, Search, Edit2, Trash2, ExternalLink, CheckCircle2, XCircle, RefreshCw, User, Phone, Instagram, Facebook, Youtube, Linkedin, Twitter, Globe, Eye, EyeOff } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import {
-  AdminPageHeader,
-  AdminButton,
-  AdminStatCard,
-  AdminFormDrawer,
-  AdminPagination,
-  AdminConfirmDialog,
-  CustomerDetailsDrawer,
-} from '@/components/admin';
+import { AdminPageHeader, AdminButton, AdminStatCard, AdminFormDrawer, AdminPagination, AdminConfirmDialog } from '@/components/admin';
 import {
   SocialMediaService,
   SocialMediaHandlerItem,
@@ -80,7 +47,6 @@ export default function SocialMediaHandlersPage() {
   const [editingHandler, setEditingHandler] = useState<SocialMediaHandlerItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SocialMediaHandlerItem | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [viewingCustomerModalId, setViewingCustomerModalId] = useState<number | string | null>(null);
 
   // Form states
   const [formCustomerId, setFormCustomerId] = useState<string>('');
@@ -440,17 +406,9 @@ export default function SocialMediaHandlersPage() {
                   <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                     {/* Customer */}
                     <td className="py-3.5 px-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (item.customerId) {
-                            setViewingCustomerModalId(item.customerId);
-                          }
-                        }}
-                        className="font-semibold text-foreground text-left hover:text-[#1AA14D] transition-colors cursor-pointer block"
-                      >
+                      <span className="font-semibold text-foreground block">
                         {item.customer?.name || item.customer?.companyName || `Customer #${item.customerId}`}
-                      </button>
+                      </span>
                       {item.customer?.email && (
                         <div className="text-xs text-muted-foreground">{item.customer.email}</div>
                       )}
@@ -872,11 +830,7 @@ export default function SocialMediaHandlersPage() {
       />
 
       {/* 7. Customer Details Right-Side Drawer */}
-      <CustomerDetailsDrawer
-        customerId={viewingCustomerModalId}
-        isOpen={!!viewingCustomerModalId}
-        onClose={() => setViewingCustomerModalId(null)}
-      />
+
     </div>
   );
 }

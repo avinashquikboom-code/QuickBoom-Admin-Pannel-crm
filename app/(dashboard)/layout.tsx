@@ -98,7 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search leads, tasks, records..."
+                placeholder="Search employees, tasks, records..."
                 className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#23C45E] focus:outline-none text-slate-900 font-medium truncate"
               />
             </div>

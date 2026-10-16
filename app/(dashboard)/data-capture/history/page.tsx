@@ -1,29 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  History,
-  Search,
-  Download,
-  CheckCircle2,
-  ExternalLink,
-  MapPin,
-  Calendar,
-  Sparkles,
-  Layers,
-  UserPlus,
-  RefreshCw,
-  Eye,
-  X,
-  Phone,
-  Globe,
-  Star,
-  Activity,
-  Target,
-  Database,
-} from 'lucide-react';
+import { History, Search, CheckCircle2, MapPin, Sparkles, Layers, UserPlus, RefreshCw, Eye, X, Phone, Globe, Star, Activity, Target } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -37,7 +17,7 @@ export default function DataCaptureHistoryPage() {
   const pathname = usePathname();
   const isEmployeeRoute = pathname?.startsWith('/employee/') ?? false;
   const employeeUser = useEmployeeAuthStore((state) => state.user);
-  const canImport = !isEmployeeRoute || hasPermission(employeeUser, [
+  const canImport = isEmployeeRoute && hasPermission(employeeUser, [
     'DATA_CAPTURE:EDIT',
     'employee.data_capture.edit',
     'data_capture.edit',
@@ -166,7 +146,7 @@ export default function DataCaptureHistoryPage() {
       {/* 1. STANDARD PAGE HEADER */}
       <AdminPageHeader
         title="Extraction History & Audit Trail"
-        description="Inspect past Google Places extraction batches, review captured records, and import prospects directly into CRM Leads."
+        description={isEmployeeRoute ? "Inspect past Google Places extraction batches, review captured records, and import prospects directly into CRM Leads." : "Inspect past Google Places extraction batches and review captured records."}
         icon={History}
         iconColor="text-[#1AA14D]"
         badge={{

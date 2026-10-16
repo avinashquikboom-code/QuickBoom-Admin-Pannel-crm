@@ -3,29 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Coins,
-  Sparkles,
-  Search,
-  PlusCircle,
-  MinusCircle,
-  TrendingUp,
-  TrendingDown,
-  History,
-  Building2,
-  Mail,
-  Phone,
-  CheckCircle2,
-  RefreshCw,
-  X,
-  ExternalLink,
-  ChevronRight,
-  User,
-  Users,
-  CreditCard,
-  ArrowRight,
-  ArrowLeft,
-} from 'lucide-react';
+import { Coins, Sparkles, Search, PlusCircle, MinusCircle, TrendingUp, TrendingDown, History, Building2, Mail, Phone, CheckCircle2, RefreshCw, X, ChevronRight, Users, CreditCard, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import { AdminPageHeader, AdminButton } from '@/components/admin';
@@ -697,14 +675,7 @@ function AiCreditsManagementContent() {
                         <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                           CUST-{String(selectedCustomerId).padStart(4, '0')}
                         </span>
-                        <Link
-                          href={`/customers/${selectedCustomerId}`}
-                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 transition-colors"
-                          title="Open Customer Profile in CRM"
-                        >
-                          <span>Profile</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
+
                       </div>
 
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 text-xs text-slate-500 dark:text-slate-400 font-medium">

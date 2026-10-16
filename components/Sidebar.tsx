@@ -223,8 +223,6 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
     }
   };
 
-  // Get filtered navigation sections based on user role, permissions, and subscription features
-  let accessibleSections = filterNavigation(CENTRAL_NAVIGATION, user);
 
   // Delegate to dedicated EmployeeSidebar when role is Employee
   if (role === 'Employee') {
@@ -239,6 +237,29 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
   }
 
   // ACCORDION SINGLE SOURCE OF TRUTH: Only ONE expandable parent section open at a time
+  const retiredAdminRoutes = [
+    '/leads', '/customers', '/register', '/customer-registration',
+    '/customer-calendar', '/schedules', '/super-admin',
+    '/master/lead-stages', '/master/lead-sources',
+  ];
+  const isRetiredAdminRoute = (href: string) => retiredAdminRoutes.some((route) => {
+    const pathname = href.split('?')[0];
+    return pathname === route || pathname.startsWith(`${route}/`);
+  });
+  const adminSections = CENTRAL_NAVIGATION.map((section) => ({
+    ...section,
+    category: section.id === 'customers' ? 'Billing' : section.category,
+    items: section.items
+      .filter((item) => !isRetiredAdminRoute(item.href))
+      .map((item) => ({
+        ...item,
+        ...(item.children ? {
+          children: item.children.filter((child) => !isRetiredAdminRoute(child.href)),
+        } : {}),
+      })),
+  })).filter((section) => section.items.length > 0);
+  const accessibleSections = filterNavigation(adminSections, user);
+
   const [openSection, setOpenSection] = useState<string | null>(() => {
     if (!pathname) return null;
     const initialMatch = accessibleSections.find((section) =>
@@ -274,16 +295,7 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
     }
   }, [pathname, activeHref]);
 
-  // Submenu expansion state (Leads expanded by default or when on lead route)
-  const [expandedSubmenus, setExpandedSubmenus] = useState<Record<string, boolean>>({
-    Leads: true,
-  });
-
-  useEffect(() => {
-    if (pathname && (pathname.startsWith('/leads') || pathname === '/leads')) {
-      setExpandedSubmenus((prev) => ({ ...prev, Leads: true }));
-    }
-  }, [pathname]);
+  const [expandedSubmenus, setExpandedSubmenus] = useState<Record<string, boolean>>({});
 
   // Handle accordion toggle: click closed -> open it; click open -> close it; click another -> switch to it
   const handleToggleSection = (sectionId: string) => {

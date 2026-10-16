@@ -1,28 +1,10 @@
 'use client';
 
-import React from 'react';
+
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import {
-  Database,
-  Building2,
-  Award,
-  Users,
-  Calendar,
-  FileText,
-  Briefcase,
-  Activity,
-  CheckSquare,
-  Kanban,
-  Target,
-  Layers,
-  CreditCard,
-  DollarSign,
-  Banknote,
-  ArrowRight,
-  RefreshCw,
-} from 'lucide-react';
+import { Database, Building2, Award, Users, Calendar, FileText, Briefcase, Activity, CheckSquare, Layers, CreditCard, DollarSign, Banknote, ArrowRight, RefreshCw } from 'lucide-react';
 
 import { AdminPageHeader, AdminButton } from '@/components/admin';
 
@@ -114,29 +96,9 @@ export default function MasterHubPage() {
       icon: CheckSquare,
       count: '9 Stages',
       countLabel: 'Pipeline States',
-      description: 'Lifecycle stages tracking internal assignments to customer app approval.',
+      description: 'Lifecycle stages tracking internal assignments and review.',
       category: 'Production',
       color: '#14B8A6',
-    },
-    {
-      title: 'Lead Stages',
-      href: '/master/lead-stages',
-      icon: Kanban,
-      count: summary.leadStagesCount,
-      countLabel: 'Active Pipeline Stages',
-      description: 'Dynamic CRM sales funnel stages with drag-and-drop sort ordering.',
-      category: 'Sales & CRM',
-      color: '#EA580C',
-    },
-    {
-      title: 'Lead Sources',
-      href: '/master/lead-sources',
-      icon: Target,
-      count: summary.totalLeads,
-      countLabel: 'Total Leads Tracked',
-      description: 'Inbound and outbound customer acquisition channels and attribution.',
-      category: 'Sales & CRM',
-      color: '#E11D48',
     },
     {
       title: 'Subscription Plans',

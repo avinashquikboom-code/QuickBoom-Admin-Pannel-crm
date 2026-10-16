@@ -1,29 +1,12 @@
 'use client';
 
-import React from 'react';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Activity,
-  Layers,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  RefreshCw,
-  Target,
-  History,
-  ShieldCheck,
-  Zap,
-  Globe,
-  Sliders,
-  TrendingUp,
-  Cpu,
-  Database,
-  UserPlus,
-} from 'lucide-react';
+import { Activity, CheckCircle2, RefreshCw, Target, History, ShieldCheck, Zap, Globe, TrendingUp, Cpu } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton } from '@/components/admin';
+import { AdminPageHeader, AdminStatCard, AdminButton } from '@/components/admin';
 
 export default function DataCaptureUsagePage() {
   const isEmployeeRoute = usePathname()?.startsWith('/employee/') ?? false;
@@ -166,7 +149,7 @@ export default function DataCaptureUsagePage() {
           iconBg="blue"
         />
         <AdminStatCard
-          title="Leads Captured"
+          title={isEmployeeRoute ? "Leads Captured" : "Records Captured"}
           value={totalLeadsCaptured}
           description="Verified contacts"
           icon={CheckCircle2}
@@ -182,7 +165,7 @@ export default function DataCaptureUsagePage() {
         <AdminStatCard
           title="Efficiency Ratio"
           value={totalGoogleApiCalls > 0 ? (totalLeadsCaptured / totalGoogleApiCalls).toFixed(1) : '20.0'}
-          description="Leads per API call"
+          description={isEmployeeRoute ? "Leads per API call" : "Records per API call"}
           icon={TrendingUp}
           iconBg="primary"
         />
@@ -249,7 +232,8 @@ export default function DataCaptureUsagePage() {
             <div className="flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Direct CRM Lead Conversion:</strong> One-click import prevents duplicate entries in CRM pipeline automatically.
+                <strong>{isEmployeeRoute ? 'Direct CRM Lead Conversion:' : 'Duplicate Detection:'}</strong>{' '}
+                {isEmployeeRoute ? 'One-click import prevents duplicate entries in CRM pipeline automatically.' : 'Review duplicate matches before using captured records.'}
               </span>
             </div>
           </div>
