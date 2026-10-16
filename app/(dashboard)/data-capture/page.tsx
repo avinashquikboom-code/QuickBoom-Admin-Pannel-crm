@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 import { dataCaptureApi } from '@/lib/data-capture-api';
 import { useAuthStore } from '@/lib/store';
 import { hasPermission } from '@/lib/access-control';
-import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton, AdminFormDrawer, AdminConfirmDialog, AdminPagination } from '@/components/admin';
+import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton, AdminFormDrawer, AdminConfirmDialog, AdminPagination, AdminDataTable } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 interface DuplicateMatch {
@@ -943,6 +943,55 @@ export default function DataCapturePage() {
         }
       >
 
+
+        {isError ? (
+          <div role="alert" className="p-8 text-center space-y-3">
+            <p className="text-sm text-rose-600">{getErrorMessage(error)}</p>
+            <AdminButton onClick={() => refetchList()}>Retry</AdminButton>
+          </div>
+        ) : (
+          <AdminDataTable<CapturedPlace>
+            data={places}
+            loading={isLoading}
+            emptyTitle="No captured records found"
+            emptyDescription="Try changing your search or filters, or start a new capture."
+            keyExtractor={(record, index) => String(record.id ?? index)}
+            onRowClick={openDetailDrawer}
+            minWidth="min-w-[1000px]"
+            columns={[
+              { key: 'selection', header: 'Select', render: (record) => (
+                <input type="checkbox" aria-label={`Select ${record.businessName}`}
+                  checked={record.id != null && selectedIds.includes(record.id)}
+                  disabled={record.id == null}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={() => { if (record.id != null) handleSelectRow(record.id); }} />
+              ) },
+              { key: 'businessName', header: 'Business', render: (record) => (
+                <div><p className="font-bold text-slate-900">{record.businessName}</p>
+                  <p className="text-slate-500 mt-1">{record.category || '—'}</p></div>
+              ) },
+              { key: 'phone', header: 'Contact', render: (record) => (
+                <div><p>{record.phone || '—'}</p><p className="text-slate-500 mt-1">{record.email || '—'}</p></div>
+              ) },
+              { key: 'address', header: 'Location', className: 'max-w-xs' },
+              { key: 'status', header: 'Status', render: (record) => {
+                const status = STATUS_CONFIG[record.status || 'CAPTURED'] || STATUS_CONFIG.CAPTURED;
+                return <span className={`inline-flex rounded-full border px-2.5 py-1 ${status.bg} ${status.text} ${status.border}`}>
+                  {status.label}
+                </span>;
+              } },
+              { key: 'source', header: 'Source' },
+              { key: 'capturedAt', header: 'Captured', render: (record) => {
+                const date = new Date(record.capturedAt);
+                return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+              } },
+              { key: 'actions', header: 'Actions', render: (record) => (
+                <button type="button" className="text-emerald-700 font-bold hover:underline"
+                  onClick={(event) => { event.stopPropagation(); openDetailDrawer(record); }}>View details</button>
+              ) },
+            ]}
+          />
+        )}
 
         {/* Server-Side Pagination */}
         <AdminPagination
