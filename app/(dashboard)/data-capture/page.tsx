@@ -1,60 +1,14 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import {
-  Database,
-  Search,
-  Download,
-  Sparkles,
-  CheckCircle2,
-  Clock,
-  Plus,
-  Globe,
-  Layers,
-  MapPin,
-  Tag,
-  Star,
-  Phone,
-  Mail,
-  ExternalLink,
-  ShieldCheck,
-  UserPlus,
-  RefreshCw,
-  Eye,
-  Edit,
-  Trash2,
-  Check,
-  X,
-  AlertTriangle,
-  FileText,
-  Building,
-  Filter,
-  ArrowRight,
-  HelpCircle,
-  Copy,
-  Zap,
-  Activity,
-  History,
-  Loader2,
-  Building2,
-} from 'lucide-react';
+import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity, History } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { hasPermission } from '@/lib/access-control';
-import {
-  AdminPageHeader,
-  AdminStatCard,
-  AdminCard,
-  AdminButton,
-  AdminStatusBadge,
-  AdminFormDrawer,
-  AdminConfirmDialog,
-  AdminSearchInput,
-  AdminPagination,
-} from '@/components/admin';
+import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton, AdminFormDrawer, AdminConfirmDialog, AdminPagination } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
 interface DuplicateMatch {
@@ -312,7 +266,7 @@ const STATUS_CONFIG: Record<
   VALIDATED: { label: 'Validated', bg: 'bg-emerald-50', text: 'text-[#1AA14D]', border: 'border-emerald-200' },
   REJECTED: { label: 'Rejected', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
   DUPLICATE: { label: 'Duplicate', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  LEAD_CREATED: { label: 'Lead Created', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+  LEAD_CREATED: { label: 'Imported', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
 };
 
 export default function DataCapturePage() {
@@ -369,7 +323,6 @@ export default function DataCapturePage() {
   const [recordToDelete, setRecordToDelete] = useState<number | null>(null);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [leadDuplicateConfirmOpen, setLeadDuplicateConfirmOpen] = useState(false);
 
   // 1. Fetch Usage Metrics with graceful fallback
   const { data: usage, refetch: refetchUsage } = useQuery<UsageSummary>({
@@ -516,29 +469,6 @@ export default function DataCapturePage() {
       queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
     },
     onError: (err) => toast.error(getErrorMessage(err)),
-  });
-
-  const [capturingId, setCapturingId] = useState<number | null>(null);
-
-  const createLeadMutation = useMutation({
-    mutationFn: async ({ id, captureRequestId }: { id: number; captureRequestId?: string }) => {
-      setCapturingId(id);
-      return api.post(`/data-capture/${id}/create-lead`, { captureRequestId });
-    },
-    onSuccess: (res: any) => {
-      setCapturingId(null);
-      const data = res?.data || res;
-      toast.success(data?.message || 'Lead created successfully in CRM!', { icon: '🎯' });
-      setDrawerOpen(false);
-      setLeadDuplicateConfirmOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
-      queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-    },
-    onError: (err) => {
-      setCapturingId(null);
-      toast.error(getErrorMessage(err));
-    },
   });
 
   const validateMutation = useMutation({
@@ -749,41 +679,12 @@ export default function DataCapturePage() {
     toast.success(`Exported ${exportPlaces.length} records to CSV!`);
   };
 
-  const handleCaptureLead = (place: CapturedPlace) => {
-    if (!place?.id) return;
-    const captureRequestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-    console.log(
-      `[DATA CAPTURE REQUEST]\n` +
-      `captureRequestId: ${captureRequestId}\n` +
-      `source: ${place.source || 'GOOGLE_PLACES'}\n` +
-      `sourceResultId: ${place.googlePlaceId || place.id}\n` +
-      `companyName: ${place.businessName}\n` +
-      `website: ${place.website || 'N/A'}\n` +
-      `phone: ${place.phone || 'none'}\n` +
-      `email: ${place.email || 'none'}`
-    );
-
-    setSelectedRecord(place);
-    const hasLeadDuplicates = (place.duplicateMatches || []).some((m) => m.type === 'LEAD');
-    if (hasLeadDuplicates) {
-      setLeadDuplicateConfirmOpen(true);
-    } else {
-      createLeadMutation.mutate({ id: place.id, captureRequestId });
-    }
-  };
-
-  const handleCreateLeadClick = () => {
-    if (!selectedRecord) return;
-    handleCaptureLead(selectedRecord);
-  };
-
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
       {/* 1. STANDARD PAGE HEADER */}
       <AdminPageHeader
         title="Data Capture"
-        description="Extract, verify, and convert business prospects into active CRM Leads with Google Places API integration."
+        description="Extract and verify business prospects with Google Places API integration."
         icon={Globe}
         iconColor="text-[#1AA14D]"
         badge={{
@@ -856,7 +757,7 @@ export default function DataCapturePage() {
       />
 
       {/* 2. KPI STAT CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <AdminStatCard
           title="Total Captured"
           value={usage?.totalLeadsCaptured || totalCount}
@@ -867,17 +768,11 @@ export default function DataCapturePage() {
         <AdminStatCard
           title="Validated Prospects"
           value={usage?.validatedCount || places.filter((p) => p.status === 'VALIDATED').length}
-          description="Reviewed & ready for lead creation"
+          description="Reviewed business records"
           icon={ShieldCheck}
           iconBg="primary"
         />
-        <AdminStatCard
-          title="Converted to Leads"
-          value={usage?.convertedCount || places.filter((p) => p.isImported || p.status === 'LEAD_CREATED').length}
-          description="Active in CRM Pipeline"
-          icon={UserPlus}
-          iconBg="purple"
-        />
+
         <AdminStatCard
           title="API Quota Remaining"
           value={`${usage?.quotaRemaining || 1000} / ${usage?.quotaLimit || 1000}`}
@@ -891,7 +786,7 @@ export default function DataCapturePage() {
       <div className="bg-white rounded-3xl border border-slate-200/80 p-4 shadow-xs space-y-4">
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-          {(['ALL', 'CAPTURED', 'VALIDATED', 'LEAD_CREATED', 'DUPLICATE', 'REJECTED'] as StatusTab[]).map((tab) => {
+          {(['ALL', 'CAPTURED', 'VALIDATED', 'DUPLICATE', 'REJECTED'] as StatusTab[]).map((tab) => {
             const conf = STATUS_CONFIG[tab];
             const isActive = activeTab === tab;
             return (
@@ -1005,14 +900,7 @@ export default function DataCapturePage() {
                   <span>Validate All</span>
                 </button>
 
-                <button
-                  onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'import_leads' })}
-                  disabled={bulkActionMutation.isPending}
-                  className="px-3 py-1.5 bg-[#23C45E] hover:bg-[#1AA14D] text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1 shadow-xs"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Import to CRM Leads</span>
-                </button>
+
 
                 <button
                   onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'mark_duplicate' })}
@@ -1068,257 +956,7 @@ export default function DataCapturePage() {
           </div>
         }
       >
-        {isLoading ? (
-          <div className="py-20 flex flex-col items-center justify-center space-y-3">
-            <div className="w-8 h-8 border-3 border-[#23C45E] border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs font-bold text-slate-500">Loading captured records from database...</p>
-          </div>
-        ) : isError ? (
-          <div className="py-16 text-center space-y-3">
-            <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto" />
-            <p className="text-sm font-bold text-slate-800">Failed to load data capture records.</p>
-            <p className="text-xs text-slate-500">{getErrorMessage(error)}</p>
-            <AdminButton variant="outline" size="sm" onClick={() => refetchList()}>
-              Retry
-            </AdminButton>
-          </div>
-        ) : places.length === 0 ? (
-          <div className="py-20 text-center space-y-4">
-            <div className="w-14 h-14 rounded-3xl bg-emerald-50 text-[#1AA14D] flex items-center justify-center mx-auto border border-emerald-200">
-              <Database className="w-7 h-7" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-black text-slate-900">No Captured Records Found</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                No prospect records match your current status or search filter. Extract prospects from Google Places or create a manual entry.
-              </p>
-            </div>
-            {canCreate && (
-              <div className="flex items-center justify-center gap-3 pt-2">
-                <AdminButton
-                  variant="primary"
-                  size="sm"
-                  icon={Search}
-                  onClick={() => setExtractModalOpen(true)}
-                >
-                  Extract from Google Places
-                </AdminButton>
-                <AdminButton
-                  variant="outline"
-                  size="sm"
-                  icon={Plus}
-                  onClick={() => setCreateModalOpen(true)}
-                >
-                  Manual Entry
-                </AdminButton>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-xs text-left min-w-[1050px]">
-              <thead className="bg-slate-50 text-slate-500 font-black uppercase text-[10px] tracking-wider border-b border-slate-100">
-                <tr>
-                  <th className="p-3.5 w-10 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === places.length && places.length > 0}
-                      onChange={handleSelectAllOnPage}
-                      className="rounded text-[#23C45E] focus:ring-[#23C45E] cursor-pointer"
-                    />
-                  </th>
-                  <th className="p-3.5">BUSINESS NAME & CATEGORY</th>
-                  <th className="p-3.5">CONTACT INFO</th>
-                  <th className="p-3.5">ADDRESS</th>
-                  <th className="p-3.5">RATING & REVIEWS</th>
-                  <th className="p-3.5">SOCIAL</th>
-                  <th className="p-3.5">STATUS</th>
-                  <th className="p-3.5">SOURCE</th>
-                  <th className="p-3.5">CREATED FROM</th>
-                  <th className="p-3.5 text-right">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                {places.map((place) => {
-                  const isSelected = place.id ? selectedIds.includes(place.id) : false;
-                  const statusConf = STATUS_CONFIG[place.status || 'CAPTURED'] || STATUS_CONFIG.CAPTURED;
 
-                  return (
-                    <tr
-                      key={place.id || place.googlePlaceId}
-                      onClick={() => openDetailDrawer(place)}
-                      className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${
-                        isSelected ? 'bg-[#E8F9EE]/30' : ''
-                      }`}
-                    >
-                      <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => place.id && handleSelectRow(place.id)}
-                          className="rounded text-[#23C45E] focus:ring-[#23C45E] cursor-pointer"
-                        />
-                      </td>
-
-                      <td className="p-3.5">
-                        <p className="font-black text-slate-900 hover:text-emerald-700 transition-colors">
-                          {place.businessName}
-                        </p>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">
-                          {place.category || 'General Business'}
-                        </span>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="space-y-0.5">
-                          {place.phone && place.phone !== 'N/A' ? (
-                            <span className="flex items-center gap-1.5 text-slate-800 font-bold">
-                              <Phone className="w-3 h-3 text-[#23C45E]" />
-                              {place.phone}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-[11px]">Not found</span>
-                          )}
-                          {place.email && place.email !== 'N/A' ? (
-                            <span className="flex items-center gap-1.5 text-slate-600 text-[11px]">
-                              <Mail className="w-3 h-3 text-slate-400" />
-                              {place.email}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-[10px] block">No email</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3.5 max-w-xs">
-                        <span className="text-slate-600 truncate block text-[11px]" title={place.address}>
-                          {place.address || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="p-3.5">
-                        {place.rating ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black flex items-center gap-0.5">
-                              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                              {place.rating}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-bold">
-                              ({place.reviewCount || 0})
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-[10px]">No ratings</span>
-                        )}
-                      </td>
-
-                      {/* SOCIAL COLUMN */}
-                      <td className="p-3.5" onClick={(e) => e.stopPropagation()}>
-                        {(() => {
-                          const socialList = getDiscoveredSocialList(place);
-
-                          if (socialList.length === 0) {
-                            return <span className="text-slate-400 text-xs font-bold">—</span>;
-                          }
-
-                          const visibleItems = socialList.slice(0, 3);
-                          const remainingCount = socialList.length - 3;
-
-                          return (
-                            <div className="flex items-center gap-1.5">
-                              {visibleItems.map((item) => (
-                                <SocialMediaBadgeButton key={item.platform} item={item} size="sm" />
-                              ))}
-                              {remainingCount > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openDetailDrawer(place);
-                                  }}
-                                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black flex items-center justify-center border border-slate-200 transition-colors cursor-pointer"
-                                  title={`+${remainingCount} more: Click to view all social platforms`}
-                                >
-                                  +{remainingCount}
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </td>
-
-                      <td className="p-3.5">
-                        <span
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase border ${statusConf.bg} ${statusConf.text} ${statusConf.border}`}
-                        >
-                          {statusConf.label}
-                        </span>
-                      </td>
-                      <td className="p-3.5">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase px-2 py-0.5 bg-slate-100 rounded-md">
-                          {place.source || 'GOOGLE_PLACES'}
-                        </span>
-                      </td>
-                      <td className="p-3.5">
-                        {place.createdFrom === 'MOBILE_APP' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs whitespace-nowrap">
-                            <span>📱</span>
-                            <span>Mobile App</span>
-                          </span>
-                        ) : place.createdFrom === 'ADMIN_PANEL' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs whitespace-nowrap">
-                            <span>🖥</span>
-                            <span>Admin Panel</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 font-bold text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="p-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => openDetailDrawer(place)}
-                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                            title="Inspect details in drawer"
-                          >
-                            <Eye className="w-4 h-4 text-emerald-600" />
-                          </button>
-
-                          {canEdit && place.status !== 'LEAD_CREATED' && !place.isImported && (
-                            <button
-                              onClick={() => handleCaptureLead(place)}
-                              disabled={capturingId === place.id || createLeadMutation.isPending}
-                              className="p-1.5 text-slate-500 hover:text-[#1AA14D] hover:bg-[#E8F9EE] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                              title="Convert directly to CRM Lead"
-                            >
-                              {capturingId === place.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-[#1AA14D]" />
-                              ) : (
-                                <UserPlus className="w-4 h-4 text-[#1AA14D]" />
-                              )}
-                            </button>
-                          )}
-
-                          {canDelete && (
-                            <button
-                              onClick={() => {
-                                if (place.id) {
-                                  setRecordToDelete(place.id);
-                                  setDeleteConfirmOpen(true);
-                                }
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete record"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
 
         {/* Server-Side Pagination */}
         <AdminPagination
@@ -1362,77 +1000,7 @@ export default function DataCapturePage() {
             </div>
 
             <div className="flex items-center gap-2.5">
-              {isEditing ? (
-                <>
-                  <AdminButton variant="secondary" size="sm" onClick={() => setIsEditing(false)}>
-                    Cancel
-                  </AdminButton>
-                  <AdminButton
-                    variant="primary"
-                    size="sm"
-                    loading={updateMutation.isPending}
-                    onClick={() => {
-                      if (selectedRecord?.id) {
-                        updateMutation.mutate({ id: selectedRecord.id, data: editForm });
-                      }
-                    }}
-                  >
-                    Save Changes
-                  </AdminButton>
-                </>
-              ) : (
-                <>
-                  {canEdit && (
-                    <AdminButton variant="secondary" size="sm" icon={Edit} onClick={() => setIsEditing(true)}>
-                      Edit
-                    </AdminButton>
-                  )}
 
-                  {canEdit && selectedRecord?.status !== 'VALIDATED' && (
-                    <AdminButton
-                      variant="outline"
-                      size="sm"
-                      icon={Check}
-                      loading={validateMutation.isPending}
-                      onClick={() => {
-                        if (selectedRecord?.id) validateMutation.mutate(selectedRecord.id);
-                      }}
-                    >
-                      Validate
-                    </AdminButton>
-                  )}
-
-                  {canEdit && selectedRecord?.status !== 'REJECTED' && (
-                    <AdminButton
-                      variant="outline"
-                      size="sm"
-                      icon={X}
-                      onClick={() => setRejectModalOpen(true)}
-                    >
-                      Reject
-                    </AdminButton>
-                  )}
-
-                  {selectedRecord?.status !== 'LEAD_CREATED' && !selectedRecord?.isImported ? (
-                    canEdit && (
-                      <AdminButton
-                        variant="primary"
-                        size="sm"
-                        icon={UserPlus}
-                        loading={capturingId === selectedRecord?.id || createLeadMutation.isPending}
-                        onClick={handleCreateLeadClick}
-                      >
-                        Create Lead
-                      </AdminButton>
-                    )
-                  ) : (
-                    <span className="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-extrabold text-xs border border-purple-200 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
-                      Lead Created (#{selectedRecord?.importedLeadId || 'Active'})
-                    </span>
-                  )}
-                </>
-              )}
             </div>
           </div>
         }
@@ -1502,7 +1070,7 @@ export default function DataCapturePage() {
                       <option value="VALIDATED">VALIDATED</option>
                       <option value="REJECTED">REJECTED</option>
                       <option value="DUPLICATE">DUPLICATE</option>
-                      <option value="LEAD_CREATED">LEAD_CREATED</option>
+
                     </select>
                   </div>
                 </div>
@@ -2180,21 +1748,7 @@ export default function DataCapturePage() {
       </AdminFormDrawer>
 
       {/* 10. DUPLICATE CONFIRMATION DIALOG */}
-      <AdminConfirmDialog
-        isOpen={leadDuplicateConfirmOpen}
-        onClose={() => setLeadDuplicateConfirmOpen(false)}
-        onConfirm={() => {
-          if (selectedRecord?.id) {
-            const captureRequestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            createLeadMutation.mutate({ id: selectedRecord.id, captureRequestId });
-          }
-        }}
-        title="Possible Duplicate Detected"
-        description="A lead or company with similar business name, phone, or Google Place ID already exists in your CRM. Do you still want to create a new Lead record?"
-        confirmLabel="Yes, Create Lead Anyway"
-        variant="warning"
-        loading={createLeadMutation.isPending}
-      />
+
 
       {/* 11. DELETE CONFIRMATION DIALOG */}
       <AdminConfirmDialog

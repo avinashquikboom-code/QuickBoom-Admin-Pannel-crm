@@ -1,49 +1,9 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  Activity,
-  RefreshCw,
-  Users,
-  Building2,
-  ChevronRight,
-  ShieldCheck,
-  CreditCard,
-  Plus,
-  TrendingUp,
-  Briefcase,
-  Layers,
-  Clock,
-  UserCheck,
-  UserX,
-  FileText,
-  Calendar,
-  AlertCircle,
-  ArrowUpRight,
-  CheckCircle2,
-  ListTodo,
-  ExternalLink,
-  Sparkles,
-  Coffee,
-  Search,
-  Filter,
-  MapPin,
-  Timer,
-  ChevronDown,
-  Radio,
-  UserMinus,
-  Eye,
-  ArrowRight,
-  Zap,
-  DollarSign,
-  TrendingDown,
-  Shield,
-  Navigation,
-  Globe,
-  Sliders,
-} from 'lucide-react';
+import { Activity, RefreshCw, Building2, ChevronRight, ShieldCheck, CreditCard, Plus, TrendingUp, Briefcase, UserCheck, UserX, CheckCircle2, Search, MapPin, Radio, Eye, Zap, Navigation } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
@@ -148,23 +108,6 @@ export default function AdminDashboardPage() {
     },
   });
 
-  // 4. Fetch Live Customers
-  const {
-    data: customersData,
-    isLoading: isLoadingCustomers,
-    refetch: refetchCustomers,
-  } = useQuery({
-    queryKey: ['admin-dashboard-customers'],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/customers');
-        return res?.data?.items || res?.items || res?.data || res || [];
-      } catch {
-        return [];
-      }
-    },
-  });
-
   // 5. Fetch Live Subscription Plans
   const {
     data: plansData,
@@ -216,65 +159,15 @@ export default function AdminDashboardPage() {
     },
   });
 
-  // 8. Fetch Subscription Calendar & Daily Production Activities (/works/calendar)
-  const [activities, setActivities] = useState<any[]>([]);
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-
-  const {
-    data: activitiesData,
-    isLoading: isLoadingActivities,
-    refetch: refetchActivities,
-  } = useQuery({
-    queryKey: ['admin-dashboard-calendar-activities', todayStr],
-    queryFn: async () => {
-      try {
-        const res: any = await api.get('/works/calendar', {
-          params: { date: todayStr },
-        });
-        const acts =
-          res?.data?.activities ||
-          res?.activities ||
-          (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
-        setActivities(acts);
-        return acts;
-      } catch {
-        return [];
-      }
-    },
-    refetchInterval: 30000,
-  });
-
-  useEffect(() => {
-    const loadDashboard = async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const res: any = await api.get('/works/calendar', {
-          params: { date: today },
-        });
-        const acts =
-          res?.data?.activities ||
-          res?.activities ||
-          (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
-        setActivities(acts);
-      } catch {
-        // Handled silently
-      }
-    };
-    loadDashboard();
-  }, []);
-
   const handleManualRefresh = () => {
     refetchMetrics();
     refetchAttendance();
-    refetchCustomers();
     refetchPlans();
     refetchAudit();
     refetchTasks();
-    refetchActivities();
     toast.success('Live database metrics synchronized', { icon: '⚡' });
   };
 
-  const customersList = Array.isArray(customersData) ? customersData : [];
   const plansList = Array.isArray(plansData) ? plansData : [];
   const auditLogsList = Array.isArray(auditLogsData) ? auditLogsData : [];
   const tasksList = Array.isArray(tasksData) ? tasksData : [];
@@ -336,10 +229,6 @@ export default function AdminDashboardPage() {
   }, [attRecords, selectedOffice, attendanceFilter, attendanceSearch]);
 
   // Metrics summary
-  const totalCustomers = metricsData?.totalCustomers ?? customersList.length;
-  const activeCustomers =
-    metricsData?.activeCustomers ??
-    customersList.filter((c: any) => c.isActive !== false).length;
   const totalRevenue = metricsData?.mrr ?? 0;
 
   // Work overview metrics
@@ -454,7 +343,7 @@ export default function AdminDashboardPage() {
       {/* =========================================================================
           2. TOP 4 EXECUTIVE KPI CARDS
           ========================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Card 1: Live Workforce Attendance */}
         <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group">
           <div className="flex items-center justify-between">
@@ -521,33 +410,6 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-1.5 mt-3 text-xs font-bold text-blue-700 bg-blue-50/70 px-2.5 py-1 rounded-xl w-fit">
               <TrendingUp className="w-3.5 h-3.5" />
               <span>+18.4% monthly recurring inflow</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: Enterprise Tenants */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase font-black tracking-wider text-slate-400">
-              Enterprise Clients
-            </span>
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Building2 className="w-5 h-5 text-indigo-600" />
-            </div>
-          </div>
-
-          <div className="mt-4">
-            {isLoadingCustomers ? (
-              <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-xl" />
-            ) : (
-              <div className="text-3xl font-black text-slate-900 tracking-tight">
-                {totalCustomers}
-              </div>
-            )}
-
-            <div className="flex items-center gap-1.5 mt-3 text-xs font-bold text-indigo-700 bg-indigo-50/70 px-2.5 py-1 rounded-xl w-fit">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{activeCustomers} Active Organizations</span>
             </div>
           </div>
         </div>
@@ -965,117 +827,6 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* =========================================================================
-          4.5. SUBSCRIPTION CALENDAR & PRODUCTION ACTIVITIES (/works/calendar)
-          ========================================================================= */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden space-y-4">
-        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-2xl bg-teal-50 text-teal-600 border border-teal-100">
-                <Calendar className="w-5 h-5 text-teal-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                  Subscription Calendar Activities
-                </h2>
-                <p className="text-xs text-slate-500 font-medium">
-                  Live daily scheduled deliverables, shoots, edits, and visits from{' '}
-                  <code className="text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-mono text-[11px]">
-                    /api/v1/works/calendar
-                  </code>
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200/60">
-              Today: {todayStr}
-            </span>
-            <Link
-              href="/schedules"
-              className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-black rounded-xl border border-teal-200 transition-colors"
-            >
-              Full Calendar →
-            </Link>
-          </div>
-        </div>
-
-        <div className="p-6 pt-0">
-          {isLoadingActivities ? (
-            <div className="py-12 text-center text-slate-400">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-teal-600" />
-              <p className="mt-2 text-xs font-bold">Querying calendar activities from backend...</p>
-            </div>
-          ) : activities.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl">
-              <Calendar className="w-8 h-8 mx-auto text-slate-300" />
-              <p className="mt-2 text-xs font-bold text-slate-600">
-                No subscription activities scheduled for today ({todayStr})
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Active customer deliverables and scheduled shoots will appear here in real-time.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activities.map((act: any, idx: number) => {
-                const actTitle = act.title || act.activity || act.workType || `Activity #${act.id}`;
-                const actTime = act.time || act.startTime || '09:00 AM';
-                const actStatus = act.status || 'SCHEDULED';
-                const isCompleted = actStatus.toUpperCase() === 'COMPLETED';
-                const isPending = actStatus.toUpperCase() === 'PENDING' || actStatus.toUpperCase() === 'SCHEDULED';
-                const assigned = act.assignedEmployee || act.assignedToName || 'Assigned Staff';
-                const client = act.customerName || act.businessName || `Customer #${act.customerId || ''}`;
-
-                return (
-                  <div
-                    key={act.id || idx}
-                    className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:shadow-xs transition-all space-y-2.5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-black text-slate-900 truncate">
-                        {actTitle}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                          isCompleted
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : isPending
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {actStatus}
-                      </span>
-                    </div>
-
-                    <div className="text-[11px] text-slate-500 space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{actTime}</span>
-                        {act.date && <span className="text-slate-400">• {act.date}</span>}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="truncate">{assigned}</span>
-                        {client && <span className="text-slate-400 truncate">({client})</span>}
-                      </div>
-                    </div>
-
-                    {act.notes && (
-                      <p className="text-[11px] text-slate-600 line-clamp-1 italic bg-white p-1.5 rounded-lg border border-slate-100">
-                        {act.notes}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* =========================================================================
           5. OPERATIONAL STREAMS & QUICK ACTION COMMAND HUB
           ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1185,16 +936,7 @@ export default function AdminDashboardPage() {
               <span className="text-[10px] text-slate-400">Employee Master</span>
             </Link>
 
-            <Link
-              href="/leads/create"
-              className="p-3.5 bg-slate-50 hover:bg-blue-50/70 border border-slate-200/80 hover:border-blue-300 rounded-2xl text-center group transition-all"
-            >
-              <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                <Users className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-black text-slate-800 block">New Lead</span>
-              <span className="text-[10px] text-slate-400">CRM Pipeline</span>
-            </Link>
+
 
             <Link
               href="/companies/create"
@@ -1203,7 +945,7 @@ export default function AdminDashboardPage() {
               <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                 <Building2 className="w-4 h-4" />
               </div>
-              <span className="text-xs font-black text-slate-800 block">Add Client</span>
+              <span className="text-xs font-black text-slate-800 block">Add Company</span>
               <span className="text-[10px] text-slate-400">Enterprise</span>
             </Link>
 
