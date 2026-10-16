@@ -1,18 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   ArrowRight,
-  Building2,
   CheckCircle2,
-  Clock3,
   Database,
-  History,
   LoaderCircle,
-  MapPin,
   RefreshCw,
   Search,
   X,
@@ -33,20 +28,6 @@ interface CaptureUsage {
   searches?: number;
   quotaLimit?: number;
   quotaRemaining?: number;
-}
-
-interface CapturePlace {
-  id: number;
-}
-
-interface CaptureJob {
-  jobId: string;
-  keyword: string;
-  location: string;
-  requestedResults?: number;
-  capturedResults?: number;
-  createdAt?: string;
-  places?: CapturePlace[];
 }
 
 export default function EmployeeDataCapturePage() {
@@ -81,25 +62,6 @@ export default function EmployeeDataCapturePage() {
     },
   });
 
-  const jobsQuery = useQuery<CaptureJob[]>({
-    queryKey: ['data-capture-jobs'],
-    enabled: canView,
-    queryFn: async () => {
-      const response: any = await api.get('/data-capture/jobs');
-      const jobs = Array.isArray(response)
-        ? response
-        : Array.isArray(response?.data)
-          ? response.data
-          : Array.isArray(response?.items)
-            ? response.items
-            : null;
-      if (!jobs) {
-        throw new Error('The Data Capture history response was invalid.');
-      }
-      return jobs;
-    },
-  });
-
   const captureMutation = useMutation({
     mutationFn: async () => {
       if (!keyword.trim() || !location.trim()) {
@@ -119,7 +81,6 @@ export default function EmployeeDataCapturePage() {
       setKeyword('');
       setLocation('');
       void queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
-      void queryClient.invalidateQueries({ queryKey: ['data-capture-jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
@@ -140,16 +101,15 @@ export default function EmployeeDataCapturePage() {
   }
 
   const usage = usageQuery.data;
-  const jobs = jobsQuery.data ?? [];
   const quotaLimit = Math.max(0, Number(usage?.quotaLimit ?? 0));
   const quotaRemaining = Math.max(0, Number(usage?.quotaRemaining ?? 0));
   const quotaUsed = Math.max(0, quotaLimit - quotaRemaining);
   const usagePercent = quotaLimit > 0 ? Math.min(100, (quotaUsed / quotaLimit) * 100) : 0;
   const searches = Number(usage?.totalSearches ?? usage?.searches ?? 0);
-  const dashboardError = usageQuery.error || jobsQuery.error;
+  const dashboardError = usageQuery.error;
 
   const refreshDashboard = () => {
-    void Promise.all([usageQuery.refetch(), jobsQuery.refetch()]);
+    void usageQuery.refetch();
   };
 
   return (
@@ -164,22 +124,15 @@ export default function EmployeeDataCapturePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/employee/data-capture/history"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700"
-          >
-            <History className="h-4 w-4" />
-            History
-          </Link>
           <button
             type="button"
             onClick={refreshDashboard}
-            disabled={usageQuery.isFetching || jobsQuery.isFetching}
+            disabled={usageQuery.isFetching}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw
               className={`h-4 w-4 ${
-                usageQuery.isFetching || jobsQuery.isFetching ? 'animate-spin' : ''
+                usageQuery.isFetching ? 'animate-spin' : ''
               }`}
             />
             Refresh
@@ -290,72 +243,6 @@ export default function EmployeeDataCapturePage() {
           tone="violet"
           loading={usageQuery.isLoading}
         />
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-extrabold text-slate-900">Recent Captures</h2>
-            <p className="text-xs font-medium text-slate-500">
-              Latest Google Places extraction batches
-            </p>
-          </div>
-          <Link
-            href="/employee/data-capture/history"
-            className="inline-flex items-center gap-1.5 text-sm font-extrabold text-emerald-700 transition hover:text-emerald-800"
-          >
-            View All ({Number(usage?.totalExtractions ?? jobs.length).toLocaleString()})
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-
-        {jobsQuery.isLoading ? (
-          <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-10 text-sm font-semibold text-slate-500">
-            <LoaderCircle className="h-5 w-5 animate-spin text-emerald-600" />
-            Loading recent captures…
-          </div>
-        ) : jobs.length === 0 && !jobsQuery.isError ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center">
-            <Database className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-3 text-sm font-bold text-slate-700">No captures yet</p>
-            <p className="mt-1 text-xs text-slate-500">
-              Your Google Places extraction batches will appear here.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {jobs.slice(0, 5).map((job) => (
-              <article
-                key={job.jobId}
-                className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-emerald-200 sm:flex-row sm:items-center sm:justify-between sm:p-5"
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="truncate font-extrabold text-slate-900">{job.keyword}</h3>
-                    <p className="mt-1 flex items-center gap-1 truncate text-xs font-medium text-slate-500">
-                      <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      {job.location}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-3 text-xs sm:border-0 sm:pt-0">
-                  <span className="font-bold text-slate-600">
-                    Captured: {Number(job.capturedResults ?? job.places?.length ?? 0).toLocaleString()}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-slate-400">
-                    <Clock3 className="h-3.5 w-3.5" />
-                    {job.createdAt && !Number.isNaN(new Date(job.createdAt).getTime())
-                      ? new Date(job.createdAt).toLocaleDateString()
-                      : '—'}
-                  </span>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
       </section>
 
       {/* ── Start New Capture Drawer ─────────────────────────────────── */}

@@ -304,7 +304,7 @@ export const adminNavigation: {
       feature: 'data_capture',
       roles: ['Super Admin', 'SUPER_ADMIN', 'Customer Owner', 'Customer Admin', 'Manager'],
       items: [
-        { name: 'New Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
+        { name: 'Data Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
         { name: 'Capture History', href: '/data-capture/history', icon: History, permission: 'data_capture.view' },
         { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity, permission: 'data_capture.view' },
       ],

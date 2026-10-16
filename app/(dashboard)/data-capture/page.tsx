@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity, History } from 'lucide-react';
+import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import api from '@/lib/api';
+import { dataCaptureApi } from '@/lib/data-capture-api';
 import { useAuthStore } from '@/lib/store';
 import { hasPermission } from '@/lib/access-control';
 import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton, AdminFormDrawer, AdminConfirmDialog, AdminPagination } from '@/components/admin';
@@ -40,6 +40,8 @@ interface CapturedPlace {
   status?: string;
   createdFrom?: 'MOBILE_APP' | 'ADMIN_PANEL' | string;
   notes?: string;
+  photos?: string[];
+  googlePhotos?: { url?: string; name?: string }[];
   rawData?: any;
   isImported?: boolean;
   importedLeadId?: number;
@@ -281,6 +283,13 @@ export default function DataCapturePage() {
   // Filters & Pagination State
   const [activeTab, setActiveTab] = useState<StatusTab>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => { setDebouncedSearch(searchQuery); setPage(1); }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [sourceFilter, setSourceFilter] = useState('ALL');
   const [createdFromFilter, setCreatedFromFilter] = useState('ALL');
   const [page, setPage] = useState(1);
@@ -298,8 +307,8 @@ export default function DataCapturePage() {
 
   // Google Places Extraction Modal State
   const [extractModalOpen, setExtractModalOpen] = useState(false);
-  const [extractKeyword, setExtractKeyword] = useState('Gyms');
-  const [extractLocation, setExtractLocation] = useState('Vadodara');
+  const [extractKeyword, setExtractKeyword] = useState('');
+  const [extractLocation, setExtractLocation] = useState('');
   const [extractMaxResults, setExtractMaxResults] = useState('20');
   const [isExtracting, setIsExtracting] = useState(false);
 
@@ -325,27 +334,11 @@ export default function DataCapturePage() {
   const [rejectReason, setRejectReason] = useState('');
 
   // 1. Fetch Usage Metrics with graceful fallback
-  const { data: usage, refetch: refetchUsage } = useQuery<UsageSummary>({
+  const { data: usage, isError: usageError, refetch: refetchUsage } = useQuery<UsageSummary>({
     queryKey: ['data-capture-usage'],
     queryFn: async () => {
-      try {
-        const res: any = await api.get('/data-capture/usage');
-        return res?.data || res || {
-          totalExtractions: 0,
-          totalLeadsCaptured: 0,
-          totalGoogleApiCalls: 0,
-          quotaLimit: 1000,
-          quotaRemaining: 1000,
-        };
-      } catch {
-        return {
-          totalExtractions: 0,
-          totalLeadsCaptured: 0,
-          totalGoogleApiCalls: 0,
-          quotaLimit: 1000,
-          quotaRemaining: 1000,
-        };
-      }
+      const res = await dataCaptureApi.usage();
+      return res.data;
     },
   });
 
@@ -357,7 +350,7 @@ export default function DataCapturePage() {
     error,
     refetch: refetchList,
   } = useQuery({
-    queryKey: ['data-capture-list', page, limit, activeTab, sourceFilter, createdFromFilter, searchQuery],
+    queryKey: ['data-capture-list', page, limit, activeTab, sourceFilter, createdFromFilter, debouncedSearch],
     queryFn: async () => {
       const params: any = {
         page,
@@ -368,10 +361,10 @@ export default function DataCapturePage() {
       if (createdFromFilter !== 'ALL') {
         params.createdFrom = createdFromFilter;
       }
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
       }
-      const res: any = await api.get('/data-capture', { params });
+      const res: any = await dataCaptureApi.list(params);
 
       // Robustly extract items array from various API response shapes
       let items: CapturedPlace[] = [];
@@ -417,6 +410,8 @@ export default function DataCapturePage() {
 
   // Single Record Query for Drawer
   const openDetailDrawer = async (record: CapturedPlace) => {
+    setDetailError('');
+    setDetailLoading(true);
     setSelectedRecord(record);
     setEditForm({
       businessName: record.businessName,
@@ -434,7 +429,7 @@ export default function DataCapturePage() {
 
     if (record.id) {
       try {
-        const detailed: any = await api.get(`/data-capture/${record.id}`);
+        const detailed: any = await dataCaptureApi.detail(record.id);
         const data = detailed?.data || detailed;
         if (data) {
           setSelectedRecord(data);
@@ -449,16 +444,16 @@ export default function DataCapturePage() {
             status: data.status || 'CAPTURED',
           });
         }
-      } catch {
-        // use initial record state
-      }
+      } catch (error) {
+        setDetailError(getErrorMessage(error));
+      } finally { setDetailLoading(false); }
     }
   };
 
   // Mutations
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<CapturedPlace> }) => {
-      return api.patch(`/data-capture/${id}`, data);
+      return dataCaptureApi.update(id, data);
     },
     onSuccess: (res: any) => {
       const updated = res?.data || res;
@@ -473,7 +468,7 @@ export default function DataCapturePage() {
 
   const validateMutation = useMutation({
     mutationFn: async (id: number) => {
-      return api.post(`/data-capture/${id}/validate`);
+      return dataCaptureApi.validate(id);
     },
     onSuccess: (res: any) => {
       const data = res?.data || res;
@@ -487,7 +482,7 @@ export default function DataCapturePage() {
 
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: number; reason?: string }) => {
-      return api.post(`/data-capture/${id}/reject`, { reason });
+      return dataCaptureApi.reject(id, reason);
     },
     onSuccess: (res: any) => {
       const data = res?.data || res;
@@ -503,7 +498,7 @@ export default function DataCapturePage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return api.delete(`/data-capture/${id}`);
+      return dataCaptureApi.remove(id);
     },
     onSuccess: () => {
       toast.success('Record deleted successfully');
@@ -518,7 +513,7 @@ export default function DataCapturePage() {
 
   const bulkActionMutation = useMutation({
     mutationFn: async ({ ids, action, reason }: { ids: number[]; action: any; reason?: string }) => {
-      return api.post('/data-capture/bulk', { ids, action, reason });
+      return dataCaptureApi.bulk(ids, action, reason);
     },
     onSuccess: (res: any) => {
       const data = res?.data || res;
@@ -532,7 +527,7 @@ export default function DataCapturePage() {
 
   const manualCreateMutation = useMutation({
     mutationFn: async (data: any) => {
-      return api.post('/data-capture', data);
+      return dataCaptureApi.create(data);
     },
     onSuccess: () => {
       toast.success('New Data Capture record added successfully!');
@@ -587,7 +582,7 @@ export default function DataCapturePage() {
     );
 
     try {
-      const res: any = await api.post('/data-capture/extract', {
+      const res: any = await dataCaptureApi.extract({
         keyword: extractKeyword.trim(),
         location: extractLocation.trim(),
         maxResults: requestedNum,
@@ -711,15 +706,6 @@ export default function DataCapturePage() {
               Sync
             </AdminButton>
 
-            <Link href="/data-capture/history">
-              <AdminButton
-                variant="outline"
-                size="md"
-                icon={History}
-              >
-                Job History
-              </AdminButton>
-            </Link>
 
             <Link href="/data-capture/usage">
               <AdminButton
@@ -973,6 +959,7 @@ export default function DataCapturePage() {
         />
       </AdminCard>
 
+      {usageError && <p role="alert" className="text-rose-600">Usage could not be loaded. Refresh to retry.</p>}
       {/* 6. RIGHT-SIDE DETAIL DRAWER (DO NOT NAVIGATE TO NEW PAGE) */}
       <AdminFormDrawer
         isOpen={drawerOpen}
@@ -1000,13 +987,34 @@ export default function DataCapturePage() {
             </div>
 
             <div className="flex items-center gap-2.5">
-
+              {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
+                isEditing ? <>
+                  <AdminButton onClick={() => setIsEditing(false)}>Cancel</AdminButton>
+                  <AdminButton disabled={updateMutation.isPending} onClick={() => {
+                    if (!editForm.businessName?.trim()) { toast.error('Business name is required'); return; }
+                    const changes = Object.fromEntries(Object.entries(editForm).filter(([key, value]) =>
+                      value !== (selectedRecord as any)[key] && !(value === '' && (selectedRecord as any)[key] == null)));
+                    updateMutation.mutate({ id: selectedRecord.id!, data: changes });
+                  }}>{updateMutation.isPending ? 'Saving…' : 'Save changes'}</AdminButton>
+                </> : <>
+                  <AdminButton onClick={() => setIsEditing(true)}>Edit</AdminButton>
+                  <AdminButton disabled={validateMutation.isPending} onClick={() => validateMutation.mutate(selectedRecord.id!)}>Validate</AdminButton>
+                  <AdminButton onClick={() => setRejectModalOpen(true)}>Reject</AdminButton>
+                </>
+              )}
             </div>
           </div>
         }
       >
-        {selectedRecord && (
+        {detailLoading && <p role="status">Loading record…</p>}
+        {detailError && <p role="alert" className="text-rose-600">{detailError}</p>}
+        {selectedRecord && !detailLoading && !detailError && (
           <div className="space-y-5">
+            {(selectedRecord.googlePhotos?.[0]?.url || selectedRecord.photos?.[0]) && <img
+              src={selectedRecord.googlePhotos?.[0]?.url || selectedRecord.photos?.[0]}
+              alt={selectedRecord.businessName} className="max-h-64 rounded-xl object-cover"
+              onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
+
             {/* Duplicate Matches Alert Banner */}
             {selectedRecord.duplicateMatches && selectedRecord.duplicateMatches.length > 0 && (
               <div className="p-4 bg-amber-50 border border-amber-300/80 rounded-2xl space-y-2">
