@@ -5,43 +5,31 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Activity, CheckCircle2, RefreshCw, Target, ShieldCheck, Zap, Globe, TrendingUp, Cpu } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { dataCaptureApi } from '@/lib/data-capture-api';
 import { AdminPageHeader, AdminStatCard, AdminButton } from '@/components/admin';
 
 export default function DataCaptureUsagePage() {
   const isEmployeeRoute = usePathname()?.startsWith('/employee/') ?? false;
   const dataCaptureHref = isEmployeeRoute ? '/employee/data-capture' : '/data-capture';
   const crmHref = isEmployeeRoute ? '/employee/leads' : '/crm';
-  const { data: usage, isLoading, refetch } = useQuery({
+  const { data: usage, isLoading, isError, refetch } = useQuery({
     queryKey: ['data-capture-usage'],
     queryFn: async () => {
-      try {
-        const res: any = await api.get('/data-capture/usage');
-        return res?.data || res || {
-          totalExtractions: 0,
-          totalLeadsCaptured: 0,
-          totalGoogleApiCalls: 0,
-          quotaLimit: 1000,
-          quotaRemaining: 1000,
-        };
-      } catch {
-        return {
-          totalExtractions: 0,
-          totalLeadsCaptured: 0,
-          totalGoogleApiCalls: 0,
-          quotaLimit: 1000,
-          quotaRemaining: 1000,
-        };
-      }
+      const res = await dataCaptureApi.usage();
+      return res.data;
     },
   });
 
   const totalExtractions = usage?.totalExtractions || 0;
   const totalLeadsCaptured = usage?.totalLeadsCaptured || 0;
   const totalGoogleApiCalls = usage?.totalGoogleApiCalls || 0;
-  const quotaLimit = usage?.quotaLimit || 1000;
-  const quotaRemaining = usage?.quotaRemaining || 1000;
-  const usedPercentage = Math.min(Math.round(((quotaLimit - quotaRemaining) / quotaLimit) * 100), 100);
+  const quotaLimit = usage?.quotaLimit ?? 0;
+  const quotaRemaining = usage?.quotaRemaining ?? 0;
+  const usedPercentage = quotaLimit > 0 ? Math.min(Math.round(((quotaLimit - quotaRemaining) / quotaLimit) * 100), 100) : 0;
+  if (isError) return <div role="alert" className="space-y-4 p-6">
+    <p>Data Capture usage could not be loaded.</p>
+    <AdminButton onClick={() => refetch()}>Retry</AdminButton>
+  </div>;
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
