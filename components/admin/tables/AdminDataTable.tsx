@@ -5,7 +5,7 @@ import { Inbox, Loader2 } from 'lucide-react';
 
 export interface ColumnDef<T> {
   key: string;
-  header: string;
+  header: React.ReactNode;
   render?: (item: T, index: number) => React.ReactNode;
   className?: string;
   headerClassName?: string;
@@ -82,7 +82,15 @@ export function AdminDataTable<T>({
                   }`}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className={`p-4 ${col.className || ''}`}>
+                    <td
+                      key={col.key}
+                      className={`p-4 ${col.className || ''}`}
+                      onClick={(e) => {
+                        if (col.key === 'selection') {
+                          e.stopPropagation();
+                        }
+                      }}
+                    >
                       {col.render ? col.render(item, index) : (item as any)[col.key] ?? '—'}
                     </td>
                   ))}

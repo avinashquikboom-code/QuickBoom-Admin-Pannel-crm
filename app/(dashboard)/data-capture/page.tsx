@@ -595,21 +595,29 @@ export default function DataCapturePage() {
   ]);
 
   // Handlers
-  const handleSelectRow = (id: number) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter((item) => item !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
-    }
+  const handleSelectRow = (id: number | string) => {
+    const numId = Number(id);
+    if (!Number.isFinite(numId)) return;
+    setSelectedIds((prev) =>
+      prev.includes(numId) ? prev.filter((item) => item !== numId) : [...prev, numId]
+    );
   };
 
   const handleSelectAllOnPage = () => {
-    const pageIds = places.map((p) => p.id).filter(Boolean) as number[];
-    if (selectedIds.length === pageIds.length && pageIds.length > 0) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(pageIds);
-    }
+    const pageIds = places
+      .map((p) => (p.id != null ? Number(p.id) : null))
+      .filter((id): id is number => id !== null && Number.isFinite(id));
+
+    if (pageIds.length === 0) return;
+
+    setSelectedIds((prev) => {
+      const allSelected = pageIds.every((id) => prev.includes(id));
+      if (allSelected) {
+        return prev.filter((id) => !pageIds.includes(id));
+      } else {
+        return Array.from(new Set([...prev, ...pageIds]));
+      }
+    });
   };
 
   const handleStartGoogleExtraction = async (e?: React.FormEvent) => {
@@ -896,7 +904,7 @@ export default function DataCapturePage() {
               onClick={() =>
                 handleExportCSV(
                   selectedIds.length > 0
-                    ? places.filter((p) => p.id && selectedIds.includes(p.id))
+                    ? places.filter((p) => p.id != null && selectedIds.includes(Number(p.id)))
                     : places
                 )
               }
@@ -916,6 +924,20 @@ export default function DataCapturePage() {
               {selectedIds.length}
             </span>
             <span>records selected</span>
+            {places.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSelectAllOnPage}
+                className="ml-2 text-xs text-emerald-400 hover:text-emerald-300 underline font-semibold cursor-pointer"
+              >
+                {places.filter((p) => p.id != null).length > 0 &&
+                places
+                  .filter((p) => p.id != null)
+                  .every((p) => selectedIds.includes(Number(p.id)))
+                  ? 'Deselect page'
+                  : 'Select all on page'}
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1003,13 +1025,71 @@ export default function DataCapturePage() {
             onRowClick={openDetailDrawer}
             minWidth="min-w-[1000px]"
             columns={[
-              { key: 'selection', header: 'Select', render: (record) => (
-                <input type="checkbox" aria-label={`Select ${record.businessName}`}
-                  checked={record.id != null && selectedIds.includes(record.id)}
-                  disabled={record.id == null}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={() => { if (record.id != null) handleSelectRow(record.id); }} />
-              ) },
+              {
+                key: 'selection',
+                headerClassName: 'w-12 text-center',
+                className: 'w-12 text-center',
+                header: (
+                  <div
+                    className="flex items-center justify-center p-1 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectAllOnPage();
+                    }}
+                    title="Select all on this page"
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label="Select all on this page"
+                      checked={
+                        places.length > 0 &&
+                        places.filter((p) => p.id != null).length > 0 &&
+                        places
+                          .filter((p) => p.id != null)
+                          .every((p) => selectedIds.includes(Number(p.id)))
+                      }
+                      ref={(input) => {
+                        if (input) {
+                          const validPlaces = places.filter((p) => p.id != null);
+                          const selectedCountOnPage = validPlaces.filter((p) =>
+                            selectedIds.includes(Number(p.id))
+                          ).length;
+                          input.indeterminate =
+                            selectedCountOnPage > 0 && selectedCountOnPage < validPlaces.length;
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={handleSelectAllOnPage}
+                      className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                    />
+                  </div>
+                ),
+                render: (record) => {
+                  const recId = record.id != null ? Number(record.id) : null;
+                  const isChecked = recId != null && selectedIds.includes(recId);
+                  return (
+                    <div
+                      className="flex items-center justify-center p-1 cursor-pointer"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (recId != null) handleSelectRow(recId);
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${record.businessName}`}
+                        checked={isChecked}
+                        disabled={recId == null}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={() => {
+                          if (recId != null) handleSelectRow(recId);
+                        }}
+                        className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                      />
+                    </div>
+                  );
+                },
+              },
               { key: 'businessName', header: 'Business', render: (record) => (
                 <div><p className="font-bold text-slate-900">{record.businessName}</p>
                   <p className="text-slate-500 mt-1">{record.category || '—'}</p></div>
