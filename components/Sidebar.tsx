@@ -249,7 +249,7 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
   });
   const adminSections = CENTRAL_NAVIGATION.map((section) => ({
     ...section,
-    category: section.id === 'customers' ? 'Billing' : section.category,
+    category: section.id === 'customers' ? 'Customers' : section.category,
     items: section.items
       .filter((item) => !isRetiredAdminRoute(item.href))
       .map((item) => ({
