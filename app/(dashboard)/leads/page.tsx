@@ -6,7 +6,7 @@ import { Plus, RefreshCw, Search, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination } from '@/components/admin';
-import { CreateLeadInput, Lead, LEAD_STATUSES, leadsApi } from '@/lib/leads-api';
+import { CreateLeadInput, CRM_LEAD_STAGES, getStageDetails, Lead, LEAD_STATUSES, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 
 const emptyForm: CreateLeadInput = { companyName: '', firstName: '', lastName: '', phone: '', email: '', website: '', address: '', city: '', state: '', country: '', pincode: '', category: '', notes: '' };
@@ -44,7 +44,7 @@ export default function LeadsPage() {
   });
 
   return <div className="space-y-6 max-w-[1600px] mx-auto pb-16">
-    <AdminPageHeader title="Leads" description="Manage manually added and imported business prospects." icon={Users}
+    <AdminPageHeader title="Leads" description="Manage manually added and imported business prospects across CRM pipeline stages." icon={Users}
       breadcrumbs={[{ label: 'CRM' }, { label: 'Leads' }]}
       actions={<><AdminButton variant="outline" icon={RefreshCw} onClick={() => list.refetch()} disabled={list.isFetching}>Refresh</AdminButton>
         <AdminButton icon={Plus} onClick={() => setOpen(true)}>Add Lead</AdminButton></>} />
@@ -54,8 +54,9 @@ export default function LeadsPage() {
           <Search className="w-4 h-4 text-slate-500" />
           <input aria-label="Search Leads" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search company, name, phone or email" className="w-full outline-none text-sm" />
         </label>
-        <select aria-label="Lead status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm">
-          <option value="ALL">All statuses</option>{LEAD_STATUSES.map((value) => <option key={value} value={value}>{value.replace(/_/g, ' ')}</option>)}
+        <select aria-label="Lead status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium">
+          <option value="ALL">All stages ({CRM_LEAD_STAGES.length})</option>
+          {CRM_LEAD_STAGES.map((s) => <option key={s.key} value={s.key}>{s.sortOrder}. {s.name}</option>)}
         </select>
       </div>
       {list.isError ? <div role="alert" className="p-6 text-rose-700 space-y-3"><p>{getErrorMessage(list.error)}</p><AdminButton variant="outline" onClick={() => list.refetch()}>Retry</AdminButton></div> :
@@ -63,7 +64,30 @@ export default function LeadsPage() {
           columns={[
             { key: 'companyName', header: 'Business', render: (lead) => <Link className="font-bold text-brand-900 hover:underline" href={`/leads/${lead.id}`}>{lead.companyName}</Link> },
             { key: 'phone', header: 'Contact', render: (lead) => <div>{lead.phone || '—'}<p className="text-slate-500">{lead.email || '—'}</p></div> },
-            { key: 'status', header: 'Status' }, { key: 'source', header: 'Source' },
+            {
+              key: 'status',
+              header: 'Pipeline Stage',
+              render: (lead) => {
+                const stage = lead.stage || getStageDetails(lead.status);
+                return (
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
+                    style={{
+                      color: stage.color,
+                      backgroundColor: stage.bgColor,
+                      borderColor: stage.borderColor,
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: stage.color }}
+                    />
+                    {stage.name}
+                  </span>
+                );
+              },
+            },
+            { key: 'source', header: 'Source' },
             { key: 'createdFrom', header: 'Created from' },
             { key: 'createdAt', header: 'Created', render: (lead) => new Date(lead.createdAt).toLocaleString() },
             { key: 'actions', header: 'Actions', render: (lead) => <Link href={`/leads/${lead.id}`} className="text-brand-900 font-bold hover:underline">View Lead</Link> },
