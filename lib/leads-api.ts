@@ -1,7 +1,58 @@
 import api from './api';
 
-export const LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUALIFIED', 'FOLLOW_UP', 'WON', 'LOST'] as const;
-export type LeadStatus = typeof LEAD_STATUSES[number];
+export const LEAD_STATUSES = [
+  'NEW',
+  'CONTACTED',
+  'DETAILS_SEND',
+  'FOLLOW_UP',
+  'VISIT_SCHEDULED',
+  'VISIT_DONE',
+  'PROPOSAL_SENT',
+  'NEGOTIATION',
+  'FINAL_CALL',
+  'WON',
+  'LOST',
+] as const;
+export type LeadStatus = typeof LEAD_STATUSES[number] | (string & {});
+
+export interface LeadStage {
+  id: number;
+  key: string;
+  name: string;
+  sortOrder: number;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+export const CRM_LEAD_STAGES: LeadStage[] = [
+  { id: 1, key: 'NEW', name: 'New', sortOrder: 1, color: '#0284C7', bgColor: '#E0F2FE', borderColor: '#BAE6FD', isActive: true, isDefault: true },
+  { id: 2, key: 'CONTACTED', name: 'Contacted', sortOrder: 2, color: '#D97706', bgColor: '#FEF3C7', borderColor: '#FDE68A', isActive: true, isDefault: false },
+  { id: 3, key: 'DETAILS_SEND', name: 'Details send', sortOrder: 3, color: '#4F46E5', bgColor: '#EEF2FF', borderColor: '#C7D2FE', isActive: true, isDefault: false },
+  { id: 4, key: 'FOLLOW_UP', name: 'Follow-up', sortOrder: 4, color: '#7C3AED', bgColor: '#F5F3FF', borderColor: '#DDD6FE', isActive: true, isDefault: false },
+  { id: 5, key: 'VISIT_SCHEDULED', name: 'Visit Scheduled', sortOrder: 5, color: '#0891B2', bgColor: '#ECFEFF', borderColor: '#A5F3FC', isActive: true, isDefault: false },
+  { id: 6, key: 'VISIT_DONE', name: 'Visit Done', sortOrder: 6, color: '#0D9488', bgColor: '#F0FDFA', borderColor: '#99F6E4', isActive: true, isDefault: false },
+  { id: 7, key: 'PROPOSAL_SENT', name: 'Proposal Sent', sortOrder: 7, color: '#2563EB', bgColor: '#EFF6FF', borderColor: '#BFDBFE', isActive: true, isDefault: false },
+  { id: 8, key: 'NEGOTIATION', name: 'Negotiation', sortOrder: 8, color: '#F59E0B', bgColor: '#FFFBEB', borderColor: '#FDE68A', isActive: true, isDefault: false },
+  { id: 9, key: 'FINAL_CALL', name: 'Final Call', sortOrder: 9, color: '#EA580C', bgColor: '#FFF7ED', borderColor: '#FFEDD5', isActive: true, isDefault: false },
+  { id: 10, key: 'WON', name: 'Won', sortOrder: 10, color: '#16A34A', bgColor: '#DCFCE7', borderColor: '#BBF7D0', isActive: true, isDefault: false },
+  { id: 11, key: 'LOST', name: 'Lost', sortOrder: 11, color: '#DC2626', bgColor: '#FFE4E6', borderColor: '#FECDD3', isActive: true, isDefault: false },
+];
+
+export function getStageDetails(statusOrKey?: string | null): LeadStage {
+  const clean = String(statusOrKey || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+  const direct = CRM_LEAD_STAGES.find((s) => s.key === clean);
+  if (direct) return direct;
+  if (clean === 'DETAILS_SENT') return CRM_LEAD_STAGES[2];
+  if (clean === 'VISIT') return CRM_LEAD_STAGES[4];
+  if (clean === 'PROPOSAL') return CRM_LEAD_STAGES[6];
+  if (clean === 'CONVERTED') return CRM_LEAD_STAGES[9];
+  if (clean === 'CANCELLED') return CRM_LEAD_STAGES[10];
+  return CRM_LEAD_STAGES[0];
+}
+
 export interface Lead {
   id: number;
   companyName: string;
@@ -22,6 +73,8 @@ export interface Lead {
   source: string;
   createdFrom: string;
   status: LeadStatus;
+  stageId?: number;
+  stage?: LeadStage;
   notes?: string | null;
   assignedToId?: number | null;
   createdById: number;
@@ -112,4 +165,18 @@ export const leadsApi = {
   },
   detail: async (id: number) => unwrap<Lead>(await api.get(`/leads/${id}`)),
   create: async (data: CreateLeadInput) => unwrap<Lead>(await api.post('/leads', { ...data, source: 'MANUAL', createdFrom: 'ADMIN_PANEL' })),
+  stages: async (): Promise<LeadStage[]> => {
+    try {
+      const res = await api.get('/leads/stages');
+      const data = unwrap<any>(res);
+      const list = Array.isArray(data) ? data : (data?.data ?? CRM_LEAD_STAGES);
+      return Array.isArray(list) && list.length > 0 ? list : CRM_LEAD_STAGES;
+    } catch {
+      return CRM_LEAD_STAGES;
+    }
+  },
+  updateStage: async (id: number, data: { status?: string; stageId?: number; notes?: string }): Promise<Lead> => {
+    const res = await api.patch(`/leads/${id}/status`, data);
+    return unwrap<Lead>(res);
+  },
 };
