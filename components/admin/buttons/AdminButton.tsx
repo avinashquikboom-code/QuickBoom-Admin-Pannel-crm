@@ -35,15 +35,15 @@ export function AdminButton({
   };
 
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs rounded-lg gap-1.5 font-bold',
-    md: 'px-4 py-2 text-xs sm:text-sm rounded-xl gap-2 font-black',
-    lg: 'px-5 py-2.5 text-sm rounded-xl gap-2.5 font-black',
+    sm: 'px-3 py-1.5 text-xs rounded-lg gap-1.5 font-bold h-[34px]',
+    md: 'px-3.5 py-2 text-[13px] sm:text-sm rounded-xl gap-2 font-bold h-10',
+    lg: 'px-4.5 py-2.5 text-sm rounded-xl gap-2.5 font-bold h-11',
   };
 
   const iconSizes = {
     sm: 'w-3.5 h-3.5',
     md: 'w-4 h-4',
-    lg: 'w-5 h-5',
+    lg: 'w-4.5 h-4.5',
   };
 
   return (

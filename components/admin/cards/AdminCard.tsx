@@ -24,12 +24,12 @@ export function AdminCard({
   const hasHeader = title || description || headerActions;
 
   return (
-    <div className={`bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden ${className}`}>
       {hasHeader && (
-        <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/40">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/40">
           <div>
-            {title && <h3 className="text-base font-black text-slate-900 tracking-tight">{title}</h3>}
-            {description && <p className="text-xs text-slate-500 font-medium mt-0.5">{description}</p>}
+            {title && <h3 className="text-base font-bold text-slate-900 tracking-tight">{title}</h3>}
+            {description && <p className="text-xs sm:text-[13px] text-slate-500 font-normal mt-0.5">{description}</p>}
           </div>
           {headerActions && <div className="flex items-center gap-2 shrink-0">{headerActions}</div>}
         </div>
