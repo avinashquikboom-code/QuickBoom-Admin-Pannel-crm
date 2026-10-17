@@ -28,10 +28,19 @@ export interface Lead {
   deletedAt?: string | null;
   createdAt: string;
 }
+export interface LeadPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 export interface LeadList {
+  pagination: LeadPagination;
   data: Lead[];
+  items?: Lead[];
   total: number;
   page: number;
+  limit: number;
   totalPages: number;
 }
 export interface CreateLeadInput {
@@ -52,26 +61,48 @@ export interface CreateLeadInput {
 const unwrap = <T,>(response: any): T => response?.data ?? response;
 // The shared Axios interceptor already returns the HTTP body. The Nest
 // transform interceptor puts the rows in data and keeps pagination beside it.
-export function normalizeLeadList(response: any): LeadList {
+export function normalizeLeadList(response: any, request: { page?: unknown; limit?: unknown } = {}): LeadList {
   if (response?.success === false) throw new Error(response.message || 'Unable to load Leads');
   const payload = Array.isArray(response?.data) ? response : response?.data ?? response;
-  if (!payload || !Array.isArray(payload.data)) {
+  const records = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(response?.items)
+    ? response.items
+    : Array.isArray(payload)
+    ? payload
+    : null;
+  if (!records || !Array.isArray(records)) {
     throw new Error('Invalid Lead list response: expected a records array');
   }
-  const pagination = payload.pagination ?? response?.pagination;
+  const pagination = payload.pagination ?? response?.pagination ?? payload.meta ?? response?.meta;
   const total = payload.total ?? pagination?.total;
-  const page = payload.page ?? pagination?.page;
-  const totalPages = payload.totalPages ?? pagination?.totalPages;
-  if (![total, page, totalPages].every(Number.isSafeInteger) || total < 0 || page < 1 || totalPages < 0) {
+  // Older envelopes lose top-level page/limit in the global interceptor.
+  // Use the actual request only for these values; never invent a record total.
+  const page = pagination?.page ?? payload.page ?? request.page;
+  const limit = pagination?.limit ?? pagination?.pageSize ?? payload.limit ?? request.limit;
+  if (typeof total !== 'number' || !Number.isSafeInteger(total) || total < 0 ||
+      typeof page !== 'number' || !Number.isSafeInteger(page) || page < 1 ||
+      typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1) {
     throw new Error('Invalid Lead list response: missing pagination');
   }
-  return { data: payload.data, total, page, totalPages: Math.max(1, totalPages) };
+  const calculatedPages = Math.max(1, Math.ceil(total / limit));
+  const rawTotalPages = pagination?.totalPages ?? payload.totalPages;
+  const totalPages = rawTotalPages === 0 && total === 0 ? 1 : (rawTotalPages ?? calculatedPages);
+  if (!Number.isSafeInteger(totalPages) || totalPages < 0 ||
+      Math.max(1, totalPages) !== calculatedPages || records.length > limit ||
+      records.length > Math.max(0, total - (page - 1) * limit)) {
+    throw new Error('Invalid Lead list response: inconsistent pagination');
+  }
+  const normalized: LeadPagination = { page, limit, total, totalPages: calculatedPages };
+  return { data: records, items: records, ...normalized, pagination: normalized };
 }
 export const leadsApi = {
   list: async (params: Record<string, unknown>) => {
     if (process.env.NODE_ENV !== 'production') console.debug('[LEAD_LIST_REQUEST]', { endpoint: '/leads', method: 'GET', queryParams: params });
     const response = await api.get('/leads', { params });
-    const result = normalizeLeadList(response);
+    const result = normalizeLeadList(response, params);
     if (process.env.NODE_ENV !== 'production') console.debug('[LEAD_FRONTEND_MAPPING]', {
       recordsPathUsed: Array.isArray((response as any)?.data) ? 'data' : 'data.data',
       recordsLength: result.data.length, total: result.total, page: result.page,
