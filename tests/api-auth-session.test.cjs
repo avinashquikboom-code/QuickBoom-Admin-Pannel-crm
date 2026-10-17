@@ -83,3 +83,62 @@ test('late 401 reuses refreshed token and retry is bounded', async () => {
   assert.equal(retry.headers.get('Authorization'), `Bearer ${f.state.token}`); assert.equal(retry._retry, true);
   await assert.rejects(f.hooks.error({ config: retry, response: { status: 401 } })); assert.equal(f.state.token, null);
 });
+
+test('Lead stage PATCH refreshes an expired token before sending the mutation', async () => {
+  const f = fixture();
+  f.window.location.pathname = '/leads';
+  f.state.token = token(1, 1);
+  const next = token(1, 4500000000);
+  let calls = 0;
+  f.axios.post = async (url, body) => {
+    calls++;
+    assert.equal(url, 'https://example.test/api/v1/auth/refresh');
+    assert.equal(body.refreshToken, 'fixture-refresh');
+    return { data: { data: { accessToken: next, refreshToken: 'rotated' } } };
+  };
+  const request = { ...config(), method: 'patch', url: '/leads/943/status', data: { status: 'FOLLOW_UP', stageId: 4 } };
+  const sent = await f.hooks.request(request);
+  assert.equal(calls, 1);
+  assert.equal(sent.headers.get('Authorization'), `Bearer ${next}`);
+  assert.equal(sent.url, '/leads/943/status');
+  assert.equal(sent.method, 'patch');
+  assert.equal(sent.data.status, 'FOLLOW_UP');
+});
+
+test('generic Lead stage 401 refreshes and replays the same PATCH and payload once', async () => {
+  const f = fixture();
+  f.window.location.pathname = '/leads';
+  const request = await f.hooks.request({ ...config(), method: 'patch', url: '/leads/943/status', data: { status: 'CONTACTED', stageId: 2 } });
+  const next = token(1, 4500000000);
+  let calls = 0;
+  f.axios.post = async () => { calls++; return { data: { data: { tokens: { accessToken: next, refreshToken: 'rotated' } } } }; };
+  const retry = await f.hooks.error({ config: request, response: { status: 401, data: { success: false, message: 'Invalid or expired authentication token' } } });
+  assert.equal(calls, 1);
+  assert.equal(retry.headers.get('Authorization'), `Bearer ${next}`);
+  assert.equal(retry.url, request.url);
+  assert.equal(retry.method, 'patch');
+  assert.equal(retry.data, request.data);
+  assert.equal(retry._retry, true);
+});
+
+test('transient proactive refresh failure stops the expired PATCH and permits a later retry', async () => {
+  const f = fixture(); f.state.token = token(1, 1);
+  const unavailable = { response: { status: 503 }, message: 'Refresh temporarily unavailable' };
+  f.axios.post = async () => { throw unavailable; };
+  const request = { ...config(), method: 'patch', url: '/leads/943/status', data: { status: 'NEW' } };
+  await assert.rejects(f.hooks.request(request), error => error === unavailable);
+  assert.equal(request.headers.has('Authorization'), false);
+  assert.equal(f.state.refreshToken, 'fixture-refresh');
+  assert.equal(f.window.location.href, '');
+  f.axios.post = async () => ({ data: { accessToken: token(1, 4500000000), refreshToken: 'rotated' } });
+  const retry = await f.hooks.request({ ...config(), method: 'patch', url: '/leads/943/status', data: request.data });
+  assert.equal(retry.headers.get('Authorization'), `Bearer ${f.state.token}`);
+});
+
+test('revoked proactive refresh stops the Lead update and requires login', async () => {
+  const f = fixture(); f.window.location.pathname = '/leads'; f.state.token = token(1, 1);
+  f.axios.post = async () => { throw { response: { status: 401 } }; };
+  await assert.rejects(f.hooks.request({ ...config(), method: 'patch', url: '/leads/943/status' }));
+  assert.equal(f.state.token, null);
+  assert.equal(f.window.location.href, '/login');
+});

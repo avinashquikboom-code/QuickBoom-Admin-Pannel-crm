@@ -323,18 +323,14 @@ api.interceptors.request.use(
 
       // Proactive token refresh if token is expired or expiring in <= 15 seconds (and request is not a retry)
       if (!isAuthUrl && !(config as any)._retry && token && refreshToken) {
-        try {
-          const payload = safeDecodeJwtPayload(token);
-          if (payload?.exp && payload.exp * 1000 <= Date.now() + 15000) {
-            try {
-              token = await performTokenRefresh();
-            } catch (_) {
-              // Re-read after refresh failure: logout must not leave a stale bearer attached.
-              ({ token, refreshToken, customerId, user } = getPersistedAuthSession());
-              (config as any)._refreshAttempted = true;
-            }
-          }
-        } catch (_) {}
+        const payload = safeDecodeJwtPayload(token);
+        if (payload?.exp && payload.exp * 1000 <= Date.now() + 15000) {
+          // A failed refresh must stop this mutation. Sending the known-expired
+          // bearer only produces a second, misleading 401 and loses the actual
+          // refresh error. A later user retry can attempt refresh again.
+          token = await performTokenRefresh();
+          ({ customerId, user } = getPersistedAuthSession());
+        }
       }
 
       // Remove defaults or caller headers from a previous session first.

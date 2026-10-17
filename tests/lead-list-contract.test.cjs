@@ -125,3 +125,36 @@ test('leadsApi.list passes search, status, page, and limit query params correctl
   assert.equal(result.totalPages, 2);
 });
 
+
+test('Lead drawer edits use the existing PATCH detail route without create defaults', async () => {
+  const calls = [];
+  const updated = { id: 42, companyName: 'Updated business', status: 'CONTACTED', email: null };
+  const { leadsApi } = load({ patch: async (...args) => { calls.push(args); return { success: true, data: updated }; } });
+  const changes = { companyName: 'Updated business', email: null, phone: '' };
+  assert.equal(await leadsApi.update(42, changes), updated);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], '/leads/42');
+  assert.equal(calls[0][1], changes);
+  assert.equal('source' in calls[0][1], false);
+  assert.equal('status' in calls[0][1], false);
+});
+
+test('drawer detail and stage requests use the selected Lead ID and actual stage values', async () => {
+  const calls = [];
+  const lead = { id: 42, companyName: 'Selected Lead', status: 'FOLLOW_UP' };
+  const { leadsApi } = load({
+    get: async path => { calls.push(path); return { data: lead }; },
+    patch: async (path, data) => { calls.push({ path, data }); return { data: lead }; },
+  });
+  assert.equal(await leadsApi.detail(42), lead);
+  assert.equal(await leadsApi.updateStage(42, { stageId: 4, status: 'FOLLOW_UP' }), lead);
+  assert.equal(calls[0], '/leads/42');
+  assert.equal(calls[1].path, '/leads/42/status');
+  assert.equal(calls[1].data.status, 'FOLLOW_UP');
+});
+
+test('drawer edit errors propagate so rejected updates cannot display success', async () => {
+  const failure = new Error('Forbidden');
+  const { leadsApi } = load({ patch: async () => { throw failure; } });
+  await assert.rejects(leadsApi.update(42, { companyName: 'Rejected edit' }), error => error === failure);
+});

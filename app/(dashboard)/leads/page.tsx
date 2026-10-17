@@ -1,21 +1,21 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { LeadDetailsDrawer } from '@/components/admin/drawers/LeadDetailsDrawer';
+import { emptyLeadForm, LeadFormFields } from '@/components/admin/drawers/LeadFormFields';
 import { AdminRowActions } from '@/components/admin/tables/AdminRowActions';
-import { Download, ExternalLink, Plus, RefreshCw, Users } from 'lucide-react';
+import { Download, Plus, RefreshCw, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination, AdminSearchInput, AdminSelect, AdminStatusBadge } from '@/components/admin';
 import { CreateLeadInput, CRM_LEAD_STAGES, Lead, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 
-const emptyForm: CreateLeadInput = { companyName: '', firstName: '', lastName: '', phone: '', email: '', website: '', address: '', city: '', state: '', country: '', pincode: '', category: '', notes: '' };
+const emptyForm = emptyLeadForm;
 
 export default function LeadsPage() {
   const client = useQueryClient();
-  const router = useRouter();
+  const [selectedLead, setSelectedLead] = useState<{ id: number; action: 'view' | 'edit' | 'stage' } | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -118,7 +118,7 @@ export default function LeadsPage() {
         </div>
       </div>
       {list.isError ? <div role="alert" className="p-6 text-rose-700 space-y-3"><p>{getErrorMessage(list.error)}</p><AdminButton variant="outline" onClick={() => list.refetch()}>Retry</AdminButton></div> : <>
-        <AdminDataTable<Lead> data={leads} loading={list.isLoading} keyExtractor={(lead) => String(lead.id)}
+        <AdminDataTable<Lead> data={leads} loading={list.isLoading} onRowClick={lead => setSelectedLead({ id: lead.id, action: 'view' })} keyExtractor={(lead) => String(lead.id)}
           emptyTitle="No leads found" emptyDescription="Add a Lead or import a validated Data Capture record."
           minWidth="min-w-[1120px] table-fixed"
           className="!rounded-none !border-0 !shadow-none [&_td]:!px-3 [&_td]:!py-3 [&_th]:!px-3 [&_th]:!font-medium [&_td]:align-top"
@@ -132,13 +132,13 @@ export default function LeadsPage() {
               render: lead => <input type="checkbox" aria-label={`Select ${lead.companyName}`} className="h-4 w-4 rounded accent-emerald-600"
                 checked={selectedIds.includes(lead.id)} onChange={() => toggleSelection(lead.id)} /> },
             { key: 'name', header: 'Lead Name', headerClassName: 'w-[17%]', render: lead => <div className="min-w-0">
-              <Link href={`/leads/${lead.id}`} className="line-clamp-2 break-words font-semibold leading-snug text-slate-900 hover:text-emerald-700">
-                {[lead.firstName, lead.lastName].filter(Boolean).join(' ').trim() || lead.companyName || '—'}</Link>
+              <button type="button" onClick={event => { event.stopPropagation(); setSelectedLead({ id: lead.id, action: 'view' }); }} className="text-left line-clamp-2 break-words font-semibold leading-snug text-slate-900 hover:text-emerald-700">
+                {[lead.firstName, lead.lastName].filter(Boolean).join(' ').trim() || lead.companyName || '—'}</button>
               {lead.category && <p className="mt-1 truncate text-[11px] font-normal text-slate-500">{lead.category}</p>}
             </div> },
             { key: 'phone', header: 'Contact', headerClassName: 'w-[17%]', render: lead => <div className="space-y-1 break-words font-normal">
               <p className="font-medium">{lead.phone || '—'}</p><p className="text-[11px] text-slate-500">{lead.email || '—'}</p></div> },
-            { key: 'companyName', header: 'Company', headerClassName: 'w-[17%]', render: lead => <p className="line-clamp-3 break-words font-medium leading-snug">{lead.companyName || '—'}</p> },
+            { key: 'companyName', header: 'Company', headerClassName: 'w-[17%]', render: lead => <button type="button" onClick={event => { event.stopPropagation(); setSelectedLead({ id: lead.id, action: 'view' }); }} className="text-left line-clamp-3 break-words font-medium leading-snug hover:text-emerald-700">{lead.companyName || '—'}</button> },
             { key: 'status', header: 'Stage', headerClassName: 'w-[13%]', render: lead => {
               const stage = lead.stage || CRM_LEAD_STAGES.find(item => item.key === lead.status);
               return <AdminStatusBadge status={stage?.key || lead.status || 'UNKNOWN'} label={stage?.name || lead.status || '—'}
@@ -152,10 +152,11 @@ export default function LeadsPage() {
               return Number.isNaN(date.getTime()) ? '—' : <div className="space-y-1 whitespace-nowrap font-normal">
                 <p>{date.toLocaleDateString('en-GB')}</p><p className="text-[11px] text-slate-500">{date.toLocaleTimeString('en-GB')}</p></div>;
             } },
-            { key: 'actions', header: 'Actions', headerClassName: 'w-[170px]', render: lead => <div className="flex items-center gap-1.5">
-              <Link href={`/leads/${lead.id}`} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">View Lead<ExternalLink className="h-3.5 w-3.5" /></Link>
+            { key: 'actions', header: 'Actions', headerClassName: 'w-[170px]', render: lead => <div className="flex items-center gap-1.5" onClick={event => event.stopPropagation()}>
+              <AdminButton variant="outline" size="sm" onClick={() => setSelectedLead({ id: lead.id, action: 'view' })}>View Details</AdminButton>
               <AdminRowActions label={`More actions for ${lead.companyName}`} items={[
-                { label: 'Change Stage', onSelect: () => router.push(`/leads/${lead.id}`) },
+                { label: 'Edit Lead', onSelect: () => setSelectedLead({ id: lead.id, action: 'edit' }) },
+                { label: 'Change Stage', onSelect: () => setSelectedLead({ id: lead.id, action: 'stage' }) },
               ]} />
             </div> },
           ]} />
@@ -164,19 +165,14 @@ export default function LeadsPage() {
       <AdminPagination page={page} pageSize={limit} total={total} totalPages={totalPages} onPageChange={setPage}
         onPageSizeChange={(value) => { setLimit(value); setPage(1); }} disabled={list.isFetching} />
     </AdminCard>
+    {selectedLead && <LeadDetailsDrawer key={selectedLead.id} id={selectedLead.id} initialAction={selectedLead.action} onClose={() => setSelectedLead(null)} />}
     <AdminFormDrawer isOpen={open} onClose={() => { if (!create.isPending) setOpen(false); }} title="Add Lead" icon={Users}
       onSave={() => {
         if (!form.companyName.trim()) { toast.error('Business name is required'); return; }
         const input = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, value?.trim() || undefined])) as CreateLeadInput;
         create.mutate(input);
       }} saveLabel={create.isPending ? 'Creating...' : 'Create Lead'} isSubmitting={create.isPending}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {(Object.keys(emptyForm) as Array<keyof CreateLeadInput>).map((key) => <label key={key} className={`text-sm font-semibold text-slate-700 ${key === 'notes' || key === 'address' ? 'sm:col-span-2' : ''}`}>
-          {key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}{key === 'companyName' ? ' *' : ''}
-          <input value={form[key] || ''} required={key === 'companyName'} type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'}
-            onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 font-normal" />
-        </label>)}
-      </div>
+      <LeadFormFields value={form} onChange={setForm} disabled={create.isPending} />
     </AdminFormDrawer>
   </div>;
 }
