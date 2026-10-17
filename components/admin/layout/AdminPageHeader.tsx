@@ -38,14 +38,14 @@ export function AdminPageHeader({
   className = '',
 }: AdminPageHeaderProps) {
   const badgeClasses: Record<string, string> = {
-    primary: 'bg-emerald-500/20 text-[#23C45E] border-emerald-500/30',
-    emerald: 'bg-emerald-500/20 text-[#23C45E] border-emerald-500/30',
-    indigo: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-    purple: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    amber: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    blue: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    rose: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-    slate: 'bg-slate-700/60 text-slate-200 border-slate-600',
+    primary: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
+    purple: 'bg-purple-50 text-purple-700 border-purple-200/80',
+    amber: 'bg-amber-50 text-amber-800 border-amber-200/80',
+    blue: 'bg-blue-50 text-blue-700 border-blue-200/80',
+    rose: 'bg-rose-50 text-rose-700 border-rose-200/80',
+    slate: 'bg-slate-100 text-slate-700 border-slate-200',
   };
 
   const isBadgeString = typeof badge === 'string';
@@ -56,75 +56,80 @@ export function AdminPageHeader({
 
   return (
     <div
-      className={`relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-7 rounded-3xl border border-slate-700/60 shadow-xl ${className}`}
+      className={`bg-white text-slate-900 px-4 py-3.5 sm:px-5 sm:py-4.5 rounded-2xl border border-slate-200/80 shadow-xs ${className}`}
     >
-      {/* Ambient Glows */}
-      <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-[#23C45E]/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-1/3 -mb-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2 min-w-0 flex-1">
-          {breadcrumbs && breadcrumbs.length > 0 && (
-            <nav
-              aria-label="Breadcrumb"
-              className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 uppercase tracking-wider flex-wrap mb-1"
-            >
-              {breadcrumbs.map((crumb, idx) => {
-                const isLast = idx === breadcrumbs.length - 1;
-                return (
-                  <React.Fragment key={crumb.label}>
-                    {idx > 0 && <span className="text-slate-500 font-normal">/</span>}
-                    {crumb.href && !isLast ? (
-                      <Link
-                        href={crumb.href}
-                        className="text-emerald-400 hover:text-emerald-300 transition-colors"
-                      >
-                        {crumb.label}
-                      </Link>
-                    ) : (
-                      <span className={isLast ? 'text-white font-bold' : 'text-slate-300'}>
-                        {crumb.label}
-                      </span>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </nav>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Left Section: Icon + Title/Badge + Description */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {Icon && (
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/80 flex items-center justify-center shadow-2xs shrink-0">
+              <Icon
+                className={`w-5 h-5 ${
+                  iconColor && iconColor.includes('text-') ? iconColor : 'text-[#23C45E]'
+                }`}
+              />
+            </div>
           )}
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {Icon && (
-              <div className="w-10 h-10 rounded-2xl bg-white/10 text-white border border-white/15 flex items-center justify-center font-bold shadow-xs shrink-0">
-                <Icon className={`w-5 h-5 ${iconColor && iconColor.includes('text-') ? iconColor : 'text-[#23C45E]'}`} />
-              </div>
-            )}
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight break-words">
-              {title}
-            </h1>
-            {badgeText && (
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-2xs ${
-                  badgeClasses[selectedBadgeVariant] || badgeClasses.emerald
-                }`}
+          <div className="min-w-0 flex-1">
+            {breadcrumbs && breadcrumbs.length > 0 && (
+              <nav
+                aria-label="Breadcrumb"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex-wrap mb-1"
               >
-                {showPulsingDot && (
-                  <span className="w-2 h-2 rounded-full bg-[#23C45E] animate-pulse" />
-                )}
-                {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
-                {badgeText}
-              </span>
+                {breadcrumbs.map((crumb, idx) => {
+                  const isLast = idx === breadcrumbs.length - 1;
+                  return (
+                    <React.Fragment key={crumb.label}>
+                      {idx > 0 && <span className="text-slate-300 font-normal">/</span>}
+                      {crumb.href && !isLast ? (
+                        <Link
+                          href={crumb.href}
+                          className="text-slate-500 hover:text-emerald-600 transition-colors"
+                        >
+                          {crumb.label}
+                        </Link>
+                      ) : (
+                        <span className={isLast ? 'text-slate-700 font-bold' : 'text-slate-400'}>
+                          {crumb.label}
+                        </span>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </nav>
+            )}
+
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-lg sm:text-[22px] md:text-[24px] font-bold text-slate-900 tracking-tight leading-tight break-words">
+                {title}
+              </h1>
+              {badgeText && (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shadow-2xs ${
+                    badgeClasses[selectedBadgeVariant] || badgeClasses.emerald
+                  }`}
+                >
+                  {showPulsingDot && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  )}
+                  {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
+                  {badgeText}
+                </span>
+              )}
+            </div>
+
+            {description && (
+              <p className="text-[13px] sm:text-sm text-slate-500 font-normal leading-relaxed mt-1 max-w-3xl">
+                {description}
+              </p>
             )}
           </div>
-
-          {description && (
-            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-2xl leading-relaxed mt-1">
-              {description}
-            </p>
-          )}
         </div>
 
+        {/* Right Section: Action Buttons */}
         {actions && (
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 z-10">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 sm:self-center">
             {actions}
           </div>
         )}
