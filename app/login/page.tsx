@@ -91,6 +91,7 @@ export default function LoginPage() {
 
       const mappedUser = {
         ...user,
+        accountType: user.accountType || (isAdmin ? 'SUPER_ADMIN' : 'CUSTOMER'),
         role: isAdmin ? 'SUPER_ADMIN' : 'Customer',
         roles: isAdmin ? ['SUPER_ADMIN'] : userRoles,
       };

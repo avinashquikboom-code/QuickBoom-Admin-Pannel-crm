@@ -44,6 +44,7 @@ export class AdminAuthService {
         if (user && accessToken) {
           const mappedUser = {
             ...user,
+            accountType: user.accountType || 'SUPER_ADMIN',
             role: 'SUPER_ADMIN',
             roles: ['SUPER_ADMIN'],
           };

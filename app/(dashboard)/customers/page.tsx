@@ -69,7 +69,13 @@ interface CustomerRecord {
 export default function CustomersPage() {
   const queryClient = useQueryClient();
   const user = useAuthStore(state => state.user);
-  const canDelete = ['ADMIN', 'SUPER_ADMIN'].includes(user?.accountType || '');
+  const canDelete = Boolean(
+    user && (
+      ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(user.accountType || '').toUpperCase().trim()) ||
+      ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(user.role || '').toUpperCase().trim()) ||
+      (Array.isArray(user.roles) && user.roles.some(r => ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(r || '').toUpperCase().trim())))
+    )
+  );
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
 
@@ -171,18 +177,33 @@ export default function CustomersPage() {
   useEffect(() => { setSelectedIds(ids => ids.filter(id => rawList.some(c => c.id === id))); }, [rawList]);
   const deleteCustomers = async (ids: number[]) => {
     if (!ids.length || deleting) return;
-    if (!window.confirm(`Delete ${ids.length === 1 ? 'this customer' : `${ids.length} selected customers`}? Lead and billing history will be retained. Active subscriptions and unresolved checkouts must be resolved first.`)) return;
+    const count = ids.length;
+    const confirmMessage =
+      count === 1
+        ? 'Are you sure you want to delete this customer? This will remove the customer profile and cancel active subscriptions.'
+        : `Are you sure you want to delete ${count} selected customers? This will remove the customer profiles and cancel active subscriptions.`;
+    if (!window.confirm(confirmMessage)) return;
     setDeleting(true);
     try {
-      if (ids.length === 1) await api.delete(`/customers/${ids[0]}`);
-      else await api.post('/customers/bulk-delete', { ids });
+      if (count === 1) {
+        await api.delete(`/customers/${ids[0]}`, { params: { cancelSubscriptions: true } });
+      } else {
+        await api.post('/customers/bulk-delete', { ids, cancelSubscriptions: true });
+      }
       setSelectedIds([]);
-      if (selectedCustomerId && ids.includes(selectedCustomerId)) { setIsDrawerOpen(false); setSelectedCustomerId(null); }
+      if (selectedCustomerId && ids.includes(selectedCustomerId)) {
+        setIsDrawerOpen(false);
+        setSelectedCustomerId(null);
+      }
       setPage(1);
-      toast.success(ids.length === 1 ? 'Customer deleted' : 'Selected customers deleted');
+      toast.success(count === 1 ? 'Customer deleted successfully' : `${count} customers deleted successfully`);
       await queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       await queryClient.invalidateQueries({ queryKey: ['employee-customers'] });
-    } catch (err) { toast.error(getErrorMessage(err)); } finally { setDeleting(false); }
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // Date formatter
@@ -416,7 +437,21 @@ export default function CustomersPage() {
       headerClassName: 'text-right',
       render: (c) => (
         <div className="flex items-center justify-end gap-1.5">
-          {canDelete && <button type="button" disabled={deleting} onClick={() => deleteCustomers([c.id])} className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 disabled:opacity-50" title="Delete customer" aria-label={`Delete ${c.companyName}`}><Trash2 className="w-4 h-4" /></button>}
+          {canDelete && (
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteCustomers([c.id]);
+              }}
+              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 disabled:opacity-50 transition-colors cursor-pointer"
+              title="Delete customer"
+              aria-label={`Delete ${c.companyName}`}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -579,7 +614,37 @@ export default function CustomersPage() {
           </div>
         )}
 
-        {canDelete && selectedIds.length > 0 && <div className="flex items-center gap-3 py-3"><span>{selectedIds.length} selected</span><AdminButton variant="outline" size="sm" icon={Trash2} loading={deleting} onClick={() => deleteCustomers(selectedIds)}>Delete selected</AdminButton><button disabled={deleting} onClick={() => setSelectedIds([])}>Clear selection</button></div>}
+        {canDelete && selectedIds.length > 0 && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-rose-50/70 border border-rose-200 rounded-2xl animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 text-xs font-bold text-rose-900">
+              <span className="w-6 h-6 rounded-lg bg-rose-200 text-rose-800 flex items-center justify-center font-extrabold text-[11px]">
+                {selectedIds.length}
+              </span>
+              <span>
+                {selectedIds.length === 1 ? 'customer selected' : 'customers selected'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setSelectedIds([])}
+                className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                Clear selection
+              </button>
+              <AdminButton
+                variant="danger"
+                size="sm"
+                icon={Trash2}
+                loading={deleting}
+                onClick={() => deleteCustomers(selectedIds)}
+              >
+                Delete Selected ({selectedIds.length})
+              </AdminButton>
+            </div>
+          </div>
+        )}
       {/* 4. Customers Data Table */}
         <AdminDataTable
           columns={columns}
@@ -621,6 +686,7 @@ export default function CustomersPage() {
           setIsDrawerOpen(false);
           setSelectedCustomerId(null);
         }}
+        onDelete={canDelete ? (id) => deleteCustomers([id]) : undefined}
       />
 
       {/* 7. Reset Customer Data Modal */}
