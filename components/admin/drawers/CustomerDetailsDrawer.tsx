@@ -23,6 +23,7 @@ import {
   AlertCircle,
   Check,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -34,6 +35,7 @@ export interface CustomerDetailsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onEdit?: (customer: any) => void;
+  onDelete?: (customerId: number) => void;
 }
 
 export function CustomerDetailsDrawer({
@@ -41,6 +43,7 @@ export function CustomerDetailsDrawer({
   isOpen,
   onClose,
   onEdit,
+  onDelete,
 }: CustomerDetailsDrawerProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'SUBSCRIPTION' | 'USERS' | 'CONTACT'>('OVERVIEW');
@@ -107,6 +110,18 @@ export function CustomerDetailsDrawer({
               >
                 <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
                 <span>Reset Data</span>
+              </button>
+            )}
+
+            {isValidCustomerId && onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(numericCustomerId)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                title="Delete Customer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>Delete</span>
               </button>
             )}
           </div>

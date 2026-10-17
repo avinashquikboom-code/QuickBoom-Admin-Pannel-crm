@@ -26,8 +26,11 @@ import {
   AlertCircle,
   RotateCcw,
   UserCheck,
+  Trash2,
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import { AdminPageHeader, AdminButton } from '@/components/admin';
 import { ResetCustomerDataModal } from '@/components/admin/dialogs/ResetCustomerDataModal';
 import { getErrorMessage } from '@/lib/utils';
@@ -40,12 +43,40 @@ export default function CustomerDetailPage() {
 
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'SUBSCRIPTION' | 'USERS' | 'CONTACT'>('OVERVIEW');
   const [isResetOpen, setIsResetOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const user = useAuthStore(state => state.user);
+  const canDelete = Boolean(
+    user && (
+      ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(user.accountType || '').toUpperCase().trim()) ||
+      ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(user.role || '').toUpperCase().trim()) ||
+      (Array.isArray(user.roles) && user.roles.some(r => ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(r || '').toUpperCase().trim())))
+    )
+  );
 
   const numericCustomerId = customerId ? Number(String(customerId).trim()) : null;
   const isValidCustomerId =
     typeof numericCustomerId === 'number' &&
     Number.isInteger(numericCustomerId) &&
     numericCustomerId > 0;
+
+  const handleDeleteCustomer = async () => {
+    if (!numericCustomerId || deleting) return;
+    const name = customer?.companyName || `CUST-${numericCustomerId}`;
+    if (!window.confirm(`Are you sure you want to delete customer "${name}"? This will remove the customer profile and cancel active subscriptions.`)) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/customers/${numericCustomerId}`, { params: { cancelSubscriptions: true } });
+      toast.success('Customer deleted successfully');
+      await queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+      await queryClient.invalidateQueries({ queryKey: ['employee-customers'] });
+      router.push('/customers');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const {
     data: customer,
@@ -185,6 +216,17 @@ export default function CustomerDetailPage() {
             >
               Reset Data
             </AdminButton>
+            {canDelete && (
+              <AdminButton
+                variant="danger"
+                size="sm"
+                icon={Trash2}
+                loading={deleting}
+                onClick={handleDeleteCustomer}
+              >
+                Delete Customer
+              </AdminButton>
+            )}
           </div>
         }
       />
