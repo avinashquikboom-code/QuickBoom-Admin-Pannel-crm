@@ -31,43 +31,26 @@ export function AdminPageHeader({
   title,
   description,
   icon: Icon,
-  iconColor = 'text-[#23C45E]',
   badge,
   actions,
   breadcrumbs,
   className = '',
 }: AdminPageHeaderProps) {
-  const badgeClasses: Record<string, string> = {
-    primary: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-    indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
-    purple: 'bg-purple-50 text-purple-700 border-purple-200/80',
-    amber: 'bg-amber-50 text-amber-800 border-amber-200/80',
-    blue: 'bg-blue-50 text-blue-700 border-blue-200/80',
-    rose: 'bg-rose-50 text-rose-700 border-rose-200/80',
-    slate: 'bg-slate-100 text-slate-700 border-slate-200',
-  };
-
   const isBadgeString = typeof badge === 'string';
   const badgeText = isBadgeString ? badge : badge?.text;
-  const selectedBadgeVariant = (!isBadgeString && badge?.variant) || 'emerald';
   const BadgeIcon = !isBadgeString ? badge?.icon : undefined;
   const showPulsingDot = isBadgeString ? true : badge?.pulsingDot !== false;
 
   return (
     <div
-      className={`bg-white text-slate-900 px-4 py-3.5 sm:px-5 sm:py-4.5 rounded-2xl border border-slate-200/80 shadow-xs ${className}`}
+      className={`admin-page-header bg-brand text-slate-900 px-4 py-3.5 sm:px-5 sm:py-4.5 rounded-2xl border border-brand-700/30 shadow-xs ${className}`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Left Section: Icon + Title/Badge + Description */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {Icon && (
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/80 flex items-center justify-center shadow-2xs shrink-0">
-              <Icon
-                className={`w-5 h-5 ${
-                  iconColor && iconColor.includes('text-') ? iconColor : 'text-[#23C45E]'
-                }`}
-              />
+            <div className="w-10 h-10 rounded-xl bg-white/90 text-brand-900 border border-brand-900/20 flex items-center justify-center shadow-2xs shrink-0">
+              <Icon className="w-5 h-5 text-brand-900" />
             </div>
           )}
 
@@ -75,22 +58,22 @@ export function AdminPageHeader({
             {breadcrumbs && breadcrumbs.length > 0 && (
               <nav
                 aria-label="Breadcrumb"
-                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex-wrap mb-1"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-900 uppercase tracking-wider flex-wrap mb-1"
               >
                 {breadcrumbs.map((crumb, idx) => {
                   const isLast = idx === breadcrumbs.length - 1;
                   return (
                     <React.Fragment key={crumb.label}>
-                      {idx > 0 && <span className="text-slate-300 font-normal">/</span>}
+                      {idx > 0 && <span className="text-slate-900 font-normal">/</span>}
                       {crumb.href && !isLast ? (
                         <Link
                           href={crumb.href}
-                          className="text-slate-500 hover:text-emerald-600 transition-colors"
+                          className="text-slate-900 hover:underline transition-colors"
                         >
                           {crumb.label}
                         </Link>
                       ) : (
-                        <span className={isLast ? 'text-slate-700 font-bold' : 'text-slate-400'}>
+                        <span className={isLast ? 'text-slate-900 font-bold' : 'text-slate-900'}>
                           {crumb.label}
                         </span>
                       )}
@@ -106,12 +89,10 @@ export function AdminPageHeader({
               </h1>
               {badgeText && (
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shadow-2xs ${
-                    badgeClasses[selectedBadgeVariant] || badgeClasses.emerald
-                  }`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shadow-2xs bg-white/90 text-brand-900 border-brand-900/20"
                 >
                   {showPulsingDot && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-900 animate-pulse" />
                   )}
                   {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
                   {badgeText}
@@ -120,7 +101,7 @@ export function AdminPageHeader({
             </div>
 
             {description && (
-              <p className="text-[13px] sm:text-sm text-slate-500 font-normal leading-relaxed mt-1 max-w-3xl">
+              <p className="text-[13px] sm:text-sm text-slate-900 font-normal leading-relaxed mt-1 max-w-3xl">
                 {description}
               </p>
             )}
@@ -129,7 +110,7 @@ export function AdminPageHeader({
 
         {/* Right Section: Action Buttons */}
         {actions && (
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 sm:self-center">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 max-w-full lg:self-center [&>div]:max-w-full [&>div]:flex-wrap">
             {actions}
           </div>
         )}

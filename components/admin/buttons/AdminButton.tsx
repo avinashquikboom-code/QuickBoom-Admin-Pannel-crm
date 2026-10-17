@@ -48,6 +48,7 @@ export function AdminButton({
 
   return (
     <button
+      data-admin-variant={variant}
       disabled={disabled || loading}
       className={`inline-flex items-center justify-center transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border select-none active:scale-[0.99] ${
         variantStyles[variant]
