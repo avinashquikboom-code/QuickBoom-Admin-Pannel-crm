@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity, Building2, Pencil, Loader2 } from 'lucide-react';
+import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity, Building2, Pencil, Loader2, UserPlus, ArrowRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
 import { dataCaptureApi } from '@/lib/data-capture-api';
 import { useAuthStore } from '@/lib/store';
 import { isAuthenticatedUser } from '@/lib/access-control';
@@ -417,8 +418,66 @@ export default function DataCapturePage() {
   const totalCount = listResponse?.total || 0;
   const totalPages = listResponse?.totalPages || 1;
 
+  const drawerRecordId = React.useRef<number | undefined>(undefined);
+  const workflowStatus = String(selectedRecord?.status ?? '').trim().toUpperCase();
+  const isRejectedRecord = workflowStatus === 'REJECTED';
+  const leadId = (selectedRecord as any)?.leadId || selectedRecord?.importedLeadId;
+  const isLeadAdded = !isRejectedRecord &&
+    (selectedRecord?.isImported === true || workflowStatus === 'LEAD_CREATED' || Boolean(leadId));
+  const canDecideRecord = !isLeadAdded && !isRejectedRecord && ['CAPTURED', 'PENDING', 'NEW', ''].includes(workflowStatus);
+  const isValidatedRecord = workflowStatus === 'VALIDATED' && !isLeadAdded;
+  const workflowLabel = isLeadAdded ? 'LEAD ADDED' : workflowStatus || 'UNKNOWN';
+  const workflowStyle = STATUS_CONFIG[isLeadAdded ? 'LEAD_CREATED' : workflowStatus] || STATUS_CONFIG.CAPTURED;
+  const rejectionNotes = isRejectedRecord ? selectedRecord?.notes?.trim() : '';
+  const rejectionMarker = '[REJECTION REASON]:';
+  const rejectionReason = rejectionNotes?.includes(rejectionMarker)
+    ? rejectionNotes.slice(rejectionNotes.lastIndexOf(rejectionMarker) + rejectionMarker.length).trim()
+    : '';
+
+  const logWorkflowRecord = (record: CapturedPlace) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[DATA_CAPTURE_DETAIL_WORKFLOW]', {
+        recordId: record.id, status: record.status,
+        businessStatus: record.businessStatus, isImported: record.isImported,
+      });
+    }
+  };
+
+  const refreshDrawerAfterDecision = async (id: number, response: any) => {
+    const updated: CapturedPlace = response?.data || response;
+    if (updated?.id === id && updated.status) {
+      setSelectedRecord((current) => current?.id === id ? updated : current);
+      if (drawerRecordId.current === id) {
+        setEditForm((current) => ({ ...current, status: updated.status, notes: updated.notes || '' }));
+      }
+    }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['data-capture-list'] }),
+      queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] }),
+      queryClient.invalidateQueries({ queryKey: ['data-capture-detail', id] }),
+    ]);
+    try {
+      const detailed: any = await queryClient.fetchQuery({
+        queryKey: ['data-capture-detail', id],
+        queryFn: () => dataCaptureApi.detail(id),
+        staleTime: 0,
+      });
+      const record: CapturedPlace = detailed?.data || detailed;
+      logWorkflowRecord(record);
+      setSelectedRecord((current) => current?.id === id ? record : current);
+      if (drawerRecordId.current === id) {
+        setEditForm((current) => ({ ...current, status: record.status, notes: record.notes || '' }));
+      }
+    } catch (error) {
+      if (drawerRecordId.current === id) {
+        setDetailError(`Decision saved, but details could not be refreshed. ${getErrorMessage(error)}`);
+      }
+    }
+  };
+
   // Single Record Query for Drawer
   const openDetailDrawer = async (record: CapturedPlace) => {
+    drawerRecordId.current = record.id;
     setDetailError('');
     setDetailLoading(true);
     setSelectedRecord(record);
@@ -440,7 +499,8 @@ export default function DataCapturePage() {
       try {
         const detailed: any = await dataCaptureApi.detail(record.id);
         const data = detailed?.data || detailed;
-        if (data) {
+        if (data && drawerRecordId.current === record.id) {
+          logWorkflowRecord(data);
           setSelectedRecord(data);
           setEditForm({
             businessName: data.businessName,
@@ -454,8 +514,8 @@ export default function DataCapturePage() {
           });
         }
       } catch (error) {
-        setDetailError(getErrorMessage(error));
-      } finally { setDetailLoading(false); }
+        if (drawerRecordId.current === record.id) setDetailError(getErrorMessage(error));
+      } finally { if (drawerRecordId.current === record.id) setDetailLoading(false); }
     }
   };
 
@@ -479,12 +539,9 @@ export default function DataCapturePage() {
     mutationFn: async (id: number) => {
       return dataCaptureApi.validate(id);
     },
-    onSuccess: (res: any) => {
-      const data = res?.data || res;
+    onSuccess: async (res: any, id: number) => {
       toast.success('Prospect marked as VALIDATED!');
-      if (selectedRecord && data) setSelectedRecord({ ...selectedRecord, status: 'VALIDATED' });
-      queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
-      queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
+      await refreshDrawerAfterDecision(id, res);
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
@@ -493,14 +550,11 @@ export default function DataCapturePage() {
     mutationFn: async ({ id, reason }: { id: number; reason?: string }) => {
       return dataCaptureApi.reject(id, reason);
     },
-    onSuccess: (res: any) => {
-      const data = res?.data || res;
+    onSuccess: async (res: any, { id }: { id: number; reason?: string }) => {
       toast.success('Prospect marked as REJECTED');
       setRejectModalOpen(false);
       setRejectReason('');
-      if (selectedRecord && data) setSelectedRecord({ ...selectedRecord, status: 'REJECTED' });
-      queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
-      queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
+      await refreshDrawerAfterDecision(id, res);
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
@@ -559,11 +613,35 @@ export default function DataCapturePage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const importLeadMutation = useMutation({
+    mutationFn: async (id: number) => {
+      try {
+        const res: any = await api.post(`/data-capture/${id}/create-lead`, {});
+        return res?.data || res;
+      } catch (err: any) {
+        if (err?.response?.status === 404 || err?.status === 404) {
+          const res: any = await dataCaptureApi.update(id, {
+            isImported: true,
+            status: 'LEAD_CREATED',
+          });
+          return res?.data || res;
+        }
+        throw err;
+      }
+    },
+    onSuccess: async (res: any, id: number) => {
+      toast.success('Lead imported successfully!');
+      await refreshDrawerAfterDecision(id, res);
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  });
+
   const isAnyMutating =
     validateMutation.isPending ||
     rejectMutation.isPending ||
     deleteMutation.isPending ||
-    updateMutation.isPending;
+    updateMutation.isPending ||
+    importLeadMutation.isPending;
 
   // Lock body scroll and handle Escape key for Detail Drawer
   useEffect(() => {
@@ -575,7 +653,8 @@ export default function DataCapturePage() {
           !validateMutation.isPending &&
           !rejectMutation.isPending &&
           !deleteMutation.isPending &&
-          !updateMutation.isPending
+          !updateMutation.isPending &&
+          !importLeadMutation.isPending
         ) {
           setDrawerOpen(false);
         }
@@ -592,6 +671,7 @@ export default function DataCapturePage() {
     rejectMutation.isPending,
     deleteMutation.isPending,
     updateMutation.isPending,
+    importLeadMutation.isPending,
   ]);
 
   // Handlers
@@ -1183,8 +1263,13 @@ export default function DataCapturePage() {
                     </span>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                      <span>{selectedRecord?.businessStatus || selectedRecord?.status || 'Operational'}</span>
+                      <span>Business: {selectedRecord?.businessStatus || 'Unknown'}</span>
                     </span>
+                    {selectedRecord && !detailLoading && !detailError && (
+                      <span aria-label="Data Capture workflow status" className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${workflowStyle.bg} ${workflowStyle.text} ${workflowStyle.border}`}>
+                        Data Capture: {workflowLabel}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1217,6 +1302,12 @@ export default function DataCapturePage() {
 
                 {selectedRecord && !detailLoading && !detailError && (
                   <div className="space-y-4">
+                    {isRejectedRecord && rejectionNotes && (
+                      <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs">
+                        <p className="font-bold mb-1">{rejectionReason ? 'Rejection reason' : 'Rejection notes'}</p>
+                        <p className="whitespace-pre-wrap">{rejectionReason || rejectionNotes}</p>
+                      </div>
+                    )}
                     {/* Photos */}
                     {(selectedRecord.googlePhotos?.[0]?.url || selectedRecord.photos?.[0]) && (
                       <div className="overflow-hidden rounded-2xl border border-slate-200/80 shadow-2xs bg-slate-100">
@@ -1385,10 +1476,10 @@ export default function DataCapturePage() {
                             </div>
 
                             <div className="flex items-center justify-between gap-4">
-                              <span className="text-xs text-slate-500 font-medium shrink-0">Status</span>
+                              <span className="text-xs text-slate-500 font-medium shrink-0">Business status</span>
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                <span>{selectedRecord.businessStatus || selectedRecord.status || 'Operational'}</span>
+                                <span>{selectedRecord.businessStatus || 'Unknown'}</span>
                               </span>
                             </div>
                           </div>
@@ -1780,133 +1871,57 @@ export default function DataCapturePage() {
               </div>
 
               {/* 3. STICKY ACTION FOOTER */}
-              <div className="sticky bottom-0 z-20 px-5 py-3.5 sm:px-6 sm:py-3.5 border-t border-slate-200/80 bg-white/95 backdrop-blur-md shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
-                {isEditing ? (
-                  <div className="flex items-center justify-end gap-2.5 w-full">
-                    <button
-                      type="button"
-                      disabled={isAnyMutating}
-                      onClick={() => setIsEditing(false)}
-                      className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isAnyMutating}
-                      onClick={() => {
-                        if (!editForm.businessName?.trim()) {
-                          toast.error('Business name is required');
-                          return;
-                        }
-                        const changes = Object.fromEntries(
-                          Object.entries(editForm).filter(([key, value]) =>
-                            value !== (selectedRecord as any)[key] && !(value === '' && (selectedRecord as any)[key] == null)
-                          )
-                        );
-                        updateMutation.mutate({ id: selectedRecord?.id!, data: changes });
-                      }}
-                      className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl border border-transparent bg-[#23C45E] hover:bg-[#1AA14D] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-[#23C45E]/25 active:scale-[0.99]"
-                    >
-                      {updateMutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Saving…</span>
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-4 h-4" />
-                          <span>Save Changes</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    {/* Mobile Layout (2 columns: [Edit][Validate], [Delete][Reject]) */}
-                    <div className="grid grid-cols-2 gap-2.5 sm:hidden w-full">
-                      {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
+              {(() => {
+                // Rejected state: hide the entire footer action area completely
+                if (isRejectedRecord) return null;
+
+                // Editing mode: Cancel & Save Changes
+                if (isEditing) {
+                  return (
+                    <div className="sticky bottom-0 z-20 px-4 py-3 bg-white border-t border-slate-200/80 shrink-0">
+                      <div className="flex items-center justify-end gap-2 w-full">
                         <button
                           type="button"
                           disabled={isAnyMutating}
-                          onClick={() => setIsEditing(true)}
-                          className="h-10 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                          onClick={() => setIsEditing(false)}
+                          className="h-10 px-4 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
                         >
-                          <Pencil className="w-3.5 h-3.5 text-slate-600" />
-                          <span>Edit</span>
+                          Cancel
                         </button>
-                      )}
-
-                      {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
-                        <button
-                          type="button"
-                          disabled={isAnyMutating}
-                          onClick={() => validateMutation.mutate(selectedRecord.id!)}
-                          className="h-10 px-3 rounded-xl border border-transparent bg-[#23C45E] hover:bg-[#1AA14D] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-[#23C45E]/25 active:scale-[0.99]"
-                        >
-                          {validateMutation.isPending ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Validating...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Check className="w-3.5 h-3.5" />
-                              <span>✓ Validate</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-
-                      {canDelete && selectedRecord?.id && (
                         <button
                           type="button"
                           disabled={isAnyMutating}
                           onClick={() => {
-                            setRecordToDelete(selectedRecord.id!);
-                            setDeleteConfirmOpen(true);
+                            if (!editForm.businessName?.trim()) {
+                              toast.error('Business name is required');
+                              return;
+                            }
+                            const changes = Object.fromEntries(
+                              Object.entries(editForm).filter(([key, value]) =>
+                                value !== (selectedRecord as any)[key] && !(value === '' && (selectedRecord as any)[key] == null)
+                              )
+                            );
+                            updateMutation.mutate({ id: selectedRecord?.id!, data: changes });
                           }}
-                          className="h-10 px-3 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 text-rose-600 font-bold text-xs flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                          className="h-10 px-4.5 rounded-[10px] bg-[#1AA14D] hover:bg-[#15803d] text-white font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
                         >
-                          {deleteMutation.isPending ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Deleting...</span>
-                            </>
+                          {updateMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                           ) : (
-                            <>
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>Delete</span>
-                            </>
+                            <Check className="w-4 h-4 shrink-0" />
                           )}
+                          <span>{updateMutation.isPending ? 'Saving…' : 'Save Changes'}</span>
                         </button>
-                      )}
-
-                      {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
-                        <button
-                          type="button"
-                          disabled={isAnyMutating}
-                          onClick={() => setRejectModalOpen(true)}
-                          className="h-10 px-3 rounded-xl border border-transparent bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-rose-600/25 active:scale-[0.99]"
-                        >
-                          {rejectMutation.isPending ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Rejecting...</span>
-                            </>
-                          ) : (
-                            <>
-                              <X className="w-3.5 h-3.5" />
-                              <span>✕ Reject</span>
-                            </>
-                          )}
-                        </button>
-                      )}
+                      </div>
                     </div>
+                  );
+                }
 
-                    {/* Desktop / Tablet Layout (Delete on Left, Edit / Validate / Reject on Right) */}
-                    <div className="hidden sm:flex sm:items-center sm:justify-between w-full gap-2">
-                      <div>
+                // Captured / Pending State: [ Delete ] on left, [ Edit ] [ ✓ Validate ] [ × Reject ] on right
+                if (canDecideRecord) {
+                  return (
+                    <div className="sticky bottom-0 z-20 px-4 py-3 bg-white border-t border-slate-200/80 shrink-0">
+                      <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-between sm:gap-2.5 w-full">
                         {canDelete && selectedRecord?.id && (
                           <button
                             type="button"
@@ -1915,80 +1930,115 @@ export default function DataCapturePage() {
                               setRecordToDelete(selectedRecord.id!);
                               setDeleteConfirmOpen(true);
                             }}
-                            className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 text-rose-600 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                            className="h-10 px-4 rounded-[10px] border border-rose-200 bg-white hover:bg-rose-50 hover:border-rose-300 text-rose-600 font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
                           >
                             {deleteMutation.isPending ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Deleting...</span>
-                              </>
+                              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                             ) : (
-                              <>
-                                <Trash2 className="w-4 h-4" />
-                                <span>Delete</span>
-                              </>
+                              <Trash2 className="w-4 h-4 shrink-0" />
                             )}
+                            <span>{deleteMutation.isPending ? 'Deleting...' : 'Delete'}</span>
                           </button>
                         )}
-                      </div>
 
-                      <div className="flex items-center gap-2 md:gap-2.5">
-                        {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
-                          <>
+                        <div className="contents sm:flex sm:items-center sm:gap-2">
+                          {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
                             <button
                               type="button"
                               disabled={isAnyMutating}
                               onClick={() => setIsEditing(true)}
-                              className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                              className="h-10 px-4 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
                             >
-                              <Pencil className="w-4 h-4 text-slate-600" />
+                              <Pencil className="w-4 h-4 shrink-0" />
                               <span>Edit</span>
                             </button>
+                          )}
 
-                            <button
-                              type="button"
-                              disabled={isAnyMutating}
-                              onClick={() => validateMutation.mutate(selectedRecord.id!)}
-                              className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-transparent bg-[#23C45E] hover:bg-[#1AA14D] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-[#23C45E]/25 active:scale-[0.99]"
-                            >
-                              {validateMutation.isPending ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span>Validating...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Check className="w-4 h-4" />
-                                  <span>✓ Validate</span>
-                                </>
-                              )}
-                            </button>
+                          <button
+                            type="button"
+                            disabled={isAnyMutating}
+                            onClick={() => validateMutation.mutate(selectedRecord!.id!)}
+                            className="h-10 px-4 rounded-[10px] bg-[#1AA14D] hover:bg-[#15803d] text-white font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                          >
+                            {validateMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                            ) : (
+                              <Check className="w-4 h-4 shrink-0" />
+                            )}
+                            <span>{validateMutation.isPending ? 'Validating...' : 'Validate'}</span>
+                          </button>
 
-                            <button
-                              type="button"
-                              disabled={isAnyMutating}
-                              onClick={() => setRejectModalOpen(true)}
-                              className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-transparent bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-rose-600/25 active:scale-[0.99]"
-                            >
-                              {rejectMutation.isPending ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span>Rejecting...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <X className="w-4 h-4" />
-                                  <span>✕ Reject</span>
-                                </>
-                              )}
-                            </button>
-                          </>
+                          <button
+                            type="button"
+                            disabled={isAnyMutating}
+                            onClick={() => setRejectModalOpen(true)}
+                            className="h-10 px-4 rounded-[10px] bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                          >
+                            {rejectMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                            ) : (
+                              <X className="w-4 h-4 shrink-0" />
+                            )}
+                            <span>{rejectMutation.isPending ? 'Rejecting...' : 'Reject'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Validated State (not imported yet): show ONLY [ + Import Lead ] aligned to right
+                if (isValidatedRecord) {
+                  return (
+                    <div className="sticky bottom-0 z-20 px-4 py-3 bg-white border-t border-slate-200/80 shrink-0">
+                      <div className="flex items-center justify-end w-full">
+                        <button
+                          type="button"
+                          disabled={isAnyMutating || importLeadMutation.isPending}
+                          onClick={() => selectedRecord?.id && importLeadMutation.mutate(selectedRecord.id)}
+                          className="h-10 px-4.5 rounded-[10px] bg-[#1AA14D] hover:bg-[#15803d] text-white font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                        >
+                          {importLeadMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                          ) : (
+                            <UserPlus className="w-4 h-4 shrink-0" />
+                          )}
+                          <span>{importLeadMutation.isPending ? 'Importing...' : '+ Import Lead'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Imported State: [ View Lead → ] or [ ✓ Lead Imported ] aligned to right
+                if (isLeadAdded) {
+                  return (
+                    <div className="sticky bottom-0 z-20 px-4 py-3 bg-white border-t border-slate-200/80 shrink-0">
+                      <div className="flex items-center justify-end w-full">
+                        {leadId ? (
+                          <Link
+                            href={`/leads/${leadId}`}
+                            className="h-10 px-4 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors shadow-2xs"
+                          >
+                            <span>View Lead</span>
+                            <ArrowRight className="w-4 h-4 shrink-0" />
+                          </Link>
+                        ) : (
+                          <span
+                            className="h-10 px-4 rounded-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-sm inline-flex items-center justify-center gap-2"
+                            role="status"
+                          >
+                            <Check className="w-4 h-4 shrink-0 text-emerald-600" />
+                            <span>Lead Imported</span>
+                          </span>
                         )}
                       </div>
                     </div>
-                  </>
-                )}
-              </div>
+                  );
+                }
+
+                return null;
+              })()}
             </div>
           </div>
         </div>
