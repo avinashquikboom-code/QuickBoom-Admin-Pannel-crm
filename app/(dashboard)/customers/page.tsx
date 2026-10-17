@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Download,
   RefreshCw,
-  Plus,
   Eye,
   KeyRound,
   RotateCcw,
@@ -494,12 +493,6 @@ export default function CustomersPage() {
             >
               Export CSV
             </AdminButton>
-
-            <Link href="/subscribe">
-              <AdminButton variant="primary" size="sm" icon={Plus}>
-                Purchase / New Plan
-              </AdminButton>
-            </Link>
           </div>
         }
       />
