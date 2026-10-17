@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ROLE_DEFAULT_PERMISSIONS, DEFAULT_SUBSCRIPTION_FEATURES, SubscriptionFeatures } from './access-control';
+import { DEFAULT_SUBSCRIPTION_FEATURES, SubscriptionFeatures } from './access-control';
 
 export interface User {
   id: number | string;
@@ -11,7 +11,7 @@ export interface User {
   customerName?: string;
   role?: string;
   roles: string[];
-  permissions?: string[];
+  accountType?: string;
   subscriptionFeatures?: SubscriptionFeatures;
 }
 
@@ -43,8 +43,6 @@ export const useAuthStore = create<AuthState>()(
       setHasHydrated: (hasHydrated: boolean) => set({ _hasHydrated: hasHydrated }),
 
       setAuth: (user: User, token: string, refreshToken: string) => {
-        const primaryRole = user.roles?.[0] || 'Super Admin';
-        const permissions = user.permissions || ROLE_DEFAULT_PERMISSIONS[primaryRole] || ROLE_DEFAULT_PERMISSIONS['Super Admin'] || [];
         const subscriptionFeatures = user.subscriptionFeatures || { ...DEFAULT_SUBSCRIPTION_FEATURES };
 
         if (typeof window !== 'undefined') {
@@ -63,7 +61,6 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: {
             ...user,
-            permissions,
             subscriptionFeatures,
           },
           token,

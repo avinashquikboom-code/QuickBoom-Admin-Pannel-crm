@@ -23,7 +23,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
 
 export interface EmployeeSidebarProps {
@@ -91,27 +91,27 @@ export function EmployeeSidebar({
       name: 'Dashboard',
       href: '/employee/dashboard',
       icon: LayoutDashboard,
-      permission: ['employee.dashboard.view', 'dashboard.view'],
+      
     },
     {
       name: 'Data Capture',
       href: '/employee/data-capture',
       icon: PlusCircle,
-      permission: ['data_capture', 'employee.data_capture.view', 'DATA_CAPTURE'],
+      
     },
     {
       name: 'Leads',
       href: '/employee/leads',
       icon: UserSearch,
-      permission: ['leads', 'employee.leads.view', 'LEADS'],
+      
     },
     {
       name: 'Customers',
       href: '/employee/customers',
       icon: Building2,
-      permission: ['customers', 'employee.customers.view', 'CUSTOMERS'],
+      
     },
-  ].filter((item) => hasPermission(user, item.permission));
+  ].filter((item) => isAuthenticatedUser(user));
 
   // HRM & Workplace items
   const hrmNavItems = [
@@ -119,27 +119,27 @@ export function EmployeeSidebar({
       name: 'Attendance',
       href: '/employee/attendance',
       icon: Fingerprint,
-      permission: ['employee.attendance.view', 'attendance.view_own', 'attendance.view'],
+      
     },
     {
       name: 'Requests & Applications',
       href: '/employee/leaves',
       icon: FileText,
-      permission: ['employee.leave.view', 'leave.view_own', 'leave.view'],
+      
     },
     {
       name: 'Remote Work',
       href: '/employee/remote-work',
       icon: Radio,
-      permission: ['employee.remote_work.view', 'remote.view_own', 'remote.view'],
+      
     },
     {
       name: 'Salary Slips',
       href: '/employee/salary-slips',
       icon: Receipt,
-      permission: ['employee.salary.view', 'salary_slips.view_own', 'salary.view'],
+      
     },
-  ].filter((item) => hasPermission(user, item.permission));
+  ].filter((item) => isAuthenticatedUser(user));
 
   const isSettingsActive = pathname === '/employee/settings';
 

@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
 import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
@@ -255,10 +255,10 @@ export default function EmployeeProfilePage() {
   const noticePeriod = profile?.noticePeriod || profile?.noticePeriodDays ? `${profile.noticePeriod || profile.noticePeriodDays} Days` : '15 Days';
 
   // ── Permissions for Profile Actions ────────────────────────────────────────
-  const canAttendance = hasPermission(user, ['employee.attendance.view', 'attendance.view_own', 'attendance.view']);
-  const canLeaves = hasPermission(user, ['employee.leave.view', 'leave.view_own', 'leave.view']);
-  const canSalary = hasPermission(user, ['employee.salary.view', 'salary_slips.view_own', 'salary.view']);
-  const canSettings = hasPermission(user, ['employee.settings.view', 'settings.view']);
+  const canAttendance = isAuthenticatedUser(user);
+  const canLeaves = isAuthenticatedUser(user);
+  const canSalary = isAuthenticatedUser(user);
+  const canSettings = isAuthenticatedUser(user);
 
   if (loading) {
     return (

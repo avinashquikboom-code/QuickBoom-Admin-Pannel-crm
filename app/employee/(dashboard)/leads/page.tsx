@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
 import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
@@ -179,9 +179,9 @@ export default function EmployeeLeadsPage() {
   const token = useEmployeeAuthStore((state) => state.token);
 
   // Permissions
-  const canView = hasPermission(user, ['leads.view', 'LEADS:VIEW', 'leads', 'employee.leads.view']);
-  const canCreate = hasPermission(user, ['leads.create', 'LEADS:CREATE', 'leads.manage']);
-  const canDelete = hasPermission(user, ['leads.delete', 'LEADS:DELETE', 'leads.manage']);
+  const canView = isAuthenticatedUser(user);
+  const canCreate = isAuthenticatedUser(user);
+  const canDelete = isAuthenticatedUser(user);
 
   // Data States
   const [leads, setLeads] = useState<any[]>([]);

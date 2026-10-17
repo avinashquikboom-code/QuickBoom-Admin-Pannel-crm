@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { getErrorMessage } from '@/lib/utils';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 
@@ -63,8 +63,8 @@ export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
 
-  const canRead = hasPermission(user, ['employee.notifications.read', 'notifications.read']);
-  const canMarkAll = hasPermission(user, ['employee.notifications.mark_all_read', 'notifications.mark_all_read']);
+  const canRead = isAuthenticatedUser(user);
+  const canMarkAll = isAuthenticatedUser(user);
 
   const notificationsQuery = useQuery({
     queryKey: ['employee-notifications', 'list', filter],

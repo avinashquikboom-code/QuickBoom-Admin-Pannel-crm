@@ -25,7 +25,7 @@ import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/lib/store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import {
   AdminPageHeader,
   AdminStatCard,
@@ -96,13 +96,7 @@ export default function NotificationCenterPage() {
   // Check RBAC permission for sending offer notifications
   const canSendOffer =
     !user ||
-    hasPermission(user, [
-      'notifications.send',
-      'NOTIFICATIONS:SEND',
-      'notifications.manage',
-      'notifications.view',
-      'settings.manage',
-    ]);
+    isAuthenticatedUser(user);
 
   // Query 1: Notifications Feed
   const {

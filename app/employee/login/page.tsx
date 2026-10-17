@@ -63,53 +63,7 @@ export default function EmployeeLoginPage() {
 
     setLoading(true);
 
-    try {
-      useEmployeeAuthStore.getState().logout();
-
-      const res: any = await api.post('/auth/login/employee', {
-        email: cleanEmail,
-        password,
-        appType: 'EMPLOYEE_WEB',
-      });
-
-      const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
-      const user = payload?.user;
-      const tokens = payload?.tokens || payload;
-      const accessToken = tokens?.accessToken || tokens?.token || payload?.accessToken;
-      const refreshToken = tokens?.refreshToken || payload?.refreshToken;
-
-      if (!user || !accessToken) {
-        throw new Error('Invalid response structure received from authentication service');
-      }
-
-      setAuth(user, accessToken, refreshToken || '');
-
-      // Fetch permissions from backend exactly like Employee Mobile
-      try {
-        const permsRes: any = await api.get('/works/my-permissions', {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const rawData = permsRes?.data?.data || permsRes?.data || permsRes;
-        const rawPerms = Array.isArray(rawData?.effectivePermissions) ? rawData.effectivePermissions : (Array.isArray(rawData?.permissions) ? rawData.permissions : []);
-        const rawModules = Array.isArray(rawData?.modules) ? rawData.modules : [];
-        
-        const activePerms = [...rawPerms, ...rawModules];
-        
-        if (activePerms.length > 0) {
-          useEmployeeAuthStore.getState().updateUser({ permissions: activePerms });
-        }
-      } catch (permErr) {
-        console.error('Failed to fetch employee permissions during login:', permErr);
-      }
-
-      toast.success('Welcome back to the Employee Workspace!');
-      router.push('/employee/dashboard');
-    } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Authentication failed. Please check credentials.';
-      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Authentication failed.');
-    } finally {
-      setLoading(false);
-    }
+    
   };
 
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -148,51 +102,7 @@ export default function EmployeeLoginPage() {
     }
 
     setLoading(true);
-    try {
-      useEmployeeAuthStore.getState().logout();
-      
-      const res: any = await api.post('/auth/verify-otp', {
-        ...otpIdentifier,
-        otp: cleanOtp,
-        appType: 'EMPLOYEE_WEB',
-      });
-
-      const payload = res?.data?.user ? res.data : (res?.user ? res : res?.data);
-      const user = payload?.user;
-      const tokens = payload?.tokens || payload;
-      const accessToken = tokens?.accessToken || tokens?.token || payload?.accessToken;
-      const refreshToken = tokens?.refreshToken || payload?.refreshToken;
-
-      if (!user || !accessToken) {
-        throw new Error('Invalid response structure received from authentication service');
-      }
-
-      setAuth(user, accessToken, refreshToken || '');
-
-      try {
-        const permsRes: any = await api.get('/works/my-permissions', {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const rawData = permsRes?.data?.data || permsRes?.data || permsRes;
-        const rawPerms = Array.isArray(rawData?.effectivePermissions) ? rawData.effectivePermissions : (Array.isArray(rawData?.permissions) ? rawData.permissions : []);
-        const rawModules = Array.isArray(rawData?.modules) ? rawData.modules : [];
-        const activePerms = [...rawPerms, ...rawModules];
-        
-        if (activePerms.length > 0) {
-          useEmployeeAuthStore.getState().updateUser({ permissions: activePerms });
-        }
-      } catch (permErr) {
-        console.error('Failed to fetch employee permissions during login:', permErr);
-      }
-
-      toast.success('Welcome back to the Employee Workspace!');
-      router.push('/employee/dashboard');
-    } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Invalid or expired OTP code.';
-      toast.error(typeof errorMsg === 'string' ? errorMsg : 'OTP verification failed.');
-    } finally {
-      setLoading(false);
-    }
+    
   };
 
   return (

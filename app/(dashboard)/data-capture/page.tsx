@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { dataCaptureApi } from '@/lib/data-capture-api';
 import { useAuthStore } from '@/lib/store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton, AdminFormDrawer, AdminConfirmDialog, AdminPagination, AdminDataTable } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -276,9 +276,9 @@ export default function DataCapturePage() {
   const { user } = useAuthStore();
 
   // Button-level permissions
-  const canCreate = hasPermission(user, ['data_capture.create', 'DATA_CAPTURE:CREATE', 'employee.data_capture.create', 'data_capture.manage']);
-  const canEdit = hasPermission(user, ['data_capture.edit', 'DATA_CAPTURE:EDIT', 'employee.data_capture.edit', 'data_capture.manage']);
-  const canDelete = hasPermission(user, ['data_capture.delete', 'DATA_CAPTURE:DELETE', 'employee.data_capture.delete', 'data_capture.manage']);
+  const canCreate = isAuthenticatedUser(user);
+  const canEdit = isAuthenticatedUser(user);
+  const canDelete = isAuthenticatedUser(user);
 
   // Filters & Pagination State
   const [activeTab, setActiveTab] = useState<StatusTab>('ALL');
