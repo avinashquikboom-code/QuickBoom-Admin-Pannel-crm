@@ -158,3 +158,18 @@ test('drawer edit errors propagate so rejected updates cannot display success', 
   const { leadsApi } = load({ patch: async () => { throw failure; } });
   await assert.rejects(leadsApi.update(42, { companyName: 'Rejected edit' }), error => error === failure);
 });
+
+test('stage configuration uses server order, labels, IDs and colors instead of a local fallback', async () => {
+  const configured = [{ id: 92, key: 'CONTACTED', name: 'Contacted by BPO', sortOrder: 2, color: '#112233' }, { id: 91, key: 'NEW', name: 'New prospect', sortOrder: 1, color: '#445566' }];
+  const { leadsApi } = load({ get: async path => { assert.equal(path, '/leads/stages'); return { data: configured }; } });
+  const result = await leadsApi.stages();
+  assert.equal(result[0].id, 91);
+  assert.equal(result[1].name, 'Contacted by BPO');
+  assert.equal(result[1].color, '#112233');
+});
+
+test('stage configuration failures remain errors instead of showing invented stages', async () => {
+  const failure = { response: { status: 403 } };
+  const { leadsApi } = load({ get: async () => { throw failure; } });
+  await assert.rejects(leadsApi.stages(), error => error === failure);
+});

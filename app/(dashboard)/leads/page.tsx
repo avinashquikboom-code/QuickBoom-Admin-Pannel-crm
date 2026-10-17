@@ -4,10 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { LeadDetailsDrawer } from '@/components/admin/drawers/LeadDetailsDrawer';
 import { emptyLeadForm, LeadFormFields } from '@/components/admin/drawers/LeadFormFields';
 import { AdminRowActions } from '@/components/admin/tables/AdminRowActions';
-import { Download, Plus, RefreshCw, Users } from 'lucide-react';
+import { Download, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminButton, AdminCard, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination, AdminSearchInput, AdminSelect, AdminStatusBadge } from '@/components/admin';
+import { AdminButton, AdminCard, AdminConfirmDialog, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination, AdminSearchInput, AdminSelect, AdminStatusBadge } from '@/components/admin';
 import { CreateLeadInput, Lead, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -17,6 +17,11 @@ export default function LeadsPage() {
   const client = useQueryClient();
   const [selectedLead, setSelectedLead] = useState<{ id: number; action: 'view' | 'edit' | 'stage' } | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<
+    | { open: false }
+    | { open: true; type: 'single'; id: number; name: string }
+    | { open: true; type: 'bulk'; ids: number[]; count: number }
+  >({ open: false });
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [search, setSearch] = useState('');
@@ -45,6 +50,28 @@ export default function LeadsPage() {
       setPage(1);
       await client.invalidateQueries({ queryKey: ['leads'] });
       toast.success('Lead created successfully');
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => leadsApi.delete(id),
+    onSuccess: (res, deletedId) => {
+      toast.success(res?.message || 'Lead deleted successfully');
+      setConfirmDelete({ open: false });
+      setSelectedIds(prev => prev.filter(item => item !== deletedId));
+      client.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: number[]) => leadsApi.bulkDelete(ids),
+    onSuccess: (res, deletedIds) => {
+      toast.success(res?.message || 'Selected leads deleted successfully');
+      setConfirmDelete({ open: false });
+      setSelectedIds(prev => prev.filter(item => !deletedIds.includes(item)));
+      client.invalidateQueries({ queryKey: ['leads'] });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
@@ -103,7 +130,21 @@ export default function LeadsPage() {
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-2">
         <span className="text-xs text-slate-500">{selectedOnPage.length ? `${selectedOnPage.length} selected on this page` : 'All sources • Newest first'}</span>
         <div className="flex items-center gap-2">
-          {selectedOnPage.length > 0 && <AdminButton variant="ghost" size="sm" onClick={() => setSelectedIds([])}>Deselect</AdminButton>}
+          {selectedOnPage.length > 0 && (
+            <>
+              <AdminButton
+                variant="outline"
+                size="sm"
+                icon={Trash2}
+                className="!text-rose-600 hover:!bg-rose-50 border-rose-200"
+                onClick={() => setConfirmDelete({ open: true, type: 'bulk', ids: selectedOnPage.map(l => l.id), count: selectedOnPage.length })}
+                disabled={bulkDeleteMutation.isPending || deleteMutation.isPending}
+              >
+                Delete Selected ({selectedOnPage.length})
+              </AdminButton>
+              <AdminButton variant="ghost" size="sm" onClick={() => setSelectedIds([])}>Deselect</AdminButton>
+            </>
+          )}
           <AdminButton variant="ghost" size="sm" icon={RefreshCw} onClick={() => list.refetch()} disabled={list.isFetching}>Refresh</AdminButton>
         </div>
       </div>
@@ -147,6 +188,16 @@ export default function LeadsPage() {
               <AdminRowActions label={`More actions for ${lead.companyName}`} items={[
                 { label: 'Edit Lead', onSelect: () => setSelectedLead({ id: lead.id, action: 'edit' }) },
                 { label: 'Change Stage', onSelect: () => setSelectedLead({ id: lead.id, action: 'stage' }) },
+                {
+                  label: 'Delete Lead',
+                  danger: true,
+                  onSelect: () => setConfirmDelete({
+                    open: true,
+                    type: 'single',
+                    id: lead.id,
+                    name: [lead.firstName, lead.lastName].filter(Boolean).join(' ').trim() || lead.companyName || `Lead #${lead.id}`,
+                  }),
+                },
               ]} />
             </div> },
           ]} />
@@ -164,5 +215,24 @@ export default function LeadsPage() {
       }} saveLabel={create.isPending ? 'Creating...' : 'Create Lead'} isSubmitting={create.isPending}>
       <LeadFormFields value={form} onChange={setForm} disabled={create.isPending} />
     </AdminFormDrawer>
+    <AdminConfirmDialog
+      isOpen={confirmDelete.open}
+      title={confirmDelete.open && confirmDelete.type === 'bulk' ? `Delete ${confirmDelete.count} Leads` : 'Delete Lead'}
+      message={confirmDelete.open && confirmDelete.type === 'bulk'
+        ? `Are you sure you want to delete ${confirmDelete.count} selected leads? This action cannot be undone.`
+        : `Are you sure you want to delete "${confirmDelete.open && confirmDelete.type === 'single' ? confirmDelete.name : ''}"? This action cannot be undone.`}
+      confirmLabel={deleteMutation.isPending || bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete'}
+      variant="danger"
+      loading={deleteMutation.isPending || bulkDeleteMutation.isPending}
+      onConfirm={() => {
+        if (!confirmDelete.open) return;
+        if (confirmDelete.type === 'bulk') {
+          bulkDeleteMutation.mutate(confirmDelete.ids);
+        } else {
+          deleteMutation.mutate(confirmDelete.id);
+        }
+      }}
+      onClose={() => setConfirmDelete({ open: false })}
+    />
   </div>;
 }
