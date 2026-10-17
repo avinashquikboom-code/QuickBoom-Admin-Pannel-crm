@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminFormDrawer } from '@/components/admin';
-import { CreateLeadInput, CRM_LEAD_STAGES, Lead, LeadStage, UpdateLeadInput, leadsApi } from '@/lib/leads-api';
+import { CreateLeadInput, Lead, LeadStage, UpdateLeadInput, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 import { emptyLeadForm, LeadFormFields } from './LeadFormFields';
 
@@ -19,8 +19,10 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<CreateLeadInput>(emptyLeadForm);
   const detail = useQuery({ queryKey: ['lead', id], queryFn: () => leadsApi.detail(id), staleTime: 30_000, retry: false });
+  const stagesQuery = useQuery({ queryKey: ['lead-stages'], queryFn: leadsApi.stages, staleTime: 60_000 });
+  const configuredStages = stagesQuery.data || [];
   const lead = detail.data;
-  const stage = lead?.stage || CRM_LEAD_STAGES.find(item => item.key === lead?.status);
+  const stage = lead?.stage || configuredStages.find(item => item.key === lead?.status);
   const beginEdit = (record: Lead) => {
     setForm(Object.fromEntries(Object.keys(emptyLeadForm).map(key => [key, record[key as keyof Lead] ?? ''])) as unknown as CreateLeadInput);
     setEditing(true);
@@ -98,8 +100,10 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
           <AdminCard title="Company Details">{fields({ Company: lead.companyName, Category: lead.category, Website: lead.website, Address: lead.address, City: lead.city, State: lead.state, Country: lead.country, Pincode: lead.pincode })}</AdminCard>
           <div ref={stageSection} className="scroll-mt-4">
             <AdminCard title="CRM Pipeline Stage" description="Choose a stage to update this Lead.">
+              {stagesQuery.isLoading && <p role="status">Loading pipeline stages…</p>}
+              {stagesQuery.isError && <div role="alert"><p>Unable to load pipeline stages.</p><AdminButton size="sm" onClick={() => stagesQuery.refetch()}>Retry</AdminButton></div>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {CRM_LEAD_STAGES.map(target => {
+                {configuredStages.filter(target => target.isActive).map(target => {
                   const current = stage?.key === target.key;
                   return <button key={target.key} type="button" disabled={busy || current} aria-pressed={current}
                     onClick={() => changeStage.mutate(target)}

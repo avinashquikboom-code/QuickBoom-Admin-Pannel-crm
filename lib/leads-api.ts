@@ -169,14 +169,11 @@ export const leadsApi = {
   create: async (data: CreateLeadInput) => unwrap<Lead>(await api.post('/leads', { ...data, source: 'MANUAL', createdFrom: 'ADMIN_PANEL' })),
   update: async (id: number, data: UpdateLeadInput) => unwrap<Lead>(await api.patch(`/leads/${id}`, data)),
   stages: async (): Promise<LeadStage[]> => {
-    try {
-      const res = await api.get('/leads/stages');
-      const data = unwrap<any>(res);
-      const list = Array.isArray(data) ? data : (data?.data ?? CRM_LEAD_STAGES);
-      return Array.isArray(list) && list.length > 0 ? list : CRM_LEAD_STAGES;
-    } catch {
-      return CRM_LEAD_STAGES;
-    }
+    const res = await api.get('/leads/stages');
+    const data = unwrap<any>(res);
+    const list = Array.isArray(data) ? data : data?.data;
+    if (!Array.isArray(list)) throw new Error('Invalid pipeline stage response');
+    return [...list].sort((a, b) => a.sortOrder - b.sortOrder);
   },
   updateStage: async (id: number, data: { status?: string; stageId?: number; notes?: string }): Promise<Lead> => {
     const res = await api.patch(`/leads/${id}/status`, data);

@@ -6,7 +6,7 @@ import { Check, ChevronRight, GitCommit, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminPageHeader } from '@/components/admin';
-import { CRM_LEAD_STAGES, getStageDetails, LeadStage, leadsApi } from '@/lib/leads-api';
+import { LeadStage, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function LeadDetailsPage() {
@@ -15,9 +15,11 @@ export default function LeadDetailsPage() {
   const id = Number(params.id);
   const validId = Number.isInteger(id) && id > 0;
   const detail = useQuery({ queryKey: ['lead', id], queryFn: () => leadsApi.detail(id), enabled: validId });
+  const stagesQuery = useQuery({ queryKey: ['lead-stages'], queryFn: leadsApi.stages, staleTime: 60_000 });
+  const configuredStages = stagesQuery.data || [];
   const lead = detail.data;
 
-  const currentStage = lead ? (lead.stage || getStageDetails(lead.status)) : CRM_LEAD_STAGES[0];
+  const currentStage = lead?.stage || configuredStages.find(stage => stage.key === lead?.status) || { id: 0, key: lead?.status || '', name: lead?.status || 'Unknown', sortOrder: 0, color: '#64748b', bgColor: '#f1f5f9', borderColor: '#e2e8f0' };
 
   const updateStage = useMutation({
     mutationFn: async (targetStage: LeadStage) => {
@@ -76,8 +78,10 @@ export default function LeadDetailsPage() {
 
               <div>
                 <p className="text-xs font-bold text-slate-600 uppercase mb-2">Change Stage</p>
+                {stagesQuery.isLoading && <p role="status">Loading pipeline stages…</p>}
+                {stagesQuery.isError && <div role="alert">Unable to load pipeline stages. <AdminButton size="sm" onClick={() => stagesQuery.refetch()}>Retry</AdminButton></div>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {CRM_LEAD_STAGES.map((stage) => {
+                  {configuredStages.filter(stage => stage.isActive).map((stage) => {
                     const isCurrent = (lead.stageId === stage.id) || (lead.status === stage.key);
                     return (
                       <button
