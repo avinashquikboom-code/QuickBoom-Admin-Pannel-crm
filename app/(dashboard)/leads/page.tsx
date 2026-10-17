@@ -8,7 +8,7 @@ import { Download, Plus, RefreshCw, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination, AdminSearchInput, AdminSelect, AdminStatusBadge } from '@/components/admin';
-import { CreateLeadInput, CRM_LEAD_STAGES, Lead, leadsApi } from '@/lib/leads-api';
+import { CreateLeadInput, Lead, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 
 const emptyForm = emptyLeadForm;
@@ -23,6 +23,8 @@ export default function LeadsPage() {
   const [status, setStatus] = useState('ALL');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CreateLeadInput>(emptyForm);
+  const stageQuery = useQuery({ queryKey: ['lead-stages'], queryFn: leadsApi.stages, staleTime: 60_000 });
+  const configuredStages = stageQuery.data || [];
   const list = useQuery({
     queryKey: ['leads', { page, limit, search, status }],
     queryFn: () => leadsApi.list({ page, limit, search: search.trim() || undefined, status: status === 'ALL' ? undefined : status }),
@@ -63,7 +65,7 @@ export default function LeadsPage() {
     const csv = [
       ['Lead Name', 'Phone', 'Email', 'Company', 'Stage', 'Source', 'Created On'],
       ...rows.map(lead => [[lead.firstName, lead.lastName].filter(Boolean).join(' ') || lead.companyName, lead.phone, lead.email,
-        lead.companyName, lead.stage?.name || CRM_LEAD_STAGES.find(stage => stage.key === lead.status)?.name || lead.status,
+        lead.companyName, lead.stage?.name || configuredStages.find(stage => stage.key === lead.status)?.name || lead.status,
         lead.source, lead.createdAt]),
     ].map(row => row.map(escape).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
@@ -73,19 +75,6 @@ export default function LeadsPage() {
     anchor.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${rows.length} Leads${selectedOnPage.length ? '' : ' from the current page'}`);
-  };
-  const stageClasses: Record<string, string> = {
-    NEW: '!bg-sky-50 !text-sky-700 !border-sky-200',
-    CONTACTED: '!bg-emerald-50 !text-emerald-700 !border-emerald-200',
-    DETAILS_SEND: '!bg-indigo-50 !text-indigo-700 !border-indigo-200',
-    FOLLOW_UP: '!bg-purple-50 !text-purple-700 !border-purple-200',
-    VISIT_SCHEDULED: '!bg-cyan-50 !text-cyan-700 !border-cyan-200',
-    VISIT_DONE: '!bg-teal-50 !text-teal-700 !border-teal-200',
-    PROPOSAL_SENT: '!bg-blue-50 !text-blue-700 !border-blue-200',
-    NEGOTIATION: '!bg-amber-50 !text-amber-700 !border-amber-200',
-    FINAL_CALL: '!bg-orange-50 !text-orange-700 !border-orange-200',
-    WON: '!bg-green-50 !text-green-700 !border-green-200',
-    LOST: '!bg-rose-50 !text-rose-700 !border-rose-200',
   };
 
   return <div className="space-y-4 min-w-0 max-w-[1600px] mx-auto pb-16">
@@ -103,13 +92,14 @@ export default function LeadsPage() {
           placeholder="Search leads by name, phone, email, company..." className="min-w-[220px] lg:w-[310px]" />
         <AdminSelect aria-label="Filter Leads by stage" value={status} className="!py-2 !text-xs"
           onChange={(event) => { setStatus(event.target.value); setPage(1); }}
-          options={[{ value: 'ALL', label: 'All Stages' }, ...CRM_LEAD_STAGES.map(stage => ({ value: stage.key, label: stage.name }))]} />
+          options={[{ value: 'ALL', label: 'All Stages' }, ...configuredStages.map(stage => ({ value: stage.key, label: stage.name }))]} />
         <label className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">Per page:
           <AdminSelect aria-label="Leads per page" value={limit} className="!py-2 !text-xs"
             onChange={(event) => { setLimit(Number(event.target.value)); setPage(1); }}
             options={[10, 20, 50, 100].map(size => ({ value: String(size), label: String(size) }))} />
         </label>
       </div>}>
+      {stageQuery.isError && <div role="alert" className="flex items-center gap-3 px-5 py-2 text-sm text-rose-700">Unable to load pipeline stages.<AdminButton size="sm" variant="ghost" onClick={() => stageQuery.refetch()}>Retry</AdminButton></div>}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-2">
         <span className="text-xs text-slate-500">{selectedOnPage.length ? `${selectedOnPage.length} selected on this page` : 'All sources • Newest first'}</span>
         <div className="flex items-center gap-2">
@@ -140,9 +130,9 @@ export default function LeadsPage() {
               <p className="font-medium">{lead.phone || '—'}</p><p className="text-[11px] text-slate-500">{lead.email || '—'}</p></div> },
             { key: 'companyName', header: 'Company', headerClassName: 'w-[17%]', render: lead => <button type="button" onClick={event => { event.stopPropagation(); setSelectedLead({ id: lead.id, action: 'view' }); }} className="text-left line-clamp-3 break-words font-medium leading-snug hover:text-emerald-700">{lead.companyName || '—'}</button> },
             { key: 'status', header: 'Stage', headerClassName: 'w-[13%]', render: lead => {
-              const stage = lead.stage || CRM_LEAD_STAGES.find(item => item.key === lead.status);
-              return <AdminStatusBadge status={stage?.key || lead.status || 'UNKNOWN'} label={stage?.name || lead.status || '—'}
-                className={`!normal-case !tracking-normal !font-medium !text-[11px] ${stageClasses[stage?.key || lead.status] || ''}`} />;
+              const stage = lead.stage || configuredStages.find(item => item.key === lead.status);
+              return <span style={{ '--stage-bg': stage?.bgColor || '#f1f5f9', '--stage-text': stage?.color || '#475569', '--stage-border': stage?.borderColor || '#e2e8f0' } as React.CSSProperties}><AdminStatusBadge status={stage?.key || lead.status || 'UNKNOWN'} label={stage?.name || lead.status || '—'}
+                className="!normal-case !tracking-normal !font-medium !text-[11px] !bg-[var(--stage-bg)] !text-[var(--stage-text)] !border-[var(--stage-border)]" /></span>;
             } },
             { key: 'source', header: 'Source', headerClassName: 'w-[11%]', render: lead => <span className="font-medium break-words">
               {({ GOOGLE_PLACES: 'Google Places', DATA_CAPTURE: 'Data Capture', MANUAL: 'Manual', WEBSITE: 'Website', IMPORT: 'Import' } as Record<string, string>)[lead.source] || lead.source?.replace(/_/g, ' ') || '—'}
