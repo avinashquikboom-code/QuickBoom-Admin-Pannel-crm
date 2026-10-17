@@ -49,3 +49,39 @@ for (const status of [400, 404, 409, 500]) {
     assert.equal(patchCount, 0);
   });
 }
+
+test('posts only explicit capture IDs to the registered bulk import endpoint', async () => {
+  const calls = [];
+  const result = { imported: [{ captureId: 3, leadId: 7 }], alreadyImported: [], skipped: [], failed: [] };
+  const { dataCaptureApi } = loadApi({ post: async (...args) => { calls.push(args); return { success: true, data: result }; } });
+  assert.equal((await dataCaptureApi.importLeads([3])).data, result);
+  assert.equal(calls[0][0], '/data-capture/import-to-leads');
+  assert.equal(JSON.stringify(calls[0][1]), '{"ids":[3]}');
+});
+
+function loadWorkflow() {
+  const code = ts.transpileModule(fs.readFileSync(require.resolve('../lib/data-capture-workflow.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  const scope = { exports: {} };
+  vm.runInNewContext(code, scope);
+  return scope.exports;
+}
+
+test('mixed selection transitions from Validate 3 to Import 3 without touching the existing Lead', () => {
+  const { getDataCaptureSelection, getDataCaptureWorkflow } = loadWorkflow();
+  const records = [{ id: 1, status: 'LEAD_CREATED', importedLeadId: 7, isImported: true },
+    ...[2, 3, 4].map(id => ({ id, status: 'CAPTURED' })),
+    { id: 5, status: 'REJECTED' }, { id: 6, status: 'DUPLICATE' }, { id: 8, status: 'VALIDATED' }];
+  const ids = [1, 2, 3, 4, 5, 6, 99];
+  const before = getDataCaptureSelection(records, ids);
+  assert.equal(before.captured.length, 3);
+  assert.equal(before.validated.length, 0);
+  before.captured.forEach(record => { record.status = 'VALIDATED'; });
+  const after = getDataCaptureSelection(records, ids);
+  assert.equal(after.captured.length, 0);
+  assert.equal(JSON.stringify(after.validated.map(record => record.id)), '[2,3,4]');
+  after.validated.forEach(record => { record.status = 'LEAD_CREATED'; record.isImported = true; });
+  assert.equal(getDataCaptureSelection(records, ids).validated.length, 0);
+  assert.equal(getDataCaptureWorkflow({ status: 'LEAD_IMPORTED' }).isImported, true);
+});

@@ -6,10 +6,11 @@ import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Pho
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { dataCaptureApi } from '@/lib/data-capture-api';
-import { getDataCaptureWorkflow } from '@/lib/data-capture-workflow';
+import { getDataCaptureWorkflow, getDataCaptureSelection, normalizeDataCaptureStatus, isCaptured, isValidated, isLeadImported, isRejected, isDuplicate } from '@/lib/data-capture-workflow';
 import { useAuthStore } from '@/lib/store';
 import { isAuthenticatedUser } from '@/lib/access-control';
-import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton, AdminFormDrawer, AdminConfirmDialog, AdminPagination, AdminDataTable } from '@/components/admin';
+import { AdminPageHeader, AdminCard, AdminButton, AdminFormDrawer, AdminConfirmDialog, AdminPagination, AdminDataTable, AdminSearchInput, AdminSelect, AdminStatusBadge } from '@/components/admin';
+import { AdminRowActions } from '@/components/admin/tables/AdminRowActions';
 import { getErrorMessage } from '@/lib/utils';
 
 interface DuplicateMatch {
@@ -264,12 +265,13 @@ const STATUS_CONFIG: Record<
   string,
   { label: string; bg: string; text: string; border: string }
 > = {
-  ALL: { label: 'All Records', bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200' },
-  CAPTURED: { label: 'Captured', bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200' },
-  VALIDATED: { label: 'Validated', bg: 'bg-emerald-50', text: 'text-[#1AA14D]', border: 'border-emerald-200' },
-  REJECTED: { label: 'Rejected', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
-  DUPLICATE: { label: 'Duplicate', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  LEAD_CREATED: { label: 'Lead Imported', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+  ALL: { label: 'All Records', bg: '!bg-slate-100', text: '!text-slate-700', border: '!border-slate-200' },
+  CAPTURED: { label: 'Captured', bg: '!bg-sky-50', text: '!text-sky-700', border: '!border-sky-200' },
+  VALIDATED: { label: 'Validated', bg: '!bg-emerald-50', text: '!text-[#1AA14D]', border: '!border-emerald-200' },
+  REJECTED: { label: 'Rejected', bg: '!bg-rose-50', text: '!text-rose-700', border: '!border-rose-200' },
+  DUPLICATE: { label: 'Duplicate', bg: '!bg-amber-50', text: '!text-amber-700', border: '!border-amber-200' },
+  LEAD_IMPORTED: { label: 'Lead Imported', bg: '!bg-purple-50', text: '!text-purple-700', border: '!border-purple-200' },
+  LEAD_CREATED: { label: 'Lead Imported', bg: '!bg-purple-50', text: '!text-purple-700', border: '!border-purple-200' },
 };
 
 export default function DataCapturePage() {
@@ -415,6 +417,10 @@ export default function DataCapturePage() {
   });
 
   const places: CapturedPlace[] = listResponse?.data || [];
+  const selection = getDataCaptureSelection(places, selectedIds);
+  useEffect(() => {
+    setSelectedIds(previous => previous.filter(id => places.some(record => Number(record.id) === id)));
+  }, [listResponse]);
   const totalCount = listResponse?.total || 0;
   const totalPages = listResponse?.totalPages || 1;
 
@@ -574,15 +580,49 @@ export default function DataCapturePage() {
     mutationFn: async ({ ids, action, reason }: { ids: number[]; action: any; reason?: string }) => {
       return dataCaptureApi.bulk(ids, action, reason);
     },
-    onSuccess: (res: any) => {
+    onSuccess: (res: any, variables) => {
       const data = res?.data || res;
       toast.success(data?.message || 'Bulk operation completed successfully!');
-      setSelectedIds([]);
+      if (variables.action !== 'validate') setSelectedIds(previous => previous.filter(id => !variables.ids.includes(id)));
       queryClient.invalidateQueries({ queryKey: ['data-capture-list'] });
       queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] });
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
+
+  const bulkImportLock = React.useRef(false);
+  const bulkImportMutation = useMutation({
+    mutationFn: (ids: number[]) => dataCaptureApi.importLeads(ids),
+    onSuccess: async (response: any) => {
+      const result = response?.data ?? response;
+      const imported = Array.isArray(result?.imported) ? result.imported : [];
+      const alreadyImported = Array.isArray(result?.alreadyImported) ? result.alreadyImported : [];
+      const skipped = Array.isArray(result?.skipped) ? result.skipped : [];
+      const failed = Array.isArray(result?.failed) ? result.failed : [];
+      const completed = [...imported, ...alreadyImported].map((entry: any) => entry.captureId);
+      setSelectedIds(previous => previous.filter(id => !completed.includes(id)));
+      const summary = failed.length || skipped.length || alreadyImported.length
+        ? `${imported.length} imported, ${alreadyImported.length} already imported, ${skipped.length} skipped, ${failed.length} failed`
+        : `${imported.length} Leads imported successfully`;
+      if (failed.length) toast.error(summary);
+      else toast.success(summary);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['data-capture-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['data-capture-detail'] }),
+        queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] }),
+        queryClient.invalidateQueries({ queryKey: ['leads'] }),
+        ...(drawerRecordId.current ? [refreshDrawerAfterDecision(drawerRecordId.current, {})] : []),
+      ]);
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+    onSettled: () => { bulkImportLock.current = false; },
+  });
+  const importSelected = () => {
+    if (bulkImportLock.current || !selection.validated.length) return;
+    if (!window.confirm(`Import ${selection.validated.length} validated records as Leads?`)) return;
+    bulkImportLock.current = true;
+    bulkImportMutation.mutate(selection.validated.map(record => Number(record.id)));
+  };
 
   const manualCreateMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -615,6 +655,8 @@ export default function DataCapturePage() {
     onSuccess: async (result: any, id: number) => {
       await Promise.all([
         refreshDrawerAfterDecision(id, { data: result.record }),
+        queryClient.invalidateQueries({ queryKey: ['data-capture-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['data-capture-usage'] }),
         queryClient.invalidateQueries({ queryKey: ['leads'] }),
         queryClient.invalidateQueries({ queryKey: ['lead', result.lead.id] }),
       ]);
@@ -630,24 +672,25 @@ export default function DataCapturePage() {
     onSettled: () => { importInFlight.current = false; },
   });
   const importRecord = (record: CapturedPlace) => {
-    if (importInFlight.current || !record.id || !getDataCaptureWorkflow(record).isValidated) return;
+    if (isAnyMutating || importInFlight.current || !record.id || !getDataCaptureWorkflow(record).isValidated) return;
     importInFlight.current = true;
     importLeadMutation.mutate(record.id);
   };
   const renderImportButton = (record: CapturedPlace) => {
     const importing = importLeadMutation.isPending && importLeadMutation.variables === record.id;
     return <button type="button" disabled={isAnyMutating} onClick={() => importRecord(record)}
-      className="h-[34px] px-3 rounded-lg bg-brand-800 hover:bg-brand-900 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+      className="h-[34px] px-3 rounded-lg bg-[#23C45E] hover:bg-[#1AA14D] text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
       {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
       {importing ? 'Importing...' : 'Import Lead'}
     </button>;
   };
 
   const isAnyMutating =
+    bulkActionMutation.isPending ||
     validateMutation.isPending ||
     rejectMutation.isPending ||
     deleteMutation.isPending ||
-    updateMutation.isPending || importLeadMutation.isPending;
+    updateMutation.isPending || importLeadMutation.isPending || bulkImportMutation.isPending;
 
   // Lock body scroll and handle Escape key for Detail Drawer
   useEffect(() => {
@@ -812,205 +855,27 @@ export default function DataCapturePage() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
-      {/* 1. STANDARD PAGE HEADER */}
+    <div className="space-y-4 min-w-0 max-w-[1600px] mx-auto pb-16 text-slate-800 animate-in fade-in-50 duration-200">
       <AdminPageHeader
         title="Data Capture"
-        description="Extract and verify business prospects with Google Places API integration."
-        icon={Globe}
-        iconColor="text-[#1AA14D]"
-        badge={{
-          text: 'DATA CAPTURE & PROSPECTION',
-          icon: Globe,
-          variant: 'emerald',
-        }}
-        breadcrumbs={[
-          { label: 'CRM', href: '/crm' },
-          { label: 'Data Capture' },
-        ]}
-        actions={
-          <div className="flex flex-wrap items-center gap-2.5">
-            <AdminButton
-              variant="outline"
-              size="md"
-              icon={RefreshCw}
-              onClick={() => {
-                refetchList();
-                refetchUsage();
-              }}
-              title="Refresh capture list and quota"
-            >
-              Sync
-            </AdminButton>
-
-
-            <Link href="/data-capture/usage">
-              <AdminButton
-                variant="outline"
-                size="md"
-                icon={Activity}
-              >
-                Usage & Quota
-              </AdminButton>
-            </Link>
-
-            {canCreate && (
-              <>
-                <AdminButton
-                  variant="outline"
-                  size="md"
-                  icon={Plus}
-                  onClick={() => setCreateModalOpen(true)}
-                >
-                  Add Record
-                </AdminButton>
-
-                <AdminButton
-                  variant="primary"
-                  size="md"
-                  icon={Search}
-                  onClick={() => setExtractModalOpen(true)}
-                >
-                  Extract Places
-                </AdminButton>
-              </>
-            )}
-          </div>
-        }
+        description="Capture and manage business prospects from Google Places."
+        icon={Database}
+        actions={<>
+          <AdminButton variant="glass" size="sm" icon={RefreshCw} onClick={() => { refetchList(); refetchUsage(); }}>Refresh</AdminButton>
+          {canCreate && <AdminButton size="sm" icon={Plus} onClick={() => setExtractModalOpen(true)}>Capture New</AdminButton>}
+        </>}
       />
-
-      {/* 2. KPI STAT CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <AdminStatCard
-          title="Total Captured"
-          value={usage?.totalLeadsCaptured ?? totalCount}
-          description="Verified business records"
-          icon={Database}
-          iconBg="primary"
-        />
-        <AdminStatCard
-          title="Validated Prospects"
-          value={usage?.validatedCount ?? places.filter((p) => p.status === 'VALIDATED').length}
-          description="Reviewed business records"
-          icon={ShieldCheck}
-          iconBg="primary"
-        />
-
-        <AdminStatCard
-          title="API Quota Remaining"
-          value={`${usage?.quotaRemaining ?? '—'} / ${usage?.quotaLimit ?? '—'}`}
-          description={`${usage?.totalGoogleApiCalls || 0} API requests made`}
-          icon={Layers}
-          iconBg="blue"
-        />
-      </div>
-
-      {/* 3. STATUS TABS & SEARCH / FILTER BAR */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-4 shadow-xs space-y-4">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-          {(['ALL', 'CAPTURED', 'VALIDATED', 'DUPLICATE', 'REJECTED'] as StatusTab[]).map((tab) => {
-            const conf = STATUS_CONFIG[tab];
-            const isActive = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => {
-                  setActiveTab(tab);
-                  setPage(1);
-                }}
-                className={`px-4 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer shrink-0 flex items-center gap-2 border ${
-                  isActive
-                    ? 'bg-[#1AA14D] text-white border-[#1AA14D] shadow-sm shadow-emerald-600/20'
-                    : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <span>{conf.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search, Source Filter & Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-3 w-full sm:w-auto flex-1 max-w-md">
-            <div className="relative w-full">
-              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search business name, phone, email, category..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 hidden md:inline">Source:</span>
-              <select
-                value={sourceFilter}
-                onChange={(e) => {
-                  setSourceFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-              >
-                <option value="ALL">All Sources</option>
-                <option value="GOOGLE_PLACES">Google Places</option>
-                <option value="MANUAL">Manual Entry</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 hidden md:inline">Created From:</span>
-              <select
-                value={createdFromFilter}
-                onChange={(e) => {
-                  setCreatedFromFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#23C45E]"
-              >
-                <option value="ALL">All Platforms</option>
-                <option value="MOBILE_APP">📱 Mobile App</option>
-                <option value="ADMIN_PANEL">🖥 Admin Panel</option>
-              </select>
-            </div>
-
-            <AdminButton
-              variant="outline"
-              size="sm"
-              icon={Download}
-              onClick={() =>
-                handleExportCSV(
-                  selectedIds.length > 0
-                    ? places.filter((p) => p.id != null && selectedIds.includes(Number(p.id)))
-                    : places
-                )
-              }
-              disabled={places.length === 0}
-            >
-              Export CSV
-            </AdminButton>
-          </div>
-        </div>
-      </div>
 
       {/* 4. BULK ACTIONS BAR (When records selected) */}
       {selectedIds.length > 0 && (
         <div className="bg-[#1B2533] text-white rounded-2xl px-5 py-3 shadow-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center gap-2.5 text-xs font-bold">
             <span className="w-6 h-6 rounded-full bg-[#23C45E] text-slate-950 flex items-center justify-center font-black text-[11px]">
-              {selectedIds.length}
+              {selection.selected.length}
             </span>
             <span>records selected</span>
             {places.length > 0 && (
-              <button
+              <AdminButton size="sm" variant="glass"
                 type="button"
                 onClick={handleSelectAllOnPage}
                 className="ml-2 text-xs text-emerald-400 hover:text-emerald-300 underline font-semibold cursor-pointer"
@@ -1021,51 +886,59 @@ export default function DataCapturePage() {
                   .every((p) => selectedIds.includes(Number(p.id)))
                   ? 'Deselect page'
                   : 'Select all on page'}
-              </button>
+              </AdminButton>
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {canEdit && (
+            {canEdit && selection.captured.length > 0 && (
               <>
-                <button
-                  onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'validate' })}
-                  disabled={bulkActionMutation.isPending}
+                <AdminButton size="sm" variant="primary"
+                  onClick={() => bulkActionMutation.mutate({ ids: selection.captured.map(record => Number(record.id)), action: 'validate' })}
+                  disabled={isAnyMutating}
                   className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Validate All</span>
-                </button>
+                  <span>Validate {selection.captured.length}</span>
+                </AdminButton>
 
 
 
-                <button
-                  onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'mark_duplicate' })}
-                  disabled={bulkActionMutation.isPending}
+                <AdminButton size="sm" variant="glass"
+                  onClick={() => bulkActionMutation.mutate({ ids: selection.captured.map(record => Number(record.id)), action: 'mark_duplicate' })}
+                  disabled={isAnyMutating}
                   className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
                 >
                   <span>Mark Duplicate</span>
-                </button>
+                </AdminButton>
               </>
             )}
 
-            {canDelete && (
-              <button
-                onClick={() => bulkActionMutation.mutate({ ids: selectedIds, action: 'delete' })}
-                disabled={bulkActionMutation.isPending}
+            {canEdit && selection.validated.length > 0 && (
+              <AdminButton size="sm" variant="primary" type="button" onClick={importSelected} disabled={isAnyMutating}
+                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50">
+                {bulkImportMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                {bulkImportMutation.isPending ? `Importing ${bulkImportMutation.variables?.length} Leads...` : `+ Import ${selection.validated.length} Leads`}
+              </AdminButton>
+            )}
+
+            {canDelete && selection.deletable.length > 0 && (
+              <AdminButton size="sm" variant="glass"
+                onClick={() => bulkActionMutation.mutate({ ids: selection.deletable.map(record => Number(record.id)), action: 'delete' })}
+                disabled={isAnyMutating}
                 className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete</span>
-              </button>
+              </AdminButton>
             )}
 
-            <button
+            <AdminButton size="sm" variant="glass"
               onClick={() => setSelectedIds([])}
               className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
             >
               Deselect
-            </button>
+            </AdminButton>
           </div>
         </div>
       )}
@@ -1074,26 +947,41 @@ export default function DataCapturePage() {
       <AdminCard
         title="Captured Business Prospects"
         description={`Showing ${places.length} of ${totalCount} records • Page ${page} of ${totalPages}`}
+        className="[&>div:first-child]:flex-wrap [&>div:first-child]:items-start [&>div:first-child>div:last-child]:min-w-0 [&>div:first-child>div:last-child]:max-w-full [&>div:first-child>div:last-child]:shrink"
+        bodyClassName="p-0"
         headerActions={
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-bold hidden sm:inline">Per page:</span>
-            <select
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700"
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
+          <div className="flex w-full flex-wrap items-center gap-2 lg:justify-end">
+            <AdminSearchInput value={searchQuery} onChange={(value) => { setSearchQuery(value); setPage(1); }}
+              placeholder="Search business, phone, email, location..." className="min-w-[220px] lg:w-[300px]" />
+            <AdminSelect aria-label="Filter by status" value={activeTab} className="!py-2 !text-xs"
+              onChange={(event) => { setActiveTab(event.target.value as StatusTab); setPage(1); }}
+              options={(['ALL', 'CAPTURED', 'VALIDATED', 'LEAD_CREATED', 'REJECTED', 'DUPLICATE'] as StatusTab[])
+                .map(status => ({ value: status, label: status === 'ALL' ? 'All Statuses' : STATUS_CONFIG[status].label }))} />
+            <label className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
+              Per page:
+              <AdminSelect aria-label="Records per page" value={limit} className="!py-2 !text-xs"
+                onChange={(event) => { setLimit(Number(event.target.value)); setPage(1); }}
+                options={[10, 20, 50, 100].map(size => ({ value: String(size), label: String(size) }))} />
+            </label>
           </div>
         }
       >
-
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminSelect aria-label="Filter by source" value={sourceFilter} className="!py-2 !text-xs"
+              onChange={(event) => { setSourceFilter(event.target.value); setPage(1); }}
+              options={[{ value: 'ALL', label: 'All Sources' }, { value: 'GOOGLE_PLACES', label: 'Google Places' }, { value: 'MANUAL', label: 'Manual Entry' }]} />
+            <AdminSelect aria-label="Filter by platform" value={createdFromFilter} className="!py-2 !text-xs"
+              onChange={(event) => { setCreatedFromFilter(event.target.value); setPage(1); }}
+              options={[{ value: 'ALL', label: 'All Platforms' }, { value: 'MOBILE_APP', label: 'Mobile App' }, { value: 'ADMIN_PANEL', label: 'Admin Panel' }]} />
+            <Link href="/data-capture/usage" className="px-2 text-xs font-medium text-slate-500 hover:text-emerald-700">Usage & quota</Link>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {canCreate && <AdminButton variant="outline" size="sm" icon={Plus} onClick={() => setCreateModalOpen(true)}>Add Record</AdminButton>}
+            <AdminButton variant="outline" size="sm" icon={Download} disabled={places.length === 0}
+              onClick={() => handleExportCSV(selectedIds.length ? places.filter(record => record.id != null && selectedIds.includes(Number(record.id))) : places)}>Export CSV</AdminButton>
+          </div>
+        </div>
 
         {isError ? (
           <div role="alert" className="p-8 text-center space-y-3">
@@ -1104,11 +992,13 @@ export default function DataCapturePage() {
           <AdminDataTable<CapturedPlace>
             data={places}
             loading={isLoading}
-            emptyTitle="No captured records found"
+            emptyTitle="No captured prospects found"
             emptyDescription="Try changing your search or filters, or start a new capture."
             keyExtractor={(record, index) => String(record.id ?? index)}
             onRowClick={openDetailDrawer}
-            minWidth="min-w-[1000px]"
+            minWidth="min-w-[1120px] table-fixed"
+            className="!rounded-none !border-0 !shadow-none [&_td]:!px-3 [&_td]:!py-3 [&_th]:!px-3 [&_td]:align-top"
+            rowClassName={(record) => selectedIds.includes(Number(record.id)) ? 'bg-emerald-50/50 hover:!bg-emerald-50/70' : ''}
             columns={[
               {
                 key: 'selection',
@@ -1175,37 +1065,44 @@ export default function DataCapturePage() {
                   );
                 },
               },
-              { key: 'businessName', header: 'Business', render: (record) => (
-                <div><p className="font-bold text-slate-900">{record.businessName}</p>
-                  <p className="text-slate-500 mt-1">{record.category || '—'}</p></div>
+              { key: 'businessName', header: 'Business', headerClassName: 'w-[20%]', render: (record) => (
+                <div className="min-w-0"><p className="font-semibold text-slate-900 line-clamp-2 break-words leading-snug" title={record.businessName}>{record.businessName}</p>
+                  <p className="text-[11px] font-normal text-slate-500 mt-1 truncate">{record.category || '—'}</p></div>
               ) },
-              { key: 'phone', header: 'Contact', render: (record) => (
-                <div><p>{record.phone || '—'}</p><p className="text-slate-500 mt-1">{record.email || '—'}</p></div>
+              { key: 'phone', header: 'Contact', headerClassName: 'w-[15%]', render: (record) => (
+                <div className="space-y-1 font-normal break-words"><p className="font-medium">{record.phone || '—'}</p><p className="text-[11px] text-slate-500">{record.email || '—'}</p></div>
               ) },
-              { key: 'address', header: 'Location', className: 'max-w-xs' },
-              { key: 'status', header: 'Status', render: (record) => {
+              { key: 'address', header: 'Location', headerClassName: 'w-[19%]', render: (record) => (
+                <p className="line-clamp-3 break-words font-normal leading-[1.35] text-slate-600" title={record.address}>{record.address || '—'}</p>
+              ) },
+              { key: 'status', header: 'Status', headerClassName: 'w-[12%]', render: (record) => {
                 const recordWorkflow = getDataCaptureWorkflow(record);
-                const status = STATUS_CONFIG[recordWorkflow.displayStatus];
-                return <span className={`inline-flex rounded-full border px-2.5 py-1 ${status?.bg || 'bg-slate-50'} ${status?.text || 'text-slate-700'} ${status?.border || 'border-slate-200'}`}>
-                  {status?.label || recordWorkflow.displayStatus}
-                </span>;
+                const status = STATUS_CONFIG[recordWorkflow.displayStatus] || (recordWorkflow.canDecide ? STATUS_CONFIG.CAPTURED : undefined);
+                return <AdminStatusBadge status={recordWorkflow.displayStatus} label={status?.label || recordWorkflow.displayStatus}
+                  className={`!normal-case !tracking-normal !font-medium !text-[11px] ${[status?.bg, status?.text, status?.border].filter(Boolean).join(' ')}`} />;
               } },
-              { key: 'source', header: 'Source' },
-              { key: 'capturedAt', header: 'Captured', render: (record) => {
+              { key: 'source', header: 'Source', headerClassName: 'w-[11%]', render: (record) => <span className="text-[10px] font-medium break-words">{record.source || '—'}</span> },
+              { key: 'capturedAt', header: 'Captured', headerClassName: 'w-[10%]', render: (record) => {
                 const date = new Date(record.capturedAt);
-                return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+                return Number.isNaN(date.getTime()) ? '—' : <div className="space-y-1 font-normal whitespace-nowrap">
+                  <p>{date.toLocaleDateString('en-GB')}</p><p className="text-[11px] text-slate-500">{date.toLocaleTimeString('en-GB')}</p>
+                </div>;
               } },
-              { key: 'actions', header: 'Actions', render: (record) => {
+              { key: 'actions', header: 'Actions', headerClassName: 'w-[180px]', render: (record) => {
                 const recordWorkflow = getDataCaptureWorkflow(record);
-                if (recordWorkflow.isImported) {
-                  return recordWorkflow.leadId
-                    ? <Link href={`/leads/${recordWorkflow.leadId}`} onClick={(event) => event.stopPropagation()} className="text-brand-900 font-bold hover:underline">View Lead</Link>
-                    : <span role="status" className="inline-flex items-center gap-1.5 text-brand-900 font-semibold"><Check className="w-4 h-4" />Lead Imported</span>;
-                }
-                return <div className="flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
-                  <button type="button" className="text-emerald-700 font-bold hover:underline"
-                    onClick={() => openDetailDrawer(record)}>View details</button>
-                  {recordWorkflow.isValidated && canEdit && renderImportButton(record)}
+                const hasImportAction = recordWorkflow.isValidated && canEdit;
+                return <div className="flex items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
+                  {recordWorkflow.isImported ? (recordWorkflow.leadId
+                    ? <Link href={`/leads/${recordWorkflow.leadId}`} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">View Lead<ExternalLink className="h-3.5 w-3.5" /></Link>
+                    : <span className="text-xs font-medium text-purple-700">Lead Imported</span>)
+                    : hasImportAction ? renderImportButton(record)
+                    : <AdminButton type="button" variant="outline" size="sm" onClick={() => openDetailDrawer(record)}>View details</AdminButton>}
+                  <AdminRowActions label={`More actions for ${record.businessName}`} items={[
+                    ...((recordWorkflow.isImported || hasImportAction) ? [{ label: 'View Details', onSelect: () => { void openDetailDrawer(record); } }] : []),
+                    ...(canEdit && !recordWorkflow.isImported ? [{ label: 'Edit', onSelect: async () => { await openDetailDrawer(record); setIsEditing(true); } }] : []),
+                    ...(canEdit && recordWorkflow.canDecide ? [{ label: 'Mark Duplicate', onSelect: () => bulkActionMutation.mutate({ ids: [Number(record.id)], action: 'mark_duplicate' }) }] : []),
+                    ...(canDelete && !recordWorkflow.isImported ? [{ label: 'Delete', danger: true, onSelect: () => { setRecordToDelete(Number(record.id)); setDeleteConfirmOpen(true); } }] : []),
+                  ]} disabled={isAnyMutating} />
                 </div>;
               } },
             ]}
