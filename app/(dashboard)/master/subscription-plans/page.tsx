@@ -29,11 +29,12 @@ export default function SubscriptionPlansPage() {
     code: '',
     description: '',
     monthlyPrice: 9999,
-    yearlyPrice: 95990,
+    yearlyPrice: 95990.40,
     userLimit: 5,
     leadLimit: 500,
     features: ['4 Reels', '3 Creative Posts', '1 Influencer Promotion', '3 Stories'],
     isActive: true,
+    taxRateBps: 1800, yearlyDiscountBps: 2000, billingIntervals: ['MONTHLY', 'YEARLY'], isRecommended: false,
   });
   const [featureInput, setFeatureInput] = useState('');
 
@@ -110,6 +111,7 @@ export default function SubscriptionPlansPage() {
         leadLimit: Number(payload.leadLimit),
         features: Array.isArray(payload.features) ? payload.features : [],
         isActive: payload.isActive !== false,
+        taxRateBps: payload.taxRateBps, yearlyDiscountBps: payload.yearlyDiscountBps, billingIntervals: payload.billingIntervals, isRecommended: payload.isRecommended,
       };
 
       if (editingPackage) {
@@ -236,11 +238,12 @@ export default function SubscriptionPlansPage() {
       code: '',
       description: '',
       monthlyPrice: 9999,
-      yearlyPrice: 95990,
+      yearlyPrice: 95990.40,
       userLimit: 5,
       leadLimit: 500,
       features: ['4 Reels', '3 Creative Posts', '1 Influencer Promotion', '3 Stories'],
       isActive: true,
+      taxRateBps: 1800, yearlyDiscountBps: 2000, billingIntervals: ['MONTHLY', 'YEARLY'], isRecommended: false,
     });
     setFeatureInput('');
     setShowPackageModal(true);
@@ -258,6 +261,7 @@ export default function SubscriptionPlansPage() {
       leadLimit: Number(pkg.leadLimit) || 500,
       features: Array.isArray(pkg.features) ? [...pkg.features] : [],
       isActive: pkg.isActive !== false,
+      taxRateBps: pkg.taxRateBps ?? 1800, yearlyDiscountBps: pkg.yearlyDiscountBps ?? 2000, billingIntervals: pkg.billingIntervals ?? ['MONTHLY', 'YEARLY'], isRecommended: pkg.isRecommended ?? false,
     });
     setFeatureInput('');
     setShowPackageModal(true);
@@ -354,6 +358,7 @@ export default function SubscriptionPlansPage() {
         }
       />
 
+      <Link className="text-emerald-700 underline" href="/subscribe">Preview customer plans and checkout</Link>
       {/* 2. STANDARD PLANS GRID */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -595,6 +600,12 @@ export default function SubscriptionPlansPage() {
         }
       >
         <div className="space-y-4 text-xs">
+          <div className="grid grid-cols-2 gap-3">
+            <label>GST (%)<input type="number" min="0" max="100" step="0.01" value={packageForm.taxRateBps / 100} onChange={e => setPackageForm({ ...packageForm, taxRateBps: Math.round(Number(e.target.value) * 100) })} className="w-full border rounded-lg p-2" /></label>
+            <label>Yearly discount (%)<input type="number" min="0" max="100" step="0.01" value={packageForm.yearlyDiscountBps / 100} onChange={e => setPackageForm({ ...packageForm, yearlyDiscountBps: Math.round(Number(e.target.value) * 100) })} className="w-full border rounded-lg p-2" /></label>
+            {['MONTHLY', 'YEARLY'].map(c => <label key={c}><input type="checkbox" checked={packageForm.billingIntervals.includes(c)} onChange={e => setPackageForm({ ...packageForm, billingIntervals: e.target.checked ? [...packageForm.billingIntervals, c] : packageForm.billingIntervals.filter(x => x !== c) })} /> {c}</label>)}
+            <label><input type="checkbox" checked={packageForm.isRecommended} onChange={e => setPackageForm({ ...packageForm, isRecommended: e.target.checked })} /> Most Popular</label>
+          </div>
           <div>
             <label className="block font-bold text-slate-700 mb-1">Package Name</label>
             <input
@@ -632,7 +643,8 @@ export default function SubscriptionPlansPage() {
             <label className="block font-bold text-slate-700 mb-1">Yearly Price (₹)</label>
             <input
               type="number"
-              value={packageForm.yearlyPrice}
+              readOnly
+                value={Number((packageForm.monthlyPrice * 12 * (1 - packageForm.yearlyDiscountBps / 10000)).toFixed(2))}
               onChange={(e) => setPackageForm({ ...packageForm, yearlyPrice: Number(e.target.value) })}
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-[#23C45E]"
             />

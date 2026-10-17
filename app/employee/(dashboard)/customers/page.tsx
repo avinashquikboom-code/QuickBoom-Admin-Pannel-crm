@@ -7,10 +7,10 @@ import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { isAuthenticatedUser } from '@/lib/access-control';
 
-type CustomerTab = 'All' | 'Active' | 'Upcoming' | 'Inactive';
-type CustomerStatus = 'Active' | 'Upcoming' | 'Inactive';
+type CustomerTab = 'All' | 'Active' | 'Pending Activation' | 'Upcoming' | 'Inactive';
+type CustomerStatus = 'Active' | 'Pending Activation' | 'Upcoming' | 'Inactive';
 
-const TABS: CustomerTab[] = ['All', 'Active', 'Upcoming', 'Inactive'];
+const TABS: CustomerTab[] = ['All', 'Active', 'Pending Activation', 'Upcoming', 'Inactive'];
 
 interface CustomerView {
   key: string;
@@ -21,6 +21,8 @@ interface CustomerView {
   plan: string | null;
   startDate: string | null;
   endDate: string | null;
+  activationDate?: string | null;
+  purchaseDate?: string | null;
   commission: number | null;
   phone: string;
   location: string;
@@ -28,28 +30,21 @@ interface CustomerView {
 
 interface CustomersResult {
   customers: CustomerView[];
-  counts: Partial<Record<'all' | 'active' | 'upcoming' | 'inactive', number>>;
+  counts: Partial<Record<'all' | 'active' | 'pendingActivation' | 'upcoming' | 'inactive', number>>;
 }
 
 const text = (value: unknown) => (value === null || value === undefined ? '' : String(value).trim());
 
-// Mirrors the mobile CustomerModel status rules: Active > Upcoming > Inactive.
+// Mirrors the customer status rules: Active > Pending Activation > Inactive.
 function mapCustomer(raw: any, index: number): CustomerView {
-  const rawStatus = text(raw.customerStatus || raw.status || 'ACTIVE').toUpperCase();
-  const custStatus = ['ACTIVE', 'UPCOMING', 'COMPLETED', 'INACTIVE'].includes(rawStatus)
-    ? rawStatus
-    : raw.isActive === false
-      ? 'INACTIVE'
-      : 'ACTIVE';
+  const rawStatus = text(raw.customerStatus || raw.status).toUpperCase();
   const subStatus = text(raw.subscriptionStatus).toUpperCase();
-  const leadStatus = text(raw.leadStatus).toUpperCase();
-  const stage = text(raw.leadStageName).toLowerCase();
-  const isFinalCall = leadStatus === 'FINAL_CALL' || stage.includes('final');
-  const isSubActive = subStatus === 'ACTIVE' || (custStatus === 'ACTIVE' && raw.hasUpcomingCall === false);
-  const hasUpcoming =
-    !isSubActive &&
-    (custStatus === 'UPCOMING' || isFinalCall || raw.hasUpcomingCall === true || !!raw.upcomingCall);
-  const status: CustomerStatus = isSubActive ? 'Active' : hasUpcoming ? 'Upcoming' : 'Inactive';
+  const isPending = subStatus === 'PENDING_ACTIVATION';
+  const status: CustomerStatus = rawStatus === 'ACTIVE'
+    ? 'Active'
+    : isPending
+      ? 'Pending Activation'
+      : 'Inactive';
 
   const contact = text(raw.contactFullName || raw.contactPerson);
   const customerName = text(raw.customerName || contact);
@@ -82,6 +77,8 @@ function mapCustomer(raw: any, index: number): CustomerView {
     plan: plan && plan !== 'No Active Plan' ? plan : null,
     startDate: text(raw.subscriptionStartDate) || null,
     endDate: text(raw.subscriptionEndDate) || null,
+    activationDate: text(raw.activationDate) || null,
+    purchaseDate: text(raw.purchaseDate || raw.createdAt) || null,
     commission,
     phone: text(raw.phone),
     location,
@@ -99,6 +96,7 @@ const formatCurrency = (value: number) => `₹${value.toLocaleString('en-IN')}`;
 
 const STATUS_STYLES: Record<CustomerStatus, { badge: string; dot: string }> = {
   Active: { badge: 'bg-emerald-50 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
+  'Pending Activation': { badge: 'bg-amber-50 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
   Upcoming: { badge: 'bg-blue-50 text-blue-800 border-blue-200', dot: 'bg-blue-600' },
   Inactive: { badge: 'bg-red-50 text-red-800 border-red-200', dot: 'bg-red-500' },
 };
@@ -127,6 +125,7 @@ export default function EmployeeCustomersPage() {
   const query = useQuery<CustomersResult>({
     queryKey: ['employee-customers', search],
     enabled: canView,
+    refetchInterval: 15000,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const response: any = await api.get('/customers', {
@@ -166,16 +165,22 @@ export default function EmployeeCustomersPage() {
   const customers = useMemo(() => query.data?.customers ?? [], [query.data]);
 
   const tabCounts = useMemo(() => {
-    const derived = { Active: 0, Upcoming: 0, Inactive: 0 };
+    const derived: Record<CustomerStatus, number> = {
+      Active: 0,
+      'Pending Activation': 0,
+      Upcoming: 0,
+      Inactive: 0,
+    };
     customers.forEach((customer) => {
-      derived[customer.status] += 1;
+      derived[customer.status] = (derived[customer.status] || 0) + 1;
     });
     const backend = query.data?.counts ?? {};
     const pick = (value: number | undefined, fallback: number) =>
-      backend.all && value ? Number(value) : fallback;
+      backend.all && value !== undefined ? Number(value) : fallback;
     return {
       All: backend.all ?? customers.length,
       Active: pick(backend.active, derived.Active),
+      'Pending Activation': pick(backend.pendingActivation, derived['Pending Activation']),
       Upcoming: pick(backend.upcoming, derived.Upcoming),
       Inactive: pick(backend.inactive, derived.Inactive),
     } as Record<CustomerTab, number>;
@@ -306,7 +311,9 @@ export default function EmployeeCustomersPage() {
                 {showPlanBlock && (
                   <div className="mt-4 grid gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
                     {customer.plan && <Detail label="Plan" value={customer.plan} />}
-                    {customer.startDate && <Detail label="Started" value={formatDate(customer.startDate)} />}
+                    {customer.status === 'Pending Activation'
+                      ? (customer.activationDate && <Detail label="Scheduled Activation" value={formatDate(customer.activationDate)} />)
+                      : (customer.startDate && <Detail label="Started" value={formatDate(customer.startDate)} />)}
                     {customer.endDate && <Detail label="Expires" value={formatDate(customer.endDate)} />}
                     {customer.commission !== null && (
                       <Detail

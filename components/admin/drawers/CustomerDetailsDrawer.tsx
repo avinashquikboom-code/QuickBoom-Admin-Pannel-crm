@@ -75,6 +75,7 @@ export function CustomerDetailsDrawer({
   const planName = customer?.plan || customer?.currentSubscription?.planName || 'No Active Plan';
   const subStatus = customer?.subscriptionStatus || (customer?.currentSubscription ? 'ACTIVE' : 'INACTIVE');
   const isSubActive = subStatus === 'ACTIVE';
+  const isPendingActivation = subStatus === 'PENDING_ACTIVATION';
 
   return (
     <AdminFormDrawer
@@ -338,9 +339,13 @@ export function CustomerDetailsDrawer({
                     <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">Active Subscription Tier</h4>
                   </div>
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                    isSubActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    isSubActive
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : isPendingActivation
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-rose-100 text-rose-800'
                   }`}>
-                    {subStatus}
+                    {subStatus === 'PENDING_ACTIVATION' ? 'PENDING ACTIVATION' : subStatus}
                   </span>
                 </div>
 
@@ -358,12 +363,20 @@ export function CustomerDetailsDrawer({
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-2 text-xs">
+                <div className="grid grid-cols-4 gap-2 pt-2 text-xs">
                   <div>
                     <span className="text-[10px] font-bold uppercase text-slate-400">Purchase Date</span>
                     <p className="font-bold text-slate-800 mt-0.5">
-                      {customer.subscriptionCreatedAt || customer.createdAt
-                        ? new Date(customer.subscriptionCreatedAt || customer.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      {customer.purchaseDate || customer.subscriptionCreatedAt || customer.createdAt
+                        ? new Date(customer.purchaseDate || customer.subscriptionCreatedAt || customer.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Activation Date</span>
+                    <p className="font-bold text-slate-800 mt-0.5">
+                      {customer.activationDate || customer.subscriptionStartDate
+                        ? new Date(customer.activationDate || customer.subscriptionStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                         : '—'}
                     </p>
                   </div>
@@ -392,9 +405,10 @@ export function CustomerDetailsDrawer({
                   <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">Subscription History</h4>
                   <div className="divide-y divide-slate-100">
                     {customer.subscriptions.map((s: any) => {
-                      const isUpcoming = s.startDate && new Date(s.startDate) > new Date();
+                      const isPending = s.status === 'PENDING_ACTIVATION';
+                      const isUpcoming = !isPending && s.startDate && new Date(s.startDate) > new Date();
                       const isExpired = s.endDate && new Date(s.endDate) < new Date();
-                      const statusText = isUpcoming ? 'UPCOMING' : isExpired ? 'EXPIRED' : (s.status || 'ACTIVE');
+                      const statusText = isPending ? 'PENDING ACTIVATION' : isUpcoming ? 'UPCOMING' : isExpired ? 'EXPIRED' : (s.status || 'ACTIVE');
 
                       return (
                         <div key={s.id} className="py-2.5 flex items-center justify-between">
@@ -402,11 +416,12 @@ export function CustomerDetailsDrawer({
                             <p className="font-bold text-slate-800">{s.plan?.name || `Plan #${s.planId}`}</p>
                             <p className="text-[10px] text-slate-400">
                               {s.createdAt ? `Purchased: ${new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} • ` : ''}
-                              {s.startDate ? new Date(s.startDate).toLocaleDateString() : 'N/A'} → {s.endDate ? new Date(s.endDate).toLocaleDateString() : 'N/A'}
+                              {s.activationDate ? `Activation: ${new Date(s.activationDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} • ` : ''}
+                              {s.startDate ? new Date(s.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'} → {s.endDate ? new Date(s.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                             </p>
                           </div>
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                            statusText === 'UPCOMING'
+                            statusText === 'PENDING ACTIVATION' || statusText === 'UPCOMING'
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : statusText === 'ACTIVE'
                               ? 'bg-emerald-50 text-emerald-700'

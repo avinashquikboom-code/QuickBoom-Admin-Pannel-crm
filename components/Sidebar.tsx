@@ -238,9 +238,10 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
 
   // ACCORDION SINGLE SOURCE OF TRUTH: Only ONE expandable parent section open at a time
   const retiredAdminRoutes = [
-    '/leads', '/customers', '/register', '/customer-registration',
+    '/leads', '/register', '/customer-registration',
     '/customer-calendar', '/schedules', '/super-admin',
     '/master/lead-sources',
+    '/customers/coupons', '/customers/subscriptions', '/customers/offline-requests', '/customers/usage',
   ];
   const isRetiredAdminRoute = (href: string) => retiredAdminRoutes.some((route) => {
     const pathname = href.split('?')[0];
@@ -248,11 +249,12 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
   });
   const adminSections = CENTRAL_NAVIGATION.map((section) => ({
     ...section,
-    category: section.id === 'customers' ? 'Billing' : section.category,
+    category: section.id === 'customers' ? 'Customers' : section.category,
     items: section.items
       .filter((item) => !isRetiredAdminRoute(item.href))
       .map((item) => ({
         ...item,
+        ...(item.href === '/customers/plans' ? { href: '/master/subscription-plans' } : {}),
         ...(item.children ? {
           children: item.children.filter((child) => !isRetiredAdminRoute(child.href)),
         } : {}),
