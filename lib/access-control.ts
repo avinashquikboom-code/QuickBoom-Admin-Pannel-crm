@@ -86,7 +86,6 @@ export const adminNavigation: {
         { name: 'Work Types', href: '/master/work-types', icon: Briefcase,  },
         { name: 'Activity Types', href: '/master/activity-types', icon: Activity,  },
         { name: 'Task Status', href: '/master/task-status', icon: CheckSquare,  },
-        { name: 'Lead Stages', href: '/master/lead-stages', icon: Kanban,  },
         { name: 'Lead Sources', href: '/master/lead-sources', icon: Target,  },
         { name: 'Subscription Plans', href: '/master/subscription-plans', icon: Layers,  },
         { name: 'Expense Categories', href: '/master/expense-categories', icon: CreditCard,  },
@@ -128,7 +127,6 @@ export const adminNavigation: {
       roles: ['Super Admin', 'SUPER_ADMIN', 'Customer Owner', 'Customer Admin', 'Manager'],
       items: [
         { name: 'Data Capture', href: '/data-capture', icon: Target,  },
-        { name: 'Capture History', href: '/data-capture/history', icon: History,  },
         { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity,  },
       ],
     },

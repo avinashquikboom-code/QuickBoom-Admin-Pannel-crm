@@ -611,14 +611,7 @@ export default function DataCapturePage() {
 
   const importInFlight = React.useRef(false);
   const importLeadMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response: any = await dataCaptureApi.importLead(id);
-      const result = response?.data || response;
-      if (!result?.lead?.id || result.record?.importedLeadId !== result.lead.id) {
-        throw new Error('Import response is missing its Lead link. Refresh the record before retrying.');
-      }
-      return result;
-    },
+    mutationFn: (id: number) => dataCaptureApi.importLead(id),
     onSuccess: async (result: any, id: number) => {
       await Promise.all([
         refreshDrawerAfterDecision(id, { data: result.record }),
