@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity } from 'lucide-react';
+import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity, Building2, Pencil, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { dataCaptureApi } from '@/lib/data-capture-api';
@@ -304,6 +304,15 @@ export default function DataCapturePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CapturedPlace>>({});
   const [showRawData, setShowRawData] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopy = (text: string, label: string) => {
+    if (!text || text === 'N/A') return;
+    navigator.clipboard.writeText(text);
+    setCopiedField(label);
+    toast.success(`${label} copied to clipboard`);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   // Google Places Extraction Modal State
   const [extractModalOpen, setExtractModalOpen] = useState(false);
@@ -549,6 +558,41 @@ export default function DataCapturePage() {
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   });
+
+  const isAnyMutating =
+    validateMutation.isPending ||
+    rejectMutation.isPending ||
+    deleteMutation.isPending ||
+    updateMutation.isPending;
+
+  // Lock body scroll and handle Escape key for Detail Drawer
+  useEffect(() => {
+    if (drawerOpen) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (
+          e.key === 'Escape' &&
+          !validateMutation.isPending &&
+          !rejectMutation.isPending &&
+          !deleteMutation.isPending &&
+          !updateMutation.isPending
+        ) {
+          setDrawerOpen(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = 'unset';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [
+    drawerOpen,
+    validateMutation.isPending,
+    rejectMutation.isPending,
+    deleteMutation.isPending,
+    updateMutation.isPending,
+  ]);
 
   // Handlers
   const handleSelectRow = (id: number) => {
@@ -1010,524 +1054,865 @@ export default function DataCapturePage() {
 
       {usageError && <p role="alert" className="text-rose-600">Usage could not be loaded. Refresh to retry.</p>}
       {/* 6. RIGHT-SIDE DETAIL DRAWER (DO NOT NAVIGATE TO NEW PAGE) */}
-      <AdminFormDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title={selectedRecord?.businessName || 'Prospect Details'}
-        subtitle={`Captured via ${selectedRecord?.source || 'GOOGLE_PLACES'}`}
-        icon={Database}
-        size="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
-              {canDelete && selectedRecord?.id && (
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-50 overflow-hidden select-none"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="data-capture-drawer-title"
+        >
+          {/* Backdrop overlay */}
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+            onClick={() => {
+              if (!isAnyMutating) setDrawerOpen(false);
+            }}
+            aria-hidden="true"
+          />
+
+          {/* Sliding Drawer Container */}
+          <div className="fixed inset-y-0 right-0 flex max-w-full pointer-events-none">
+            <div
+              className="pointer-events-auto w-full sm:w-[75vw] md:w-[70vw] lg:w-[650px] lg:max-w-[45vw] lg:min-w-[580px] xl:w-[680px] h-screen bg-white shadow-2xl flex flex-col justify-between transform transition-transform ease-out duration-300 animate-in slide-in-from-right border-l border-slate-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 1. STICKY HEADER */}
+              <div className="px-5 py-4 sm:px-6 sm:py-4 border-b border-slate-100 bg-white shrink-0 sticky top-0 z-20 flex items-start justify-between gap-3 shadow-2xs">
+                {/* Left: Data Capture icon inside soft green circle */}
+                <div className="w-10 h-10 rounded-full bg-emerald-50 text-[#1AA14D] border border-emerald-200/80 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <Database className="w-5 h-5 text-[#23C45E]" />
+                </div>
+
+                {/* Center: Business Name, Source, Category & Operational status */}
+                <div className="flex-1 min-w-0 pr-2">
+                  <h2
+                    id="data-capture-drawer-title"
+                    className="text-base sm:text-lg font-black text-slate-900 leading-snug line-clamp-2 sm:line-clamp-3"
+                    style={{ overflowWrap: 'anywhere' }}
+                    title={selectedRecord?.businessName}
+                  >
+                    {selectedRecord?.businessName || 'Prospect Details'}
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                    Captured via {selectedRecord?.source || 'GOOGLE_PLACES'}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200/70">
+                      <Tag className="w-3 h-3 text-slate-500 shrink-0" />
+                      <span className="truncate max-w-[150px]">{selectedRecord?.category || 'General Business'}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span>{selectedRecord?.businessStatus || selectedRecord?.status || 'Operational'}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right: Clean close button inside a square rounded container */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setRecordToDelete(selectedRecord.id!);
-                    setDeleteConfirmOpen(true);
-                  }}
-                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
+                  onClick={() => setDrawerOpen(false)}
+                  disabled={isAnyMutating}
+                  className="w-9 h-9 rounded-xl border border-slate-200/80 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center shrink-0 shadow-2xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#23C45E] disabled:opacity-50"
+                  aria-label="Close drawer"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
+                  <X className="w-5 h-5" />
                 </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
-                isEditing ? <>
-                  <AdminButton onClick={() => setIsEditing(false)}>Cancel</AdminButton>
-                  <AdminButton disabled={updateMutation.isPending} onClick={() => {
-                    if (!editForm.businessName?.trim()) { toast.error('Business name is required'); return; }
-                    const changes = Object.fromEntries(Object.entries(editForm).filter(([key, value]) =>
-                      value !== (selectedRecord as any)[key] && !(value === '' && (selectedRecord as any)[key] == null)));
-                    updateMutation.mutate({ id: selectedRecord.id!, data: changes });
-                  }}>{updateMutation.isPending ? 'Saving…' : 'Save changes'}</AdminButton>
-                </> : <>
-                  <AdminButton onClick={() => setIsEditing(true)}>Edit</AdminButton>
-                  <AdminButton disabled={validateMutation.isPending} onClick={() => validateMutation.mutate(selectedRecord.id!)}>Validate</AdminButton>
-                  <AdminButton onClick={() => setRejectModalOpen(true)}>Reject</AdminButton>
-                </>
-              )}
-            </div>
-          </div>
-        }
-      >
-        {detailLoading && <p role="status">Loading record…</p>}
-        {detailError && <p role="alert" className="text-rose-600">{detailError}</p>}
-        {selectedRecord && !detailLoading && !detailError && (
-          <div className="space-y-5">
-            {(selectedRecord.googlePhotos?.[0]?.url || selectedRecord.photos?.[0]) && <img
-              src={selectedRecord.googlePhotos?.[0]?.url || selectedRecord.photos?.[0]}
-              alt={selectedRecord.businessName} className="max-h-64 rounded-xl object-cover"
-              onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
-
-            {/* Duplicate Matches Alert Banner */}
-            {selectedRecord.duplicateMatches && selectedRecord.duplicateMatches.length > 0 && (
-              <div className="p-4 bg-amber-50 border border-amber-300/80 rounded-2xl space-y-2">
-                <div className="flex items-center gap-2 text-amber-900 font-black text-xs">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Possible Duplicates Detected in CRM:</span>
-                </div>
-                <div className="space-y-1.5 pl-6">
-                  {selectedRecord.duplicateMatches.map((dup, idx) => (
-                    <div key={idx} className="text-xs text-amber-800 flex items-center justify-between">
-                      <span className="font-bold">
-                        {dup.title} ({dup.type})
-                      </span>
-                      <span className="text-[10px] px-2 py-0.5 bg-amber-100/80 rounded-md font-mono">
-                        Matched on: {dup.matchField} ({dup.matchValue})
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
 
-            {/* View / Edit Mode Form */}
-            {isEditing ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
-                    Business Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.businessName || ''}
-                    onChange={(e) => setEditForm({ ...editForm, businessName: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
-                      Category
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.category || ''}
-                      onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
-                      Status
-                    </label>
-                    <select
-                      value={editForm.status || 'CAPTURED'}
-                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-                    >
-                      <option value="CAPTURED">CAPTURED</option>
-                      <option value="VALIDATED">VALIDATED</option>
-                      <option value="REJECTED">REJECTED</option>
-                      <option value="DUPLICATE">DUPLICATE</option>
-
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
-                      Phone Number
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.phone || ''}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={editForm.email || ''}
-                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
-                    Website URL
-                  </label>
-                  <input
-                    type="url"
-                    value={editForm.website || ''}
-                    onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
-                    Address
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={editForm.address || ''}
-                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
-                    Notes & Rejection Comments
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={editForm.notes || ''}
-                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4 text-xs">
-                {/* 1. BUSINESS SECTION */}
-                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      Business Details
-                    </span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
-                        STATUS_CONFIG[selectedRecord.status || 'CAPTURED']?.bg || 'bg-slate-100'
-                      } ${STATUS_CONFIG[selectedRecord.status || 'CAPTURED']?.text || 'text-slate-700'} ${
-                        STATUS_CONFIG[selectedRecord.status || 'CAPTURED']?.border || 'border-slate-200'
-                      }`}
-                    >
-                      {selectedRecord.businessStatus || selectedRecord.status || 'OPERATIONAL'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <div className="min-w-0">
-                      <h3 className="text-base font-black text-slate-900 leading-tight">
-                        {selectedRecord.businessName}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
-                          {selectedRecord.category || 'General Business'}
-                        </span>
-                        {selectedRecord.businessStatus && (
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">
-                            Status: {selectedRecord.businessStatus}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. CONTACT SECTION */}
-                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-2.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                    Contact Information
-                  </span>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-slate-700">
-                      <span className="flex items-center gap-2 font-bold text-slate-500 text-xs">
-                        <Phone className="w-4 h-4 text-[#23C45E]" />
-                        Phone
-                      </span>
-                      {selectedRecord.phone && selectedRecord.phone !== 'N/A' ? (
-                        <a href={`tel:${selectedRecord.phone}`} className="font-bold text-slate-900 hover:text-[#1AA14D]">
-                          {selectedRecord.phone}
-                        </a>
-                      ) : (
-                        <span className="text-slate-400">N/A</span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between text-slate-700">
-                      <span className="flex items-center gap-2 font-bold text-slate-500 text-xs">
-                        <Mail className="w-4 h-4 text-sky-500" />
-                        Email
-                      </span>
-                      {selectedRecord.email && selectedRecord.email !== 'N/A' ? (
-                        <a href={`mailto:${selectedRecord.email}`} className="font-bold text-sky-600 hover:underline">
-                          {selectedRecord.email}
-                        </a>
-                      ) : (
-                        <span className="text-slate-400">N/A</span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between text-slate-700">
-                      <span className="flex items-center gap-2 font-bold text-slate-500 text-xs">
-                        <Globe className="w-4 h-4 text-blue-500" />
-                        Website
-                      </span>
-                      {selectedRecord.website && selectedRecord.website !== 'N/A' ? (
-                        <a
-                          href={selectedRecord.website}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-bold text-blue-600 hover:underline max-w-[200px] truncate"
-                        >
-                          {selectedRecord.website}
-                        </a>
-                      ) : (
-                        <span className="text-slate-400">N/A</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. LOCATION SECTION */}
-                {(() => {
-                  const loc = parseAddressDetails(selectedRecord);
-                  return (
-                    <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                        Location & Address
-                      </span>
-
-                      <div className="space-y-2.5">
-                        <div className="flex items-start gap-2 text-slate-700">
-                          <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                          <span className="font-medium text-xs leading-relaxed text-slate-800">
-                            {loc.fullAddress}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
-                          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 block">City</span>
-                            <span className="font-bold text-slate-800">{loc.city}</span>
-                          </div>
-                          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 block">State</span>
-                            <span className="font-bold text-slate-800">{loc.state}</span>
-                          </div>
-                          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 block">Country</span>
-                            <span className="font-bold text-slate-800">{loc.country}</span>
-                          </div>
-                          <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 block">Pincode</span>
-                            <span className="font-bold text-slate-800">{loc.pincode}</span>
-                          </div>
-                        </div>
-
-                        {(loc.latitude !== undefined || loc.longitude !== undefined) && (
-                          <div className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 font-mono">
-                            <span>Coordinates:</span>
-                            <span>{loc.latitude?.toFixed(6) ?? '—'}, {loc.longitude?.toFixed(6) ?? '—'}</span>
-                          </div>
-                        )}
-
-                        {loc.googleMapsUrl && (
-                          <a
-                            href={loc.googleMapsUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-black transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>Open in Google Maps</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* 4. RATING SECTION */}
-                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                    Rating & Reviews
-                  </span>
-
-                  {selectedRecord.rating ? (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl font-black text-sm flex items-center gap-1">
-                          <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                          {selectedRecord.rating}
-                        </div>
-                        <span className="text-xs font-bold text-slate-600">
-                          based on {selectedRecord.reviewCount || 0} reviews
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-black text-amber-600 uppercase">
-                        {selectedRecord.rating >= 4.5 ? 'Excellent' : selectedRecord.rating >= 4.0 ? 'Very Good' : 'Good'}
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 font-medium">No ratings recorded on Google Places.</p>
-                  )}
-                </div>
-
-                {/* 5. SOCIAL MEDIA SECTION */}
-                {(() => {
-                  const socialList = getDiscoveredSocialList(selectedRecord);
-                  return (
-                    <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                          Discovered Social Media Handles
-                        </span>
-                        {socialList.length > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-[#23C45E]/10 text-[#1AA14D] font-black text-[10px]">
-                            {socialList.length} Discovered
-                          </span>
-                        )}
-                      </div>
-
-                      {socialList.length > 0 ? (
-                        <div className="space-y-2">
-                          {socialList.map((item) => (
-                            <div
-                              key={item.platform}
-                              className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/60"
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <SocialMediaBadgeButton item={item} size="sm" />
-                                <div className="min-w-0">
-                                  <span className="text-xs font-black text-slate-800 block">
-                                    {item.platform}
-                                  </span>
-                                  <span className="text-[11px] text-slate-500 font-medium truncate block max-w-[200px]" title={item.url}>
-                                    {item.url}
-                                  </span>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
-                                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-black text-white text-[10px] font-black shrink-0 transition-colors cursor-pointer"
-                              >
-                                Open
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-slate-400 font-medium py-1">
-                          No social media handles discovered for this business.
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* 7. SOURCE & METADATA SECTION */}
-                <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-2.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                    Source & Metadata
-                  </span>
-
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-bold">Provider:</span>
-                      <span className="font-bold text-slate-800">{selectedRecord.provider || 'GOOGLE_PLACES'}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-bold">Google Place ID:</span>
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-[11px] text-slate-700 max-w-[140px] truncate" title={selectedRecord.googlePlaceId}>
-                          {selectedRecord.googlePlaceId || 'N/A'}
-                        </span>
-                        {selectedRecord.googlePlaceId && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (selectedRecord.googlePlaceId) {
-                                navigator.clipboard.writeText(selectedRecord.googlePlaceId);
-                                toast.success('Google Place ID copied');
-                              }
-                            }}
-                            className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
-                            title="Copy Place ID"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-bold">Source:</span>
-                      <span className="font-bold text-slate-800 uppercase px-2 py-0.5 bg-slate-100 rounded text-[10px]">
-                        {selectedRecord.source || 'GOOGLE_PLACES'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-bold">Created From:</span>
-                      <div>
-                        {selectedRecord.createdFrom === 'MOBILE_APP' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
-                            <span>📱</span>
-                            <span>Mobile App</span>
-                          </span>
-                        ) : selectedRecord.createdFrom === 'ADMIN_PANEL' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
-                            <span>🖥</span>
-                            <span>Admin Panel</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 font-bold text-xs">—</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 font-bold">Captured At:</span>
-                      <span className="font-medium text-slate-700">
-                        {selectedRecord.capturedAt ? new Date(selectedRecord.capturedAt).toLocaleString() : 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notes Section */}
-                {selectedRecord.notes && (
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
-                    <span className="text-[10px] font-black uppercase text-slate-400 block mb-1">Notes & History</span>
-                    <p className="text-xs text-slate-700 font-medium whitespace-pre-wrap">{selectedRecord.notes}</p>
+              {/* 2. SCROLLABLE CONTENT */}
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 pb-6 space-y-4 text-slate-800">
+                {detailLoading && (
+                  <div className="py-16 flex flex-col items-center justify-center space-y-3">
+                    <Loader2 className="w-8 h-8 text-[#23C45E] animate-spin" />
+                    <p className="text-xs font-bold text-slate-400">Loading record details…</p>
                   </div>
                 )}
 
-                {/* Raw API Data Inspection Toggle */}
-                {selectedRecord.rawData && (
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowRawData(!showRawData)}
-                      className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>{showRawData ? 'Hide Raw API JSON' : 'Show Raw API JSON'}</span>
-                    </button>
+                {detailError && (
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium" role="alert">
+                    {detailError}
+                  </div>
+                )}
 
-                    {showRawData && (
-                      <pre className="p-3 bg-slate-950 text-emerald-400 font-mono text-[10px] rounded-xl overflow-x-auto max-h-48">
-                        {JSON.stringify(selectedRecord.rawData, null, 2)}
-                      </pre>
+                {selectedRecord && !detailLoading && !detailError && (
+                  <div className="space-y-4">
+                    {/* Photos */}
+                    {(selectedRecord.googlePhotos?.[0]?.url || selectedRecord.photos?.[0]) && (
+                      <div className="overflow-hidden rounded-2xl border border-slate-200/80 shadow-2xs bg-slate-100">
+                        <img
+                          src={selectedRecord.googlePhotos?.[0]?.url || selectedRecord.photos?.[0]}
+                          alt={selectedRecord.businessName}
+                          className="w-full max-h-56 object-cover"
+                          onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Duplicate Matches Alert Banner */}
+                    {selectedRecord.duplicateMatches && selectedRecord.duplicateMatches.length > 0 && (
+                      <div className="p-4 bg-amber-50 border border-amber-300/80 rounded-2xl space-y-2">
+                        <div className="flex items-center gap-2 text-amber-900 font-black text-xs">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>Possible Duplicates Detected in CRM:</span>
+                        </div>
+                        <div className="space-y-1.5 pl-6">
+                          {selectedRecord.duplicateMatches.map((dup, idx) => (
+                            <div key={idx} className="text-xs text-amber-800 flex items-center justify-between">
+                              <span className="font-bold">
+                                {dup.title} ({dup.type})
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 bg-amber-100/80 rounded-md font-mono">
+                                Matched on: {dup.matchField} ({dup.matchValue})
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* View / Edit Mode Form */}
+                    {isEditing ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                            Business Name
+                          </label>
+                          <input
+                            type="text"
+                            value={editForm.businessName || ''}
+                            onChange={(e) => setEditForm({ ...editForm, businessName: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                              Category
+                            </label>
+                            <input
+                              type="text"
+                              value={editForm.category || ''}
+                              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                              Status
+                            </label>
+                            <select
+                              value={editForm.status || 'CAPTURED'}
+                              onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                            >
+                              <option value="CAPTURED">CAPTURED</option>
+                              <option value="VALIDATED">VALIDATED</option>
+                              <option value="REJECTED">REJECTED</option>
+                              <option value="DUPLICATE">DUPLICATE</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                              Phone Number
+                            </label>
+                            <input
+                              type="text"
+                              value={editForm.phone || ''}
+                              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                              Email Address
+                            </label>
+                            <input
+                              type="email"
+                              value={editForm.email || ''}
+                              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                            Website URL
+                          </label>
+                          <input
+                            type="url"
+                            value={editForm.website || ''}
+                            onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                            Address
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={editForm.address || ''}
+                            onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                            Notes & Rejection Comments
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={editForm.notes || ''}
+                            onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-[#23C45E] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* 1. BUSINESS DETAILS CARD */}
+                        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3.5">
+                          <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                            <Building2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <h3 className="text-xs sm:text-sm font-bold text-slate-900 tracking-wide uppercase">
+                              Business Details
+                            </h3>
+                          </div>
+
+                          <div className="space-y-3 text-xs sm:text-sm">
+                            <div className="flex items-start justify-between gap-4">
+                              <span className="text-xs text-slate-500 font-medium shrink-0 pt-0.5">Business Name</span>
+                              <span className="font-bold text-slate-900 text-right min-w-0" style={{ overflowWrap: 'anywhere' }}>
+                                {selectedRecord.businessName || '—'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-xs text-slate-500 font-medium shrink-0">Category</span>
+                              <span className="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200/60">
+                                {selectedRecord.category || 'General Business'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-xs text-slate-500 font-medium shrink-0">Status</span>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                <span>{selectedRecord.businessStatus || selectedRecord.status || 'Operational'}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. CONTACT INFORMATION CARD */}
+                        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3.5">
+                          <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                            <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <h3 className="text-xs sm:text-sm font-bold text-slate-900 tracking-wide uppercase">
+                              Contact Information
+                            </h3>
+                          </div>
+
+                          <div className="space-y-3 text-xs sm:text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="flex items-center gap-2 text-xs text-slate-500 font-medium shrink-0">
+                                <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                Phone
+                              </span>
+                              {selectedRecord.phone && selectedRecord.phone !== 'N/A' ? (
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <a
+                                    href={`tel:${selectedRecord.phone}`}
+                                    className="font-bold text-slate-900 hover:text-emerald-600 transition-colors truncate"
+                                  >
+                                    {selectedRecord.phone}
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(selectedRecord.phone!, 'Phone number')}
+                                    aria-label="Copy phone number"
+                                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                                    title="Copy phone"
+                                  >
+                                    {copiedField === 'Phone number' ? (
+                                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 font-medium">N/A</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="flex items-center gap-2 text-xs text-slate-500 font-medium shrink-0">
+                                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                                Email
+                              </span>
+                              {selectedRecord.email && selectedRecord.email !== 'N/A' ? (
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <a
+                                    href={`mailto:${selectedRecord.email}`}
+                                    className="font-bold text-sky-600 hover:underline truncate"
+                                  >
+                                    {selectedRecord.email}
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(selectedRecord.email!, 'Email address')}
+                                    aria-label="Copy email address"
+                                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                                    title="Copy email"
+                                  >
+                                    {copiedField === 'Email address' ? (
+                                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 font-medium">N/A</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="flex items-center gap-2 text-xs text-slate-500 font-medium shrink-0">
+                                <Globe className="w-3.5 h-3.5 text-slate-400" />
+                                Website
+                              </span>
+                              {selectedRecord.website && selectedRecord.website !== 'N/A' ? (
+                                <div className="flex items-center gap-1.5 min-w-0 max-w-[65%] justify-end">
+                                  <a
+                                    href={selectedRecord.website.startsWith('http') ? selectedRecord.website : `https://${selectedRecord.website}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label="Visit website in new tab"
+                                    className="font-bold text-blue-600 hover:underline truncate flex items-center gap-1"
+                                    title={selectedRecord.website}
+                                  >
+                                    <span className="truncate">{selectedRecord.website.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                                  </a>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 font-medium">N/A</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3. LOCATION & ADDRESS CARD */}
+                        {(() => {
+                          const loc = parseAddressDetails(selectedRecord);
+                          const coordsText = (loc.latitude !== undefined && loc.longitude !== undefined)
+                            ? `${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}`
+                            : null;
+
+                          return (
+                            <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3.5">
+                              <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                                <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <h3 className="text-xs sm:text-sm font-bold text-slate-900 tracking-wide uppercase">
+                                  Location & Address
+                                </h3>
+                              </div>
+
+                              <div className="space-y-3">
+                                {/* Full address highlighted in soft background row */}
+                                <div className="p-3.5 rounded-xl bg-slate-50/90 border border-slate-200/60 text-slate-800 text-xs sm:text-sm leading-relaxed flex items-start gap-2.5">
+                                  <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                                  <span className="font-medium min-w-0" style={{ overflowWrap: 'anywhere' }}>
+                                    {loc.fullAddress}
+                                  </span>
+                                </div>
+
+                                {/* Responsive 2-column cards: City, State / Country, Pincode */}
+                                <div className="grid grid-cols-2 gap-2.5">
+                                  <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+                                    <span className="text-[11px] font-medium text-slate-400 block mb-0.5">City</span>
+                                    <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
+                                      {loc.city || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+                                    <span className="text-[11px] font-medium text-slate-400 block mb-0.5">State</span>
+                                    <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
+                                      {loc.state || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+                                    <span className="text-[11px] font-medium text-slate-400 block mb-0.5">Country</span>
+                                    <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
+                                      {loc.country || 'N/A'}
+                                    </span>
+                                  </div>
+                                  <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+                                    <span className="text-[11px] font-medium text-slate-400 block mb-0.5">Pincode</span>
+                                    <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
+                                      {loc.pincode || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Coordinates */}
+                                {coordsText && (
+                                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100 text-xs sm:text-sm">
+                                    <div>
+                                      <span className="text-[11px] font-medium text-slate-400 block mb-0.5">Coordinates</span>
+                                      <span className="font-mono font-bold text-slate-700">{coordsText}</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopy(coordsText, 'Coordinates')}
+                                      aria-label="Copy coordinates"
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer shrink-0"
+                                      title="Copy coordinates"
+                                    >
+                                      {copiedField === 'Coordinates' ? (
+                                        <Check className="w-4 h-4 text-emerald-600" />
+                                      ) : (
+                                        <Copy className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Full width Open in Google Maps */}
+                                {loc.googleMapsUrl && (
+                                  <a
+                                    href={loc.googleMapsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label="Open in Google Maps"
+                                    className="flex items-center justify-center gap-2 w-full h-10 sm:h-11 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200 text-xs sm:text-sm font-bold transition-colors shadow-2xs cursor-pointer"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span>Open in Google Maps ↗</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* 4. RATING SECTION */}
+                        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+                          <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                            <Star className="w-4 h-4 text-amber-500 shrink-0" />
+                            <h3 className="text-xs sm:text-sm font-bold text-slate-900 tracking-wide uppercase">
+                              Rating & Reviews
+                            </h3>
+                          </div>
+
+                          {selectedRecord.rating ? (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl font-black text-sm flex items-center gap-1">
+                                  <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                                  {selectedRecord.rating}
+                                </div>
+                                <span className="text-xs font-bold text-slate-600">
+                                  based on {selectedRecord.reviewCount || 0} reviews
+                                </span>
+                              </div>
+                              <span className="text-[11px] font-black text-amber-600 uppercase">
+                                {selectedRecord.rating >= 4.5 ? 'Excellent' : selectedRecord.rating >= 4.0 ? 'Very Good' : 'Good'}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 font-medium">No ratings recorded on Google Places.</p>
+                          )}
+                        </div>
+
+                        {/* 5. SOCIAL MEDIA SECTION */}
+                        {(() => {
+                          const socialList = getDiscoveredSocialList(selectedRecord);
+                          return (
+                            <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+                              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                                <div className="flex items-center gap-2">
+                                  <Globe className="w-4 h-4 text-blue-500 shrink-0" />
+                                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 tracking-wide uppercase">
+                                    Discovered Social Media Handles
+                                  </h3>
+                                </div>
+                                {socialList.length > 0 && (
+                                  <span className="px-2 py-0.5 rounded-full bg-[#23C45E]/10 text-[#1AA14D] font-black text-[10px]">
+                                    {socialList.length} Discovered
+                                  </span>
+                                )}
+                              </div>
+
+                              {socialList.length > 0 ? (
+                                <div className="space-y-2">
+                                  {socialList.map((item) => (
+                                    <div
+                                      key={item.platform}
+                                      className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200/60"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <SocialMediaBadgeButton item={item} size="sm" />
+                                        <div className="min-w-0">
+                                          <span className="text-xs font-black text-slate-800 block">
+                                            {item.platform}
+                                          </span>
+                                          <span className="text-[11px] text-slate-500 font-medium truncate block max-w-[200px]" title={item.url}>
+                                            {item.url}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+                                        className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-black text-white text-[10px] font-black shrink-0 transition-colors cursor-pointer"
+                                      >
+                                        Open
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-slate-400 font-medium py-1">
+                                  No social media handles discovered for this business.
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {/* 6. SOURCE & METADATA SECTION */}
+                        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+                          <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                            <Layers className="w-4 h-4 text-purple-600 shrink-0" />
+                            <h3 className="text-xs sm:text-sm font-bold text-slate-900 tracking-wide uppercase">
+                              Source & Metadata
+                            </h3>
+                          </div>
+
+                          <div className="space-y-2.5 text-xs sm:text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500 font-medium">Provider:</span>
+                              <span className="font-bold text-slate-800">{selectedRecord.provider || 'GOOGLE_PLACES'}</span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500 font-medium">Google Place ID:</span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-mono text-xs text-slate-700 max-w-[140px] truncate" title={selectedRecord.googlePlaceId}>
+                                  {selectedRecord.googlePlaceId || 'N/A'}
+                                </span>
+                                {selectedRecord.googlePlaceId && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(selectedRecord.googlePlaceId!, 'Google Place ID')}
+                                    className="p-1 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
+                                    title="Copy Place ID"
+                                    aria-label="Copy Google Place ID"
+                                  >
+                                    {copiedField === 'Google Place ID' ? (
+                                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500 font-medium">Source:</span>
+                              <span className="font-bold text-slate-800 uppercase px-2 py-0.5 bg-slate-100 rounded text-[10px]">
+                                {selectedRecord.source || 'GOOGLE_PLACES'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500 font-medium">Created From:</span>
+                              <div>
+                                {selectedRecord.createdFrom === 'MOBILE_APP' ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                                    <span>📱</span>
+                                    <span>Mobile App</span>
+                                  </span>
+                                ) : selectedRecord.createdFrom === 'ADMIN_PANEL' ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs">
+                                    <span>🖥</span>
+                                    <span>Admin Panel</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 font-bold text-xs">—</span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500 font-medium">Captured At:</span>
+                              <span className="font-medium text-slate-700">
+                                {selectedRecord.capturedAt ? new Date(selectedRecord.capturedAt).toLocaleString() : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 7. Notes Section */}
+                        {selectedRecord.notes && (
+                          <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-2">
+                            <span className="text-[10px] font-black uppercase text-slate-400 block tracking-wider">Notes & History</span>
+                            <p className="text-xs text-slate-700 font-medium whitespace-pre-wrap">{selectedRecord.notes}</p>
+                          </div>
+                        )}
+
+                        {/* 8. Raw API Data Inspection Toggle */}
+                        {selectedRecord.rawData && (
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowRawData(!showRawData)}
+                              className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>{showRawData ? 'Hide Raw API JSON' : 'Show Raw API JSON'}</span>
+                            </button>
+
+                            {showRawData && (
+                              <pre className="p-3 bg-slate-950 text-emerald-400 font-mono text-[10px] rounded-xl overflow-x-auto max-h-48">
+                                {JSON.stringify(selectedRecord.rawData, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
               </div>
-            )}
+
+              {/* 3. STICKY ACTION FOOTER */}
+              <div className="sticky bottom-0 z-20 px-5 py-3.5 sm:px-6 sm:py-3.5 border-t border-slate-200/80 bg-white/95 backdrop-blur-md shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
+                {isEditing ? (
+                  <div className="flex items-center justify-end gap-2.5 w-full">
+                    <button
+                      type="button"
+                      disabled={isAnyMutating}
+                      onClick={() => setIsEditing(false)}
+                      className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isAnyMutating}
+                      onClick={() => {
+                        if (!editForm.businessName?.trim()) {
+                          toast.error('Business name is required');
+                          return;
+                        }
+                        const changes = Object.fromEntries(
+                          Object.entries(editForm).filter(([key, value]) =>
+                            value !== (selectedRecord as any)[key] && !(value === '' && (selectedRecord as any)[key] == null)
+                          )
+                        );
+                        updateMutation.mutate({ id: selectedRecord?.id!, data: changes });
+                      }}
+                      className="h-10 sm:h-11 px-5 sm:px-6 rounded-xl border border-transparent bg-[#23C45E] hover:bg-[#1AA14D] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-[#23C45E]/25 active:scale-[0.99]"
+                    >
+                      {updateMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Saving…</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span>Save Changes</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Mobile Layout (2 columns: [Edit][Validate], [Delete][Reject]) */}
+                    <div className="grid grid-cols-2 gap-2.5 sm:hidden w-full">
+                      {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
+                        <button
+                          type="button"
+                          disabled={isAnyMutating}
+                          onClick={() => setIsEditing(true)}
+                          className="h-10 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Edit</span>
+                        </button>
+                      )}
+
+                      {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
+                        <button
+                          type="button"
+                          disabled={isAnyMutating}
+                          onClick={() => validateMutation.mutate(selectedRecord.id!)}
+                          className="h-10 px-3 rounded-xl border border-transparent bg-[#23C45E] hover:bg-[#1AA14D] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-[#23C45E]/25 active:scale-[0.99]"
+                        >
+                          {validateMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Validating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>✓ Validate</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {canDelete && selectedRecord?.id && (
+                        <button
+                          type="button"
+                          disabled={isAnyMutating}
+                          onClick={() => {
+                            setRecordToDelete(selectedRecord.id!);
+                            setDeleteConfirmOpen(true);
+                          }}
+                          className="h-10 px-3 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 text-rose-600 font-bold text-xs flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                        >
+                          {deleteMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Deleting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
+                        <button
+                          type="button"
+                          disabled={isAnyMutating}
+                          onClick={() => setRejectModalOpen(true)}
+                          className="h-10 px-3 rounded-xl border border-transparent bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-rose-600/25 active:scale-[0.99]"
+                        >
+                          {rejectMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Rejecting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-3.5 h-3.5" />
+                              <span>✕ Reject</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Desktop / Tablet Layout (Delete on Left, Edit / Validate / Reject on Right) */}
+                    <div className="hidden sm:flex sm:items-center sm:justify-between w-full gap-2">
+                      <div>
+                        {canDelete && selectedRecord?.id && (
+                          <button
+                            type="button"
+                            disabled={isAnyMutating}
+                            onClick={() => {
+                              setRecordToDelete(selectedRecord.id!);
+                              setDeleteConfirmOpen(true);
+                            }}
+                            className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 text-rose-600 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                          >
+                            {deleteMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Deleting...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="w-4 h-4" />
+                                <span>Delete</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 md:gap-2.5">
+                        {canEdit && selectedRecord?.id && !detailLoading && !detailError && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isAnyMutating}
+                              onClick={() => setIsEditing(true)}
+                              className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-2xs active:scale-[0.99]"
+                            >
+                              <Pencil className="w-4 h-4 text-slate-600" />
+                              <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isAnyMutating}
+                              onClick={() => validateMutation.mutate(selectedRecord.id!)}
+                              className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-transparent bg-[#23C45E] hover:bg-[#1AA14D] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-[#23C45E]/25 active:scale-[0.99]"
+                            >
+                              {validateMutation.isPending ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>Validating...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4" />
+                                  <span>✓ Validate</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isAnyMutating}
+                              onClick={() => setRejectModalOpen(true)}
+                              className="h-10 sm:h-11 px-4 sm:px-5 rounded-xl border border-transparent bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer disabled:opacity-50 shadow-xs shadow-rose-600/25 active:scale-[0.99]"
+                            >
+                              {rejectMutation.isPending ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>Rejecting...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <X className="w-4 h-4" />
+                                  <span>✕ Reject</span>
+                                </>
+                              )}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-      </AdminFormDrawer>
+        </div>
+      )}
 
       {/* 7. GOOGLE PLACES TEXT SEARCH MODAL */}
       <AdminFormDrawer
