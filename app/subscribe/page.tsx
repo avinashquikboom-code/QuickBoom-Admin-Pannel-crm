@@ -50,7 +50,7 @@ export default function SubscribePage() {
     sessionStorage.setItem(storageKey, key); setKeys(k => ({ ...k, [selection]: key }));
     try {
       const order = unwrap(await api.post('/payments/razorpay/order', { planId: plan.id, billingCycle: cycle, idempotencyKey: key, ...(customerId ? { customerId } : {}) }));
-      if (order.status === 'PAID') { await refresh(); setMessage('This purchase is already paid.'); return; }
+      if (order.status === 'PAID') { sessionStorage.removeItem(storageKey); setKeys(k => { const next = { ...k }; delete next[selection]; return next; }); await refresh(); setMessage('This purchase is already paid. You may start a new purchase.'); return; }
       setCheckout({ ...order, planName: plan.name, storageKey, selection });
     } catch(e) { setError(getErrorMessage(e)); } finally { setBusy(false); }
   };
@@ -63,7 +63,7 @@ export default function SubscribePage() {
         try {
           await api.post('/payments/razorpay/verify', { ...response, planId: order.planId, billingCycle: order.billingCycle });
           sessionStorage.removeItem(order.storageKey); setKeys(k => { const next = { ...k }; delete next[order.selection]; return next; });
-          await refresh(); setCheckout(null); setMessage('Payment verified. Your subscription is active.');
+          await refresh(); setCheckout(null); setMessage('Payment verified! Your subscription is pending activation and will activate automatically in 2 calendar days.');
         } catch(e) { setError(getErrorMessage(e)); setMessage('Payment confirmation is pending. Your status will refresh automatically.'); }
         finally { setBusy(false); }
       }, modal: { ondismiss: () => { setBusy(false); setMessage('Checkout closed. You can retry the same order.'); } } });
@@ -80,7 +80,14 @@ export default function SubscribePage() {
   return <main className="max-w-6xl mx-auto px-5 py-12 space-y-8">
     <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
     <header className="text-center space-y-3"><h1 className="text-3xl font-bold">Choose your growth plan</h1><p>Transparent pricing. GST shown before you pay.</p>
-      {account && <p>Customer: {account.companyName} · <strong className={account.status === 'ACTIVE' ? 'text-emerald-700' : 'text-slate-600'}>{account.status === 'ACTIVE' ? 'Active' : 'Inactive'}</strong></p>}
+      {account && <div className="space-y-1">
+        <p>Customer: {account.companyName} · <strong className={account.status === 'ACTIVE' ? 'text-emerald-700' : account.subscriptionStatus === 'PENDING_ACTIVATION' ? 'text-amber-700' : 'text-slate-600'}>
+          {account.status === 'ACTIVE' ? 'Active' : account.subscriptionStatus === 'PENDING_ACTIVATION' ? 'Pending Activation' : 'Inactive'}
+        </strong></p>
+        {account.subscriptionStatus === 'PENDING_ACTIVATION' && (account.activationDate || account.subscriptionStartDate) && (
+          <p className="text-xs text-amber-700 font-medium">Scheduled Activation: {new Date(account.activationDate || account.subscriptionStartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} (Purchased: {new Date(account.purchaseDate || account.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})</p>
+        )}
+      </div>}
       <div className="inline-flex rounded-full border bg-white p-1">{['MONTHLY', 'YEARLY'].map(c => <button key={c} onClick={() => { setCycle(c); setCheckout(null); }} className={`px-5 py-2 rounded-full ${cycle === c ? 'bg-emerald-600 text-white' : ''}`}>{c === 'MONTHLY' ? 'Monthly' : 'Yearly'}</button>)}</div>
     </header>
     {error && <p role="alert" className="p-4 bg-red-50 text-red-700 rounded-xl">{error}</p>}
@@ -94,6 +101,25 @@ export default function SubscribePage() {
     </article>; })}</section>
     {!user && <form onSubmit={login} className="max-w-sm mx-auto p-6 rounded-2xl bg-white border space-y-4"><h2 className="font-bold">Customer sign in</h2><label className="block">Email<input className="border rounded-lg p-2 w-full" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="username" /></label><label className="block">Password<input className="border rounded-lg p-2 w-full" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" /></label><button disabled={busy} className="bg-emerald-600 text-white rounded-lg p-3 w-full">Sign in</button></form>}
     {checkout && <section className="max-w-lg mx-auto bg-white border rounded-2xl p-6 space-y-4"><h2 className="font-bold">Confirm {checkout.planName} · {checkout.billingCycle === 'YEARLY' ? 'Yearly' : 'Monthly'}</h2>{breakdown(checkout)}<button disabled={busy} onClick={pay} className="bg-emerald-600 text-white rounded-lg p-3 w-full disabled:opacity-50">Pay {money(checkout.totalPaise)}</button></section>}
-    {account?.subscriptions?.filter((s: any) => s.status === 'ACTIVE').map((s: any) => <div key={s.id} className="bg-white rounded-xl border p-4 flex justify-between gap-4"><p>{s.plan.name} · Ends {new Date(s.endDate).toLocaleDateString()}</p><button className="text-red-700" onClick={async () => { try { await api.post(`/subscriptions/${s.id}/cancel`); await refresh(); } catch(e) { setError(getErrorMessage(e)); } }}>Cancel subscription</button></div>)}
+    {account?.subscriptions?.filter((s: any) => s.status === 'ACTIVE' || s.status === 'PENDING_ACTIVATION').map((s: any) => {
+      const isPending = s.status === 'PENDING_ACTIVATION';
+      return <div key={s.id} className="bg-white rounded-xl border p-4 flex justify-between gap-4 items-center">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="font-bold">{s.plan?.name || account.planName}</p>
+            <span className={`px-2 py-0.5 rounded text-xs font-bold ${isPending ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+              {isPending ? 'Pending Activation' : 'Active'}
+            </span>
+          </div>
+          <p className="text-sm text-slate-500">
+            {s.createdAt ? `Purchased: ${new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} • ` : ''}
+            {isPending
+              ? `Scheduled Activation: ${new Date(s.activationDate || s.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+              : `Ends: ${new Date(s.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+          </p>
+        </div>
+        <button className="text-red-700 text-sm font-semibold" onClick={async () => { try { await api.post(`/subscriptions/${s.id}/cancel`); await refresh(); } catch(e) { setError(getErrorMessage(e)); } }}>Cancel subscription</button>
+      </div>;
+    })}
   </main>;
 }
