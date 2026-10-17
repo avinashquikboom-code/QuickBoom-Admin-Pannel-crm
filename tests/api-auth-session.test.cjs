@@ -172,16 +172,6 @@ test('two tabs sharing a rotating refresh token serialize through Web Locks', as
   const locks = { request(_name, run) { const result = tail.then(run); tail = result.catch(() => {}); return result; } };
   first.window.navigator = second.window.navigator = { locks };
   const next = token(1, 4500000000);
-  const refresh = async () => {
-    calls++;
-    const persisted = JSON.stringify({ state: { user: first.state.user, token: next, refreshToken: 'rotated' } });
-    first.storage.set('quikboom-next-auth-storage', persisted);
-    second.storage.set('quikboom-next-auth-storage', persisted);
-    // Publishing occurs when updateTokens writes the persisted session in production.
-    first.state.token = next; first.state.refreshToken = 'rotated';
-    return { data: { accessToken: next, refreshToken: 'rotated' } };
-  };
-  // Delay publication until after the refreshing tab verifies its session key.
   first.axios.post = second.axios.post = async () => { calls++; return { data: { accessToken: next, refreshToken: 'rotated' } }; };
   first.state.updateTokens = function(access, refreshToken) {
     this.token = access; this.refreshToken = refreshToken;
@@ -193,4 +183,22 @@ test('two tabs sharing a rotating refresh token serialize through Web Locks', as
   assert.deepEqual(tokens, [next, next]);
   assert.equal(calls, 1);
   assert.equal(second.state.refreshToken, 'rotated');
+});
+test('bulk import refreshes a rejected token and replays exactly the same JSON once', async () => {
+  const f = fixture();
+  const request = await f.hooks.request({ ...config(), method: 'post', url: '/data-capture/import-to-leads', data: { ids: [101, 102] } });
+  let calls = 0;
+  f.axios.post = async () => { calls++; return { data: { accessToken: token(1, 4500000000), refreshToken: 'rotated' } }; };
+  const retry = await f.hooks.error({ config: request, response: { status: 401 } });
+  assert.equal(calls, 1);
+  assert.equal(retry.method, 'post'); assert.equal(retry.url, request.url); assert.equal(retry.data, request.data);
+  await assert.rejects(f.hooks.error({ config: retry, response: { status: 401 } }));
+  assert.equal(calls, 1); assert.equal(f.state.token, null);
+});
+test('bulk import permission denial remains 403 without refreshing or replaying', async () => {
+  const f = fixture();
+  const request = await f.hooks.request({ ...config(), method: 'post', url: '/data-capture/import-to-leads', data: { ids: [101] } });
+  const error = { config: request, response: { status: 403, data: { message: 'Access denied' } } };
+  await assert.rejects(f.hooks.error(error), caught => caught === error);
+  assert.ok(f.state.token);
 });
