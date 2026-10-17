@@ -35,21 +35,7 @@ const text = (value: unknown) => (value === null || value === undefined ? '' : S
 
 // Mirrors the mobile CustomerModel status rules: Active > Upcoming > Inactive.
 function mapCustomer(raw: any, index: number): CustomerView {
-  const rawStatus = text(raw.customerStatus || raw.status || 'ACTIVE').toUpperCase();
-  const custStatus = ['ACTIVE', 'UPCOMING', 'COMPLETED', 'INACTIVE'].includes(rawStatus)
-    ? rawStatus
-    : raw.isActive === false
-      ? 'INACTIVE'
-      : 'ACTIVE';
-  const subStatus = text(raw.subscriptionStatus).toUpperCase();
-  const leadStatus = text(raw.leadStatus).toUpperCase();
-  const stage = text(raw.leadStageName).toLowerCase();
-  const isFinalCall = leadStatus === 'FINAL_CALL' || stage.includes('final');
-  const isSubActive = subStatus === 'ACTIVE' || (custStatus === 'ACTIVE' && raw.hasUpcomingCall === false);
-  const hasUpcoming =
-    !isSubActive &&
-    (custStatus === 'UPCOMING' || isFinalCall || raw.hasUpcomingCall === true || !!raw.upcomingCall);
-  const status: CustomerStatus = isSubActive ? 'Active' : hasUpcoming ? 'Upcoming' : 'Inactive';
+  const status: CustomerStatus = text(raw.customerStatus || raw.status).toUpperCase() === 'ACTIVE' ? 'Active' : 'Inactive';
 
   const contact = text(raw.contactFullName || raw.contactPerson);
   const customerName = text(raw.customerName || contact);
@@ -127,6 +113,7 @@ export default function EmployeeCustomersPage() {
   const query = useQuery<CustomersResult>({
     queryKey: ['employee-customers', search],
     enabled: canView,
+    refetchInterval: 15000,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const response: any = await api.get('/customers', {
