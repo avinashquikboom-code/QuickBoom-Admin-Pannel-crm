@@ -45,3 +45,30 @@
   animation: slideInFromRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+
+@layer components {
+  /* Header-only contrast variants; buttons elsewhere retain their existing design. */
+  .admin-page-header [data-admin-variant='primary'] {
+    @apply bg-brand-900 text-white border-brand-900;
+  }
+
+  .admin-page-header [data-admin-variant='primary']:hover {
+    @apply bg-brand-800 border-brand-800;
+  }
+
+  .admin-page-header [data-admin-variant='glass'] {
+    @apply bg-white text-brand-900 border-brand-900/20;
+  }
+
+  .admin-page-header [data-admin-variant='glass']:hover {
+    @apply bg-brand-50;
+  }
+
+  .admin-page-header [data-admin-variant='ghost'] {
+    @apply text-slate-900;
+  }
+
+  .admin-page-header [data-admin-variant]:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-brand-900;
+  }
+}
