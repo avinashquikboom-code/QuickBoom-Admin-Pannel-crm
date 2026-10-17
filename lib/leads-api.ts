@@ -151,6 +151,8 @@ export function normalizeLeadList(response: any, request: { page?: unknown; limi
   const normalized: LeadPagination = { page, limit, total, totalPages: calculatedPages };
   return { data: records, items: records, ...normalized, pagination: normalized };
 }
+export type UpdateLeadInput = Omit<Partial<CreateLeadInput>, 'email'> & { email?: string | null };
+
 export const leadsApi = {
   list: async (params: Record<string, unknown>) => {
     if (process.env.NODE_ENV !== 'production') console.debug('[LEAD_LIST_REQUEST]', { endpoint: '/leads', method: 'GET', queryParams: params });
@@ -165,6 +167,7 @@ export const leadsApi = {
   },
   detail: async (id: number) => unwrap<Lead>(await api.get(`/leads/${id}`)),
   create: async (data: CreateLeadInput) => unwrap<Lead>(await api.post('/leads', { ...data, source: 'MANUAL', createdFrom: 'ADMIN_PANEL' })),
+  update: async (id: number, data: UpdateLeadInput) => unwrap<Lead>(await api.patch(`/leads/${id}`, data)),
   stages: async (): Promise<LeadStage[]> => {
     try {
       const res = await api.get('/leads/stages');
