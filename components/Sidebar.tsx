@@ -239,8 +239,8 @@ function SidebarInner({ isCollapsed: controlledCollapsed, onToggleCollapse, onNa
   // ACCORDION SINGLE SOURCE OF TRUTH: Only ONE expandable parent section open at a time
   const retiredAdminRoutes = [
     '/leads', '/customers', '/register', '/customer-registration',
-    '/customer-calendar', '/schedules', '/super-admin', '/data-capture/history',
-    '/master/lead-stages', '/master/lead-sources',
+    '/customer-calendar', '/schedules', '/super-admin',
+    '/master/lead-sources',
   ];
   const isRetiredAdminRoute = (href: string) => retiredAdminRoutes.some((route) => {
     const pathname = href.split('?')[0];
