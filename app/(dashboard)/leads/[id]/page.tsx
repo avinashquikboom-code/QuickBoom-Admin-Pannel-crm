@@ -1,11 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Check, ChevronRight, GitCommit, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminButton, AdminCard, AdminPageHeader } from '@/components/admin';
+import { AdminButton, AdminCard, AdminPageHeader, AdminSelect } from '@/components/admin';
 import { LeadStage, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -20,6 +20,14 @@ export default function LeadDetailsPage() {
   const lead = detail.data;
 
   const currentStage = lead?.stage || configuredStages.find(stage => stage.key === lead?.status) || { id: 0, key: lead?.status || '', name: lead?.status || 'Unknown', sortOrder: 0, color: '#64748b', bgColor: '#f1f5f9', borderColor: '#e2e8f0' };
+
+  const [selectedStageKey, setSelectedStageKey] = useState<string>('');
+
+  useEffect(() => {
+    if (currentStage?.key) {
+      setSelectedStageKey(currentStage.key);
+    }
+  }, [currentStage?.key]);
 
   const updateStage = useMutation({
     mutationFn: async (targetStage: LeadStage) => {
@@ -78,57 +86,73 @@ export default function LeadDetailsPage() {
 
               <div>
                 <p className="text-xs font-bold text-slate-600 uppercase mb-2">Change Stage</p>
-                {stagesQuery.isLoading && <p role="status">Loading pipeline stages…</p>}
-                {stagesQuery.isError && <div role="alert">Unable to load pipeline stages. <AdminButton size="sm" onClick={() => stagesQuery.refetch()}>Retry</AdminButton></div>}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {configuredStages.filter(stage => stage.isActive).map((stage) => {
-                    const isCurrent = (lead.stageId === stage.id) || (lead.status === stage.key);
-                    return (
-                      <button
-                        key={stage.id}
-                        type="button"
+                {stagesQuery.isLoading && <p role="status" className="text-xs text-slate-500">Loading pipeline stages…</p>}
+                {stagesQuery.isError && (
+                  <div role="alert" className="space-y-2 py-2">
+                    <p className="text-xs text-rose-700">Unable to load pipeline stages.</p>
+                    <AdminButton size="sm" variant="outline" onClick={() => stagesQuery.refetch()}>Retry</AdminButton>
+                  </div>
+                )}
+                {!stagesQuery.isLoading && !stagesQuery.isError && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (updateStage.isPending || !selectedStageKey || selectedStageKey === currentStage.key) return;
+                      const target = configuredStages.find(s => s.key === selectedStageKey);
+                      if (target) updateStage.mutate(target);
+                    }}
+                    className="space-y-3.5"
+                  >
+                    <div className="space-y-1.5">
+                      <label htmlFor="lead-details-stage-select" className="block text-xs font-medium text-slate-700">
+                        Select Pipeline Stage
+                      </label>
+                      <AdminSelect
+                        id="lead-details-stage-select"
+                        value={selectedStageKey || currentStage.key || ''}
                         disabled={updateStage.isPending}
-                        onClick={() => {
-                          if (!isCurrent) updateStage.mutate(stage);
-                        }}
-                        className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
-                          isCurrent
-                            ? 'ring-2 font-bold'
-                            : 'hover:border-slate-300 bg-white hover:bg-slate-50/50'
-                        }`}
-                        style={{
-                          backgroundColor: isCurrent ? stage.bgColor : undefined,
-                          borderColor: isCurrent ? stage.borderColor : '#E2E8F0',
-                          color: isCurrent ? stage.color : '#1E293B',
-                          boxShadow: isCurrent ? `0 0 0 2px ${stage.color}25` : undefined,
-                        }}
+                        onChange={(e) => setSelectedStageKey(e.target.value)}
+                        className="w-full max-w-md"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                            style={{ backgroundColor: stage.color }}
-                          >
-                            {stage.sortOrder}
-                          </span>
-                          <div className="min-w-0 truncate">
-                            <span className="text-sm truncate block">{stage.name}</span>
-                            <span className="text-[10px] text-slate-400 block font-mono truncate">{stage.key}</span>
-                          </div>
-                        </div>
-                        {isCurrent ? (
-                          <span
-                            className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0"
-                            style={{ backgroundColor: stage.color }}
-                          >
-                            Current
-                          </span>
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                        {configuredStages
+                          .filter(stage => stage.isActive)
+                          .map(stage => (
+                            <option key={stage.key} value={stage.key}>
+                              {stage.sortOrder}. {stage.name} {stage.key === currentStage.key ? '(Current)' : ''}
+                            </option>
+                          ))}
+                      </AdminSelect>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <AdminButton
+                        type="submit"
+                        size="sm"
+                        disabled={updateStage.isPending || !selectedStageKey || selectedStageKey === currentStage.key}
+                        className="!text-xs font-semibold"
+                      >
+                        {updateStage.isPending ? 'Updating Stage…' : 'Update Stage'}
+                      </AdminButton>
+                      {selectedStageKey && selectedStageKey !== currentStage.key && (
+                        <AdminButton
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={updateStage.isPending}
+                          onClick={() => setSelectedStageKey(currentStage.key || '')}
+                          className="!text-xs"
+                        >
+                          Reset
+                        </AdminButton>
+                      )}
+                    </div>
+                  </form>
+                )}
+                {updateStage.isError && (
+                  <p role="alert" className="mt-3 text-xs text-rose-700">
+                    {getErrorMessage(updateStage.error)}
+                  </p>
+                )}
               </div>
             </div>
           </AdminCard>
