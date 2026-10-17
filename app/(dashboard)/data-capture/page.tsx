@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity, Building2, Pencil, Loader2, UserPlus, ArrowRight } from 'lucide-react';
+import { Database, Search, Download, Plus, Globe, Layers, MapPin, Tag, Star, Phone, Mail, ExternalLink, ShieldCheck, RefreshCw, Trash2, Check, X, AlertTriangle, Copy, Activity, Building2, Pencil, Loader2, UserPlus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import api from '@/lib/api';
 import { dataCaptureApi } from '@/lib/data-capture-api';
+import { getDataCaptureWorkflow } from '@/lib/data-capture-workflow';
 import { useAuthStore } from '@/lib/store';
 import { isAuthenticatedUser } from '@/lib/access-control';
 import { AdminPageHeader, AdminStatCard, AdminCard, AdminButton, AdminFormDrawer, AdminConfirmDialog, AdminPagination, AdminDataTable } from '@/components/admin';
@@ -269,7 +269,7 @@ const STATUS_CONFIG: Record<
   VALIDATED: { label: 'Validated', bg: 'bg-emerald-50', text: 'text-[#1AA14D]', border: 'border-emerald-200' },
   REJECTED: { label: 'Rejected', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
   DUPLICATE: { label: 'Duplicate', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  LEAD_CREATED: { label: 'Imported', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+  LEAD_CREATED: { label: 'Lead Imported', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
 };
 
 export default function DataCapturePage() {
@@ -419,15 +419,11 @@ export default function DataCapturePage() {
   const totalPages = listResponse?.totalPages || 1;
 
   const drawerRecordId = React.useRef<number | undefined>(undefined);
-  const workflowStatus = String(selectedRecord?.status ?? '').trim().toUpperCase();
-  const isRejectedRecord = workflowStatus === 'REJECTED';
-  const leadId = (selectedRecord as any)?.leadId || selectedRecord?.importedLeadId;
-  const isLeadAdded = !isRejectedRecord &&
-    (selectedRecord?.isImported === true || workflowStatus === 'LEAD_CREATED' || Boolean(leadId));
-  const canDecideRecord = !isLeadAdded && !isRejectedRecord && ['CAPTURED', 'PENDING', 'NEW', ''].includes(workflowStatus);
-  const isValidatedRecord = workflowStatus === 'VALIDATED' && !isLeadAdded;
-  const workflowLabel = isLeadAdded ? 'LEAD ADDED' : workflowStatus || 'UNKNOWN';
-  const workflowStyle = STATUS_CONFIG[isLeadAdded ? 'LEAD_CREATED' : workflowStatus] || STATUS_CONFIG.CAPTURED;
+  const workflow = getDataCaptureWorkflow(selectedRecord);
+  const { isRejected: isRejectedRecord, isImported: isLeadAdded,
+    isValidated: isValidatedRecord, canDecide: canDecideRecord } = workflow;
+  const workflowLabel = isLeadAdded ? 'LEAD IMPORTED' : workflow.displayStatus;
+  const workflowStyle = STATUS_CONFIG[workflow.displayStatus] || STATUS_CONFIG.CAPTURED;
   const rejectionNotes = isRejectedRecord ? selectedRecord?.notes?.trim() : '';
   const rejectionMarker = '[REJECTION REASON]:';
   const rejectionReason = rejectionNotes?.includes(rejectionMarker)
@@ -470,7 +466,7 @@ export default function DataCapturePage() {
       }
     } catch (error) {
       if (drawerRecordId.current === id) {
-        setDetailError(`Decision saved, but details could not be refreshed. ${getErrorMessage(error)}`);
+        setDetailError(`Changes saved, but details could not be refreshed. ${getErrorMessage(error)}`);
       }
     }
   };
@@ -613,35 +609,52 @@ export default function DataCapturePage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 
+  const importInFlight = React.useRef(false);
   const importLeadMutation = useMutation({
     mutationFn: async (id: number) => {
-      try {
-        const res: any = await api.post(`/data-capture/${id}/create-lead`, {});
-        return res?.data || res;
-      } catch (err: any) {
-        if (err?.response?.status === 404 || err?.status === 404) {
-          const res: any = await dataCaptureApi.update(id, {
-            isImported: true,
-            status: 'LEAD_CREATED',
-          });
-          return res?.data || res;
-        }
-        throw err;
+      const response: any = await dataCaptureApi.importLead(id);
+      const result = response?.data || response;
+      if (!result?.lead?.id || result.record?.importedLeadId !== result.lead.id) {
+        throw new Error('Import response is missing its Lead link. Refresh the record before retrying.');
       }
+      return result;
     },
-    onSuccess: async (res: any, id: number) => {
-      toast.success('Lead imported successfully!');
-      await refreshDrawerAfterDecision(id, res);
+    onSuccess: async (result: any, id: number) => {
+      await Promise.all([
+        refreshDrawerAfterDecision(id, { data: result.record }),
+        queryClient.invalidateQueries({ queryKey: ['leads'] }),
+        queryClient.invalidateQueries({ queryKey: ['lead', result.lead.id] }),
+      ]);
+      toast.success(result.alreadyImported ? 'Existing Lead linked successfully' : 'Lead imported successfully');
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    onError: async (error, id) => {
+      toast.error(getErrorMessage(error));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['data-capture-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['data-capture-detail', id] }),
+      ]);
+    },
+    onSettled: () => { importInFlight.current = false; },
   });
+  const importRecord = (record: CapturedPlace) => {
+    if (importInFlight.current || !record.id || !getDataCaptureWorkflow(record).isValidated) return;
+    importInFlight.current = true;
+    importLeadMutation.mutate(record.id);
+  };
+  const renderImportButton = (record: CapturedPlace) => {
+    const importing = importLeadMutation.isPending && importLeadMutation.variables === record.id;
+    return <button type="button" disabled={isAnyMutating} onClick={() => importRecord(record)}
+      className="h-[34px] px-3 rounded-lg bg-brand-800 hover:bg-brand-900 text-white text-[13px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+      {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+      {importing ? 'Importing...' : 'Import Lead'}
+    </button>;
+  };
 
   const isAnyMutating =
     validateMutation.isPending ||
     rejectMutation.isPending ||
     deleteMutation.isPending ||
-    updateMutation.isPending ||
-    importLeadMutation.isPending;
+    updateMutation.isPending || importLeadMutation.isPending;
 
   // Lock body scroll and handle Escape key for Detail Drawer
   useEffect(() => {
@@ -653,8 +666,7 @@ export default function DataCapturePage() {
           !validateMutation.isPending &&
           !rejectMutation.isPending &&
           !deleteMutation.isPending &&
-          !updateMutation.isPending &&
-          !importLeadMutation.isPending
+          !updateMutation.isPending && !importLeadMutation.isPending
         ) {
           setDrawerOpen(false);
         }
@@ -1179,9 +1191,10 @@ export default function DataCapturePage() {
               ) },
               { key: 'address', header: 'Location', className: 'max-w-xs' },
               { key: 'status', header: 'Status', render: (record) => {
-                const status = STATUS_CONFIG[record.status || 'CAPTURED'] || STATUS_CONFIG.CAPTURED;
-                return <span className={`inline-flex rounded-full border px-2.5 py-1 ${status.bg} ${status.text} ${status.border}`}>
-                  {status.label}
+                const recordWorkflow = getDataCaptureWorkflow(record);
+                const status = STATUS_CONFIG[recordWorkflow.displayStatus];
+                return <span className={`inline-flex rounded-full border px-2.5 py-1 ${status?.bg || 'bg-slate-50'} ${status?.text || 'text-slate-700'} ${status?.border || 'border-slate-200'}`}>
+                  {status?.label || recordWorkflow.displayStatus}
                 </span>;
               } },
               { key: 'source', header: 'Source' },
@@ -1189,10 +1202,19 @@ export default function DataCapturePage() {
                 const date = new Date(record.capturedAt);
                 return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
               } },
-              { key: 'actions', header: 'Actions', render: (record) => (
-                <button type="button" className="text-emerald-700 font-bold hover:underline"
-                  onClick={(event) => { event.stopPropagation(); openDetailDrawer(record); }}>View details</button>
-              ) },
+              { key: 'actions', header: 'Actions', render: (record) => {
+                const recordWorkflow = getDataCaptureWorkflow(record);
+                if (recordWorkflow.isImported) {
+                  return recordWorkflow.leadId
+                    ? <Link href={`/leads/${recordWorkflow.leadId}`} onClick={(event) => event.stopPropagation()} className="text-brand-900 font-bold hover:underline">View Lead</Link>
+                    : <span role="status" className="inline-flex items-center gap-1.5 text-brand-900 font-semibold"><Check className="w-4 h-4" />Lead Imported</span>;
+                }
+                return <div className="flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
+                  <button type="button" className="text-emerald-700 font-bold hover:underline"
+                    onClick={() => openDetailDrawer(record)}>View details</button>
+                  {recordWorkflow.isValidated && canEdit && renderImportButton(record)}
+                </div>;
+              } },
             ]}
           />
         )}
@@ -1987,27 +2009,10 @@ export default function DataCapturePage() {
                   );
                 }
 
-                // Validated State (not imported yet): show ONLY [ + Import Lead ] aligned to right
-                if (isValidatedRecord) {
-                  return (
-                    <div className="sticky bottom-0 z-20 px-4 py-3 bg-white border-t border-slate-200/80 shrink-0">
-                      <div className="flex items-center justify-end w-full">
-                        <button
-                          type="button"
-                          disabled={isAnyMutating || importLeadMutation.isPending}
-                          onClick={() => selectedRecord?.id && importLeadMutation.mutate(selectedRecord.id)}
-                          className="h-10 px-4.5 rounded-[10px] bg-[#1AA14D] hover:bg-[#15803d] text-white font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-                        >
-                          {importLeadMutation.isPending ? (
-                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                          ) : (
-                            <UserPlus className="w-4 h-4 shrink-0" />
-                          )}
-                          <span>{importLeadMutation.isPending ? 'Importing...' : '+ Import Lead'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
+                if (isValidatedRecord && selectedRecord) {
+                  return <div className="sticky bottom-0 z-20 px-4 py-3 bg-white border-t border-slate-200/80 shrink-0 flex justify-end">
+                    {renderImportButton(selectedRecord)}
+                  </div>;
                 }
 
                 // Imported State: [ View Lead → ] or [ ✓ Lead Imported ] aligned to right
@@ -2015,23 +2020,11 @@ export default function DataCapturePage() {
                   return (
                     <div className="sticky bottom-0 z-20 px-4 py-3 bg-white border-t border-slate-200/80 shrink-0">
                       <div className="flex items-center justify-end w-full">
-                        {leadId ? (
-                          <Link
-                            href={`/leads/${leadId}`}
-                            className="h-10 px-4 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors shadow-2xs"
-                          >
-                            <span>View Lead</span>
-                            <ArrowRight className="w-4 h-4 shrink-0" />
-                          </Link>
-                        ) : (
-                          <span
-                            className="h-10 px-4 rounded-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-sm inline-flex items-center justify-center gap-2"
-                            role="status"
-                          >
-                            <Check className="w-4 h-4 shrink-0 text-emerald-600" />
-                            <span>Lead Imported</span>
-                          </span>
-                        )}
+                        {workflow.leadId ? <Link href={`/leads/${workflow.leadId}`} className="h-10 px-4 rounded-lg border border-slate-200 text-brand-900 font-semibold text-sm inline-flex items-center gap-2 hover:bg-brand-50">View Lead</Link> :
+                          <span className="h-10 px-4 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-semibold text-sm inline-flex items-center gap-2" role="status">
+                            <Check className="w-4 h-4 shrink-0" />Lead Imported
+                          </span>}
+
                       </div>
                     </div>
                   );
