@@ -22,6 +22,7 @@ export interface AdminDataTableProps<T> {
   onRowClick?: (item: T) => void;
   className?: string;
   minWidth?: string;
+  rowClassName?: (item: T) => string;
 }
 
 export function AdminDataTable<T>({
@@ -35,6 +36,7 @@ export function AdminDataTable<T>({
   onRowClick,
   className = '',
   minWidth = 'min-w-[650px]',
+  rowClassName,
 }: AdminDataTableProps<T>) {
   if (loading) {
     return (
@@ -79,7 +81,7 @@ export function AdminDataTable<T>({
                   onClick={() => onRowClick && onRowClick(item)}
                   className={`hover:bg-slate-50/60 transition-colors ${
                     onRowClick ? 'cursor-pointer' : ''
-                  }`}
+                  } ${rowClassName?.(item) || ''}`}
                 >
                   {columns.map((col) => (
                     <td

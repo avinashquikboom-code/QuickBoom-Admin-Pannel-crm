@@ -1,18 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, RefreshCw, Search, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AdminRowActions } from '@/components/admin/tables/AdminRowActions';
+import { Download, ExternalLink, Plus, RefreshCw, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminButton, AdminCard, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination } from '@/components/admin';
-import { CreateLeadInput, CRM_LEAD_STAGES, getStageDetails, Lead, LEAD_STATUSES, leadsApi } from '@/lib/leads-api';
+import { AdminButton, AdminCard, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination, AdminSearchInput, AdminSelect, AdminStatusBadge } from '@/components/admin';
+import { CreateLeadInput, CRM_LEAD_STAGES, Lead, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 
 const emptyForm: CreateLeadInput = { companyName: '', firstName: '', lastName: '', phone: '', email: '', website: '', address: '', city: '', state: '', country: '', pincode: '', category: '', notes: '' };
 
 export default function LeadsPage() {
   const client = useQueryClient();
+  const router = useRouter();
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [search, setSearch] = useState('');
@@ -43,56 +47,121 @@ export default function LeadsPage() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  return <div className="space-y-6 max-w-[1600px] mx-auto pb-16">
-    <AdminPageHeader title="Leads" description="Manage manually added and imported business prospects across CRM pipeline stages." icon={Users}
-      breadcrumbs={[{ label: 'CRM' }, { label: 'Leads' }]}
-      actions={<><AdminButton variant="outline" icon={RefreshCw} onClick={() => list.refetch()} disabled={list.isFetching}>Refresh</AdminButton>
-        <AdminButton icon={Plus} onClick={() => setOpen(true)}>Add Lead</AdminButton></>} />
-    <AdminCard title="All Leads" description="Newest first. Manual and Data Capture sources are included.">
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 flex-1">
-          <Search className="w-4 h-4 text-slate-500" />
-          <input aria-label="Search Leads" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search company, name, phone or email" className="w-full outline-none text-sm" />
+  const leads = list.data?.data || [];
+  const total = list.data?.total || 0;
+  const totalPages = list.data?.totalPages || 1;
+  const selectedOnPage = leads.filter(lead => selectedIds.includes(lead.id));
+  useEffect(() => { setSelectedIds([]); }, [page, limit, search, status]);
+  const toggleSelection = (id: number) => setSelectedIds(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id]);
+  const togglePage = () => setSelectedIds(selectedOnPage.length === leads.length ? [] : leads.map(lead => lead.id));
+  const exportPage = () => {
+    const rows = selectedOnPage.length ? selectedOnPage : leads;
+    const escape = (value: unknown) => {
+      const text = String(value ?? '');
+      return `"${(/^[=+@-]/.test(text) ? "'" + text : text).replace(/"/g, '""')}"`;
+    };
+    const csv = [
+      ['Lead Name', 'Phone', 'Email', 'Company', 'Stage', 'Source', 'Created On'],
+      ...rows.map(lead => [[lead.firstName, lead.lastName].filter(Boolean).join(' ') || lead.companyName, lead.phone, lead.email,
+        lead.companyName, lead.stage?.name || CRM_LEAD_STAGES.find(stage => stage.key === lead.status)?.name || lead.status,
+        lead.source, lead.createdAt]),
+    ].map(row => row.map(escape).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `leads-page-${page}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} Leads${selectedOnPage.length ? '' : ' from the current page'}`);
+  };
+  const stageClasses: Record<string, string> = {
+    NEW: '!bg-sky-50 !text-sky-700 !border-sky-200',
+    CONTACTED: '!bg-emerald-50 !text-emerald-700 !border-emerald-200',
+    DETAILS_SEND: '!bg-indigo-50 !text-indigo-700 !border-indigo-200',
+    FOLLOW_UP: '!bg-purple-50 !text-purple-700 !border-purple-200',
+    VISIT_SCHEDULED: '!bg-cyan-50 !text-cyan-700 !border-cyan-200',
+    VISIT_DONE: '!bg-teal-50 !text-teal-700 !border-teal-200',
+    PROPOSAL_SENT: '!bg-blue-50 !text-blue-700 !border-blue-200',
+    NEGOTIATION: '!bg-amber-50 !text-amber-700 !border-amber-200',
+    FINAL_CALL: '!bg-orange-50 !text-orange-700 !border-orange-200',
+    WON: '!bg-green-50 !text-green-700 !border-green-200',
+    LOST: '!bg-rose-50 !text-rose-700 !border-rose-200',
+  };
+
+  return <div className="space-y-4 min-w-0 max-w-[1600px] mx-auto pb-16">
+    <AdminPageHeader title="Leads" description="Manage your business leads and opportunities." icon={Users}
+      actions={<>
+        <AdminButton variant="outline" icon={Download} onClick={exportPage} disabled={!leads.length || list.isLoading}
+          title={selectedOnPage.length ? 'Export selected Leads on this page' : 'Export Leads on the current page'}>Export</AdminButton>
+        <AdminButton icon={Plus} onClick={() => setOpen(true)}>Add Lead</AdminButton>
+      </>} />
+    <AdminCard title="All Leads" description={`Showing ${total ? (page - 1) * limit + 1 : 0} - ${Math.min(page * limit, total)} of ${total} records • Page ${page} of ${totalPages}`}
+      bodyClassName="p-0"
+      className="[&>div:first-child]:flex-wrap [&>div:first-child]:items-start [&>div:first-child>div:last-child]:min-w-0 [&>div:first-child>div:last-child]:max-w-full [&>div:first-child>div:last-child]:shrink"
+      headerActions={<div className="flex w-full flex-wrap items-center gap-2 lg:justify-end">
+        <AdminSearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }}
+          placeholder="Search leads by name, phone, email, company..." className="min-w-[220px] lg:w-[310px]" />
+        <AdminSelect aria-label="Filter Leads by stage" value={status} className="!py-2 !text-xs"
+          onChange={(event) => { setStatus(event.target.value); setPage(1); }}
+          options={[{ value: 'ALL', label: 'All Stages' }, ...CRM_LEAD_STAGES.map(stage => ({ value: stage.key, label: stage.name }))]} />
+        <label className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">Per page:
+          <AdminSelect aria-label="Leads per page" value={limit} className="!py-2 !text-xs"
+            onChange={(event) => { setLimit(Number(event.target.value)); setPage(1); }}
+            options={[10, 20, 50, 100].map(size => ({ value: String(size), label: String(size) }))} />
         </label>
-        <select aria-label="Lead status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium">
-          <option value="ALL">All stages ({CRM_LEAD_STAGES.length})</option>
-          {CRM_LEAD_STAGES.map((s) => <option key={s.key} value={s.key}>{s.sortOrder}. {s.name}</option>)}
-        </select>
+      </div>}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-2">
+        <span className="text-xs text-slate-500">{selectedOnPage.length ? `${selectedOnPage.length} selected on this page` : 'All sources • Newest first'}</span>
+        <div className="flex items-center gap-2">
+          {selectedOnPage.length > 0 && <AdminButton variant="ghost" size="sm" onClick={() => setSelectedIds([])}>Deselect</AdminButton>}
+          <AdminButton variant="ghost" size="sm" icon={RefreshCw} onClick={() => list.refetch()} disabled={list.isFetching}>Refresh</AdminButton>
+        </div>
       </div>
-      {list.isError ? <div role="alert" className="p-6 text-rose-700 space-y-3"><p>{getErrorMessage(list.error)}</p><AdminButton variant="outline" onClick={() => list.refetch()}>Retry</AdminButton></div> :
-        <AdminDataTable<Lead> data={list.data?.data || []} loading={list.isLoading} keyExtractor={(lead) => String(lead.id)} emptyTitle="No Leads found" emptyDescription="Add a Lead or import a validated Data Capture record. Check active search and status filters."
+      {list.isError ? <div role="alert" className="p-6 text-rose-700 space-y-3"><p>{getErrorMessage(list.error)}</p><AdminButton variant="outline" onClick={() => list.refetch()}>Retry</AdminButton></div> : <>
+        <AdminDataTable<Lead> data={leads} loading={list.isLoading} keyExtractor={(lead) => String(lead.id)}
+          emptyTitle="No leads found" emptyDescription="Add a Lead or import a validated Data Capture record."
+          minWidth="min-w-[1120px] table-fixed"
+          className="!rounded-none !border-0 !shadow-none [&_td]:!px-3 [&_td]:!py-3 [&_th]:!px-3 [&_th]:!font-medium [&_td]:align-top"
+          rowClassName={(lead) => selectedIds.includes(lead.id) ? 'bg-emerald-50/50 hover:!bg-emerald-50/70' : ''}
           columns={[
-            { key: 'companyName', header: 'Business', render: (lead) => <Link className="font-bold text-brand-900 hover:underline" href={`/leads/${lead.id}`}>{lead.companyName}</Link> },
-            { key: 'phone', header: 'Contact', render: (lead) => <div>{lead.phone || '—'}<p className="text-slate-500">{lead.email || '—'}</p></div> },
-            {
-              key: 'status',
-              header: 'Pipeline Stage',
-              render: (lead) => {
-                const stage = lead.stage || getStageDetails(lead.status);
-                return (
-                  <span
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
-                    style={{
-                      color: stage.color,
-                      backgroundColor: stage.bgColor,
-                      borderColor: stage.borderColor,
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: stage.color }}
-                    />
-                    {stage.name}
-                  </span>
-                );
-              },
-            },
-            { key: 'source', header: 'Source' },
-            { key: 'createdFrom', header: 'Created from' },
-            { key: 'createdAt', header: 'Created', render: (lead) => new Date(lead.createdAt).toLocaleString() },
-            { key: 'actions', header: 'Actions', render: (lead) => <Link href={`/leads/${lead.id}`} className="text-brand-900 font-bold hover:underline">View Lead</Link> },
-          ]} />}
-      <AdminPagination page={page} pageSize={limit} total={list.data?.total || 0} totalPages={list.data?.totalPages || 1} onPageChange={setPage}
+            { key: 'selection', headerClassName: 'w-12 text-center', className: 'text-center',
+              header: <input type="checkbox" aria-label="Select all Leads on this page" className="h-4 w-4 rounded accent-emerald-600"
+                checked={leads.length > 0 && selectedOnPage.length === leads.length}
+                ref={(input) => { if (input) input.indeterminate = selectedOnPage.length > 0 && selectedOnPage.length < leads.length; }}
+                onChange={togglePage} />,
+              render: lead => <input type="checkbox" aria-label={`Select ${lead.companyName}`} className="h-4 w-4 rounded accent-emerald-600"
+                checked={selectedIds.includes(lead.id)} onChange={() => toggleSelection(lead.id)} /> },
+            { key: 'name', header: 'Lead Name', headerClassName: 'w-[17%]', render: lead => <div className="min-w-0">
+              <Link href={`/leads/${lead.id}`} className="line-clamp-2 break-words font-semibold leading-snug text-slate-900 hover:text-emerald-700">
+                {[lead.firstName, lead.lastName].filter(Boolean).join(' ').trim() || lead.companyName || '—'}</Link>
+              {lead.category && <p className="mt-1 truncate text-[11px] font-normal text-slate-500">{lead.category}</p>}
+            </div> },
+            { key: 'phone', header: 'Contact', headerClassName: 'w-[17%]', render: lead => <div className="space-y-1 break-words font-normal">
+              <p className="font-medium">{lead.phone || '—'}</p><p className="text-[11px] text-slate-500">{lead.email || '—'}</p></div> },
+            { key: 'companyName', header: 'Company', headerClassName: 'w-[17%]', render: lead => <p className="line-clamp-3 break-words font-medium leading-snug">{lead.companyName || '—'}</p> },
+            { key: 'status', header: 'Stage', headerClassName: 'w-[13%]', render: lead => {
+              const stage = lead.stage || CRM_LEAD_STAGES.find(item => item.key === lead.status);
+              return <AdminStatusBadge status={stage?.key || lead.status || 'UNKNOWN'} label={stage?.name || lead.status || '—'}
+                className={`!normal-case !tracking-normal !font-medium !text-[11px] ${stageClasses[stage?.key || lead.status] || ''}`} />;
+            } },
+            { key: 'source', header: 'Source', headerClassName: 'w-[11%]', render: lead => <span className="font-medium break-words">
+              {({ GOOGLE_PLACES: 'Google Places', DATA_CAPTURE: 'Data Capture', MANUAL: 'Manual', WEBSITE: 'Website', IMPORT: 'Import' } as Record<string, string>)[lead.source] || lead.source?.replace(/_/g, ' ') || '—'}
+            </span> },
+            { key: 'createdAt', header: 'Created On', headerClassName: 'w-[11%]', render: lead => {
+              const date = new Date(lead.createdAt);
+              return Number.isNaN(date.getTime()) ? '—' : <div className="space-y-1 whitespace-nowrap font-normal">
+                <p>{date.toLocaleDateString('en-GB')}</p><p className="text-[11px] text-slate-500">{date.toLocaleTimeString('en-GB')}</p></div>;
+            } },
+            { key: 'actions', header: 'Actions', headerClassName: 'w-[170px]', render: lead => <div className="flex items-center gap-1.5">
+              <Link href={`/leads/${lead.id}`} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">View Lead<ExternalLink className="h-3.5 w-3.5" /></Link>
+              <AdminRowActions label={`More actions for ${lead.companyName}`} items={[
+                { label: 'Change Stage', onSelect: () => router.push(`/leads/${lead.id}`) },
+              ]} />
+            </div> },
+          ]} />
+        {!list.isLoading && leads.length === 0 && <div className="flex justify-center pb-6"><AdminButton icon={Plus} size="sm" onClick={() => setOpen(true)}>Add Lead</AdminButton></div>}
+      </>}
+      <AdminPagination page={page} pageSize={limit} total={total} totalPages={totalPages} onPageChange={setPage}
         onPageSizeChange={(value) => { setLimit(value); setPage(1); }} disabled={list.isFetching} />
     </AdminCard>
     <AdminFormDrawer isOpen={open} onClose={() => { if (!create.isPending) setOpen(false); }} title="Add Lead" icon={Users}

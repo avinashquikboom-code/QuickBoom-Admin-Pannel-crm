@@ -45,6 +45,7 @@ export const dataCaptureApi = {
   update: (id: number, data: Record<string, unknown>) => request('patch', `/${id}`, data),
   remove: (id: number) => request('delete', `/${id}`),
   importLead: async (id: number) => normalizeLeadImportResponse(await request('post', `/${id}/create-lead`, {})),
+  importLeads: (ids: number[]) => request('post', '/import-to-leads', { ids }),
   validate: (id: number) => request('post', `/${id}/validate`),
   reject: (id: number, reason?: string) => request('post', `/${id}/reject`, { reason }),
   bulk: (ids: number[], action: string, reason?: string) => request('post', '/bulk', { ids, action, reason }),
