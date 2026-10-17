@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { AdminButton, AdminCard, AdminFormDrawer } from '@/components/admin';
+import { AdminButton, AdminCard, AdminFormDrawer, AdminSelect } from '@/components/admin';
 import { CreateLeadInput, Lead, LeadStage, UpdateLeadInput, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 import { emptyLeadForm, LeadFormFields } from './LeadFormFields';
@@ -18,11 +18,18 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   const stageSection = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<CreateLeadInput>(emptyLeadForm);
+  const [selectedStageKey, setSelectedStageKey] = useState<string>('');
   const detail = useQuery({ queryKey: ['lead', id], queryFn: () => leadsApi.detail(id), staleTime: 30_000, retry: false });
   const stagesQuery = useQuery({ queryKey: ['lead-stages'], queryFn: leadsApi.stages, staleTime: 60_000 });
   const configuredStages = stagesQuery.data || [];
   const lead = detail.data;
   const stage = lead?.stage || configuredStages.find(item => item.key === lead?.status);
+
+  useEffect(() => {
+    if (stage?.key) {
+      setSelectedStageKey(stage.key);
+    }
+  }, [stage?.key]);
   const beginEdit = (record: Lead) => {
     setForm(Object.fromEntries(Object.keys(emptyLeadForm).map(key => [key, record[key as keyof Lead] ?? ''])) as unknown as CreateLeadInput);
     setEditing(true);
@@ -100,21 +107,101 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
           <AdminCard title="Company Details">{fields({ Company: lead.companyName, Category: lead.category, Website: lead.website, Address: lead.address, City: lead.city, State: lead.state, Country: lead.country, Pincode: lead.pincode })}</AdminCard>
           <div ref={stageSection} className="scroll-mt-4">
             <AdminCard title="CRM Pipeline Stage" description="Choose a stage to update this Lead.">
-              {stagesQuery.isLoading && <p role="status">Loading pipeline stages…</p>}
-              {stagesQuery.isError && <div role="alert"><p>Unable to load pipeline stages.</p><AdminButton size="sm" onClick={() => stagesQuery.refetch()}>Retry</AdminButton></div>}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {configuredStages.filter(target => target.isActive).map(target => {
-                  const current = stage?.key === target.key;
-                  return <button key={target.key} type="button" disabled={busy || current} aria-pressed={current}
-                    onClick={() => changeStage.mutate(target)}
-                    className="flex items-center justify-between gap-2 rounded-xl border p-3 text-left text-xs font-medium disabled:cursor-default hover:shadow-sm focus-visible:ring-2 focus-visible:ring-emerald-500"
-                    style={{ color: target.color, backgroundColor: current ? target.bgColor : 'white', borderColor: current ? target.borderColor : '#e2e8f0' }}>
-                    {target.name}{current && <Check className="h-4 w-4" />}
-                  </button>;
-                })}
-              </div>
-              {changeStage.isPending && <p role="status" className="mt-3 text-xs text-slate-500">Updating pipeline stage…</p>}
-              {changeStage.isError && <p role="alert" className="mt-3 text-sm text-rose-700">{getErrorMessage(changeStage.error)}</p>}
+              {stagesQuery.isLoading && <p role="status" className="text-xs text-slate-500">Loading pipeline stages…</p>}
+              {stagesQuery.isError && (
+                <div role="alert" className="space-y-2 py-2">
+                  <p className="text-xs text-rose-700">Unable to load pipeline stages.</p>
+                  <AdminButton size="sm" variant="outline" onClick={() => stagesQuery.refetch()}>Retry</AdminButton>
+                </div>
+              )}
+              {!stagesQuery.isLoading && !stagesQuery.isError && (
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (busy || !selectedStageKey || selectedStageKey === stage?.key) return;
+                    const target = configuredStages.find(item => item.key === selectedStageKey);
+                    if (target) changeStage.mutate(target);
+                  }}
+                  className="space-y-3.5"
+                >
+                  {/* Current Stage Indicator */}
+                  <div
+                    className="flex items-center justify-between gap-3 p-3 rounded-xl border transition-all"
+                    style={{
+                      backgroundColor: stage?.bgColor || '#f8fafc',
+                      borderColor: stage?.borderColor || '#e2e8f0',
+                      color: stage?.color || '#1e293b',
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0 shadow-sm"
+                        style={{ backgroundColor: stage?.color || '#0284C7' }}
+                      />
+                      <span className="text-xs font-semibold truncate">
+                        Current: {stage?.name || lead.status || '—'}
+                      </span>
+                    </div>
+                    <span
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0 uppercase tracking-wider"
+                      style={{ backgroundColor: stage?.color || '#0284C7' }}
+                    >
+                      Stage {stage?.sortOrder ?? 1} of {configuredStages.length}
+                    </span>
+                  </div>
+
+                  {/* Dropdown Field */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="crm-pipeline-stage-select" className="block text-xs font-medium text-slate-700">
+                      Pipeline Stage
+                    </label>
+                    <AdminSelect
+                      id="crm-pipeline-stage-select"
+                      value={selectedStageKey || stage?.key || ''}
+                      disabled={busy}
+                      onChange={(e) => setSelectedStageKey(e.target.value)}
+                      className="w-full"
+                    >
+                      {configuredStages
+                        .filter(target => target.isActive)
+                        .map(target => (
+                          <option key={target.key} value={target.key}>
+                            {target.sortOrder}. {target.name} {target.key === stage?.key ? '(Current)' : ''}
+                          </option>
+                        ))}
+                    </AdminSelect>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <AdminButton
+                      type="submit"
+                      size="sm"
+                      disabled={busy || !selectedStageKey || selectedStageKey === stage?.key}
+                      className="!text-xs font-semibold"
+                    >
+                      {changeStage.isPending ? 'Updating Stage…' : 'Update Stage'}
+                    </AdminButton>
+                    {selectedStageKey && selectedStageKey !== stage?.key && (
+                      <AdminButton
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => setSelectedStageKey(stage?.key || '')}
+                        className="!text-xs"
+                      >
+                        Reset
+                      </AdminButton>
+                    )}
+                  </div>
+                </form>
+              )}
+              {changeStage.isError && (
+                <p role="alert" className="mt-3 text-xs text-rose-700">
+                  {getErrorMessage(changeStage.error)}
+                </p>
+              )}
             </AdminCard>
           </div>
           <AdminCard title="Lead Information">{fields({ 'Lead ID': lead.id, Status: stage?.name || lead.status, Source: lead.source, 'Created from': lead.createdFrom, 'Created on': lead.createdAt ? new Date(lead.createdAt).toLocaleString() : null, 'Google Place ID': lead.googlePlaceId, Latitude: lead.latitude, Longitude: lead.longitude, Notes: lead.notes })}</AdminCard>
