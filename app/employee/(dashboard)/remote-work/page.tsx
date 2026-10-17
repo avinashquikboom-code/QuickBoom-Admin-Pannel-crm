@@ -6,7 +6,7 @@ import { Check, Clock3, Laptop, Plus, RefreshCw, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { getErrorMessage } from '@/lib/utils';
 import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
@@ -91,8 +91,8 @@ export default function EmployeeRemoteWorkPage() {
   const [form, setForm] = useState({ fromDate: today, toDate: today, startTime: '09:00', endTime: '18:00', reason: '' });
   const [formError, setFormError] = useState('');
 
-  const canView = hasPermission(user, ['employee.remote_work.view', 'remote.view_own', 'remote.view']);
-  const canCreate = hasPermission(user, ['employee.remote_work.create', 'remote.create', 'remote.apply', 'remote.view_own', 'employee.remote_work.view']);
+  const canView = isAuthenticatedUser(user);
+  const canCreate = isAuthenticatedUser(user);
 
   const query = useQuery<RemoteRequest[]>({
     queryKey: ['employee-remote-requests'],

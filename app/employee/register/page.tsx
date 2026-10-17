@@ -209,7 +209,7 @@ export default function EmployeeRegisterPage() {
 
   const features = [
     { icon: Users, title: 'Manage Your Team', text: 'Add employees and assign roles' },
-    { icon: ShieldCheck, title: 'Secure Access', text: 'Role based permissions' },
+    { icon: ShieldCheck, title: 'Secure Access', text: 'Secure employee sign-in' },
     { icon: Mail, title: 'Instant Login', text: 'Employee will receive login credentials via email' },
     { icon: BadgeCheck, title: 'Stay Organized', text: 'Keep your team and work in one place' },
   ];

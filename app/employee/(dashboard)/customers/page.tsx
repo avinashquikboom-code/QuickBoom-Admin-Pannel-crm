@@ -5,7 +5,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { LoaderCircle, MapPin, Phone, RefreshCw, Search, Users } from 'lucide-react';
 import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 
 type CustomerTab = 'All' | 'Active' | 'Upcoming' | 'Inactive';
 type CustomerStatus = 'Active' | 'Upcoming' | 'Inactive';
@@ -117,7 +117,7 @@ export default function EmployeeCustomersPage() {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<CustomerTab>('All');
 
-  const canView = hasPermission(user, ['customers', 'employee.customers.view', 'CUSTOMERS']);
+  const canView = isAuthenticatedUser(user);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 350);

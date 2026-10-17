@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, HeartPulse, Palmtree, Plus, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { getErrorMessage } from '@/lib/utils';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import EmployeeSideSheet from '@/components/EmployeeSideSheet';
@@ -115,9 +115,9 @@ export default function LeavesPage() {
   const [form, setForm] = useState({ leaveTypeId: '', fromDate: '', toDate: '', reason: '' });
   const [formError, setFormError] = useState('');
 
-  const canView = hasPermission(user, ['employee.leave.view', 'leave.view_own', 'leave.view']);
-  const canCreate = hasPermission(user, ['employee.leave.create', 'leave.create']);
-  const canViewExpenses = hasPermission(user, ['employee.expenses.view', 'claims.view', 'expense.view']);
+  const canView = isAuthenticatedUser(user);
+  const canCreate = isAuthenticatedUser(user);
+  const canViewExpenses = isAuthenticatedUser(user);
 
   const balancesQuery = useQuery({
     queryKey: ['employee-leave-balances'],

@@ -16,7 +16,7 @@ import type { LucideIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { getErrorMessage } from '@/lib/utils';
 import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
@@ -38,16 +38,8 @@ export default function EmployeeDataCapturePage() {
   const [location, setLocation] = useState('');
   const [maxResults, setMaxResults] = useState('20');
 
-  const canView = hasPermission(user, [
-    'DATA_CAPTURE:VIEW',
-    'employee.data_capture.view',
-    'data_capture.view',
-  ]);
-  const canCreate = hasPermission(user, [
-    'DATA_CAPTURE:CREATE',
-    'employee.data_capture.create',
-    'data_capture.create',
-  ]);
+  const canView = isAuthenticatedUser(user);
+  const canCreate = isAuthenticatedUser(user);
 
   const usageQuery = useQuery<CaptureUsage>({
     queryKey: ['data-capture-usage'],

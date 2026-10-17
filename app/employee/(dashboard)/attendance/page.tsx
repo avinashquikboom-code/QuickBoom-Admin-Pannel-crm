@@ -18,7 +18,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
-import { hasPermission } from '@/lib/access-control';
+import { isAuthenticatedUser } from '@/lib/access-control';
 import { formatTimeIST } from '@/lib/utils';
 
 type StatusFilter = 'ALL' | 'PRESENT' | 'LATE' | 'HALF_DAY' | 'ABSENT';
@@ -160,7 +160,7 @@ export default function EmployeeAttendancePage() {
   const [status, setStatus] = useState<StatusFilter>('ALL');
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const canView = hasPermission(user, ['employee.attendance.view', 'attendance.view_own', 'attendance.view']);
+  const canView = isAuthenticatedUser(user);
 
   const query = useQuery<LogItem[]>({
     queryKey: ['employee-attendance-log'],

@@ -1,16 +1,7 @@
 import { Clock3, MonitorSmartphone, LayoutDashboard, Users, Building2, Award, Clock, Calendar, Laptop, MapPin, Banknote, UserCheck, Contact, Kanban, CheckSquare, Activity, BarChart3, ShieldCheck, History, Settings, Database, CreditCard, Layers, FileText, User, DollarSign, Ticket, TrendingUp, Target, Briefcase, Bell, Trash2, RefreshCw, Megaphone, Image as ImageIcon, Zap, Share2, Sparkles, Video, Coins, Mail, MessageSquare, Copy, UserX } from 'lucide-react';
 import { User as UserType } from './store';
 
-export type UserRole =
-  | 'Super Admin'
-  | 'SUPER_ADMIN'
-  | 'HR'
-  | 'HR Manager'
-  | 'HR Executive'
-  | 'Customer Owner'
-  | 'Customer Admin'
-  | 'Manager'
-  | 'Employee';
+
 
 export interface SubscriptionFeatures {
   crm: boolean;
@@ -30,179 +21,11 @@ export const DEFAULT_SUBSCRIPTION_FEATURES: SubscriptionFeatures = {
   reports: true,
 };
 
-const SUPER_ADMIN_PERMISSIONS: string[] = [
-  'platform.all',
-  'dashboard.view',
-  'crm.all',
-  'crm.manage',
-  'leads.view',
-  'contacts.view',
-  'companies.view',
-  'deals.view',
-  'tasks.view',
-  'activities.view',
-  'data_capture.view',
-  'data_capture.create',
-  'data_capture.edit',
-  'data_capture.delete',
-  'data_capture.manage',
-  'templates.view',
-  'templates.create',
-  'templates.edit',
-  'templates.delete',
-  'hrm.all',
-  'hrm.manage',
-  'employee.view',
-  'employee.manage',
-  'employee.create',
-  'employee.update',
-  'department.view',
-  'department.create',
-  'department.update',
-  'designation.view',
-  'designation.create',
-  'designation.update',
-  'attendance.view',
-  'attendance.view_all',
-  'attendance.manage',
-  'attendance.correction',
-  'leave.view',
-  'leave.view_all',
-  'leave.approve',
-  'leave.reject',
-  'remote.view',
-  'remote.view_all',
-  'remote.approve',
-  'remote.reject',
-  'visits.view',
-  'visits.view_all',
-  'geo_tracking.view',
-  'payroll.view',
-  'payroll.manage',
-  'payroll.generate',
-  'payroll.salary_slip',
-  'reports.view',
-  'reports.manage',
-  'reports.team',
-  'reports.platform',
-  'notifications.view',
-  'settings.view',
-  'settings.manage',
-  'settings.global',
-  'subscription.view',
-  'subscription.manage',
-  'customers.manage',
-  'plans.manage',
-  'subscriptions.manage',
-  'billing.manage',
-  'payments.view',
-  'coupons.manage',
-  'features.manage',
-  'audit_logs.view',
-  'data_reset.all',
-  'data_reset.view',
-  'data_reset.module',
-  'data_reset.employee',
-  'data_reset.execute',
-  'trending.view',
-  'trending.manage',
-  'banners.view',
-  'banners.manage',
-  'marketing.view',
-  'marketing.manage',
-  'team.view',
-  'team.manage',
-  'team.create',
-  'team.update',
-  'teams.view',
-  'teams.manage',
-  'squad.view',
-  'squad.manage',
-  'squads.view',
-  'squads.manage',
-];
-
-export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
-  'Super Admin': SUPER_ADMIN_PERMISSIONS,
-  'SUPER_ADMIN': SUPER_ADMIN_PERMISSIONS,
-  'HR': [
-    'dashboard.view',
-    'employee.view',
-    'employee.create',
-    'employee.update',
-    'team.view',
-    'team.manage',
-    'team.create',
-    'team.update',
-    'teams.view',
-    'teams.manage',
-    'squad.view',
-    'squad.manage',
-    'squads.view',
-    'squads.manage',
-    'department.view',
-    'department.create',
-    'department.update',
-    'designation.view',
-    'designation.create',
-    'designation.update',
-    'attendance.view',
-    'attendance.view_all',
-    'attendance.manage',
-    'attendance.correction',
-    'leave.view',
-    'leave.view_all',
-    'leave.approve',
-    'leave.reject',
-    'remote.view',
-    'remote.view_all',
-    'remote.approve',
-    'remote.reject',
-    'visits.view',
-    'visits.view_all',
-    'geo_tracking.view',
-    'payroll.view',
-    'payroll.manage',
-    'payroll.generate',
-    'payroll.salary_slip',
-    'reports.view',
-    'notifications.view',
-  ],
-  'Employee': [
-    'mobile.access',
-    'employee.dashboard.view',
-    'dashboard.view',
-    'attendance.view_own',
-    'attendance.view',
-    'employee.attendance.view',
-    'leave.view_own',
-    'leave.view',
-    'employee.leave.view',
-    'remote.view_own',
-    'remote.view',
-    'employee.remote_work.view',
-    'calendar.view',
-    'employee.calendar.view',
-    'visits.view_own',
-    'payroll.view_own',
-    'salary_slips.view_own',
-    'salary.view',
-    'employee.salary.view',
-    'tasks.view_own',
-    'notifications.view',
-    'employee.notifications.view',
-    'profile.view',
-    'employee.profile.view',
-    'settings.view',
-    'employee.settings.view',
-  ],
-};
-
 export interface NavSubItemConfig {
   name: string;
   href: string;
   icon?: any;
-  permission?: string | string[];
+  
   roles?: string[];
   hideForRoles?: string[];
   badge?: string;
@@ -212,7 +35,7 @@ export interface NavItemConfig {
   name: string;
   href: string;
   icon: any;
-  permission?: string | string[];
+  
   feature?: keyof SubscriptionFeatures;
   roles?: string[];
   hideForRoles?: string[];
@@ -244,7 +67,7 @@ export const adminNavigation: {
       sectionIcon: LayoutDashboard,
       roles: ['Super Admin'],
       items: [
-        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard,  },
       ],
     },
 
@@ -255,20 +78,20 @@ export const adminNavigation: {
       sectionIcon: Database,
       roles: ['Super Admin'],
       items: [
-        { name: 'Departments', href: '/master/departments', icon: Building2, permission: 'department.view' },
-        { name: 'Designations', href: '/master/designations', icon: Award, permission: 'designation.view' },
-        { name: 'Employee Types', href: '/master/employee-types', icon: Users, permission: 'employee.view' },
-        { name: 'Leave Types', href: '/master/leave-types', icon: Calendar, permission: 'leave.view' },
-        { name: 'Leave Policies', href: '/master/leave-policies', icon: FileText, permission: 'leave.view' },
-        { name: 'Work Types', href: '/master/work-types', icon: Briefcase, permission: 'tasks.view' },
-        { name: 'Activity Types', href: '/master/activity-types', icon: Activity, permission: 'activities.view' },
-        { name: 'Task Status', href: '/master/task-status', icon: CheckSquare, permission: 'tasks.view' },
-        { name: 'Lead Stages', href: '/master/lead-stages', icon: Kanban, permission: 'leads.view' },
-        { name: 'Lead Sources', href: '/master/lead-sources', icon: Target, permission: 'leads.view' },
-        { name: 'Subscription Plans', href: '/master/subscription-plans', icon: Layers, permission: 'plans.manage' },
-        { name: 'Expense Categories', href: '/master/expense-categories', icon: CreditCard, permission: 'payroll.view' },
-        { name: 'Loan Types', href: '/master/loan-types', icon: DollarSign, permission: 'payroll.view' },
-        { name: 'Payment Methods', href: '/master/payment-methods', icon: Banknote, permission: 'customers.manage' },
+        { name: 'Departments', href: '/master/departments', icon: Building2,  },
+        { name: 'Designations', href: '/master/designations', icon: Award,  },
+        { name: 'Employee Types', href: '/master/employee-types', icon: Users,  },
+        { name: 'Leave Types', href: '/master/leave-types', icon: Calendar,  },
+        { name: 'Leave Policies', href: '/master/leave-policies', icon: FileText,  },
+        { name: 'Work Types', href: '/master/work-types', icon: Briefcase,  },
+        { name: 'Activity Types', href: '/master/activity-types', icon: Activity,  },
+        { name: 'Task Status', href: '/master/task-status', icon: CheckSquare,  },
+        { name: 'Lead Stages', href: '/master/lead-stages', icon: Kanban,  },
+        { name: 'Lead Sources', href: '/master/lead-sources', icon: Target,  },
+        { name: 'Subscription Plans', href: '/master/subscription-plans', icon: Layers,  },
+        { name: 'Expense Categories', href: '/master/expense-categories', icon: CreditCard,  },
+        { name: 'Loan Types', href: '/master/loan-types', icon: DollarSign,  },
+        { name: 'Payment Methods', href: '/master/payment-methods', icon: Banknote,  },
       ],
     },
 
@@ -280,19 +103,19 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['Super Admin'],
       items: [
-        { name: 'Live Dashboard', href: '/hrm/live-dashboard', icon: Activity, permission: 'attendance.view_all', badge: 'LIVE' },
-        { name: 'Office Management', href: '/hrms/offices', icon: Building2, permission: 'hrm.manage' },
-        { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
-        { name: 'Team Management', href: '/teams', icon: Users, permission: 'employee.view' },
-        { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view_all' },
-        { name: 'Shifts', href: '/shifts', icon: Clock, permission: 'attendance.view_all' },
-        { name: 'Leave', href: '/leaves', icon: Calendar, permission: 'leave.view_all' },
-        { name: 'Remote Work', href: '/remote-work', icon: Laptop, permission: 'remote.view_all' },
-        { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, feature: 'geo_tracking', permission: 'geo_tracking.view' },
-        { name: 'Payroll', href: '/payroll', icon: Banknote, feature: 'payroll', permission: 'payroll.view' },
-        { name: 'Commissions', href: '/commissions', icon: Coins, feature: 'payroll', permission: 'payroll.view' },
-        { name: 'Loans', href: '/loans', icon: DollarSign, feature: 'payroll', permission: 'payroll.view' },
-        { name: 'Claims & Expenses', href: '/claims', icon: CreditCard, feature: 'payroll', permission: 'payroll.view' },
+        { name: 'Live Dashboard', href: '/hrm/live-dashboard', icon: Activity,  badge: 'LIVE' },
+        { name: 'Office Management', href: '/hrms/offices', icon: Building2,  },
+        { name: 'Employees', href: '/employees', icon: Users,  },
+        { name: 'Team Management', href: '/teams', icon: Users,  },
+        { name: 'Attendance', href: '/attendance', icon: Clock,  },
+        { name: 'Shifts', href: '/shifts', icon: Clock,  },
+        { name: 'Leave', href: '/leaves', icon: Calendar,  },
+        { name: 'Remote Work', href: '/remote-work', icon: Laptop,  },
+        { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, feature: 'geo_tracking',  },
+        { name: 'Payroll', href: '/payroll', icon: Banknote, feature: 'payroll',  },
+        { name: 'Commissions', href: '/commissions', icon: Coins, feature: 'payroll',  },
+        { name: 'Loans', href: '/loans', icon: DollarSign, feature: 'payroll',  },
+        { name: 'Claims & Expenses', href: '/claims', icon: CreditCard, feature: 'payroll',  },
       ],
     },
 
@@ -304,9 +127,9 @@ export const adminNavigation: {
       feature: 'data_capture',
       roles: ['Super Admin', 'SUPER_ADMIN', 'Customer Owner', 'Customer Admin', 'Manager'],
       items: [
-        { name: 'Data Capture', href: '/data-capture', icon: Target, permission: 'data_capture.view' },
-        { name: 'Capture History', href: '/data-capture/history', icon: History, permission: 'data_capture.view' },
-        { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity, permission: 'data_capture.view' },
+        { name: 'Data Capture', href: '/data-capture', icon: Target,  },
+        { name: 'Capture History', href: '/data-capture/history', icon: History,  },
+        { name: 'Usage & Quota', href: '/data-capture/usage', icon: Activity,  },
       ],
     },
 
@@ -318,14 +141,14 @@ export const adminNavigation: {
       feature: 'crm',
       roles: ['Super Admin'],
       items: [
-        { name: 'Leads', href: '/leads', icon: UserCheck, permission: 'leads.view' },
-        { name: 'Lead Limits', href: '/leads/limits', icon: ShieldCheck, permission: 'leads.view' },
-        { name: 'Contacts', href: '/contacts', icon: Contact, permission: 'contacts.view' },
-        { name: 'Companies', href: '/companies', icon: Building2, permission: 'companies.view' },
-        { name: 'Deals', href: '/deals', icon: Kanban, permission: 'deals.view' },
-        { name: 'Visits', href: '/visits', icon: Activity, permission: 'visits.view_all' },
-        { name: 'Tasks', href: '/tasks', icon: CheckSquare, permission: 'tasks.view' },
-        { name: 'Activities', href: '/activities', icon: Activity, permission: 'activities.view' },
+        { name: 'Leads', href: '/leads', icon: UserCheck,  },
+        { name: 'Lead Limits', href: '/leads/limits', icon: ShieldCheck,  },
+        { name: 'Contacts', href: '/contacts', icon: Contact,  },
+        { name: 'Companies', href: '/companies', icon: Building2,  },
+        { name: 'Deals', href: '/deals', icon: Kanban,  },
+        { name: 'Visits', href: '/visits', icon: Activity,  },
+        { name: 'Tasks', href: '/tasks', icon: CheckSquare,  },
+        { name: 'Activities', href: '/activities', icon: Activity,  },
       ],
     },
 
@@ -336,8 +159,8 @@ export const adminNavigation: {
       sectionIcon: Copy,
       roles: ['Super Admin'],
       items: [
-        { name: 'Email Templates', href: '/templates/email', icon: Mail, permission: 'templates.view' },
-        { name: 'Meta Templates', href: '/templates/meta', icon: MessageSquare, permission: 'templates.view' },
+        { name: 'Email Templates', href: '/templates/email', icon: Mail,  },
+        { name: 'Meta Templates', href: '/templates/meta', icon: MessageSquare,  },
       ],
     },
 
@@ -348,14 +171,14 @@ export const adminNavigation: {
       sectionIcon: Building2,
       roles: ['Super Admin'],
       items: [
-        { name: 'All Customers', href: '/customers', icon: Building2, permission: 'customers.manage' },
-        { name: 'Invoices & Billing', href: '/invoices', icon: FileText, permission: 'customers.manage' },
-        { name: 'Subscription Plans', href: '/customers/plans', icon: Layers, permission: 'plans.manage' },
-        { name: 'Coupons', href: '/customers/coupons', icon: Ticket, permission: 'plans.manage' },
-        { name: 'Active Subscriptions', href: '/customers/subscriptions', icon: ShieldCheck, permission: 'subscriptions.manage' },
-        { name: 'Offline Payment Requests', href: '/customers/offline-requests', icon: Clock, permission: 'subscriptions.manage' },
-        { name: 'Resource Usage', href: '/customers/usage', icon: Activity, permission: 'subscription.view' },
-        { name: 'Super Admin Hub', href: '/super-admin', icon: ShieldCheck, permission: 'customers.manage' },
+        { name: 'All Customers', href: '/customers', icon: Building2,  },
+        { name: 'Invoices & Billing', href: '/invoices', icon: FileText,  },
+        { name: 'Subscription Plans', href: '/customers/plans', icon: Layers,  },
+        { name: 'Coupons', href: '/customers/coupons', icon: Ticket,  },
+        { name: 'Active Subscriptions', href: '/customers/subscriptions', icon: ShieldCheck,  },
+        { name: 'Offline Payment Requests', href: '/customers/offline-requests', icon: Clock,  },
+        { name: 'Resource Usage', href: '/customers/usage', icon: Activity,  },
+        { name: 'Super Admin Hub', href: '/super-admin', icon: ShieldCheck,  },
       ],
     },
 
@@ -366,9 +189,9 @@ export const adminNavigation: {
       sectionIcon: Megaphone,
       roles: ['Super Admin'],
       items: [
-        { name: 'Influencer Hub', href: '/influencers', icon: Award, permission: 'customers.manage' },
-        { name: 'Influencer Applications', href: '/influencers/applications', icon: UserCheck, permission: 'customers.manage' },
-        { name: 'Influencer Bookings', href: '/influencers/bookings', icon: CheckSquare, permission: 'customers.manage' },
+        { name: 'Influencer Hub', href: '/influencers', icon: Award,  },
+        { name: 'Influencer Applications', href: '/influencers/applications', icon: UserCheck,  },
+        { name: 'Influencer Bookings', href: '/influencers/bookings', icon: CheckSquare,  },
       ],
     },
 
@@ -379,9 +202,9 @@ export const adminNavigation: {
       sectionIcon: Sparkles,
       roles: ['Super Admin'],
       items: [
-        { name: 'AI Studio & Social', href: '/marketing/ai-studio', icon: Sparkles, permission: 'customers.manage' },
-        { name: 'AI Credits Management', href: '/marketing/ai-credits', icon: Coins, permission: 'customers.manage' },
-        { name: 'SSM Account Access Details', href: '/marketing/social-media', icon: Share2, permission: 'customers.manage' },
+        { name: 'AI Studio & Social', href: '/marketing/ai-studio', icon: Sparkles,  },
+        { name: 'AI Credits Management', href: '/marketing/ai-credits', icon: Coins,  },
+        { name: 'SSM Account Access Details', href: '/marketing/social-media', icon: Share2,  },
       ],
     },
 
@@ -392,9 +215,9 @@ export const adminNavigation: {
       sectionIcon: Video,
       roles: ['Super Admin'],
       items: [
-        { name: 'Trending Content', href: '/trending', icon: TrendingUp, permission: 'customers.manage' },
-        { name: 'Home Banners', href: '/marketing/banners', icon: ImageIcon, permission: 'customers.manage' },
-        { name: 'Marketing Videos', href: '/marketing/videos', icon: Video, permission: 'customers.manage' },
+        { name: 'Trending Content', href: '/trending', icon: TrendingUp,  },
+        { name: 'Home Banners', href: '/marketing/banners', icon: ImageIcon,  },
+        { name: 'Marketing Videos', href: '/marketing/videos', icon: Video,  },
       ],
     },
 
@@ -405,11 +228,11 @@ export const adminNavigation: {
       sectionIcon: Trash2,
       roles: ['Super Admin'],
       items: [
-        { name: 'Data Overview', href: '/settings/data-management', icon: Database, permission: 'data_reset.view' },
-        { name: 'Module-wise Reset', href: '/settings/data-management?tab=modules', icon: RefreshCw, permission: 'data_reset.module' },
-        { name: 'Employee-wise Reset', href: '/settings/data-management?tab=employees', icon: User, permission: 'data_reset.employee' },
-        { name: 'Bin', href: '/settings/data-management?tab=bin', icon: Trash2, permission: 'data_reset.view' },
-        { name: 'Reset History', href: '/settings/data-management?tab=history', icon: History, permission: 'data_reset.view' },
+        { name: 'Data Overview', href: '/settings/data-management', icon: Database,  },
+        { name: 'Module-wise Reset', href: '/settings/data-management?tab=modules', icon: RefreshCw,  },
+        { name: 'Employee-wise Reset', href: '/settings/data-management?tab=employees', icon: User,  },
+        { name: 'Bin', href: '/settings/data-management?tab=bin', icon: Trash2,  },
+        { name: 'Reset History', href: '/settings/data-management?tab=history', icon: History,  },
       ],
     },
 
@@ -421,7 +244,7 @@ export const adminNavigation: {
       feature: 'reports',
       roles: ['Super Admin'],
       items: [
-        { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
+        { name: 'Reports', href: '/reports', icon: BarChart3,  },
       ],
     },
 
@@ -432,12 +255,12 @@ export const adminNavigation: {
       sectionIcon: Settings,
       roles: ['Super Admin'],
       items: [
-        { name: 'Notification Center', href: '/settings/notifications', icon: Bell, permission: 'notifications.view' },
-        { name: 'Commission Settings', href: '/commissions?tab=settings', icon: Coins, permission: 'settings.view' },
-        { name: 'Company Policies', href: '/settings/policies', icon: FileText, permission: 'settings.view' },
-        { name: 'Integrations', href: '/settings', icon: Zap, permission: 'settings.global' },
+        { name: 'Notification Center', href: '/settings/notifications', icon: Bell,  },
+        { name: 'Commission Settings', href: '/commissions?tab=settings', icon: Coins,  },
+        { name: 'Company Policies', href: '/settings/policies', icon: FileText,  },
+        { name: 'Integrations', href: '/settings', icon: Zap,  },
         { name: 'Account Deletion', href: '/settings/account-deletion', icon: UserX },
-        { name: 'Activity Logs', href: '/activity-logs', icon: Activity, permission: 'audit_logs.view' },
+        { name: 'Activity Logs', href: '/activity-logs', icon: Activity,  },
       ],
     },
   ],
@@ -449,7 +272,7 @@ export const adminNavigation: {
       sectionIcon: LayoutDashboard,
       roles: ['Customer'],
       items: [
-        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'CUSTOMER_HOME' },
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard,  },
       ],
     },
     {
@@ -458,7 +281,7 @@ export const adminNavigation: {
       sectionIcon: Layers,
       roles: ['Customer'],
       items: [
-        { name: 'Subscription Plans', href: '/customers/plans', icon: Layers, permission: 'CUSTOMER_PLANS' },
+        { name: 'Subscription Plans', href: '/customers/plans', icon: Layers,  },
       ],
     },
     {
@@ -467,7 +290,7 @@ export const adminNavigation: {
       sectionIcon: FileText,
       roles: ['Customer'],
       items: [
-        { name: 'Invoices & Billing', href: '/invoices', icon: FileText, permission: 'CUSTOMER_INVOICES' },
+        { name: 'Invoices & Billing', href: '/invoices', icon: FileText,  },
       ],
     },
     {
@@ -476,7 +299,7 @@ export const adminNavigation: {
       sectionIcon: User,
       roles: ['Customer'],
       items: [
-        { name: 'Profile', href: '/profile', icon: User, permission: 'CUSTOMER_PROFILE' },
+        { name: 'Profile', href: '/profile', icon: User,  },
       ],
     },
     {
@@ -485,7 +308,7 @@ export const adminNavigation: {
       sectionIcon: Share2,
       roles: ['Customer'],
       items: [
-        { name: 'SSM Account Access', href: '/marketing/social-media', icon: Share2, permission: 'CUSTOMER_SSM' },
+        { name: 'SSM Account Access', href: '/marketing/social-media', icon: Share2,  },
       ],
     },
     {
@@ -494,8 +317,8 @@ export const adminNavigation: {
       sectionIcon: Megaphone,
       roles: ['Customer'],
       items: [
-        { name: 'Influencer Hub', href: '/influencers', icon: Award, permission: 'CUSTOMER_INFLUENCERS' },
-        { name: 'My Influencer Bookings', href: '/influencers/bookings', icon: CheckSquare, permission: 'CUSTOMER_INFLUENCER_BOOKINGS' },
+        { name: 'Influencer Hub', href: '/influencers', icon: Award,  },
+        { name: 'My Influencer Bookings', href: '/influencers/bookings', icon: CheckSquare,  },
       ],
     },
     {
@@ -504,7 +327,7 @@ export const adminNavigation: {
       sectionIcon: Bell,
       roles: ['Customer'],
       items: [
-        { name: 'Notifications', href: '/settings/notifications', icon: Bell, permission: 'CUSTOMER_NOTIFICATIONS' },
+        { name: 'Notifications', href: '/settings/notifications', icon: Bell,  },
       ],
     }
   ],
@@ -515,7 +338,7 @@ export const adminNavigation: {
       sectionIcon: LayoutDashboard,
       roles: ['Employee'],
       items: [
-        { name: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard, permission: ['employee.dashboard.view', 'dashboard.view'] },
+        { name: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard,  },
       ],
     },
     {
@@ -524,9 +347,9 @@ export const adminNavigation: {
       sectionIcon: Layers,
       roles: ['Employee'],
       items: [
-        { name: 'Data Capture', href: '/employee/data-capture', icon: Database, permission: ['data_capture', 'employee.data_capture.view', 'DATA_CAPTURE'] },
-        { name: 'Leads', href: '/employee/leads', icon: Users, permission: ['leads', 'employee.leads.view', 'LEADS'] },
-        { name: 'Customers', href: '/employee/customers', icon: Building2, permission: ['customers', 'employee.customers.view', 'CUSTOMERS'] },
+        { name: 'Data Capture', href: '/employee/data-capture', icon: Database,  },
+        { name: 'Leads', href: '/employee/leads', icon: Users,  },
+        { name: 'Customers', href: '/employee/customers', icon: Building2,  },
       ],
     },
     {
@@ -535,10 +358,10 @@ export const adminNavigation: {
       sectionIcon: Clock3,
       roles: ['Employee'],
       items: [
-        { name: 'Attendance', href: '/employee/attendance', icon: Clock3, permission: ['employee.attendance.view', 'attendance.view_own', 'attendance.view'] },
-        { name: 'Requests & Leaves', href: '/employee/leaves', icon: Calendar, permission: ['employee.leave.view', 'leave.view_own', 'leave.view'] },
-        { name: 'Remote Work', href: '/employee/remote-work', icon: MonitorSmartphone, permission: ['employee.remote_work.view', 'remote.view_own', 'remote.view'] },
-        { name: 'Salary Slips', href: '/employee/salary-slips', icon: FileText, permission: ['employee.salary.view', 'salary_slips.view_own', 'salary.view'] },
+        { name: 'Attendance', href: '/employee/attendance', icon: Clock3,  },
+        { name: 'Requests & Leaves', href: '/employee/leaves', icon: Calendar,  },
+        { name: 'Remote Work', href: '/employee/remote-work', icon: MonitorSmartphone,  },
+        { name: 'Salary Slips', href: '/employee/salary-slips', icon: FileText,  },
       ],
     },
     {
@@ -547,9 +370,9 @@ export const adminNavigation: {
       sectionIcon: Settings,
       roles: ['Employee'],
       items: [
-        { name: 'Profile', href: '/employee/profile', icon: User, permission: ['employee.profile.view', 'profile.view'] },
-        { name: 'Notifications', href: '/employee/notifications', icon: Bell, permission: ['employee.notifications.view', 'notifications.view'] },
-        { name: 'Settings', href: '/employee/settings', icon: Settings, permission: ['employee.settings.view', 'settings.view'] },
+        { name: 'Profile', href: '/employee/profile', icon: User,  },
+        { name: 'Notifications', href: '/employee/notifications', icon: Bell,  },
+        { name: 'Settings', href: '/employee/settings', icon: Settings,  },
       ],
     }
   ],
@@ -561,7 +384,7 @@ export const adminNavigation: {
       sectionIcon: LayoutDashboard,
       roles: ['HR'],
       items: [
-        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard,  },
       ],
     },
 
@@ -573,7 +396,7 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
-        { name: 'Office Management', href: '/hrms/offices', icon: Building2, permission: 'department.view' },
+        { name: 'Office Management', href: '/hrms/offices', icon: Building2,  },
       ],
     },
 
@@ -585,8 +408,8 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
-        { name: 'Employees', href: '/employees', icon: Users, permission: 'employee.view' },
-        { name: 'Team Management', href: '/teams', icon: Users, permission: 'employee.view' },
+        { name: 'Employees', href: '/employees', icon: Users,  },
+        { name: 'Team Management', href: '/teams', icon: Users,  },
       ],
     },
 
@@ -598,7 +421,7 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
-        { name: 'Departments', href: '/departments', icon: Building2, permission: 'department.view' },
+        { name: 'Departments', href: '/departments', icon: Building2,  },
       ],
     },
 
@@ -610,7 +433,7 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
-        { name: 'Designations', href: '/designations', icon: Award, permission: 'designation.view' },
+        { name: 'Designations', href: '/designations', icon: Award,  },
       ],
     },
 
@@ -622,8 +445,8 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
-        { name: 'Live Dashboard', href: '/hrm/live-dashboard', icon: Activity, permission: 'attendance.view', badge: 'LIVE' },
-        { name: 'Attendance', href: '/attendance', icon: Clock, permission: 'attendance.view' },
+        { name: 'Live Dashboard', href: '/hrm/live-dashboard', icon: Activity,  badge: 'LIVE' },
+        { name: 'Attendance', href: '/attendance', icon: Clock,  },
       ],
     },
 
@@ -635,7 +458,7 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
-        { name: 'Shifts & Guidance', href: '/shifts', icon: Clock, permission: 'attendance.view' },
+        { name: 'Shifts & Guidance', href: '/shifts', icon: Clock,  },
       ],
     },
 
@@ -647,7 +470,7 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
-        { name: 'Leave', href: '/leaves', icon: Calendar, permission: 'leave.view' },
+        { name: 'Leave', href: '/leaves', icon: Calendar,  },
       ],
     },
 
@@ -659,7 +482,7 @@ export const adminNavigation: {
       feature: 'hrm',
       roles: ['HR'],
       items: [
-        { name: 'Remote Work', href: '/remote-work', icon: Laptop, permission: 'remote.view' },
+        { name: 'Remote Work', href: '/remote-work', icon: Laptop,  },
       ],
     },
 
@@ -671,7 +494,7 @@ export const adminNavigation: {
       feature: 'crm',
       roles: ['HR'],
       items: [
-        { name: 'Visits', href: '/visits', icon: Activity, permission: 'visits.view' },
+        { name: 'Visits', href: '/visits', icon: Activity,  },
       ],
     },
 
@@ -683,7 +506,7 @@ export const adminNavigation: {
       feature: 'geo_tracking',
       roles: ['HR'],
       items: [
-        { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin, permission: 'geo_tracking.view' },
+        { name: 'Geo Tracking', href: '/geo-tracking', icon: MapPin,  },
       ],
     },
 
@@ -695,9 +518,9 @@ export const adminNavigation: {
       feature: 'payroll',
       roles: ['HR'],
       items: [
-        { name: 'Payroll', href: '/payroll', icon: Banknote, permission: 'payroll.view' },
-        { name: 'Loans', href: '/loans', icon: DollarSign, permission: 'payroll.view' },
-        { name: 'Claims & Expenses', href: '/claims', icon: CreditCard, permission: 'payroll.view' },
+        { name: 'Payroll', href: '/payroll', icon: Banknote,  },
+        { name: 'Loans', href: '/loans', icon: DollarSign,  },
+        { name: 'Claims & Expenses', href: '/claims', icon: CreditCard,  },
       ],
     },
 
@@ -709,7 +532,7 @@ export const adminNavigation: {
       feature: 'reports',
       roles: ['HR'],
       items: [
-        { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
+        { name: 'Reports', href: '/reports', icon: BarChart3,  },
       ],
     },
 
@@ -720,7 +543,7 @@ export const adminNavigation: {
       sectionIcon: Settings,
       roles: ['HR'],
       items: [
-        { name: 'Notification Center', href: '/settings/notifications', icon: Bell, permission: 'notifications.view' },
+        { name: 'Notification Center', href: '/settings/notifications', icon: Bell,  },
         { name: 'Account Deletion', href: '/settings/account-deletion', icon: UserX },
       ],
     },
@@ -739,7 +562,7 @@ export const ADMIN_PANEL_ALLOWED_ROLES: string[] = [
 // Helper Functions
 export function getUserRole(user: UserType | null): string {
   if (!user) return 'Unauthorized';
-  const roleList = Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []);
+  const roleList = user.accountType ? [user.accountType] : (Array.isArray(user.roles) ? user.roles : (user.role ? [user.role] : []));
   if (roleList.length === 0) return 'Unauthorized';
   const hasAdmin = roleList.some(
     (r) => {
@@ -809,19 +632,6 @@ export function isBpoEmployee(user: any): boolean {
   return false;
 }
 
-export function getUserPermissions(user: UserType | null): string[] {
-  if (!user) return [];
-  const role = getUserRole(user);
-  if (role === 'Super Admin') {
-    return Array.from(new Set([...SUPER_ADMIN_PERMISSIONS, ...(user.permissions || [])]));
-  }
-  const defaultRolePerms = ROLE_DEFAULT_PERMISSIONS[role] || ROLE_DEFAULT_PERMISSIONS['Employee'] || [];
-  if (user.permissions && user.permissions.length > 0) {
-    return Array.from(new Set([...defaultRolePerms, ...user.permissions]));
-  }
-  return defaultRolePerms;
-}
-
 export function getUserFeatures(user: UserType | null): SubscriptionFeatures {
   if (!user || !user.subscriptionFeatures) {
     return DEFAULT_SUBSCRIPTION_FEATURES;
@@ -843,58 +653,8 @@ export function isFeatureEnabled(
   return !!features[feature];
 }
 
-export function normalizePermissionKey(perm: string): string[] {
-  if (!perm || typeof perm !== 'string') return [];
-  const clean = perm.trim().toLowerCase();
-  const withoutEmployee = clean.replace(/^employee\./, '');
-  const colonFormat = withoutEmployee.replace(/\./g, ':');
-  const dotFormat = withoutEmployee.replace(/:/g, '.');
-  const upperColon = withoutEmployee.toUpperCase().replace(/\./g, ':');
-  const upperDot = withoutEmployee.toUpperCase().replace(/:/g, '.');
-  return Array.from(new Set([clean, withoutEmployee, colonFormat, dotFormat, upperColon, upperDot]));
-}
-
-export function hasPermission(
-  user: UserType | null,
-  requiredPermission?: string | string[]
-): boolean {
-  if (!requiredPermission) return true;
-  const role = getUserRole(user);
-  if (role === 'Super Admin') return true;
-  const userPerms = getUserPermissions(user);
-
-  // Super Admin wildcard
-  if (
-    userPerms.includes('platform.all') ||
-    userPerms.includes('PLATFORM.ALL') ||
-    userPerms.includes('platform:all') ||
-    userPerms.includes('PLATFORM:ALL') ||
-    userPerms.includes('*') ||
-    userPerms.includes('all')
-  ) return true;
-
-  const normalizedUserPerms = new Set<string>();
-  for (const p of userPerms) {
-    if (typeof p === 'string') {
-      normalizePermissionKey(p).forEach((k) => normalizedUserPerms.add(k));
-    } else if (p && typeof p === 'object' && (p as any).module && (p as any).action) {
-      const k = `${(p as any).module}:${(p as any).action}`;
-      normalizePermissionKey(k).forEach((item) => normalizedUserPerms.add(item));
-    }
-  }
-
-  const checkSingle = (perm: string): boolean => {
-    if (!perm) return true;
-    if (userPerms.includes(perm)) return true;
-    const variants = normalizePermissionKey(perm);
-    return variants.some((v) => normalizedUserPerms.has(v));
-  };
-
-  if (Array.isArray(requiredPermission)) {
-    return requiredPermission.some((perm) => checkSingle(perm));
-  }
-  return checkSingle(requiredPermission);
-}
+// Visibility follows the authenticated workspace; record access is enforced by the API.
+export function isAuthenticatedUser(user: UserType | null): boolean { return Boolean(user?.id); }
 
 export function canAccessItem(user: UserType | null, item: NavItemConfig): boolean {
   const role = getUserRole(user);
@@ -914,10 +674,6 @@ export function canAccessItem(user: UserType | null, item: NavItemConfig): boole
     return false;
   }
 
-  // Check permission
-  if (item.permission && !hasPermission(user, item.permission)) {
-    return false;
-  }
 
   return true;
 }
@@ -1080,16 +836,6 @@ export function checkRouteAccess(pathname: string, user: UserType | null): Route
           };
         }
 
-        // Check permission
-        if (item.permission && !hasPermission(user, item.permission)) {
-          const permStr = Array.isArray(item.permission) ? item.permission.join(' or ') : item.permission;
-          return {
-            allowed: false,
-            reason: 'NO_PERMISSION',
-            requiredPermission: permStr,
-            message: `Access denied (403). You lack the required permission (${permStr}) to view this resource.`,
-          };
-        }
 
         return { allowed: true };
       }
