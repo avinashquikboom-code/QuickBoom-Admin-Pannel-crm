@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
+  Trash2,
   CheckCircle2,
   Clock,
   AlertCircle,
   Download,
   RefreshCw,
-  Plus,
   Eye,
   KeyRound,
   RotateCcw,
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import {
   AdminPageHeader,
   AdminStatCard,
@@ -67,6 +68,11 @@ interface CustomerRecord {
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore(state => state.user);
+  const canDelete = ['ADMIN', 'SUPER_ADMIN'].includes(user?.accountType || '');
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [deleting, setDeleting] = useState(false);
+
 
   // Filters & Search
   const [searchInput, setSearchInput] = useState('');
@@ -161,6 +167,24 @@ export default function CustomersPage() {
     return filteredList.slice(startIndex, startIndex + pageSize);
   }, [filteredList, page, pageSize]);
 
+  useEffect(() => { setSelectedIds([]); }, [page, pageSize, search, statusFilter]);
+  useEffect(() => { setSelectedIds(ids => ids.filter(id => rawList.some(c => c.id === id))); }, [rawList]);
+  const deleteCustomers = async (ids: number[]) => {
+    if (!ids.length || deleting) return;
+    if (!window.confirm(`Delete ${ids.length === 1 ? 'this customer' : `${ids.length} selected customers`}? Lead and billing history will be retained. Active subscriptions and unresolved checkouts must be resolved first.`)) return;
+    setDeleting(true);
+    try {
+      if (ids.length === 1) await api.delete(`/customers/${ids[0]}`);
+      else await api.post('/customers/bulk-delete', { ids });
+      setSelectedIds([]);
+      if (selectedCustomerId && ids.includes(selectedCustomerId)) { setIsDrawerOpen(false); setSelectedCustomerId(null); }
+      setPage(1);
+      toast.success(ids.length === 1 ? 'Customer deleted' : 'Selected customers deleted');
+      await queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+      await queryClient.invalidateQueries({ queryKey: ['employee-customers'] });
+    } catch (err) { toast.error(getErrorMessage(err)); } finally { setDeleting(false); }
+  };
+
   // Date formatter
   const formatDate = (val?: string | null) => {
     if (!val) return '—';
@@ -250,6 +274,11 @@ export default function CustomersPage() {
 
   // Define Table Columns
   const columns: ColumnDef<CustomerRecord>[] = [
+    ...(canDelete ? [{
+      key: 'selection',
+      header: <input aria-label="Select all customers on this page" type="checkbox" disabled={deleting || !paginatedList.length || paginatedList.length > 100} checked={paginatedList.length > 0 && paginatedList.every(c => selectedIds.includes(c.id))} onChange={e => setSelectedIds(e.target.checked ? paginatedList.map(c => c.id) : [])} />,
+      render: (c: CustomerRecord) => <input aria-label={`Select ${c.companyName}`} type="checkbox" disabled={deleting || (!selectedIds.includes(c.id) && selectedIds.length >= 100)} checked={selectedIds.includes(c.id)} onClick={e => e.stopPropagation()} onChange={e => setSelectedIds(ids => e.target.checked ? [...ids, c.id] : ids.filter(id => id !== c.id))} />,
+    }] : []),
     {
       key: 'customer',
       header: 'Customer / Workspace',
@@ -387,6 +416,7 @@ export default function CustomersPage() {
       headerClassName: 'text-right',
       render: (c) => (
         <div className="flex items-center justify-end gap-1.5">
+          {canDelete && <button type="button" disabled={deleting} onClick={() => deleteCustomers([c.id])} className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 disabled:opacity-50" title="Delete customer" aria-label={`Delete ${c.companyName}`}><Trash2 className="w-4 h-4" /></button>}
           <button
             type="button"
             onClick={() => {
@@ -463,12 +493,6 @@ export default function CustomersPage() {
             >
               Export CSV
             </AdminButton>
-
-            <Link href="/subscribe">
-              <AdminButton variant="primary" size="sm" icon={Plus}>
-                Purchase / New Plan
-              </AdminButton>
-            </Link>
           </div>
         }
       />
@@ -555,7 +579,8 @@ export default function CustomersPage() {
           </div>
         )}
 
-        {/* 4. Customers Data Table */}
+        {canDelete && selectedIds.length > 0 && <div className="flex items-center gap-3 py-3"><span>{selectedIds.length} selected</span><AdminButton variant="outline" size="sm" icon={Trash2} loading={deleting} onClick={() => deleteCustomers(selectedIds)}>Delete selected</AdminButton><button disabled={deleting} onClick={() => setSelectedIds([])}>Clear selection</button></div>}
+      {/* 4. Customers Data Table */}
         <AdminDataTable
           columns={columns}
           data={paginatedList}

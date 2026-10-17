@@ -306,11 +306,6 @@ export default function CustomerDetailPage() {
         <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-6 shadow-xs">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-black text-slate-900">Subscription History</h3>
-            <Link href={`/subscribe?customerId=${customer.id}`}>
-              <AdminButton variant="primary" size="sm" icon={CreditCard}>
-                Purchase Plan
-              </AdminButton>
-            </Link>
           </div>
           {Array.isArray(customer.subscriptions) && customer.subscriptions.length > 0 ? (
             <div className="overflow-x-auto">
