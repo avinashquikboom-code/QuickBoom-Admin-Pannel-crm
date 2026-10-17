@@ -86,17 +86,34 @@ export function getPersistedAuthSession() {
   }
   
   const isEmployeeRoute = isEmployeePortalRoute();
-  const activeStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
+  const store = isEmployeeRoute ? useEmployeeAuthStore : useAuthStore;
+  let activeStore = store.getState();
   const storageKey = isEmployeeRoute ? 'qb-employee-auth-storage' : 'quikboom-next-auth-storage';
 
-  // Read one complete session; never rank tokens from different sessions by expiry.
+  // localStorage is shared across tabs; hydrated Zustand memory is not.
+  // Reconcile the complete persisted session before choosing either credential.
   let session: any = activeStore;
-  if (!activeStore._hasHydrated) {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) session = JSON.parse(raw)?.state || activeStore;
-    } catch {}
-  }
+  try {
+    const raw = localStorage.getItem(storageKey);
+    const persisted = raw ? JSON.parse(raw)?.state : null;
+    if (persisted && Object.prototype.hasOwnProperty.call(persisted, 'token')) {
+      session = persisted;
+      if (activeStore._hasHydrated && (
+        activeStore.token !== persisted.token ||
+        activeStore.refreshToken !== persisted.refreshToken ||
+        activeStore.user?.id !== persisted.user?.id
+      )) {
+        store.setState({
+          token: persisted.token ?? null,
+          refreshToken: persisted.refreshToken ?? null,
+          user: persisted.user ?? null,
+          isAuthenticated: Boolean(persisted.token && persisted.user),
+          ...(!isEmployeeRoute ? { customerId: persisted.customerId ?? persisted.user?.customerId ?? null } : {}),
+        });
+        activeStore = store.getState();
+      }
+    }
+  } catch {}
 
   // Legacy admin keys are only a fallback before hydration when no session exists.
   if (!isEmployeeRoute && !activeStore._hasHydrated && session === activeStore &&
@@ -164,6 +181,22 @@ function currentSessionKey(): string {
  * Executes a single-flight token refresh. Concurrent callers share the exact same promise.
  */
 export async function performTokenRefresh(): Promise<string> {
+  // Coordinate rotating refresh tokens across tabs when Web Locks is available.
+  const locks = typeof window !== 'undefined' ? window.navigator?.locks : undefined;
+  if (!locks) return refreshCurrentSession();
+  const before = getPersistedAuthSession();
+  const employeePortal = isEmployeePortalRoute();
+  return locks.request(`quickboom-refresh-${employeePortal ? 'employee' : 'admin'}`, async () => {
+    const current = getPersistedAuthSession();
+    if (employeePortal !== isEmployeePortalRoute() || before.user?.id !== current.user?.id) {
+      throw new Error('Authentication session changed during refresh');
+    }
+    if (current.token && current.token !== before.token) return current.token;
+    return refreshCurrentSession();
+  });
+}
+
+async function refreshCurrentSession(): Promise<string> {
   const sessionKey = currentSessionKey();
   if (refreshPromise && refreshSessionKey === sessionKey) {
     return refreshPromise;

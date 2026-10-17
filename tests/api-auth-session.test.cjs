@@ -21,8 +21,8 @@ function fixture() {
   const axios = { create: () => client, post: async () => { throw new Error('Unexpected network call'); } }, exports = {};
   vm.runInNewContext(source, { exports, require(name) {
     if (name === 'axios') return axios;
-    if (name === './store') return { useAuthStore: { getState: () => state } };
-    if (name === './employee-store') return { useEmployeeAuthStore: { getState: () => employee } };
+    if (name === './store') return { useAuthStore: { getState: () => state, setState: patch => Object.assign(state, patch) } };
+    if (name === './employee-store') return { useEmployeeAuthStore: { getState: () => employee, setState: patch => Object.assign(employee, patch) } };
     if (name === 'react-hot-toast') return { toast: { error() {} } };
     if (name === './utils') return { getErrorMessage: error => error.message };
     throw new Error(`Unexpected import ${name}`);
@@ -141,4 +141,56 @@ test('revoked proactive refresh stops the Lead update and requires login', async
   await assert.rejects(f.hooks.request({ ...config(), method: 'patch', url: '/leads/943/status' }));
   assert.equal(f.state.token, null);
   assert.equal(f.window.location.href, '/login');
+});
+
+for (const pathname of ['/data-capture', '/employee/data-capture']) {
+  test(`import uses the complete session rotated by another tab: ${pathname}`, async () => {
+    const f = fixture(); f.window.location.pathname = pathname;
+    const employee = pathname.startsWith('/employee/');
+    const state = employee ? f.employee : f.state;
+    const next = token(state.user.id, 4500000000);
+    f.storage.set(employee ? 'qb-employee-auth-storage' : 'quikboom-next-auth-storage', JSON.stringify({ state: {
+      token: next, refreshToken: 'rotated-in-another-tab', user: state.user,
+    } }));
+    const sent = await f.hooks.request({ ...config(), method: 'post', url: '/data-capture/import-to-leads', data: { ids: [101] } });
+    assert.equal(sent.headers.get('Authorization'), `Bearer ${next}`);
+    assert.equal(state.token, next);
+    assert.equal(state.refreshToken, 'rotated-in-another-tab');
+    assert.deepEqual(sent.data, { ids: [101] });
+  });
+}
+test('logout in another tab removes the stale import credentials', async () => {
+  const f = fixture();
+  f.storage.set('quikboom-next-auth-storage', JSON.stringify({ state: { token: null, refreshToken: null, user: null } }));
+  const sent = await f.hooks.request({ ...config(), method: 'post', url: '/data-capture/import-to-leads', data: { ids: [101] } });
+  assert.equal(sent.headers.has('Authorization'), false);
+  assert.equal(f.state.refreshToken, null);
+});
+test('two tabs sharing a rotating refresh token serialize through Web Locks', async () => {
+  const first = fixture(), second = fixture();
+  let tail = Promise.resolve(), calls = 0;
+  const locks = { request(_name, run) { const result = tail.then(run); tail = result.catch(() => {}); return result; } };
+  first.window.navigator = second.window.navigator = { locks };
+  const next = token(1, 4500000000);
+  const refresh = async () => {
+    calls++;
+    const persisted = JSON.stringify({ state: { user: first.state.user, token: next, refreshToken: 'rotated' } });
+    first.storage.set('quikboom-next-auth-storage', persisted);
+    second.storage.set('quikboom-next-auth-storage', persisted);
+    // Publishing occurs when updateTokens writes the persisted session in production.
+    first.state.token = next; first.state.refreshToken = 'rotated';
+    return { data: { accessToken: next, refreshToken: 'rotated' } };
+  };
+  // Delay publication until after the refreshing tab verifies its session key.
+  first.axios.post = second.axios.post = async () => { calls++; return { data: { accessToken: next, refreshToken: 'rotated' } }; };
+  first.state.updateTokens = function(access, refreshToken) {
+    this.token = access; this.refreshToken = refreshToken;
+    const persisted = JSON.stringify({ state: { user: this.user, token: access, refreshToken } });
+    first.storage.set('quikboom-next-auth-storage', persisted);
+    second.storage.set('quikboom-next-auth-storage', persisted);
+  };
+  const tokens = await Promise.all([first.exports.performTokenRefresh(), second.exports.performTokenRefresh()]);
+  assert.deepEqual(tokens, [next, next]);
+  assert.equal(calls, 1);
+  assert.equal(second.state.refreshToken, 'rotated');
 });
