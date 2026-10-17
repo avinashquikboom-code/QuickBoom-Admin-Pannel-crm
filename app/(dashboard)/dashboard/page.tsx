@@ -305,15 +305,15 @@ export default function AdminDashboardPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             {/* Date Range Selector */}
-            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs font-bold shadow-2xs">
+            <div className="flex items-center p-1 bg-white/10 rounded-xl border border-white/15 text-xs font-bold shadow-2xs">
               {(['7d', '30d', '90d', '1y'] as DateRangeOption[]).map((opt) => (
                 <button
                   key={opt}
                   onClick={() => setDateRange(opt)}
                   className={`px-3 py-1.5 rounded-lg transition-all capitalize cursor-pointer ${
                     dateRange === opt
-                      ? 'bg-white text-emerald-700 font-bold shadow-xs border border-slate-200/60'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                      ? 'bg-[#23C45E] text-white font-bold shadow-xs'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {opt === '7d'

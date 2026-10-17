@@ -49,32 +49,32 @@ export function AdminFormPage({
         </div>
 
         {/* Page Header Banner */}
-        <div className="admin-page-header bg-brand text-slate-900 px-4 py-3.5 sm:px-5 sm:py-4.5 rounded-2xl border border-brand-700/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="admin-page-header bg-gradient-to-r from-slate-900 to-slate-800 text-white px-4 py-3.5 sm:px-5 sm:py-4.5 rounded-2xl border border-slate-700/60 shadow-md shadow-slate-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {Icon && (
-              <div className="w-10 h-10 rounded-xl bg-white/90 text-brand-900 border border-brand-900/20 flex items-center justify-center shadow-2xs shrink-0">
-                <Icon className="w-5 h-5 text-brand-900" />
+              <div className="w-10 h-10 rounded-xl bg-white/10 text-[#23C45E] border border-white/15 flex items-center justify-center font-bold shadow-xs shrink-0">
+                <Icon className="w-5 h-5 text-[#23C45E] shrink-0" />
               </div>
             )}
 
             <div className="min-w-0 flex-1">
               {breadcrumbContext && (
-                <div className="text-[11px] font-semibold text-slate-900 uppercase tracking-wider mb-0.5">
+                <div className="text-[11px] font-semibold text-emerald-400/90 uppercase tracking-wider mb-0.5">
                   {breadcrumbContext}
                 </div>
               )}
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-lg sm:text-[22px] md:text-[24px] font-bold text-slate-900 tracking-tight leading-tight break-words">
+                <h1 className="text-lg sm:text-[22px] md:text-[24px] font-bold text-white tracking-tight leading-tight break-words">
                   {title}
                 </h1>
                 {badge && (
-                  <span className="px-2.5 py-0.5 bg-white/90 text-brand-900 border border-brand-900/20 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-full text-[10px] font-bold uppercase tracking-wider">
                     {badge}
                   </span>
                 )}
               </div>
               {description && (
-                <p className="text-[13px] sm:text-sm text-slate-900 font-normal leading-relaxed mt-1 max-w-2xl">
+                <p className="text-[13px] sm:text-sm text-white/70 font-normal leading-relaxed mt-1 max-w-2xl">
                   {description}
                 </p>
               )}
