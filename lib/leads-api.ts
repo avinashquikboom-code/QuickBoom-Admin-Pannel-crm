@@ -179,4 +179,12 @@ export const leadsApi = {
     const res = await api.patch(`/leads/${id}/status`, data);
     return unwrap<Lead>(res);
   },
+  delete: async (id: number): Promise<{ success: boolean; message: string; id: number }> => {
+    const res = await api.delete(`/leads/${id}`);
+    return unwrap<{ success: boolean; message: string; id: number }>(res);
+  },
+  bulkDelete: async (ids: number[]): Promise<{ success: boolean; message: string; count: number }> => {
+    const res = await api.post('/leads/bulk-delete', { ids });
+    return unwrap<{ success: boolean; message: string; count: number }>(res);
+  },
 };

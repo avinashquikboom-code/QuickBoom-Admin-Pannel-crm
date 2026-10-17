@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { Check, ChevronRight, GitCommit, Users } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { Check, ChevronRight, GitCommit, Trash2, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { AdminButton, AdminCard, AdminPageHeader, AdminSelect } from '@/components/admin';
+import { AdminButton, AdminCard, AdminConfirmDialog, AdminPageHeader, AdminSelect } from '@/components/admin';
 import { LeadStage, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 
 export default function LeadDetailsPage() {
+  const router = useRouter();
   const params = useParams<{ id: string }>();
   const client = useQueryClient();
   const id = Number(params.id);
@@ -22,6 +23,7 @@ export default function LeadDetailsPage() {
   const currentStage = lead?.stage || configuredStages.find(stage => stage.key === lead?.status) || { id: 0, key: lead?.status || '', name: lead?.status || 'Unknown', sortOrder: 0, color: '#64748b', bgColor: '#f1f5f9', borderColor: '#e2e8f0' };
 
   const [selectedStageKey, setSelectedStageKey] = useState<string>('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (currentStage?.key) {
@@ -38,6 +40,19 @@ export default function LeadDetailsPage() {
       client.invalidateQueries({ queryKey: ['leads'] });
       toast.success(`Pipeline stage updated to "${updated.stage?.name || updated.status}"`);
     },
+    onError: (error) => {
+      setSelectedStageKey(currentStage.key || '');
+      toast.error(getErrorMessage(error));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => leadsApi.delete(id),
+    onSuccess: (res) => {
+      toast.success(res?.message || 'Lead deleted successfully');
+      client.invalidateQueries({ queryKey: ['leads'] });
+      router.push('/leads');
+    },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
@@ -48,6 +63,19 @@ export default function LeadDetailsPage() {
         description="Lead contact information, capture origin, and CRM pipeline progress."
         icon={Users}
         breadcrumbs={[{ label: 'Leads', href: '/leads' }, { label: lead ? String(lead.id) : 'Details' }]}
+        actions={
+          lead && (
+            <AdminButton
+              variant="outline"
+              icon={Trash2}
+              className="!text-rose-600 hover:!bg-rose-50 border-rose-200"
+              disabled={deleteMutation.isPending || updateStage.isPending}
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete Lead
+            </AdminButton>
+          )
+        }
       />
       {!validId ? (
         <p role="alert" className="text-rose-700">Invalid Lead ID.</p>
@@ -94,15 +122,7 @@ export default function LeadDetailsPage() {
                   </div>
                 )}
                 {!stagesQuery.isLoading && !stagesQuery.isError && (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (updateStage.isPending || !selectedStageKey || selectedStageKey === currentStage.key) return;
-                      const target = configuredStages.find(s => s.key === selectedStageKey);
-                      if (target) updateStage.mutate(target);
-                    }}
-                    className="space-y-3.5"
-                  >
+                  <div className="space-y-3.5">
                     <div className="space-y-1.5">
                       <label htmlFor="lead-details-stage-select" className="block text-xs font-medium text-slate-700">
                         Select Pipeline Stage
@@ -111,7 +131,14 @@ export default function LeadDetailsPage() {
                         id="lead-details-stage-select"
                         value={selectedStageKey || currentStage.key || ''}
                         disabled={updateStage.isPending}
-                        onChange={(e) => setSelectedStageKey(e.target.value)}
+                        onChange={(e) => {
+                          const newKey = e.target.value;
+                          setSelectedStageKey(newKey);
+                          const target = configuredStages.find(s => s.key === newKey);
+                          if (target && target.key !== currentStage.key) {
+                            updateStage.mutate(target);
+                          }
+                        }}
                         className="w-full max-w-md"
                       >
                         {configuredStages
@@ -124,29 +151,13 @@ export default function LeadDetailsPage() {
                       </AdminSelect>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <AdminButton
-                        type="submit"
-                        size="sm"
-                        disabled={updateStage.isPending || !selectedStageKey || selectedStageKey === currentStage.key}
-                        className="!text-xs font-semibold"
-                      >
-                        {updateStage.isPending ? 'Updating Stage…' : 'Update Stage'}
-                      </AdminButton>
-                      {selectedStageKey && selectedStageKey !== currentStage.key && (
-                        <AdminButton
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled={updateStage.isPending}
-                          onClick={() => setSelectedStageKey(currentStage.key || '')}
-                          className="!text-xs"
-                        >
-                          Reset
-                        </AdminButton>
-                      )}
-                    </div>
-                  </form>
+                    {updateStage.isPending && (
+                      <div className="flex items-center gap-2 pt-1 text-xs text-slate-500" role="status">
+                        <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-[#23C45E] rounded-full animate-spin" />
+                        <span>Updating pipeline stage…</span>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {updateStage.isError && (
                   <p role="alert" className="mt-3 text-xs text-rose-700">
@@ -205,6 +216,17 @@ export default function LeadDetailsPage() {
           </AdminCard>
         </>
       )}
+
+      <AdminConfirmDialog
+        isOpen={confirmDelete}
+        title="Delete Lead"
+        message={`Are you sure you want to delete "${lead?.companyName || `Lead #${id}`}"? This action cannot be undone.`}
+        confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete Lead'}
+        variant="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onClose={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

@@ -2,9 +2,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Pencil, Users } from 'lucide-react';
+import { Check, Pencil, Trash2, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { AdminButton, AdminCard, AdminFormDrawer, AdminSelect } from '@/components/admin';
+import { AdminButton, AdminCard, AdminConfirmDialog, AdminFormDrawer, AdminSelect } from '@/components/admin';
 import { CreateLeadInput, Lead, LeadStage, UpdateLeadInput, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 import { emptyLeadForm, LeadFormFields } from './LeadFormFields';
@@ -19,6 +19,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<CreateLeadInput>(emptyLeadForm);
   const [selectedStageKey, setSelectedStageKey] = useState<string>('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const detail = useQuery({ queryKey: ['lead', id], queryFn: () => leadsApi.detail(id), staleTime: 30_000, retry: false });
   const stagesQuery = useQuery({ queryKey: ['lead-stages'], queryFn: leadsApi.stages, staleTime: 60_000 });
   const configuredStages = stagesQuery.data || [];
@@ -69,9 +70,22 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   const changeStage = useMutation({
     mutationFn: (target: LeadStage) => leadsApi.updateStage(id, { status: target.key, stageId: target.id }),
     onSuccess: async updated => { await saved(updated); toast.success(`Pipeline stage updated to ${updated.stage?.name || updated.status}`); },
-    onError: error => toast.error(getErrorMessage(error)),
+    onError: error => {
+      setSelectedStageKey(stage?.key || '');
+      toast.error(getErrorMessage(error));
+    },
   });
-  const busy = edit.isPending || changeStage.isPending;
+  const deleteMutation = useMutation({
+    mutationFn: () => leadsApi.delete(id),
+    onSuccess: (res) => {
+      toast.success(res?.message || 'Lead deleted successfully');
+      setConfirmDelete(false);
+      onClose();
+      client.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+  const busy = edit.isPending || changeStage.isPending || deleteMutation.isPending;
   const fields = (values: Record<string, unknown>) => <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {Object.entries(values).map(([label, value]) => <div key={label} className="min-w-0">
       <dt className="text-xs font-medium text-slate-500">{label}</dt>
@@ -99,9 +113,10 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
           <LeadFormFields value={form} onChange={setForm} disabled={busy} />
           {edit.isError && <p role="alert" className="text-sm text-rose-700">{getErrorMessage(edit.error)}</p>}
         </form> : <>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <AdminButton size="sm" icon={Pencil} disabled={busy} onClick={() => beginEdit(lead)}>Edit Lead</AdminButton>
             <AdminButton size="sm" variant="outline" disabled={busy} onClick={() => stageSection.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Change Pipeline Stage</AdminButton>
+            <AdminButton size="sm" variant="outline" icon={Trash2} className="!text-rose-600 hover:!bg-rose-50 border-rose-200 ml-auto" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete Lead</AdminButton>
           </div>
           <AdminCard title="Contact Details">{fields({ Name: [lead.firstName, lead.lastName].filter(Boolean).join(' '), Phone: lead.phone, Email: lead.email })}</AdminCard>
           <AdminCard title="Company Details">{fields({ Company: lead.companyName, Category: lead.category, Website: lead.website, Address: lead.address, City: lead.city, State: lead.state, Country: lead.country, Pincode: lead.pincode })}</AdminCard>
@@ -115,15 +130,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
                 </div>
               )}
               {!stagesQuery.isLoading && !stagesQuery.isError && (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    if (busy || !selectedStageKey || selectedStageKey === stage?.key) return;
-                    const target = configuredStages.find(item => item.key === selectedStageKey);
-                    if (target) changeStage.mutate(target);
-                  }}
-                  className="space-y-3.5"
-                >
+                <div className="space-y-3.5">
                   {/* Current Stage Indicator */}
                   <div
                     className="flex items-center justify-between gap-3 p-3 rounded-xl border transition-all"
@@ -159,7 +166,14 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
                       id="crm-pipeline-stage-select"
                       value={selectedStageKey || stage?.key || ''}
                       disabled={busy}
-                      onChange={(e) => setSelectedStageKey(e.target.value)}
+                      onChange={(e) => {
+                        const newKey = e.target.value;
+                        setSelectedStageKey(newKey);
+                        const target = configuredStages.find(item => item.key === newKey);
+                        if (target && target.key !== stage?.key) {
+                          changeStage.mutate(target);
+                        }
+                      }}
                       className="w-full"
                     >
                       {configuredStages
@@ -172,30 +186,13 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
                     </AdminSelect>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <AdminButton
-                      type="submit"
-                      size="sm"
-                      disabled={busy || !selectedStageKey || selectedStageKey === stage?.key}
-                      className="!text-xs font-semibold"
-                    >
-                      {changeStage.isPending ? 'Updating Stage…' : 'Update Stage'}
-                    </AdminButton>
-                    {selectedStageKey && selectedStageKey !== stage?.key && (
-                      <AdminButton
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => setSelectedStageKey(stage?.key || '')}
-                        className="!text-xs"
-                      >
-                        Reset
-                      </AdminButton>
-                    )}
-                  </div>
-                </form>
+                  {changeStage.isPending && (
+                    <div className="flex items-center gap-2 pt-1 text-xs text-slate-500" role="status">
+                      <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-[#23C45E] rounded-full animate-spin" />
+                      <span>Updating pipeline stage…</span>
+                    </div>
+                  )}
+                </div>
               )}
               {changeStage.isError && (
                 <p role="alert" className="mt-3 text-xs text-rose-700">
@@ -207,5 +204,15 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
           <AdminCard title="Lead Information">{fields({ 'Lead ID': lead.id, Status: stage?.name || lead.status, Source: lead.source, 'Created from': lead.createdFrom, 'Created on': lead.createdAt ? new Date(lead.createdAt).toLocaleString() : null, 'Google Place ID': lead.googlePlaceId, Latitude: lead.latitude, Longitude: lead.longitude, Notes: lead.notes })}</AdminCard>
         </>}
     </AdminFormDrawer>
+    <AdminConfirmDialog
+      isOpen={confirmDelete}
+      title="Delete Lead"
+      message={`Are you sure you want to delete "${lead?.companyName || `Lead #${id}`}"? This action cannot be undone.`}
+      confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete Lead'}
+      variant="danger"
+      loading={deleteMutation.isPending}
+      onConfirm={() => deleteMutation.mutate()}
+      onClose={() => setConfirmDelete(false)}
+    />
   </div>;
 }
