@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { LeadDetailsDrawer } from '@/components/admin/drawers/LeadDetailsDrawer';
 import { emptyLeadForm, LeadFormFields } from '@/components/admin/drawers/LeadFormFields';
 import { AdminRowActions } from '@/components/admin/tables/AdminRowActions';
-import { Download, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
+import { Download, Mail, Pencil, Phone, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminConfirmDialog, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination, AdminSearchInput, AdminSelect, AdminStatusBadge } from '@/components/admin';
@@ -104,24 +104,26 @@ export default function LeadsPage() {
     toast.success(`Exported ${rows.length} Leads${selectedOnPage.length ? '' : ' from the current page'}`);
   };
 
-  return <div className="space-y-4 min-w-0 max-w-[1600px] mx-auto pb-16">
-    <AdminPageHeader title="Leads" description="Manage your business leads and opportunities." icon={Users}
-      actions={<>
-        <AdminButton variant="outline" icon={Download} onClick={exportPage} disabled={!leads.length || list.isLoading}
+  return <div className="space-y-5 min-w-0 max-w-[1600px] mx-auto pb-16">
+    <AdminPageHeader title="Leads" description="Manage contacts, follow opportunities, and move your pipeline forward." icon={Users}
+      badge={{ text: 'CRM Pipeline', pulsingDot: false }}
+      className="!rounded-3xl !border-l-4 !border-l-emerald-400 !px-5 !py-6 sm:!px-7 [&_h1]:!tracking-tight [&_h1]:!text-2xl sm:[&_h1]:!text-3xl"
+      actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+        <AdminButton variant="glass" icon={Download} onClick={exportPage} disabled={!leads.length || list.isLoading}
           title={selectedOnPage.length ? 'Export selected Leads on this page' : 'Export Leads on the current page'}>Export</AdminButton>
         <AdminButton icon={Plus} onClick={() => setOpen(true)}>Add Lead</AdminButton>
-      </>} />
+      </div>} />
     <AdminCard title="All Leads" description={`Showing ${total ? (page - 1) * limit + 1 : 0} - ${Math.min(page * limit, total)} of ${total} records • Page ${page} of ${totalPages}`}
       bodyClassName="p-0"
       className="[&>div:first-child]:flex-wrap [&>div:first-child]:items-start [&>div:first-child>div:last-child]:min-w-0 [&>div:first-child>div:last-child]:max-w-full [&>div:first-child>div:last-child]:shrink"
-      headerActions={<div className="flex w-full flex-wrap items-center gap-2 lg:justify-end">
+      headerActions={<div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:flex xl:flex-wrap xl:items-center xl:justify-end">
         <AdminSearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }}
-          placeholder="Search leads by name, phone, email, company..." className="min-w-[220px] lg:w-[310px]" />
-        <AdminSelect aria-label="Filter Leads by stage" value={status} className="!py-2 !text-xs"
+          placeholder="Search leads by name, phone, email, company..." className="w-full min-w-0 sm:col-span-2 xl:w-[320px]" />
+        <AdminSelect aria-label="Filter Leads by stage" value={status} className="!rounded-xl !py-2.5 !text-xs"
           onChange={(event) => { setStatus(event.target.value); setPage(1); }}
           options={[{ value: 'ALL', label: 'All Stages' }, ...configuredStages.map(stage => ({ value: stage.key, label: stage.name }))]} />
         <label className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">Per page:
-          <AdminSelect aria-label="Leads per page" value={limit} className="!py-2 !text-xs"
+          <AdminSelect aria-label="Leads per page" value={limit} className="!rounded-xl !py-2.5 !text-xs"
             onChange={(event) => { setLimit(Number(event.target.value)); setPage(1); }}
             options={[10, 20, 50, 100].map(size => ({ value: String(size), label: String(size) }))} />
         </label>
@@ -151,8 +153,8 @@ export default function LeadsPage() {
       {list.isError ? <div role="alert" className="p-6 text-rose-700 space-y-3"><p>{getErrorMessage(list.error)}</p><AdminButton variant="outline" onClick={() => list.refetch()}>Retry</AdminButton></div> : <>
         <AdminDataTable<Lead> data={leads} loading={list.isLoading} onRowClick={lead => setSelectedLead({ id: lead.id, action: 'view' })} keyExtractor={(lead) => String(lead.id)}
           emptyTitle="No leads found" emptyDescription="Add a Lead or import a validated Data Capture record."
-          minWidth="min-w-[1120px] table-fixed"
-          className="!rounded-none !border-0 !shadow-none [&_td]:!px-3 [&_td]:!py-3 [&_th]:!px-3 [&_th]:!font-medium [&_td]:align-top"
+          minWidth="min-w-[1280px] table-fixed"
+          className="!rounded-none !border-0 !shadow-none [&_td]:!px-4 [&_td]:!py-4 [&_th]:!px-4 [&_th]:!py-3.5 [&_th]:!font-semibold [&_th]:!text-[10px] [&_th]:!tracking-wider [&_td]:align-middle"
           rowClassName={(lead) => selectedIds.includes(lead.id) ? 'bg-emerald-50/50 hover:!bg-emerald-50/70' : ''}
           columns={[
             { key: 'selection', headerClassName: 'w-12 text-center', className: 'text-center',
@@ -168,7 +170,7 @@ export default function LeadsPage() {
               {lead.category && <p className="mt-1 truncate text-[11px] font-normal text-slate-500">{lead.category}</p>}
             </div> },
             { key: 'phone', header: 'Contact', headerClassName: 'w-[17%]', render: lead => <div className="space-y-1 break-words font-normal">
-              <p className="font-medium">{lead.phone || '—'}</p><p className="text-[11px] text-slate-500">{lead.email || '—'}</p></div> },
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-800"><Phone className="h-3 w-3 shrink-0 text-slate-400" />{lead.phone || '—'}</p><p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500"><Mail className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" /><span className="break-all">{lead.email || '—'}</span></p></div> },
             { key: 'companyName', header: 'Company', headerClassName: 'w-[17%]', render: lead => <button type="button" onClick={event => { event.stopPropagation(); setSelectedLead({ id: lead.id, action: 'view' }); }} className="text-left line-clamp-3 break-words font-medium leading-snug hover:text-emerald-700">{lead.companyName || '—'}</button> },
             { key: 'status', header: 'Stage', headerClassName: 'w-[13%]', render: lead => {
               const stage = lead.stage || configuredStages.find(item => item.key === lead.status);
@@ -183,8 +185,10 @@ export default function LeadsPage() {
               return Number.isNaN(date.getTime()) ? '—' : <div className="space-y-1 whitespace-nowrap font-normal">
                 <p>{date.toLocaleDateString('en-GB')}</p><p className="text-[11px] text-slate-500">{date.toLocaleTimeString('en-GB')}</p></div>;
             } },
-            { key: 'actions', header: 'Actions', headerClassName: 'w-[170px]', render: lead => <div className="flex items-center gap-1.5" onClick={event => event.stopPropagation()}>
+            { key: 'actions', header: 'Actions', headerClassName: 'w-[220px]', render: lead => <div className="flex items-center gap-1.5" onClick={event => event.stopPropagation()}>
               <AdminButton variant="outline" size="sm" onClick={() => setSelectedLead({ id: lead.id, action: 'view' })}>View Details</AdminButton>
+              <AdminButton variant="ghost" size="sm" icon={Pencil} aria-label={`Edit Lead ${lead.companyName}`} title="Edit Lead"
+                className="!px-2 !text-emerald-700 hover:!bg-emerald-50" onClick={() => setSelectedLead({ id: lead.id, action: 'edit' })} />
               <AdminRowActions label={`More actions for ${lead.companyName}`} items={[
                 { label: 'Edit Lead', onSelect: () => setSelectedLead({ id: lead.id, action: 'edit' }) },
                 { label: 'Change Stage', onSelect: () => setSelectedLead({ id: lead.id, action: 'stage' }) },
