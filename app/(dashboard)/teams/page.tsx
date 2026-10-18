@@ -137,6 +137,31 @@ export default function TeamsPage() {
     },
   });
 
+  const [memberSearch, setMemberSearch] = useState('');
+  const { data: eligibleMembers = [], isFetching: loadingEligibleMembers, isError: eligibleMembersError } = useQuery<EmployeeRecord[]>({
+    queryKey: ['team-eligible-members', addingMemberTeam?.id, memberSearch],
+    enabled: !!addingMemberTeam,
+    queryFn: async ({ signal }) => {
+      const employees: EmployeeRecord[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const res = await api.get('/employees', {
+          signal,
+          params: { eligibleForTeamId: addingMemberTeam!.id, status: 'ACTIVE', search: memberSearch, page, limit: 100 },
+        });
+        const root: any = res.data ?? res;
+        const body = root?.data && !Array.isArray(root.data) ? root.data : root;
+        const items = Array.isArray(body) ? body : body?.items ?? body?.employees ?? body?.data;
+        if (!Array.isArray(items)) throw new Error('Invalid eligible employee response');
+        employees.push(...items);
+        totalPages = Number(body?.pagination?.totalPages ?? root?.pagination?.totalPages ?? 1);
+        page++;
+      } while (page <= totalPages);
+      return employees;
+    },
+  });
+
   // Mutations
   const createTeamMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -598,7 +623,7 @@ export default function TeamsPage() {
                         <span>Roster Members ({team.members?.length || 0})</span>
                         <button
                           onClick={() => {
-                            setAddingMemberTeam(team);
+                            setMemberSearch(''); setMemberEmployeeId(''); setAddingMemberTeam(team);
                             setMemberEmployeeId('');
                             setMemberRole('MEMBER');
                           }}
@@ -1034,7 +1059,7 @@ export default function TeamsPage() {
                   <span>Assigned Personnel ({viewingTeam.members?.length || 0})</span>
                   <button
                     onClick={() => {
-                      setAddingMemberTeam(viewingTeam);
+                      setMemberSearch(''); setMemberEmployeeId(''); setAddingMemberTeam(viewingTeam);
                       setMemberEmployeeId('');
                       setMemberRole('MEMBER');
                     }}
@@ -1109,21 +1134,30 @@ export default function TeamsPage() {
         isOpen={!!addingMemberTeam}
         onClose={() => setAddingMemberTeam(null)}
         title={`Assign Member to ${addingMemberTeam?.name}`}
-        subtitle="Add an employee from the master roster to this team"
+        subtitle="Choose an active employee eligible for this team"
       >
         <form onSubmit={handleAddMemberSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Select Employee <span className="text-rose-500">*</span>
             </label>
+            <input
+              type="search"
+              aria-label="Search eligible employees"
+              placeholder="Search employees"
+              value={memberSearch}
+              onChange={event => { setMemberSearch(event.target.value); setMemberEmployeeId(''); }}
+              className="mb-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs"
+            />
             <select
+              disabled={loadingEligibleMembers || eligibleMembersError}
               value={memberEmployeeId}
               onChange={(e) => setMemberEmployeeId(e.target.value)}
               required
               className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium cursor-pointer"
             >
-              <option value="">-- Choose Employee --</option>
-              {employeesList.map((emp) => {
+              <option value="">{loadingEligibleMembers ? 'Loading eligible employees…' : '-- Choose Employee --'}</option>
+              {eligibleMembers.map((emp) => {
                 const name = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name;
                 return (
                   <option key={emp.id} value={emp.id}>
@@ -1132,6 +1166,8 @@ export default function TeamsPage() {
                 );
               })}
             </select>
+            {eligibleMembersError && <p role="alert" className="mt-2 text-xs text-rose-600">Could not load eligible employees. Reopen or search to retry.</p>}
+            {!loadingEligibleMembers && !eligibleMembersError && eligibleMembers.length === 0 && <p className="mt-2 text-xs text-slate-500">No eligible employees found.</p>}
           </div>
 
           <div>
@@ -1160,7 +1196,7 @@ export default function TeamsPage() {
             </button>
             <button
               type="submit"
-              disabled={addMemberMutation.isPending}
+              disabled={addMemberMutation.isPending || loadingEligibleMembers || eligibleMembersError || !eligibleMembers.some(emp => String(emp.id) === memberEmployeeId)}
               className="px-5 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
             >
               {addMemberMutation.isPending ? 'Assigning...' : 'Assign to Team'}
