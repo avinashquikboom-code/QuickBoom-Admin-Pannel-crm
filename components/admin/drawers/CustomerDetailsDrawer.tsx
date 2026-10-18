@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { customersApi } from '@/lib/customers-api';
 import { AdminFormDrawer } from '../dialogs/AdminFormDrawer';
 import { ResetCustomerDataModal } from '../dialogs/ResetCustomerDataModal';
 
@@ -61,7 +62,7 @@ export function CustomerDetailsDrawer({
   const numericCustomerId = customerId !== null && customerId !== undefined ? Number(String(customerId).trim()) : null;
   const isValidCustomerId =
     typeof numericCustomerId === 'number' &&
-    Number.isInteger(numericCustomerId) &&
+    Number.isSafeInteger(numericCustomerId) &&
     numericCustomerId > 0 &&
     !String(customerId).trim().startsWith('-');
 
@@ -77,8 +78,7 @@ export function CustomerDetailsDrawer({
     enabled: isOpen && isValidCustomerId,
     queryFn: async () => {
       if (!isValidCustomerId || !numericCustomerId) return null;
-      const res: any = await api.get(`/customers/${numericCustomerId}`);
-      return res?.data || res;
+      return customersApi.getDetails(numericCustomerId);
     },
   });
 
@@ -170,7 +170,7 @@ export function CustomerDetailsDrawer({
       isOpen={isOpen}
       onClose={onClose}
       title={customer?.name || customer?.customerName || customer?.companyName || 'Customer Details'}
-      description={customer ? `${customer.companyName || customer.workspaceName || customer.company || 'Direct Client'} • ${customer.customerId || `CUST-${String(customerId).padStart(4, '0')}`}` : (isValidCustomerId ? 'Loading customer account...' : 'Invalid Customer Identifier')}
+      description={customer ? `${customer.companyName || customer.workspaceName || customer.company || 'Direct Client'} • ${customer.customerCode || `CUST-${String(numericCustomerId).padStart(4, '0')}`}` : (isValidCustomerId ? 'Loading customer account...' : 'Invalid Customer Identifier')}
       icon={Building2}
       maxWidth="sm:max-w-[620px]"
       footer={
@@ -283,7 +283,7 @@ export function CustomerDetailsDrawer({
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="font-mono text-[10px] font-bold text-slate-400">
-                      {customer.customerId || `CUST-${String(customerId).padStart(4, '0')}`}
+                      {customer.customerCode || `CUST-${String(numericCustomerId).padStart(4, '0')}`}
                     </span>
                     <span className="text-slate-300">•</span>
                     <span className="text-[10px] font-bold text-slate-500 uppercase">

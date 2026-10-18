@@ -48,6 +48,7 @@ type FilterStatus = 'ALL' | 'ACTIVE' | 'PENDING_ACTIVATION' | 'INACTIVE';
 
 interface CustomerRecord {
   id: number;
+  customerCode?: string;
   companyName: string;
   name?: string;
   email?: string | null;
@@ -91,6 +92,34 @@ export default function CustomersPage() {
   const [planCustomer, setPlanCustomer] = useState<CustomerRecord | null>(null);
 
   const [teamCustomer, setTeamCustomer] = useState<CustomerRecord | null>(null);
+
+  const handleOpenCustomerDetails = (id: number | string | null | undefined) => {
+    const numericId = id !== null && id !== undefined ? Number(id) : NaN;
+    if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+      toast.error(`Invalid customer identifier "${id}". Customer identifiers must be positive integers.`);
+      return;
+    }
+    setSelectedCustomerId(numericId);
+    setIsDrawerOpen(true);
+  };
+
+  const handleOpenPlanDrawer = (customer: CustomerRecord) => {
+    const numericId = Number(customer?.id);
+    if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+      toast.error(`Invalid customer identifier "${customer?.id}".`);
+      return;
+    }
+    setPlanCustomer(customer);
+  };
+
+  const handleOpenTeamDialog = (customer: CustomerRecord) => {
+    const numericId = Number(customer?.id);
+    if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+      toast.error(`Invalid customer identifier "${customer?.id}".`);
+      return;
+    }
+    setTeamCustomer(customer);
+  };
 
   // Debounce search input
   useEffect(() => {
@@ -244,7 +273,7 @@ export default function CustomersPage() {
     ];
 
     const rows = filteredList.map((c) => [
-      `CUST-${String(c.id).padStart(4, '0')}`,
+      c.customerCode || (Number.isSafeInteger(Number(c.id)) && Number(c.id) > 0 ? `CUST-${String(c.id).padStart(4, '0')}` : 'CUST-—'),
       `"${(c.companyName || '').replace(/"/g, '""')}"`,
       c.email || '',
       c.phone || '',
@@ -303,9 +332,9 @@ export default function CustomersPage() {
         <div className="flex flex-col gap-1 min-w-[180px]">
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-slate-900 hover:text-[#23C45E] transition-colors cursor-pointer"
-              onClick={() => {
-                setSelectedCustomerId(c.id);
-                setIsDrawerOpen(true);
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenCustomerDetails(c.id);
               }}
             >
               {c.companyName}
@@ -318,7 +347,7 @@ export default function CustomersPage() {
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-mono text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">
-              CUST-{String(c.id).padStart(4, '0')}
+              {c.customerCode || (Number.isSafeInteger(Number(c.id)) && Number(c.id) > 0 ? `CUST-${String(c.id).padStart(4, '0')}` : 'CUST-—')}
             </span>
             {c.originLeadId && (
               <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 rounded font-bold">
@@ -450,9 +479,9 @@ export default function CustomersPage() {
           )}
           <button
             type="button"
-            onClick={() => {
-              setSelectedCustomerId(c.id);
-              setIsDrawerOpen(true);
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenCustomerDetails(c.id);
             }}
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
             title="View Customer Overview"
@@ -460,7 +489,7 @@ export default function CustomersPage() {
             <Eye className="w-4 h-4" />
           </button>
 
-          {canDelete && <button type="button" onClick={event => { event.stopPropagation(); setTeamCustomer(c); }}
+          {canDelete && <button type="button" onClick={event => { event.stopPropagation(); handleOpenTeamDialog(c); }}
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
             title="Assign Team" aria-label={`Assign team to ${c.companyName}`}>
             <Users className="w-3.5 h-3.5" />
@@ -468,7 +497,7 @@ export default function CustomersPage() {
           </button>}
           <button
             type="button"
-            onClick={(event) => { event.stopPropagation(); setPlanCustomer(c); }}
+            onClick={(event) => { event.stopPropagation(); handleOpenPlanDrawer(c); }}
             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[#1AA14D] bg-[#E8F9EE] hover:bg-[#d8f5e1] border border-[#23C45E]/30 rounded-lg transition-colors cursor-pointer"
             aria-label={`View plan for ${c.companyName}`}
             title="View subscription plan details"
@@ -637,8 +666,7 @@ export default function CustomersPage() {
               : 'No customer workspaces exist in the system yet. Converted Won leads will automatically appear here.'
           }
           onRowClick={(item) => {
-            setSelectedCustomerId(item.id);
-            setIsDrawerOpen(true);
+            handleOpenCustomerDetails(item.id);
           }}
         />
 

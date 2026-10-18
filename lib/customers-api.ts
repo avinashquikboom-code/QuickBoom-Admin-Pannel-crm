@@ -9,6 +9,20 @@ export interface DeleteCustomerResult {
 }
 
 export const customersApi = {
+  /** A display code or a legacy negative lead ID is never a customer primary key. */
+  async getDetails(id: number | string, signal?: AbortSignal): Promise<any> {
+    const customerId = Number(id);
+    if (!Number.isSafeInteger(customerId) || customerId < 1) {
+      throw new Error('Customer details require a positive database customer ID. The supplied identifier is invalid.');
+    }
+    const response: any = await api.get(`/customers/${customerId}`, { signal });
+    const customer = response?.data ?? response;
+    if (customer?.id !== customerId) {
+      throw new Error('Customer details could not be verified: the returned customer does not match the requested ID.');
+    }
+    return customer;
+  },
+
   /**
    * Delete a single customer using the existing registered DELETE /customers/:id endpoint.
    */
