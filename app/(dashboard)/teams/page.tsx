@@ -132,29 +132,84 @@ export default function TeamsPage() {
   const teamsPagination = teamsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
   // Fetch dependencies of team being deleted
-  const { data: teamDependencies, isLoading: isDependenciesLoading } = useQuery({
+  const { data: teamDependencies, isLoading: isDependenciesLoading, isError: isDependenciesError, error: dependenciesError, refetch: refetchDependencies } = useQuery({
     queryKey: ['team-dependencies', deletingTeam?.id],
     queryFn: async () => {
       if (!deletingTeam?.id) return null;
       try {
         const res: any = await api.get(`/teams/${deletingTeam.id}/dependencies`);
-        return res.data?.data || res.data;
-      } catch {
-        return {
-          memberCount: deletingTeam.memberCount || deletingTeam.members?.length || 0,
-          workCount: 0,
-          customerCount: 0,
-        };
+        const data = res.data?.data ?? res.data;
+        if (data && ['memberCount', 'workCount', 'customerCount'].every(key => typeof data[key] === 'number')) {
+          return data;
+        }
+      } catch (err: any) {
+        if (err?.response?.status === 404) {
+          try {
+            const teamRes: any = await api.get(`/teams/${deletingTeam.id}`);
+            const t = teamRes.data?.data ?? teamRes.data;
+            if (t) {
+              return {
+                teamId: t.id,
+                teamName: t.name,
+                isActive: t.isActive,
+                leader: t.leader,
+                memberCount: t.memberCount ?? t.members?.length ?? t._count?.members ?? 0,
+                workCount: t.workCount ?? t.works?.length ?? t._count?.works ?? 0,
+                customerCount: t.customerCount ?? t._count?.assignedCustomers ?? 0,
+                commissionCount: 0,
+                hasDependencies: (t.memberCount ?? t.members?.length ?? 0) + (t.workCount ?? t.works?.length ?? 0) > 0,
+                canDelete: true,
+              };
+            }
+          } catch (fallbackErr: any) {
+            if (fallbackErr?.response?.status === 404) {
+              throw new Error(`Team #${deletingTeam.id} was not found on the server.`);
+            }
+            throw fallbackErr;
+          }
+        } else {
+          throw err;
+        }
       }
+      return {
+        teamId: deletingTeam.id,
+        teamName: deletingTeam.name,
+        isActive: deletingTeam.isActive,
+        leader: deletingTeam.leader,
+        memberCount: deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0,
+        workCount: (deletingTeam as any).workCount ?? 0,
+        customerCount: (deletingTeam as any).customerCount ?? 0,
+        commissionCount: 0,
+        hasDependencies: (deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0) > 0,
+        canDelete: true,
+      };
     },
     enabled: !!deletingTeam?.id,
+    retry: false,
   });
 
+  const { data: reassignmentTeams = [], isError: reassignmentTeamsError } = useQuery<TeamRecord[]>({
+    queryKey: ['team-delete-targets', deletingTeam?.id],
+    enabled: !!deletingTeam,
+    queryFn: async () => {
+      const teams: TeamRecord[] = [];
+      let page = 1, totalPages = 1;
+      do {
+        const res: any = await api.get('/teams', { params: { page, limit: 100, status: 'ACTIVE' } });
+        const root = res.data ?? res;
+        const body = root.data && !Array.isArray(root.data) ? root.data : root;
+        const items = Array.isArray(body) ? body : body.items ?? body.data;
+        if (!Array.isArray(items)) throw new Error('Invalid reassignment teams response');
+        teams.push(...items);
+        totalPages = Number(body.pagination?.totalPages ?? root.pagination?.totalPages ?? 1);
+        page++;
+      } while (page <= totalPages);
+      return teams;
+    },
+  });
   const eligibleReassignmentTeams = useMemo(() => {
-    return teamsList.filter(
-      (t) => t.id !== deletingTeam?.id && t.isActive
-    );
-  }, [teamsList, deletingTeam]);
+    return reassignmentTeams.filter(t => t.id !== deletingTeam?.id && t.isActive);
+  }, [reassignmentTeams, deletingTeam]);
 
   // 2. Fetch Employee Master Roster for Select Dropdowns
   const { data: employeesList = [] } = useQuery<EmployeeRecord[]>({
@@ -1275,6 +1330,13 @@ export default function TeamsPage() {
 
             {/* Body */}
             <div className="p-5 space-y-4">
+              {isDependenciesError && (
+                <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                  <p>Unable to verify team dependencies: {getErrorMessage(dependenciesError)}</p>
+                  <button type="button" onClick={() => refetchDependencies()} className="mt-2 font-bold underline">Retry dependency check</button>
+                </div>
+              )}
+              {deleteTeamMutation.isError && <p role="alert" className="text-xs text-rose-700">{getErrorMessage(deleteTeamMutation.error)}</p>}
               {/* Dependency Counts Banner */}
               <div className="p-3.5 bg-amber-50/70 border border-amber-200/60 rounded-xl text-xs space-y-2">
                 <div className="font-bold text-amber-900 flex items-center gap-1.5">
@@ -1284,25 +1346,26 @@ export default function TeamsPage() {
                 <div className="grid grid-cols-3 gap-2 pt-1 text-center font-medium">
                   <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
                     <span className="block text-base font-black text-slate-800">
-                      {isDependenciesLoading ? '...' : (teamDependencies?.memberCount ?? deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0)}
+                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.memberCount ?? deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0)}
                     </span>
                     <span className="text-[11px] text-slate-500">Members</span>
                   </div>
                   <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
                     <span className="block text-base font-black text-slate-800">
-                      {isDependenciesLoading ? '...' : (teamDependencies?.customerCount ?? 0)}
+                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.customerCount ?? 0)}
                     </span>
                     <span className="text-[11px] text-slate-500">Customers</span>
                   </div>
                   <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
                     <span className="block text-base font-black text-slate-800">
-                      {isDependenciesLoading ? '...' : (teamDependencies?.workCount ?? 0)}
+                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.workCount ?? 0)}
                     </span>
                     <span className="text-[11px] text-slate-500">Schedules</span>
                   </div>
                 </div>
               </div>
 
+              {reassignmentTeamsError && <p role="alert" className="text-xs text-rose-700">Unable to load reassignment teams. Reopen to retry, or choose unassignment/deactivation.</p>}
               {/* Options */}
               <div className="space-y-2.5">
                 <label className="block text-xs font-bold text-slate-700">
@@ -1452,7 +1515,7 @@ export default function TeamsPage() {
                     });
                   }
                 }}
-                disabled={deleteTeamMutation.isPending || (deleteMode === 'REASSIGN' && !reassignTargetTeamId)}
+                disabled={deleteTeamMutation.isPending || (deleteMode !== 'DEACTIVATE' && (isDependenciesLoading || isDependenciesError || !teamDependencies)) || (deleteMode === 'REASSIGN' && !reassignTargetTeamId)}
                 className={`px-5 py-2 text-xs font-bold text-white rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
                   deleteMode === 'DEACTIVATE'
                     ? 'bg-slate-700 hover:bg-slate-800 shadow-slate-700/20'
