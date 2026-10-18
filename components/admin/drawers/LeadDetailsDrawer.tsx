@@ -15,12 +15,18 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   const client = useQueryClient();
   const root = useRef<HTMLDivElement>(null);
   const formElement = useRef<HTMLFormElement>(null);
+  const submitLock = useRef(false);
   const stageSection = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<CreateLeadInput>(emptyLeadForm);
   const [selectedStageKey, setSelectedStageKey] = useState<string>('');
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const detail = useQuery({ queryKey: ['lead', id], queryFn: () => leadsApi.detail(id), staleTime: 30_000, retry: false });
+  const detail = useQuery({ queryKey: ['lead', id], queryFn: async () => {
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('A valid Lead ID is required');
+    const result = await leadsApi.detail(id);
+    if (result?.id !== id) throw new Error('The returned Lead does not match the selected record');
+    return result;
+  }, staleTime: 30_000, retry: false });
   const stagesQuery = useQuery({ queryKey: ['lead-stages'], queryFn: leadsApi.stages, staleTime: 60_000 });
   const configuredStages = stagesQuery.data || [];
   const lead = detail.data;
@@ -35,13 +41,14 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
     setForm(Object.fromEntries(Object.keys(emptyLeadForm).map(key => [key, record[key as keyof Lead] ?? ''])) as unknown as CreateLeadInput);
     setEditing(true);
   };
-  const initialized = useRef(false);
+  const initialized = useRef<string | null>(null);
   useEffect(() => {
-    if (!lead || initialized.current) return;
-    initialized.current = true;
+    const actionKey = `${id}:${initialAction}`;
+    if (!lead || lead.id !== id || initialized.current === actionKey) return;
+    initialized.current = actionKey;
     if (initialAction === 'edit') beginEdit(lead);
     if (initialAction === 'stage') stageSection.current?.scrollIntoView({ block: 'start' });
-  }, [lead, initialAction]);
+  }, [lead, id, initialAction]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     root.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
@@ -63,7 +70,12 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
     ]);
   };
   const edit = useMutation({
-    mutationFn: (data: UpdateLeadInput) => leadsApi.update(id, data),
+    mutationFn: async (data: UpdateLeadInput) => {
+      const result = await leadsApi.update(id, data);
+      if (result?.id !== id) throw new Error('The update response does not match the selected Lead');
+      return result;
+    },
+    onSettled: () => { submitLock.current = false; },
     onSuccess: async updated => { setEditing(false); await saved(updated); toast.success('Lead updated successfully'); },
     onError: error => toast.error(getErrorMessage(error)),
   });
@@ -102,11 +114,12 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
         : !lead ? <p role="status">Lead details are unavailable.</p>
         : editing ? <form ref={formElement} onSubmit={event => {
           event.preventDefault();
-          if (busy) return;
+          if (busy || submitLock.current) return;
           if (!form.companyName.trim()) { toast.error('Business name is required'); return; }
           // Keep empty strings in PATCH so clearing an existing field is persisted.
           const data = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, value?.trim() || ''])) as unknown as UpdateLeadInput;
           if (!data.email) data.email = null;
+          submitLock.current = true;
           edit.mutate(data);
         }} className="space-y-4">
           <div className="flex items-center justify-between"><h3 className="font-semibold">Edit Lead</h3><AdminButton type="button" variant="ghost" size="sm" disabled={busy} onClick={() => setEditing(false)}>Cancel editing</AdminButton></div>
