@@ -1,4 +1,5 @@
 import api from './api';
+import type { SavedCustomerTeam } from './customer-team';
 import { getErrorMessage } from './utils';
 
 export interface DeleteCustomerResult {
@@ -9,6 +10,20 @@ export interface DeleteCustomerResult {
 }
 
 export const customersApi = {
+  async assignTeam(id: number, teamId: number | null): Promise<SavedCustomerTeam> {
+    if (!Number.isSafeInteger(id) || id < 1 || (teamId !== null && (!Number.isSafeInteger(teamId) || teamId < 1))) {
+      throw new Error('Valid customer and team IDs are required.');
+    }
+    const response: any = await api.patch(`/customers/${id}/assign-team`, { teamId });
+    const saved = response?.data ?? response;
+    if (saved?.id !== id || saved?.assignedTeamId !== teamId ||
+        (teamId === null ? saved.assignedTeam != null :
+          saved.assignedTeam?.id !== teamId || typeof saved.assignedTeam?.name !== 'string' || !saved.assignedTeam.name.trim())) {
+      throw new Error('The server did not return the saved team name and matching assignment. Reopen the customer to verify before retrying.');
+    }
+    return saved;
+  },
+
   /** A display code or a legacy negative lead ID is never a customer primary key. */
   async getDetails(id: number | string, signal?: AbortSignal): Promise<any> {
     const customerId = Number(id);

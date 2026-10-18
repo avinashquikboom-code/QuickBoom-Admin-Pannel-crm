@@ -28,6 +28,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { customersApi } from '@/lib/customers-api';
+import { cacheSavedCustomerTeam } from '@/lib/customer-team';
 import { AdminFormDrawer } from '../dialogs/AdminFormDrawer';
 import { ResetCustomerDataModal } from '../dialogs/ResetCustomerDataModal';
 
@@ -122,7 +123,8 @@ export function CustomerDetailsDrawer({
     setSavingTeam(true);
     setTeamMessage('');
     try {
-      await api.patch(`/customers/${numericCustomerId}/assign-team`, { teamId: selectedTeamId ? Number(selectedTeamId) : null });
+      const saved = await customersApi.assignTeam(numericCustomerId, selectedTeamId ? Number(selectedTeamId) : null);
+      await cacheSavedCustomerTeam(queryClient, saved);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer', customerId] }),
         queryClient.invalidateQueries({ queryKey: ['customers-list'] }),
