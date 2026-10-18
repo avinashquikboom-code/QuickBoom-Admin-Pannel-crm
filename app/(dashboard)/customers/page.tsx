@@ -71,6 +71,26 @@ interface CustomerRecord {
   subscriptions?: any[];
 }
 
+function CustomerAssignedTeamLabel({ customer }: { customer: CustomerRecord }) {
+  const hasTeamName = Boolean(customer.assignedTeam?.name?.trim());
+  // Verify empty/missing list assignments against the existing authoritative read API.
+  const needsLookup = !hasTeamName;
+  const assignment = useQuery({
+    queryKey: ['customer-assigned-team', customer.id],
+    enabled: needsLookup,
+    queryFn: () => customersApi.getAssignedTeam(customer.id),
+    retry: false,
+    staleTime: 0,
+  });
+  if (hasTeamName) return <>{customer.assignedTeam!.name}</>;
+  if (assignment.isError) return <button type="button"
+    onClick={event => { event.stopPropagation(); assignment.refetch(); }}
+    title={getErrorMessage(assignment.error)}
+    className="text-rose-600 underline">Unable to load team · Retry</button>;
+  if (assignment.isPending) return <>Loading team…</>;
+  return <>{assignment.data?.assignedTeam?.name ?? 'Unassigned'}</>;
+}
+
 export default function CustomersPage() {
   const queryClient = useQueryClient();
   const user = useAuthStore(state => state.user);
@@ -493,7 +513,7 @@ export default function CustomersPage() {
 
           <div className="flex min-w-0 flex-col items-end gap-1">
             <span className="max-w-[180px] break-words text-right text-[10px] font-semibold text-slate-600" title="Assigned team">
-              {c.assignedTeam?.name || (c.assignedTeamId ? 'Team name unavailable' : 'Unassigned')}
+              <CustomerAssignedTeamLabel customer={c} />
             </span>
           {canDelete && <button type="button" onClick={event => { event.stopPropagation(); handleOpenTeamDialog(c); }}
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"

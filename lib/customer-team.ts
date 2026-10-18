@@ -21,7 +21,7 @@ export async function cacheSavedCustomerTeam(client: QueryClient, saved: SavedCu
   };
   client.setQueriesData({ queryKey: ['customers-list'] }, mergeList);
   client.setQueriesData({ predicate: query =>
-    ['admin-customer-details-drawer', 'admin-customer-details-page', 'customer-team-dialog'].includes(String(query.queryKey[0])) &&
+    ['admin-customer-details-drawer', 'admin-customer-details-page', 'customer-team-dialog', 'customer-assigned-team'].includes(String(query.queryKey[0])) &&
     Number(query.queryKey[1]) === saved.id,
   }, merge);
 }
