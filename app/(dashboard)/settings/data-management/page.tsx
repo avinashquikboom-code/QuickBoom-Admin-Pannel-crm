@@ -177,6 +177,7 @@ export default function DataManagementPage() {
     breakdown: any;
   } | null>(null);
   const [isLoadingAllCustomersSummary, setIsLoadingAllCustomersSummary] = useState(false);
+  const [allCustomersSummaryError, setAllCustomersSummaryError] = useState<string | null>(null);
 
   // Summary state – starts at zeros; filled by API on mount
   const [summary, setSummary] = useState<SummaryData>({
@@ -447,11 +448,15 @@ export default function DataManagementPage() {
 
   const loadAllCustomersSummary = async () => {
     setIsLoadingAllCustomersSummary(true);
+    setAllCustomersSummaryError(null);
     try {
       const res: any = await api.get('/admin/data-management/customers/summary/all');
       setAllCustomersSummary(res?.data || res);
     } catch (err: any) {
-      toast.error('Failed to load total customer record preview');
+      const message = err?.response?.data?.message || err?.message || 'Failed to load total customer record preview';
+      const errorText = Array.isArray(message) ? message.join(', ') : String(message);
+      setAllCustomersSummaryError(errorText);
+      toast.error(errorText);
       setAllCustomersSummary(null);
     } finally {
       setIsLoadingAllCustomersSummary(false);
@@ -2075,7 +2080,7 @@ export default function DataManagementPage() {
                 </div>
               </div>
               <p className="text-2xl font-black text-rose-600 mt-2">
-                {isLoadingAllCustomersSummary ? '...' : (allCustomersSummary?.totalCustomers ?? 0)}
+                {isLoadingAllCustomersSummary ? '...' : (allCustomersSummary?.totalCustomers ?? '—')}
               </p>
               <p className="text-[10px] text-slate-400 font-bold mt-0.5">Eligible client accounts</p>
             </div>
@@ -2088,7 +2093,7 @@ export default function DataManagementPage() {
                 </div>
               </div>
               <p className="text-2xl font-black text-slate-900 mt-2">
-                {isLoadingAllCustomersSummary ? '...' : (allCustomersSummary?.totalRelatedRecords?.toLocaleString() ?? 0)}
+                {isLoadingAllCustomersSummary ? '...' : (allCustomersSummary?.totalRelatedRecords?.toLocaleString() ?? '—')}
               </p>
               <p className="text-[10px] text-slate-400 font-bold mt-0.5">Across works, tasks, billing, schedules</p>
             </div>
@@ -2108,7 +2113,7 @@ export default function DataManagementPage() {
           {/* Breakdown Card */}
           <AdminCard
             title="Eligible Related Records Breakdown"
-            description="Actual live counts of customer-owned records that will be permanently removed upon confirmation."
+            description="Live counts of records linked to active customers through current company, contact, and account relationships."
             headerActions={
               <AdminButton
                 variant="secondary"
@@ -2138,7 +2143,7 @@ export default function DataManagementPage() {
                 </div>
                 <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
                   <p className="text-[11px] font-bold text-slate-500 uppercase">Schedules</p>
-                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.monthlySchedules ?? 0}</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.monthlySchedules ?? '—'}</p>
                 </div>
                 <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
                   <p className="text-[11px] font-bold text-slate-500 uppercase">Visits</p>
@@ -2169,6 +2174,8 @@ export default function DataManagementPage() {
                   <p className="text-lg font-black text-slate-900 mt-1">{allCustomersSummary.breakdown.tickets ?? 0}</p>
                 </div>
               </div>
+            ) : allCustomersSummaryError ? (
+              <div className="py-8 text-center text-xs text-rose-600 font-semibold">{allCustomersSummaryError}</div>
             ) : (
               <div className="py-8 text-center text-xs text-slate-400 font-bold">
                 No customer records currently found.
@@ -2721,18 +2728,20 @@ export default function DataManagementPage() {
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 Loading customer counts...
               </div>
+            ) : allCustomersSummaryError ? (
+              <p className="col-span-2 p-3 bg-rose-50 rounded-xl text-rose-700">Summary unavailable: {allCustomersSummaryError}</p>
             ) : (
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-3 bg-slate-50 rounded-xl">Customers: {allCustomersSummary?.totalCustomers ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Work: {allCustomersSummary?.breakdown?.works ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Schedules: {allCustomersSummary?.breakdown?.monthlySchedules ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Visits: {allCustomersSummary?.breakdown?.visits ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Tasks: {allCustomersSummary?.breakdown?.tasks ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Contacts: {allCustomersSummary?.breakdown?.contacts ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Deals: {allCustomersSummary?.breakdown?.deals ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Invoices: {allCustomersSummary?.breakdown?.invoices ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Subscriptions: {allCustomersSummary?.breakdown?.subscriptions ?? 0}</div>
-                <div className="p-3 bg-slate-50 rounded-xl">Related records: {allCustomersSummary?.totalRelatedRecords ?? 0}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Customers: {allCustomersSummary?.totalCustomers ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Work: {allCustomersSummary?.breakdown?.works ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Schedules: {allCustomersSummary?.breakdown?.monthlySchedules ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Visits: {allCustomersSummary?.breakdown?.visits ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Tasks: {allCustomersSummary?.breakdown?.tasks ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Contacts: {allCustomersSummary?.breakdown?.contacts ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Deals: {allCustomersSummary?.breakdown?.deals ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Invoices: {allCustomersSummary?.breakdown?.invoices ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Subscriptions: {allCustomersSummary?.breakdown?.subscriptions ?? '—'}</div>
+                <div className="p-3 bg-slate-50 rounded-xl">Related records: {allCustomersSummary?.totalRelatedRecords ?? '—'}</div>
               </div>
             )}
 
