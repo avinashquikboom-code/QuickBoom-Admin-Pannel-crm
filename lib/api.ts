@@ -97,20 +97,56 @@ export function getPersistedAuthSession() {
     const raw = localStorage.getItem(storageKey);
     const persisted = raw ? JSON.parse(raw)?.state : null;
     if (persisted && Object.prototype.hasOwnProperty.call(persisted, 'token')) {
-      session = persisted;
-      if (activeStore._hasHydrated && (
-        activeStore.token !== persisted.token ||
-        activeStore.refreshToken !== persisted.refreshToken ||
-        activeStore.user?.id !== persisted.user?.id
-      )) {
-        store.setState({
-          token: persisted.token ?? null,
-          refreshToken: persisted.refreshToken ?? null,
-          user: persisted.user ?? null,
-          isAuthenticated: Boolean(persisted.token && persisted.user),
-          ...(!isEmployeeRoute ? { customerId: persisted.customerId ?? persisted.user?.customerId ?? null } : {}),
-        });
-        activeStore = store.getState();
+      const persistedLoggedOut = persisted.token === null && persisted.user === null;
+      const userSwitched = Boolean(
+        persisted.user?.id &&
+        activeStore.user?.id &&
+        String(persisted.user.id) !== String(activeStore.user.id)
+      );
+
+      const activeExp = safeDecodeJwtPayload(activeStore.token || '')?.exp ?? 0;
+      const persistedExp = safeDecodeJwtPayload(persisted.token || '')?.exp ?? 0;
+
+      const preferPersisted =
+        persistedLoggedOut ||
+        userSwitched ||
+        !activeStore._hasHydrated ||
+        (!activeStore.token && Boolean(persisted.token)) ||
+        persistedExp > activeExp;
+
+      if (preferPersisted) {
+        session = persisted;
+        if (activeStore._hasHydrated && (
+          activeStore.token !== persisted.token ||
+          activeStore.refreshToken !== persisted.refreshToken ||
+          activeStore.user?.id !== persisted.user?.id
+        )) {
+          store.setState({
+            token: persisted.token ?? null,
+            refreshToken: persisted.refreshToken ?? null,
+            user: persisted.user ?? null,
+            isAuthenticated: Boolean(persisted.token && persisted.user),
+            ...(!isEmployeeRoute ? { customerId: persisted.customerId ?? persisted.user?.customerId ?? null } : {}),
+          });
+          activeStore = store.getState();
+        }
+      } else {
+        session = activeStore;
+        if (activeStore._hasHydrated && activeStore.token && persisted.token !== activeStore.token) {
+          try {
+            const currentRaw = localStorage.getItem(storageKey);
+            const parsed = currentRaw ? JSON.parse(currentRaw) : {};
+            parsed.state = {
+              ...(parsed.state || {}),
+              token: activeStore.token,
+              refreshToken: activeStore.refreshToken,
+              user: activeStore.user,
+              isAuthenticated: activeStore.isAuthenticated,
+              ...(!isEmployeeRoute ? { customerId: (activeStore as any).customerId ?? null } : {}),
+            };
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+          } catch {}
+        }
       }
     }
   } catch {}
@@ -273,6 +309,20 @@ async function refreshCurrentSession(): Promise<string> {
 
       // 1. Update in-memory auth store and localStorage
       authStore.updateTokens(newAccessToken, newRefreshToken);
+      try {
+        const storageKey = isEmployeeRoute ? 'qb-employee-auth-storage' : 'quikboom-next-auth-storage';
+        const raw = localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (parsed && typeof parsed === 'object') {
+          parsed.state = {
+            ...(parsed.state || {}),
+            token: newAccessToken,
+            refreshToken: newRefreshToken,
+            isAuthenticated: true,
+          };
+          localStorage.setItem(storageKey, JSON.stringify(parsed));
+        }
+      } catch {}
 
       return newAccessToken;
     } catch (refreshErr: any) {
@@ -383,8 +433,13 @@ api.interceptors.request.use(
         delete (config.headers as any)['x-customer-id'];
         delete (config.headers as any)['x-tenant-id'];
       }
-      if (token && !isAuthUrl) {
-        const cleanToken = token.replace(/^Bearer\s+/i, '').replace(/^["']|["']$/g, '').trim();
+      const tokenToUse =
+        Boolean((config as any)._retry && (config as any).__sentToken)
+          ? (config as any).__sentToken
+          : token;
+
+      if (tokenToUse && !isAuthUrl) {
+        const cleanToken = tokenToUse.replace(/^Bearer\s+/i, '').replace(/^["']|["']$/g, '').trim();
         if (typeof config.headers?.set === 'function') {
           config.headers.set('Authorization', `Bearer ${cleanToken}`);
         } else {

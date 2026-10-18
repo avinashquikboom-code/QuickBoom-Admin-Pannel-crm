@@ -37,6 +37,23 @@ export const useEmployeeAuthStore = create<EmployeeAuthState>()(
       },
 
       updateTokens: (token, refreshToken) => {
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem('qb-employee-auth-storage');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed === 'object') {
+                parsed.state = {
+                  ...(parsed.state || {}),
+                  token,
+                  refreshToken: refreshToken || parsed.state?.refreshToken,
+                  isAuthenticated: true,
+                };
+                localStorage.setItem('qb-employee-auth-storage', JSON.stringify(parsed));
+              }
+            }
+          } catch (_) {}
+        }
         set((state) => ({
           token,
           refreshToken: refreshToken || state.refreshToken,
