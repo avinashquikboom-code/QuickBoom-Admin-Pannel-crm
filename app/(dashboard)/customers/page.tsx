@@ -61,6 +61,8 @@ interface CustomerRecord {
   subscriptionEndDate?: string | null;
   activationDate?: string | null;
   purchaseDate?: string | null;
+  assignedTeamId?: number | null;
+  assignedTeam?: { id: number; name: string; isActive?: boolean } | null;
   originLeadId?: number | null;
   userId?: number | null;
   city?: string | null;
@@ -280,7 +282,7 @@ export default function CustomersPage() {
       c.status,
       c.subscriptionStatus || '',
       `"${(c.planName || 'No Active Plan').replace(/"/g, '""')}"`,
-      formatDate(c.purchaseDate || c.createdAt),
+      formatDate(c.purchaseDate),
       formatDate(c.activationDate || c.subscriptionStartDate),
       c.originLeadId || '',
       c.userId ? 'Yes' : 'No',
@@ -443,7 +445,7 @@ export default function CustomersPage() {
           <div className="flex flex-col gap-0.5 text-xs text-slate-600">
             <div className="flex items-center gap-1 text-[11px]">
               <span className="text-slate-400 font-medium">Purchased:</span>
-              <span>{formatDate(c.purchaseDate || c.createdAt)}</span>
+              <span>{formatDate(c.purchaseDate)}</span>
             </div>
             <div className="flex items-center gap-1 text-[11px]">
               <span className="text-slate-400 font-medium">Activates:</span>
@@ -489,12 +491,17 @@ export default function CustomersPage() {
             <Eye className="w-4 h-4" />
           </button>
 
+          <div className="flex min-w-0 flex-col items-end gap-1">
+            <span className="max-w-[180px] break-words text-right text-[10px] font-semibold text-slate-600" title="Assigned team">
+              {c.assignedTeam?.name || (c.assignedTeamId ? 'Team name unavailable' : 'Unassigned')}
+            </span>
           {canDelete && <button type="button" onClick={event => { event.stopPropagation(); handleOpenTeamDialog(c); }}
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
             title="Assign Team" aria-label={`Assign team to ${c.companyName}`}>
             <Users className="w-3.5 h-3.5" />
             <span>Assign Team</span>
           </button>}
+          </div>
           <button
             type="button"
             onClick={(event) => { event.stopPropagation(); handleOpenPlanDrawer(c); }}

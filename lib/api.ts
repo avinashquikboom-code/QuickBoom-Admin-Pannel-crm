@@ -115,9 +115,8 @@ export function getPersistedAuthSession() {
     }
   } catch {}
 
-  // Legacy admin keys are only a fallback before hydration when no session exists.
-  if (!isEmployeeRoute && !activeStore._hasHydrated && session === activeStore &&
-      !session.token && !session.user) {
+  // Legacy admin keys are a fallback only before the Zustand store has hydrated.
+  if (!isEmployeeRoute && !activeStore._hasHydrated && !session.token) {
     try {
       session = {
         token: localStorage.getItem('accessToken') || localStorage.getItem('token'),
@@ -128,7 +127,13 @@ export function getPersistedAuthSession() {
   }
 
   const token = isValidTokenString(session.token) ? session.token.trim() : null;
-  const refreshToken = isValidTokenString(session.refreshToken) ? session.refreshToken.trim() : null;
+  let refreshToken = isValidTokenString(session.refreshToken) ? session.refreshToken.trim() : null;
+  if (!refreshToken && token && !isEmployeeRoute && typeof window !== 'undefined') {
+    try {
+      const storedRefresh = localStorage.getItem('refreshToken');
+      if (isValidTokenString(storedRefresh)) refreshToken = storedRefresh.trim();
+    } catch {}
+  }
   const user = session.user || null;
   const customerId = session.customerId || user?.customerId || null;
 
@@ -367,11 +372,19 @@ api.interceptors.request.use(
       }
 
       // Remove defaults or caller headers from a previous session first.
-      config.headers.delete('Authorization');
-      config.headers.delete('x-customer-id');
-      config.headers.delete('x-tenant-id');
+      if (typeof config.headers?.delete === 'function') {
+        config.headers.delete('Authorization');
+        config.headers.delete('authorization');
+        config.headers.delete('x-customer-id');
+        config.headers.delete('x-tenant-id');
+      } else if (config.headers) {
+        delete (config.headers as any)['Authorization'];
+        delete (config.headers as any)['authorization'];
+        delete (config.headers as any)['x-customer-id'];
+        delete (config.headers as any)['x-tenant-id'];
+      }
       if (token && !isAuthUrl) {
-        const cleanToken = token.replace(/^["']|["']$/g, '').trim();
+        const cleanToken = token.replace(/^Bearer\s+/i, '').replace(/^["']|["']$/g, '').trim();
         if (typeof config.headers?.set === 'function') {
           config.headers.set('Authorization', `Bearer ${cleanToken}`);
         } else {
@@ -379,6 +392,7 @@ api.interceptors.request.use(
           delete (config.headers as any)['authorization'];
           config.headers['Authorization'] = `Bearer ${cleanToken}`;
         }
+        (config as any).__sentToken = cleanToken;
       }
 
       if (customerId && !isAuthUrl) {
@@ -492,8 +506,21 @@ api.interceptors.response.use(
     // An old account's failed request must not refresh or log out the new account.
     if (error?.response?.status === 401 && typeof window !== 'undefined') {
       const currentUser = getPersistedAuthSession().user;
-      if (originalRequest.__authUserId !== currentUser?.id ||
-          originalRequest.__employeePortal !== isEmployeePortalRoute()) {
+      const originalUserId = originalRequest.__authUserId;
+      const currentUserId = currentUser?.id;
+      if (
+        originalUserId !== undefined &&
+        originalUserId !== null &&
+        currentUserId !== undefined &&
+        currentUserId !== null &&
+        String(originalUserId) !== String(currentUserId)
+      ) {
+        return Promise.reject(error);
+      }
+      if (
+        originalRequest.__employeePortal !== undefined &&
+        originalRequest.__employeePortal !== isEmployeePortalRoute()
+      ) {
         return Promise.reject(error);
       }
     }
@@ -537,13 +564,35 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // A late 401 from the old token can reuse the token already refreshed.
         const currentToken = getPersistedAuthSession().token;
-        const sentHeader = originalRequest.headers?.get?.('Authorization') ||
-          originalRequest.headers?.Authorization;
-        const newAccessToken = currentToken && sentHeader !== `Bearer ${currentToken}`
-          ? currentToken
+        const sentToken = (originalRequest as any).__sentToken;
+        const rawSentHeader =
+          typeof originalRequest.headers?.get === 'function'
+            ? originalRequest.headers.get('Authorization') || originalRequest.headers.get('authorization')
+            : originalRequest.headers?.Authorization || originalRequest.headers?.authorization;
+        const cleanSentHeader = typeof rawSentHeader === 'string'
+          ? rawSentHeader.replace(/^Bearer\s+/i, '').replace(/^["']|["']$/g, '').trim()
+          : null;
+
+        const effectiveSentToken = sentToken || cleanSentHeader;
+        const cleanCurrentToken = currentToken
+          ? currentToken.replace(/^Bearer\s+/i, '').replace(/^["']|["']$/g, '').trim()
+          : null;
+
+        // A late 401 from an old token can reuse the token if it has already been refreshed by a concurrent call
+        const alreadyRefreshed = Boolean(
+          cleanCurrentToken &&
+          effectiveSentToken &&
+          cleanCurrentToken !== effectiveSentToken
+        );
+        const newAccessToken = alreadyRefreshed
+          ? (cleanCurrentToken as string)
           : await performTokenRefresh();
+
+        const cleanNewToken = (newAccessToken || '')
+          .replace(/^Bearer\s+/i, '')
+          .replace(/^["']|["']$/g, '')
+          .trim();
 
         const retryConfig: AxiosRequestConfig = {
           ...originalRequest,
@@ -555,15 +604,16 @@ api.interceptors.response.use(
         };
 
         if (typeof retryConfig.headers?.set === 'function') {
-          retryConfig.headers.set('Authorization', `Bearer ${newAccessToken}`);
+          retryConfig.headers.set('Authorization', `Bearer ${cleanNewToken}`);
         } else {
           retryConfig.headers = retryConfig.headers || {};
           delete (retryConfig.headers as any)['authorization'];
-          retryConfig.headers['Authorization'] = `Bearer ${newAccessToken}`;
+          retryConfig.headers['Authorization'] = `Bearer ${cleanNewToken}`;
         }
+        (retryConfig as any).__sentToken = cleanNewToken;
 
         return api.request(retryConfig);
-      } catch {
+      } catch (refreshErr) {
         return Promise.reject(error);
       }
     }
