@@ -10,6 +10,19 @@ export interface DeleteCustomerResult {
 }
 
 export const customersApi = {
+  async getAssignedTeam(id: number): Promise<SavedCustomerTeam> {
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('Valid customer ID required.');
+    const response: any = await api.get(`/customers/${id}/assign-team`);
+    const saved = response?.data ?? response;
+    const teamId = saved?.assignedTeamId;
+    if (saved?.id !== id || !(teamId === null || (Number.isSafeInteger(teamId) && teamId > 0)) ||
+        (teamId === null ? saved.assignedTeam != null :
+          saved.assignedTeam?.id !== teamId || typeof saved.assignedTeam?.name !== 'string' || !saved.assignedTeam.name.trim())) {
+      throw new Error('The server did not return a verified customer team assignment.');
+    }
+    return saved;
+  },
+
   async assignTeam(id: number, teamId: number | null): Promise<SavedCustomerTeam> {
     if (!Number.isSafeInteger(id) || id < 1 || (teamId !== null && (!Number.isSafeInteger(teamId) || teamId < 1))) {
       throw new Error('Valid customer and team IDs are required.');

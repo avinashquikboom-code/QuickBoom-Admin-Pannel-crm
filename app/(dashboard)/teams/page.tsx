@@ -139,8 +139,14 @@ export default function TeamsPage() {
       try {
         const res: any = await api.get(`/teams/${deletingTeam.id}/dependencies`);
         const data = res.data?.data ?? res.data;
-        if (data && ['memberCount', 'workCount', 'customerCount'].every(key => typeof data[key] === 'number')) {
-          return data;
+        if (data && (typeof data.assignedEmployees === 'number' || typeof data.memberCount === 'number')) {
+          return {
+            ...data,
+            assignedEmployees: data.assignedEmployees ?? data.memberCount ?? 0,
+            memberCount: data.assignedEmployees ?? data.memberCount ?? 0,
+            customerCount: data.customerCount ?? 0,
+            workCount: data.workCount ?? 0,
+          };
         }
       } catch (err: any) {
         if (err?.response?.status === 404) {
@@ -148,16 +154,20 @@ export default function TeamsPage() {
             const teamRes: any = await api.get(`/teams/${deletingTeam.id}`);
             const t = teamRes.data?.data ?? teamRes.data;
             if (t) {
+              const members = t.memberCount ?? t.members?.length ?? t._count?.members ?? 0;
+              const works = t.workCount ?? t.works?.length ?? t._count?.works ?? 0;
+              const customers = t.customerCount ?? t._count?.assignedCustomers ?? 0;
               return {
                 teamId: t.id,
                 teamName: t.name,
                 isActive: t.isActive,
                 leader: t.leader,
-                memberCount: t.memberCount ?? t.members?.length ?? t._count?.members ?? 0,
-                workCount: t.workCount ?? t.works?.length ?? t._count?.works ?? 0,
-                customerCount: t.customerCount ?? t._count?.assignedCustomers ?? 0,
+                assignedEmployees: members,
+                memberCount: members,
+                workCount: works,
+                customerCount: customers,
                 commissionCount: 0,
-                hasDependencies: (t.memberCount ?? t.members?.length ?? 0) + (t.workCount ?? t.works?.length ?? 0) > 0,
+                hasDependencies: members + works + customers > 0,
                 canDelete: true,
               };
             }
@@ -176,6 +186,7 @@ export default function TeamsPage() {
         teamName: deletingTeam.name,
         isActive: deletingTeam.isActive,
         leader: deletingTeam.leader,
+        assignedEmployees: deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0,
         memberCount: deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0,
         workCount: (deletingTeam as any).workCount ?? 0,
         customerCount: (deletingTeam as any).customerCount ?? 0,
