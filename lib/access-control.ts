@@ -582,6 +582,29 @@ export function getUserRole(user: UserType | null): string {
   return roleList[0];
 }
 
+export function isUserAdmin(user: UserType | null | any): boolean {
+  if (!user) return false;
+  const roleList = user.accountType
+    ? [user.accountType]
+    : Array.isArray(user.roles)
+    ? user.roles
+    : user.role
+    ? [user.role]
+    : [];
+  const norm = (v: any) =>
+    String(typeof v === 'string' ? v : v?.name || v?.role?.name || '')
+      .toUpperCase()
+      .trim()
+      .replace(/[\s-]+/g, '_');
+  const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'COMPANY_ADMIN'];
+  return (
+    adminRoles.includes(norm(user.accountType)) ||
+    adminRoles.includes(norm(user.role)) ||
+    roleList.some((r: any) => adminRoles.includes(norm(r))) ||
+    getUserRole(user) === 'Super Admin'
+  );
+}
+
 export function isBpoEmployee(user: any): boolean {
   if (!user) return false;
 
