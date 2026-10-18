@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Plus,
@@ -23,6 +23,8 @@ import {
   Navigation,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { isUserAdmin } from '@/lib/access-control';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
@@ -38,12 +40,20 @@ import { getErrorMessage } from '@/lib/utils';
 
 export default function VisitsPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore(state => state.user);
+  const canRemove = isUserAdmin(user);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [employeeFilter, setEmployeeFilter] = useState('ALL');
   const [companyFilter, setCompanyFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [search, statusFilter, employeeFilter, companyFilter, page, pageSize]);
 
   // Modals / Drawers
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -224,7 +234,10 @@ export default function VisitsPage() {
     mutationFn: async (id: number | string) => {
       return api.delete(`/visits/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      setSelectedIds(previous => { const next = new Set(previous); next.delete(String(id)); return next; });
+      if (String(viewingVisitId) === String(id)) setViewingVisitId(null);
+      if (visits.length === 1 && page > 1) setPage(page - 1);
       toast.success('Visit removed successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-visits-list'] });
       queryClient.invalidateQueries({ queryKey: ['admin-visits-metrics'] });
@@ -233,6 +246,41 @@ export default function VisitsPage() {
       toast.error(getErrorMessage(err));
     },
   });
+
+  const bulkRemoveMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const numericIds = ids.map(Number);
+      if (numericIds.length > 100 || numericIds.some(id => !Number.isSafeInteger(id) || id < 1)) throw new Error('Select up to 100 valid visits.');
+      const response: any = await api.post('/visits/bulk-delete', { ids: numericIds });
+      const result = response?.data ?? response;
+      if (result?.deletedCount !== ids.length || !Array.isArray(result.ids) ||
+          result.ids.length !== ids.length || new Set(result.ids).size !== ids.length ||
+          result.ids.some((id: number) => !numericIds.includes(id))) {
+        throw new Error('Deletion response could not be verified. Refresh the list before retrying.');
+      }
+      return result.ids.map(String) as string[];
+    },
+    onSuccess: async (removed) => {
+      setSelectedIds(new Set());
+      if (viewingVisitId !== null && removed.includes(String(viewingVisitId))) setViewingVisitId(null);
+      toast.success(`${removed.length} visit${removed.length === 1 ? '' : 's'} deleted.`);
+      if (removed.length === visits.length && page > 1) setPage(page - 1);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-visits-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-visits-metrics'] }),
+      ]);
+    },
+    onError: error => toast.error(getErrorMessage(error)),
+  });
+  const removing = deleteMutation.isPending || bulkRemoveMutation.isPending;
+  const visibleIds = visits.map(visit => String(visit.id));
+  const selectedVisibleIds = visibleIds.filter(id => selectedIds.has(id));
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+  const removeSelected = () => {
+    if (!canRemove || removing || !selectedVisibleIds.length) return;
+    const ids = selectedVisibleIds;
+    if (window.confirm(`Delete ${ids.length} selected visit records? This cannot be undone.`)) bulkRemoveMutation.mutate(ids);
+  };
 
   const resetForm = () => {
     setForm({
@@ -429,10 +477,21 @@ export default function VisitsPage() {
 
       {/* 4. MAIN VISITS TABLE */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+        {canRemove && (
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
+            <span className="text-xs font-bold text-slate-600">{selectedVisibleIds.length} selected</span>
+            <button type="button" onClick={removeSelected} disabled={removing || isFetching || selectedVisibleIds.length === 0}
+              className="flex items-center gap-2 rounded-xl bg-rose-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">
+              <Trash2 className="h-4 w-4" />{bulkRemoveMutation.isPending ? 'Deleting…' : `Delete Selected (${selectedVisibleIds.length})`}
+            </button>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                {canRemove && <th className="px-4 py-4"><input type="checkbox" aria-label="Select all visits on this page" checked={allVisibleSelected} disabled={removing || isFetching || !visibleIds.length}
+                  onChange={event => setSelectedIds(previous => { const next = new Set(previous); visibleIds.forEach(id => event.target.checked ? next.add(id) : next.delete(id)); return next; })} /></th>}
                 <th className="py-4 px-5">Client / Organization</th>
                 <th className="py-4 px-4">Visit Purpose</th>
                 <th className="py-4 px-4">Location</th>
@@ -446,7 +505,7 @@ export default function VisitsPage() {
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-400 font-bold animate-pulse">
+                  <td colSpan={canRemove ? 9 : 8} className="py-16 text-center text-slate-400 font-bold animate-pulse">
                     Loading client visits...
                   </td>
                 </tr>
@@ -468,6 +527,8 @@ export default function VisitsPage() {
 
                   return (
                     <tr key={visit.id} className="hover:bg-slate-50/70 transition-colors">
+                      {canRemove && <td className="px-4 py-4"><input type="checkbox" aria-label={`Select visit for ${clientName}`} checked={selectedIds.has(String(visit.id))} disabled={removing || isFetching}
+                        onChange={event => setSelectedIds(previous => { const next = new Set(previous); event.target.checked ? next.add(String(visit.id)) : next.delete(String(visit.id)); return next; })} /></td>}
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center font-black shrink-0 shadow-2xs">
@@ -586,7 +647,8 @@ export default function VisitsPage() {
                             <Edit className="w-4 h-4" />
                           </button>
 
-                          <button
+                          {canRemove && <button
+                            disabled={removing}
                             onClick={() => {
                               if (confirm(`Remove visit record for "${clientName}"?`)) {
                                 deleteMutation.mutate(visit.id);
@@ -596,7 +658,7 @@ export default function VisitsPage() {
                             title="Remove Visit"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -604,7 +666,7 @@ export default function VisitsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400">
+                  <td colSpan={canRemove ? 9 : 8} className="py-16 text-center text-slate-400">
                     <p className="font-bold text-sm text-slate-600">No client visits found</p>
                     <p className="text-xs text-slate-400 mt-1">Schedule new field meetings or link from contacts</p>
                   </td>
