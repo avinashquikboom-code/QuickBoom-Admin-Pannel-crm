@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CreditCard } from 'lucide-react';
 import api from '@/lib/api';
+import { customersApi } from '@/lib/customers-api';
 import { getErrorMessage } from '@/lib/utils';
 import { customerPlanSummary, CustomerSubscription, planMoney, subscriptionStatus } from '@/lib/customer-plan';
 import { AdminFormDrawer } from '../dialogs/AdminFormDrawer';
@@ -50,11 +51,12 @@ function SubscriptionCard({ subscription }: { subscription: CustomerSubscription
 
 export function CustomerPlanDrawer({ customer, onClose, canAssignPlan }: Props) {
   const root = useRef<HTMLDivElement>(null);
+  const isValidId = Number.isSafeInteger(Number(customer?.id)) && Number(customer?.id) > 0;
   const query = useQuery({
-    queryKey: ['customer-plan', customer.id],
+    queryKey: ['customer-plan', customer?.id],
+    enabled: isValidId,
     queryFn: async ({ signal }) => {
-      const response: any = await api.get(`/customers/${customer.id}`, { signal });
-      const result = response?.data ?? response;
+      const result = await customersApi.getDetails(customer.id, signal);
       if (result?.id !== customer.id || !Array.isArray(result?.subscriptions)) throw new Error('Customer plan details could not be verified.');
       return result as { id: number; companyName: string; subscriptions: CustomerSubscription[] };
     },
@@ -76,8 +78,13 @@ export function CustomerPlanDrawer({ customer, onClose, canAssignPlan }: Props) 
   }, []);
   const summary = customerPlanSummary(query.data?.subscriptions || []);
   return <div ref={root} role="dialog" aria-modal="true" aria-label={`Subscription plan for ${customer.companyName}`}>
-    <AdminFormDrawer isOpen onClose={onClose} title="Customer Plan" description={`${query.data?.companyName || customer.companyName} · CUST-${String(customer.id).padStart(4, '0')} (ID: ${customer.id})`} icon={CreditCard} size="xl" hideFooter>
-      {query.isLoading ? <p role="status" className="py-12 text-center text-sm text-slate-500">Loading subscription details…</p>
+    <AdminFormDrawer isOpen onClose={onClose} title="Customer Plan" description={`${query.data?.companyName || customer.companyName} · ${isValidId ? `CUST-${String(customer.id).padStart(4, '0')} (ID: ${customer.id})` : 'Invalid Identifier'}`} icon={CreditCard} size="xl" hideFooter>
+      {!isValidId ? (
+        <div role="alert" className="space-y-3 rounded-2xl bg-amber-50 p-6 text-center text-sm text-amber-900">
+          <p className="font-bold">Invalid Customer Identifier</p>
+          <p className="text-xs text-amber-700">Customer ID &quot;{String(customer?.id)}&quot; is not a valid customer identifier. Customer IDs must be positive integers.</p>
+        </div>
+      ) : query.isLoading ? <p role="status" className="py-12 text-center text-sm text-slate-500">Loading subscription details…</p>
         : query.isError ? <div role="alert" className="space-y-3 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">
           <p>{getErrorMessage(query.error)}</p><button type="button" onClick={() => query.refetch()} className="rounded-lg border border-rose-200 bg-white px-3 py-2 font-semibold">Retry</button>
         </div> : <div className="space-y-4">

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Users, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { customersApi } from '@/lib/customers-api';
 import { getErrorMessage } from '@/lib/utils';
 
 type Team = { id: number; name: string; isActive: boolean };
@@ -21,11 +22,13 @@ export function AssignCustomerTeamDialog({ customer, canAssign, onClose }: Props
   const [edited, setEdited] = useState(false);
   useEffect(() => { dialog.current?.showModal(); }, []);
 
+  const isValidId = Number.isSafeInteger(Number(customer?.id)) && Number(customer?.id) > 0;
+
   const detail = useQuery({
-    queryKey: ['customer-team-dialog', customer.id],
+    queryKey: ['customer-team-dialog', customer?.id],
+    enabled: isValidId,
     queryFn: async () => {
-      const response: any = await api.get(`/customers/${customer.id}`);
-      return response?.data ?? response;
+      return customersApi.getDetails(customer.id);
     },
   });
   const teams = useQuery({

@@ -30,9 +30,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { customersApi } from '@/lib/customers-api';
 import { useAuthStore } from '@/lib/store';
 import { isUserAdmin } from '@/lib/access-control';
-import { customersApi } from '@/lib/customers-api';
 import { AdminPageHeader, AdminButton } from '@/components/admin';
 import { ResetCustomerDataModal } from '@/components/admin/dialogs/ResetCustomerDataModal';
 import { getErrorMessage } from '@/lib/utils';
@@ -53,7 +53,7 @@ export default function CustomerDetailPage() {
   const numericCustomerId = customerId ? Number(String(customerId).trim()) : null;
   const isValidCustomerId =
     typeof numericCustomerId === 'number' &&
-    Number.isInteger(numericCustomerId) &&
+    Number.isSafeInteger(numericCustomerId) &&
     numericCustomerId > 0;
 
   const handleDeleteCustomer = async () => {
@@ -87,8 +87,7 @@ export default function CustomerDetailPage() {
     enabled: isValidCustomerId,
     queryFn: async () => {
       if (!isValidCustomerId || !numericCustomerId) return null;
-      const res: any = await api.get(`/customers/${numericCustomerId}`);
-      return res?.data || res;
+      return customersApi.getDetails(numericCustomerId);
     },
   });
 
