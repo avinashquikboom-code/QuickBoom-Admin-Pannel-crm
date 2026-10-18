@@ -189,6 +189,11 @@ export default function CustomersPage() {
       toast.success(`${result.deletedCount} customer${result.deletedCount === 1 ? '' : 's'} deleted successfully`);
       await queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       await queryClient.invalidateQueries({ queryKey: ['employee-customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-companies-list'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-companies-dropdown'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-visits-list'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-visits-metrics'] });
+      await queryClient.invalidateQueries({ queryKey: ['invoices'] });
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -627,6 +632,7 @@ export default function CustomersPage() {
           setSelectedCustomerId(null);
         }}
         onDelete={canDelete ? (id) => deleteCustomers([id]) : undefined}
+        canManageCompanyLink={canDelete}
       />
 
       {planCustomer && <CustomerPlanDrawer

@@ -46,11 +46,11 @@ test('loading and backend errors are not rendered as empty subscription success'
   const html = render({ isError: true, error: new Error('Access denied') });
   assert.match(html, /Access denied/); assert.match(html, /Retry/); assert.doesNotMatch(html, /No Active Plan/);
 });
-test('empty customer shows assignment link only when permitted', () => {
+test('empty customer displays no active plan message and does not render removed subscribe link', () => {
   const query = { data: { companyName: 'Actual Customer', subscriptions: [] } };
   assert.match(render(query), /No Active Plan/);
-  assert.match(render(query), /\/subscribe\?customerId=7/);
-  assert.doesNotMatch(render(query, false), /Choose a plan/);
+  assert.doesNotMatch(render(query), /Choose a plan/);
+  assert.doesNotMatch(render(query), /\/subscribe/);
 });
 for (const billingCycle of ['MONTHLY', 'YEARLY']) {
   test(`renders saved ${billingCycle} checkout totals, GST, references, and dates`, () => {

@@ -358,7 +358,6 @@ export default function SubscriptionPlansPage() {
         }
       />
 
-      <Link className="text-emerald-700 underline" href="/subscribe">Preview customer plans and checkout</Link>
       {/* 2. STANDARD PLANS GRID */}
       <div>
         <div className="flex items-center justify-between mb-4">

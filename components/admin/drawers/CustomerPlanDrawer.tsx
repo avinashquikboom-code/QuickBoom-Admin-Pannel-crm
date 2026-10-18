@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { CreditCard } from 'lucide-react';
 import api from '@/lib/api';
@@ -85,7 +84,6 @@ export function CustomerPlanDrawer({ customer, onClose, canAssignPlan }: Props) 
           <div className="break-words"><p className="font-bold">{query.data?.companyName}</p><p className="text-xs text-slate-500">Customer ID: {customer.id}</p></div>
           {!summary.hasPlan && <div role="status" className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
             <h3 className="font-bold">No Active Plan</h3><p className="mt-1 text-sm text-slate-500">{summary.displayed ? 'The latest subscription is shown below for reference.' : 'No subscription has been purchased for this customer.'}</p>
-            {canAssignPlan && <Link href={`/subscribe?customerId=${customer.id}`} className="mt-4 inline-flex rounded-xl bg-[#23C45E] px-4 py-2 text-sm font-bold text-slate-950 hover:bg-[#1AA14D]">Choose a plan</Link>}
           </div>}
           {summary.displayed && <SubscriptionCard subscription={summary.displayed} />}
           {summary.active && summary.pending && <div className="space-y-2"><h3 className="font-semibold text-slate-800">Upcoming subscription</h3><SubscriptionCard subscription={summary.pending} /></div>}

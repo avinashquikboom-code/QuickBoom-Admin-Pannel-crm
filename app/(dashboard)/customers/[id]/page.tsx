@@ -203,11 +203,6 @@ export default function CustomerDetailPage() {
                 Back to List
               </AdminButton>
             </Link>
-            <Link href={`/subscribe?customerId=${customer.id}`}>
-              <AdminButton variant="primary" size="sm" icon={CreditCard}>
-                Manage Plan
-              </AdminButton>
-            </Link>
             <AdminButton
               variant="danger"
               size="sm"
@@ -334,11 +329,6 @@ export default function CustomerDetailPage() {
                   </span>
                 </div>
               </div>
-              <Link href={`/subscribe?customerId=${customer.id}`} className="block">
-                <AdminButton variant="outline" size="sm" className="w-full" icon={CreditCard}>
-                  Upgrade or Change Plan
-                </AdminButton>
-              </Link>
             </div>
           </div>
         </div>
