@@ -66,6 +66,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
     client.setQueryData(['lead', id], updated);
     await Promise.all([
       client.invalidateQueries({ queryKey: ['leads'] }),
+      client.refetchQueries({ queryKey: ['leads'] }),
       client.invalidateQueries({ queryKey: ['lead', id], exact: true }),
     ]);
   };
@@ -76,9 +77,40 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
       return result;
     },
     onSettled: () => { submitLock.current = false; },
-    onSuccess: async updated => { setEditing(false); await saved(updated); toast.success('Lead updated successfully'); },
+    onSuccess: async (updated) => {
+      await saved(updated);
+      toast.success('Lead updated successfully');
+      setEditing(false);
+      onClose();
+    },
     onError: error => toast.error(getErrorMessage(error)),
   });
+
+  const handleSave = (event?: React.FormEvent) => {
+    if (event) event.preventDefault();
+    if (busy || submitLock.current) return;
+    const trimmedCompanyName = form.companyName?.trim();
+    if (!trimmedCompanyName) {
+      toast.error('Business name is required');
+      return;
+    }
+    const trimmedEmail = form.email?.trim() || '';
+    if (trimmedEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        toast.error('Please enter a valid email address');
+        return;
+      }
+    }
+    // Keep empty strings in PATCH so clearing an existing field is persisted on the backend.
+    const data = Object.fromEntries(
+      Object.entries(form).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : (value ?? '')])
+    ) as unknown as UpdateLeadInput;
+    data.companyName = trimmedCompanyName;
+    data.email = trimmedEmail || null;
+    submitLock.current = true;
+    edit.mutate(data);
+  };
   const changeStage = useMutation({
     mutationFn: (target: LeadStage) => leadsApi.updateStage(id, { status: target.key, stageId: target.id }),
     onSuccess: async updated => { await saved(updated); toast.success(`Pipeline stage updated to ${updated.stage?.name || updated.status}`); },
@@ -108,20 +140,11 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
     <AdminFormDrawer isOpen onClose={onClose} title={lead?.companyName || 'Lead Details'} icon={Users}
       description={lead ? `${stage?.name || lead.status || '—'} • ${lead.source?.replace(/_/g, ' ') || '—'}` : 'Lead information and pipeline'}
       maxWidth="sm:max-w-[680px]" isSubmitting={busy}
-      hideFooter={!editing} onSave={() => formElement.current?.requestSubmit()} saveLabel="Save Lead">
+      hideFooter={!editing} onSave={handleSave} saveLabel="Save Lead">
       {detail.isLoading ? <p role="status" className="py-12 text-center text-sm text-slate-500">Loading Lead details…</p>
         : detail.isError ? <div role="alert" className="space-y-3 py-6"><p className="text-sm text-rose-700">{getErrorMessage(detail.error)}</p><AdminButton variant="outline" onClick={() => detail.refetch()}>Retry</AdminButton></div>
         : !lead ? <p role="status">Lead details are unavailable.</p>
-        : editing ? <form ref={formElement} onSubmit={event => {
-          event.preventDefault();
-          if (busy || submitLock.current) return;
-          if (!form.companyName.trim()) { toast.error('Business name is required'); return; }
-          // Keep empty strings in PATCH so clearing an existing field is persisted.
-          const data = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, value?.trim() || ''])) as unknown as UpdateLeadInput;
-          if (!data.email) data.email = null;
-          submitLock.current = true;
-          edit.mutate(data);
-        }} className="space-y-4">
+        : editing ? <form ref={formElement} onSubmit={handleSave} noValidate className="space-y-4">
           <div className="flex items-center justify-between"><h3 className="font-semibold">Edit Lead</h3><AdminButton type="button" variant="ghost" size="sm" disabled={busy} onClick={() => setEditing(false)}>Cancel editing</AdminButton></div>
           <LeadFormFields value={form} onChange={setForm} disabled={busy} />
           {edit.isError && <p role="alert" className="text-sm text-rose-700">{getErrorMessage(edit.error)}</p>}
