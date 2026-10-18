@@ -186,6 +186,9 @@ export default function CustomersPage() {
       }
       setPage(1);
       toast.success(`${result.deletedCount} customer${result.deletedCount === 1 ? '' : 's'} deleted successfully`);
+      if (result.failedCount && result.failedCount > 0) {
+        toast.error(`Failed to delete ${result.failedCount} customer(s). Check constraints or permissions.`);
+      }
       await queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       await queryClient.invalidateQueries({ queryKey: ['employee-customers'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer'] });
