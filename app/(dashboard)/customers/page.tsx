@@ -3,10 +3,12 @@
 import { customersApi } from '@/lib/customers-api';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { AssignCustomerTeamDialog } from '@/components/admin/dialogs/AssignCustomerTeamDialog';
 import { CustomerPlanDrawer } from '@/components/admin/drawers/CustomerPlanDrawer';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
+  Users,
   Trash2,
   CheckCircle2,
   Clock,
@@ -87,6 +89,8 @@ export default function CustomersPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [planCustomer, setPlanCustomer] = useState<CustomerRecord | null>(null);
+
+  const [teamCustomer, setTeamCustomer] = useState<CustomerRecord | null>(null);
 
   // Debounce search input
   useEffect(() => {
@@ -456,6 +460,12 @@ export default function CustomersPage() {
             <Eye className="w-4 h-4" />
           </button>
 
+          {canDelete && <button type="button" onClick={event => { event.stopPropagation(); setTeamCustomer(c); }}
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
+            title="Assign Team" aria-label={`Assign team to ${c.companyName}`}>
+            <Users className="w-3.5 h-3.5" />
+            <span>Assign Team</span>
+          </button>}
           <button
             type="button"
             onClick={(event) => { event.stopPropagation(); setPlanCustomer(c); }}
@@ -660,6 +670,7 @@ export default function CustomersPage() {
         canManageCompanyLink={canDelete}
       />
 
+      {teamCustomer && <AssignCustomerTeamDialog key={teamCustomer.id} customer={teamCustomer} canAssign={canDelete} onClose={() => setTeamCustomer(null)} />}
       {planCustomer && <CustomerPlanDrawer
         key={planCustomer.id}
         customer={planCustomer}
