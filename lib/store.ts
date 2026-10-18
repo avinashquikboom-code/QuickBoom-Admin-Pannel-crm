@@ -81,6 +81,19 @@ export const useAuthStore = create<AuthState>()(
             if (refreshToken) {
               localStorage.setItem('refreshToken', refreshToken);
             }
+            const raw = localStorage.getItem('quikboom-next-auth-storage');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed === 'object') {
+                parsed.state = {
+                  ...(parsed.state || {}),
+                  token,
+                  refreshToken: refreshToken || parsed.state?.refreshToken,
+                  isAuthenticated: true,
+                };
+                localStorage.setItem('quikboom-next-auth-storage', JSON.stringify(parsed));
+              }
+            }
           } catch (_) {}
         }
 

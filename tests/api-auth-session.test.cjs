@@ -202,3 +202,19 @@ test('bulk import permission denial remains 403 without refreshing or replaying'
   await assert.rejects(f.hooks.error(error), caught => caught === error);
   assert.ok(f.state.token);
 });
+
+test('freshly refreshed token is not downgraded by stale persisted storage during retry', async () => {
+  const f = fixture();
+  const oldExpired = token(1, 1000);
+  f.state.token = oldExpired;
+  f.storage.set('quikboom-next-auth-storage', JSON.stringify({ state: { user: f.state.user, token: oldExpired, refreshToken: 'fixture-refresh' } }));
+
+  const nextFresh = token(1, 4500000000);
+  f.axios.post = async () => ({ data: { accessToken: nextFresh, refreshToken: 'rotated-refresh' } });
+
+  const request = await f.hooks.request({ ...config(), method: 'post', url: '/data-capture/import-to-leads', data: { ids: [55] } });
+  // Proactive refresh ran because oldExpired had exp <= Date.now() + 15000
+  assert.equal(request.headers.get('Authorization'), `Bearer ${nextFresh}`);
+  assert.equal(f.state.token, nextFresh);
+  assert.equal(f.exports.getPersistedAuthSession().token, nextFresh);
+});

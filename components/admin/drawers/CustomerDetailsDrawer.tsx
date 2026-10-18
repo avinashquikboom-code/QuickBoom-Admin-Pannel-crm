@@ -52,9 +52,6 @@ export function CustomerDetailsDrawer({
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'SUBSCRIPTION' | 'USERS' | 'CONTACT'>('OVERVIEW');
   const [isResetOpen, setIsResetOpen] = useState(false);
-  const [linkedCompanyId, setLinkedCompanyId] = useState('');
-  const [savingCompanyLink, setSavingCompanyLink] = useState(false);
-  const [companyLinkMessage, setCompanyLinkMessage] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [savingTeam, setSavingTeam] = useState(false);
   const [teamMessage, setTeamMessage] = useState('');
@@ -80,16 +77,6 @@ export function CustomerDetailsDrawer({
     queryFn: async () => {
       if (!isValidCustomerId || !numericCustomerId) return null;
       return customersApi.getDetails(numericCustomerId);
-    },
-  });
-
-  const { data: crmCompanies = [], isError: isCompaniesError } = useQuery({
-    queryKey: ['customer-company-mapping-options'],
-    enabled: isOpen && canManageCompanyLink,
-    queryFn: async () => {
-      const res: any = await api.get('/companies', { params: { page: 1, limit: 100 } });
-      const items = res?.data?.data || res?.data?.items || res?.data || res?.items || res;
-      return Array.isArray(items) ? items : [];
     },
   });
 
@@ -138,27 +125,7 @@ export function CustomerDetailsDrawer({
     }
   };
 
-  useEffect(() => {
-    setLinkedCompanyId(customer?.crmCompanyId ? String(customer.crmCompanyId) : '');
-    setCompanyLinkMessage('');
-  }, [customer?.crmCompanyId, customerId]);
 
-  const saveCompanyLink = async () => {
-    if (!isValidCustomerId || !numericCustomerId || savingCompanyLink) return;
-    setSavingCompanyLink(true);
-    setCompanyLinkMessage('');
-    try {
-      await api.patch(`/customers/${numericCustomerId}/company`, {
-        companyId: linkedCompanyId ? Number(linkedCompanyId) : null,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer', customerId] });
-      setCompanyLinkMessage('CRM company mapping saved.');
-    } catch (error: any) {
-      setCompanyLinkMessage(error?.response?.data?.message || error?.message || 'Could not save CRM company mapping.');
-    } finally {
-      setSavingCompanyLink(false);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -447,38 +414,7 @@ export function CustomerDetailsDrawer({
                 </div>
               )}
 
-              {canManageCompanyLink && <div className="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-3">
-                <div>
-                  <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">Linked CRM Company</h4>
-                  <p className="text-[11px] text-slate-500 mt-1">Link this billing account to its CRM company. Deletion will remove that company’s invoices and linked calendar records.</p>
-                </div>
-                <div className="flex gap-2">
-                  <select
-                    value={linkedCompanyId}
-                    onChange={(event) => setLinkedCompanyId(event.target.value)}
-                    disabled={savingCompanyLink || isCompaniesError}
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800"
-                  >
-                    <option value="">No CRM company linked</option>
-                    {customer.crmCompany && !crmCompanies.some((company: any) => company.id === customer.crmCompany.id) && (
-                      <option value={customer.crmCompany.id}>{customer.crmCompany.name}</option>
-                    )}
-                    {crmCompanies.map((company: any) => (
-                      <option key={company.id} value={company.id}>{company.name} · #{company.id}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={saveCompanyLink}
-                    disabled={savingCompanyLink || isCompaniesError || linkedCompanyId === String(customer.crmCompanyId || '')}
-                    className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
-                  >
-                    {savingCompanyLink ? 'Saving…' : 'Save link'}
-                  </button>
-                </div>
-                {isCompaniesError && <p role="alert" className="text-[11px] text-rose-600">CRM companies could not be loaded.</p>}
-                {companyLinkMessage && <p role="status" className="text-[11px] text-slate-600">{companyLinkMessage}</p>}
-              </div>}
+
             </div>
           )}
 
