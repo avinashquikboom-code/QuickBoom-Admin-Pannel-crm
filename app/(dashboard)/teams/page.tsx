@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   XCircle,
   MoreVertical,
+  AlertTriangle,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -78,6 +79,9 @@ export default function TeamsPage() {
   const [editingTeam, setEditingTeam] = useState<TeamRecord | null>(null);
   const [viewingTeam, setViewingTeam] = useState<TeamRecord | null>(null);
   const [addingMemberTeam, setAddingMemberTeam] = useState<TeamRecord | null>(null);
+  const [deletingTeam, setDeletingTeam] = useState<TeamRecord | null>(null);
+  const [deleteMode, setDeleteMode] = useState<'REASSIGN' | 'UNASSIGN' | 'DEACTIVATE'>('REASSIGN');
+  const [reassignTargetTeamId, setReassignTargetTeamId] = useState<string>('');
 
   // Create Form State
   const [createName, setCreateName] = useState('');
@@ -127,6 +131,31 @@ export default function TeamsPage() {
   const teamsList: TeamRecord[] = teamsResponse?.items || [];
   const teamsPagination = teamsResponse?.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 };
 
+  // Fetch dependencies of team being deleted
+  const { data: teamDependencies, isLoading: isDependenciesLoading } = useQuery({
+    queryKey: ['team-dependencies', deletingTeam?.id],
+    queryFn: async () => {
+      if (!deletingTeam?.id) return null;
+      try {
+        const res: any = await api.get(`/teams/${deletingTeam.id}/dependencies`);
+        return res.data?.data || res.data;
+      } catch {
+        return {
+          memberCount: deletingTeam.memberCount || deletingTeam.members?.length || 0,
+          workCount: 0,
+          customerCount: 0,
+        };
+      }
+    },
+    enabled: !!deletingTeam?.id,
+  });
+
+  const eligibleReassignmentTeams = useMemo(() => {
+    return teamsList.filter(
+      (t) => t.id !== deletingTeam?.id && t.isActive
+    );
+  }, [teamsList, deletingTeam]);
+
   // 2. Fetch Employee Master Roster for Select Dropdowns
   const { data: employeesList = [] } = useQuery<EmployeeRecord[]>({
     queryKey: ['employees-simple-list'],
@@ -134,6 +163,31 @@ export default function TeamsPage() {
       const res = await api.get('/employees', { params: { limit: 200 } });
       const data = res.data?.data || res.data;
       return Array.isArray(data) ? data : data?.employees || [];
+    },
+  });
+
+  const [memberSearch, setMemberSearch] = useState('');
+  const { data: eligibleMembers = [], isFetching: loadingEligibleMembers, isError: eligibleMembersError } = useQuery<EmployeeRecord[]>({
+    queryKey: ['team-eligible-members', addingMemberTeam?.id, memberSearch],
+    enabled: !!addingMemberTeam,
+    queryFn: async ({ signal }) => {
+      const employees: EmployeeRecord[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const res = await api.get('/employees', {
+          signal,
+          params: { eligibleForTeamId: addingMemberTeam!.id, status: 'ACTIVE', search: memberSearch, page, limit: 100 },
+        });
+        const root: any = res.data ?? res;
+        const body = root?.data && !Array.isArray(root.data) ? root.data : root;
+        const items = Array.isArray(body) ? body : body?.items ?? body?.employees ?? body?.data;
+        if (!Array.isArray(items)) throw new Error('Invalid eligible employee response');
+        employees.push(...items);
+        totalPages = Number(body?.pagination?.totalPages ?? root?.pagination?.totalPages ?? 1);
+        page++;
+      } while (page <= totalPages);
+      return employees;
     },
   });
 
@@ -212,15 +266,30 @@ export default function TeamsPage() {
   });
 
   const deleteTeamMutation = useMutation({
-    mutationFn: async ({ id, permanent }: { id: number; permanent?: boolean }) => {
+    mutationFn: async ({
+      id,
+      permanent,
+      reassignToTeamId,
+    }: {
+      id: number;
+      permanent?: boolean;
+      reassignToTeamId?: number;
+    }) => {
       const res = await api.delete(`/teams/${id}`, {
-        params: { permanent: permanent ? 'true' : 'false' },
+        params: {
+          permanent: permanent ? 'true' : 'false',
+          ...(reassignToTeamId ? { reassignToTeamId } : {}),
+        },
       });
       return res.data;
     },
     onSuccess: (data) => {
       toast.success(data?.message || 'Team deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['teams-list'] });
+      setDeletingTeam(null);
+    },
+    onError: (err: any) => {
+      toast.error(getErrorMessage(err));
     },
   });
 
@@ -552,13 +621,9 @@ export default function TeamsPage() {
                         </button>
                         <button
                           onClick={() => {
-                            if (
-                              confirm(
-                                `Are you sure you want to delete team "${team.name}"? This action cannot be undone.`
-                              )
-                            ) {
-                              deleteTeamMutation.mutate({ id: team.id, permanent: true });
-                            }
+                            setDeletingTeam(team);
+                            setDeleteMode('REASSIGN');
+                            setReassignTargetTeamId('');
                           }}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Delete Team"
@@ -598,7 +663,7 @@ export default function TeamsPage() {
                         <span>Roster Members ({team.members?.length || 0})</span>
                         <button
                           onClick={() => {
-                            setAddingMemberTeam(team);
+                            setMemberSearch(''); setMemberEmployeeId(''); setAddingMemberTeam(team);
                             setMemberEmployeeId('');
                             setMemberRole('MEMBER');
                           }}
@@ -1034,7 +1099,7 @@ export default function TeamsPage() {
                   <span>Assigned Personnel ({viewingTeam.members?.length || 0})</span>
                   <button
                     onClick={() => {
-                      setAddingMemberTeam(viewingTeam);
+                      setMemberSearch(''); setMemberEmployeeId(''); setAddingMemberTeam(viewingTeam);
                       setMemberEmployeeId('');
                       setMemberRole('MEMBER');
                     }}
@@ -1109,21 +1174,30 @@ export default function TeamsPage() {
         isOpen={!!addingMemberTeam}
         onClose={() => setAddingMemberTeam(null)}
         title={`Assign Member to ${addingMemberTeam?.name}`}
-        subtitle="Add an employee from the master roster to this team"
+        subtitle="Choose an active employee eligible for this team"
       >
         <form onSubmit={handleAddMemberSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Select Employee <span className="text-rose-500">*</span>
             </label>
+            <input
+              type="search"
+              aria-label="Search eligible employees"
+              placeholder="Search employees"
+              value={memberSearch}
+              onChange={event => { setMemberSearch(event.target.value); setMemberEmployeeId(''); }}
+              className="mb-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs"
+            />
             <select
+              disabled={loadingEligibleMembers || eligibleMembersError}
               value={memberEmployeeId}
               onChange={(e) => setMemberEmployeeId(e.target.value)}
               required
               className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium cursor-pointer"
             >
-              <option value="">-- Choose Employee --</option>
-              {employeesList.map((emp) => {
+              <option value="">{loadingEligibleMembers ? 'Loading eligible employees…' : '-- Choose Employee --'}</option>
+              {eligibleMembers.map((emp) => {
                 const name = `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.name;
                 return (
                   <option key={emp.id} value={emp.id}>
@@ -1132,6 +1206,8 @@ export default function TeamsPage() {
                 );
               })}
             </select>
+            {eligibleMembersError && <p role="alert" className="mt-2 text-xs text-rose-600">Could not load eligible employees. Reopen or search to retry.</p>}
+            {!loadingEligibleMembers && !eligibleMembersError && eligibleMembers.length === 0 && <p className="mt-2 text-xs text-slate-500">No eligible employees found.</p>}
           </div>
 
           <div>
@@ -1160,7 +1236,7 @@ export default function TeamsPage() {
             </button>
             <button
               type="submit"
-              disabled={addMemberMutation.isPending}
+              disabled={addMemberMutation.isPending || loadingEligibleMembers || eligibleMembersError || !eligibleMembers.some(emp => String(emp.id) === memberEmployeeId)}
               className="px-5 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
             >
               {addMemberMutation.isPending ? 'Assigning...' : 'Assign to Team'}
@@ -1168,6 +1244,238 @@ export default function TeamsPage() {
           </div>
         </form>
       </AdminFormDrawer>
+
+      {/* Delete / Reassign Confirmation Dialog */}
+      {deletingTeam && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Delete Team: {deletingTeam.name}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Safely reassign or unassign related records before deletion
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeletingTeam(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {/* Dependency Counts Banner */}
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200/60 rounded-xl text-xs space-y-2">
+                <div className="font-bold text-amber-900 flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Team Dependencies</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center font-medium">
+                  <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
+                    <span className="block text-base font-black text-slate-800">
+                      {isDependenciesLoading ? '...' : (teamDependencies?.memberCount ?? deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0)}
+                    </span>
+                    <span className="text-[11px] text-slate-500">Members</span>
+                  </div>
+                  <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
+                    <span className="block text-base font-black text-slate-800">
+                      {isDependenciesLoading ? '...' : (teamDependencies?.customerCount ?? 0)}
+                    </span>
+                    <span className="text-[11px] text-slate-500">Customers</span>
+                  </div>
+                  <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
+                    <span className="block text-base font-black text-slate-800">
+                      {isDependenciesLoading ? '...' : (teamDependencies?.workCount ?? 0)}
+                    </span>
+                    <span className="text-[11px] text-slate-500">Schedules</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Options */}
+              <div className="space-y-2.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Select Action:
+                </label>
+
+                {/* Option 1: Reassign */}
+                {eligibleReassignmentTeams.length > 0 && (
+                  <div
+                    onClick={() => setDeleteMode('REASSIGN')}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                      deleteMode === 'REASSIGN'
+                        ? 'border-indigo-500 bg-indigo-50/40 ring-2 ring-indigo-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <input
+                        type="radio"
+                        name="deleteMode"
+                        checked={deleteMode === 'REASSIGN'}
+                        onChange={() => setDeleteMode('REASSIGN')}
+                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="space-y-1 flex-1">
+                        <span className="text-xs font-bold text-slate-800 block">
+                          Reassign to another active team (Recommended)
+                        </span>
+                        <p className="text-[11px] text-slate-500">
+                          Transfer all employees, customers, and active work schedules to another team before deleting this team.
+                        </p>
+                        {deleteMode === 'REASSIGN' && (
+                          <div className="pt-2">
+                            <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                              Target Active Team:
+                            </label>
+                            <select
+                              value={reassignTargetTeamId}
+                              onChange={(e) => setReassignTargetTeamId(e.target.value)}
+                              className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <option value="">-- Choose Target Team --</option>
+                              {eligibleReassignmentTeams.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name} ({t.memberCount ?? t.members?.length ?? 0} members)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 2: Unassign & Delete */}
+                <div
+                  onClick={() => setDeleteMode('UNASSIGN')}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                    deleteMode === 'UNASSIGN'
+                      ? 'border-rose-500 bg-rose-50/40 ring-2 ring-rose-500/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      type="radio"
+                      name="deleteMode"
+                      checked={deleteMode === 'UNASSIGN'}
+                      onChange={() => setDeleteMode('UNASSIGN')}
+                      className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                    />
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-bold text-slate-800 block">
+                        Unassign members & Delete permanently
+                      </span>
+                      <p className="text-[11px] text-slate-500">
+                        Safely removes team membership without deleting employee profiles. Schedules and customer links are cleared.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Option 3: Deactivate */}
+                <div
+                  onClick={() => setDeleteMode('DEACTIVATE')}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                    deleteMode === 'DEACTIVATE'
+                      ? 'border-slate-500 bg-slate-100 ring-2 ring-slate-400/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      type="radio"
+                      name="deleteMode"
+                      checked={deleteMode === 'DEACTIVATE'}
+                      onChange={() => setDeleteMode('DEACTIVATE')}
+                      className="mt-0.5 text-slate-600 focus:ring-slate-500"
+                    />
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-bold text-slate-800 block">
+                        Deactivate team instead (Soft delete)
+                      </span>
+                      <p className="text-[11px] text-slate-500">
+                        Keeps all current assignments, schedules, and members intact, but marks the team as inactive.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDeletingTeam(null)}
+                disabled={deleteTeamMutation.isPending}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (deleteMode === 'REASSIGN') {
+                    if (!reassignTargetTeamId) {
+                      toast.error('Please select a target team for reassignment');
+                      return;
+                    }
+                    deleteTeamMutation.mutate({
+                      id: deletingTeam.id,
+                      permanent: true,
+                      reassignToTeamId: Number(reassignTargetTeamId),
+                    });
+                  } else if (deleteMode === 'UNASSIGN') {
+                    deleteTeamMutation.mutate({
+                      id: deletingTeam.id,
+                      permanent: true,
+                    });
+                  } else {
+                    deleteTeamMutation.mutate({
+                      id: deletingTeam.id,
+                      permanent: false,
+                    });
+                  }
+                }}
+                disabled={deleteTeamMutation.isPending || (deleteMode === 'REASSIGN' && !reassignTargetTeamId)}
+                className={`px-5 py-2 text-xs font-bold text-white rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
+                  deleteMode === 'DEACTIVATE'
+                    ? 'bg-slate-700 hover:bg-slate-800 shadow-slate-700/20'
+                    : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                }`}
+              >
+                {deleteTeamMutation.isPending ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Processing...
+                  </>
+                ) : deleteMode === 'REASSIGN' ? (
+                  'Reassign & Delete'
+                ) : deleteMode === 'DEACTIVATE' ? (
+                  'Deactivate Team'
+                ) : (
+                  'Delete Permanently'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
