@@ -26,6 +26,7 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { isUserAdmin } from '@/lib/access-control';
 import {
   AdminPageHeader,
   AdminStatCard,
@@ -68,13 +69,7 @@ interface CustomerRecord {
 export default function CustomersPage() {
   const queryClient = useQueryClient();
   const user = useAuthStore(state => state.user);
-  const canDelete = Boolean(
-    user && (
-      ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(user.accountType || '').toUpperCase().trim()) ||
-      ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(user.role || '').toUpperCase().trim()) ||
-      (Array.isArray(user.roles) && user.roles.some(r => ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(r || '').toUpperCase().trim())))
-    )
-  );
+  const canDelete = isUserAdmin(user);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
 
@@ -168,10 +163,12 @@ export default function CustomersPage() {
   }, [filteredList, page, pageSize]);
 
   useEffect(() => { setSelectedIds([]); }, [page, pageSize, search, statusFilter]);
-  useEffect(() => { setSelectedIds(ids => ids.filter(id => rawList.some(c => c.id === id))); }, [rawList]);
+  useEffect(() => { setSelectedIds(ids => ids.filter(id => rawList.some(c => Number(c.id) === Number(id)))); }, [rawList]);
   const deleteCustomers = async (ids: number[]) => {
     if (!ids.length || deleting) return;
-    const count = ids.length;
+    const numericIds = [...new Set(ids.map(id => Number(id)).filter(id => Number.isInteger(id) && id > 0))];
+    if (!numericIds.length) return;
+    const count = numericIds.length;
     const confirmMessage =
       count === 1
         ? 'Are you sure you want to delete this customer? This will remove the customer profile and cancel active subscriptions.'
@@ -179,9 +176,11 @@ export default function CustomersPage() {
     if (!window.confirm(confirmMessage)) return;
     setDeleting(true);
     try {
-      const result = await customersApi.bulkDelete(ids, true);
+      const result = count === 1
+        ? await customersApi.deleteCustomer(numericIds[0], true)
+        : await customersApi.bulkDelete(numericIds, true);
       setSelectedIds([]);
-      if (selectedCustomerId && ids.includes(selectedCustomerId)) {
+      if (selectedCustomerId && numericIds.includes(selectedCustomerId)) {
         setIsDrawerOpen(false);
         setSelectedCustomerId(null);
       }
@@ -189,11 +188,14 @@ export default function CustomersPage() {
       toast.success(`${result.deletedCount} customer${result.deletedCount === 1 ? '' : 's'} deleted successfully`);
       await queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       await queryClient.invalidateQueries({ queryKey: ['employee-customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-customer-details-page'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-companies-list'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-companies-dropdown'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-visits-list'] });
       await queryClient.invalidateQueries({ queryKey: ['admin-visits-metrics'] });
       await queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      refetch();
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -264,8 +266,28 @@ export default function CustomersPage() {
   const columns: ColumnDef<CustomerRecord>[] = [
     ...(canDelete ? [{
       key: 'selection',
-      header: <input aria-label="Select all customers on this page" type="checkbox" disabled={deleting || !paginatedList.length || paginatedList.length > 100} checked={paginatedList.length > 0 && paginatedList.every(c => selectedIds.includes(c.id))} onChange={e => setSelectedIds(e.target.checked ? paginatedList.map(c => c.id) : [])} />,
-      render: (c: CustomerRecord) => <input aria-label={`Select ${c.companyName}`} type="checkbox" disabled={deleting || (!selectedIds.includes(c.id) && selectedIds.length >= 100)} checked={selectedIds.includes(c.id)} onClick={e => e.stopPropagation()} onChange={e => setSelectedIds(ids => e.target.checked ? [...ids, c.id] : ids.filter(id => id !== c.id))} />,
+      header: (
+        <input
+          aria-label="Select all customers on this page"
+          type="checkbox"
+          disabled={deleting || !paginatedList.length || paginatedList.length > 100}
+          checked={paginatedList.length > 0 && paginatedList.every(c => selectedIds.includes(Number(c.id)))}
+          onChange={e => setSelectedIds(e.target.checked ? paginatedList.map(c => Number(c.id)) : [])}
+        />
+      ),
+      render: (c: CustomerRecord) => {
+        const cId = Number(c.id);
+        return (
+          <input
+            aria-label={`Select ${c.companyName}`}
+            type="checkbox"
+            disabled={deleting || (!selectedIds.includes(cId) && selectedIds.length >= 100)}
+            checked={selectedIds.includes(cId)}
+            onClick={e => e.stopPropagation()}
+            onChange={e => setSelectedIds(ids => e.target.checked ? [...ids, cId] : ids.filter(id => id !== cId))}
+          />
+        );
+      },
     }] : []),
     {
       key: 'customer',

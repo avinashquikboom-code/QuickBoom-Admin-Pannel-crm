@@ -53,6 +53,10 @@ export function CustomerDetailsDrawer({
   const [linkedCompanyId, setLinkedCompanyId] = useState('');
   const [savingCompanyLink, setSavingCompanyLink] = useState(false);
   const [companyLinkMessage, setCompanyLinkMessage] = useState('');
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [savingTeam, setSavingTeam] = useState(false);
+  const [teamMessage, setTeamMessage] = useState('');
+
 
   const numericCustomerId = customerId !== null && customerId !== undefined ? Number(String(customerId).trim()) : null;
   const isValidCustomerId =
@@ -87,6 +91,50 @@ export function CustomerDetailsDrawer({
       return Array.isArray(items) ? items : [];
     },
   });
+
+  const { data: assignmentTeams = [], isLoading: loadingTeams, isError: teamsError } = useQuery({
+    queryKey: ['customer-team-assignment-options'],
+    enabled: isOpen && canManageCompanyLink,
+    queryFn: async () => {
+      const teams: any[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const res: any = await api.get('/teams', { params: { page, limit: 100, status: 'ACTIVE' } });
+        const body = res?.data ?? res;
+        const items = Array.isArray(body) ? body : body?.items ?? body?.data;
+        if (!Array.isArray(items)) throw new Error('Invalid teams response');
+        teams.push(...items);
+        totalPages = Number(body?.pagination?.totalPages ?? res?.pagination?.totalPages ?? 1);
+        page += 1;
+      } while (page <= totalPages);
+      return teams;
+    },
+  });
+
+  useEffect(() => {
+    setSelectedTeamId(customer?.assignedTeamId ? String(customer.assignedTeamId) : '');
+    setTeamMessage('');
+  }, [customer?.assignedTeamId, customerId]);
+
+  const saveTeam = async () => {
+    if (!numericCustomerId || savingTeam || !canManageCompanyLink) return;
+    setSavingTeam(true);
+    setTeamMessage('');
+    try {
+      await api.patch(`/customers/${numericCustomerId}/assign-team`, { teamId: selectedTeamId ? Number(selectedTeamId) : null });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer', customerId] }),
+        queryClient.invalidateQueries({ queryKey: ['customers-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-customer-details-page'] }),
+      ]);
+      setTeamMessage('Team assignment saved.');
+    } catch (error: any) {
+      setTeamMessage(error?.response?.data?.message || error?.message || 'Could not save team assignment.');
+    } finally {
+      setSavingTeam(false);
+    }
+  };
 
   useEffect(() => {
     setLinkedCompanyId(customer?.crmCompanyId ? String(customer.crmCompanyId) : '');
@@ -363,6 +411,24 @@ export function CustomerDetailsDrawer({
                         </span>
                       )}
                     </div>
+                    {canManageCompanyLink && (
+                      <div className="mt-2 space-y-2">
+                        <select aria-label="Assign customer team" value={selectedTeamId} onChange={event => setSelectedTeamId(event.target.value)} disabled={savingTeam || loadingTeams || teamsError}
+                          className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                          <option value="">Unassigned</option>
+                          {customer.assignedTeamId && !assignmentTeams.some((team: any) => team.id === customer.assignedTeamId) && (
+                            <option value={String(customer.assignedTeamId)}>{customer.assignedTeam?.name || 'Current team'} (inactive)</option>
+                          )}
+                          {assignmentTeams.map((team: any) => <option key={team.id} value={String(team.id)}>{team.name}</option>)}
+                        </select>
+                        <button type="button" onClick={saveTeam} disabled={savingTeam || loadingTeams || teamsError || selectedTeamId === String(customer.assignedTeamId ?? '')}
+                          className="rounded-lg bg-[#23C45E] px-3 py-1.5 font-bold text-white disabled:opacity-50">
+                          {savingTeam ? 'Saving…' : 'Save team'}
+                        </button>
+                        {teamsError && <p role="alert" className="text-red-600">Could not load teams. Reopen to retry.</p>}
+                        {teamMessage && <p role="status" className="text-slate-600">{teamMessage}</p>}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <span className="text-[10px] font-bold uppercase text-slate-400">Department</span>

@@ -31,6 +31,8 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { isUserAdmin } from '@/lib/access-control';
+import { customersApi } from '@/lib/customers-api';
 import { AdminPageHeader, AdminButton } from '@/components/admin';
 import { ResetCustomerDataModal } from '@/components/admin/dialogs/ResetCustomerDataModal';
 import { getErrorMessage } from '@/lib/utils';
@@ -46,13 +48,7 @@ export default function CustomerDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   const user = useAuthStore(state => state.user);
-  const canDelete = Boolean(
-    user && (
-      ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(user.accountType || '').toUpperCase().trim()) ||
-      ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(user.role || '').toUpperCase().trim()) ||
-      (Array.isArray(user.roles) && user.roles.some(r => ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(String(r || '').toUpperCase().trim())))
-    )
-  );
+  const canDelete = isUserAdmin(user);
 
   const numericCustomerId = customerId ? Number(String(customerId).trim()) : null;
   const isValidCustomerId =
@@ -66,10 +62,12 @@ export default function CustomerDetailPage() {
     if (!window.confirm(`Are you sure you want to delete customer "${name}"? This will remove the customer profile and cancel active subscriptions.`)) return;
     setDeleting(true);
     try {
-      await api.delete(`/customers/${numericCustomerId}`, { params: { cancelSubscriptions: true } });
+      await customersApi.deleteCustomer(numericCustomerId, true);
       toast.success('Customer deleted successfully');
       await queryClient.invalidateQueries({ queryKey: ['customers-list'] });
       await queryClient.invalidateQueries({ queryKey: ['employee-customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-customer-details-page'] });
       router.push('/customers');
     } catch (err) {
       toast.error(getErrorMessage(err));
