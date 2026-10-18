@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Users, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
+import { cacheSavedCustomerTeam } from '@/lib/customer-team';
 import { customersApi } from '@/lib/customers-api';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -56,11 +57,10 @@ export function AssignCustomerTeamDialog({ customer, canAssign, onClose }: Props
   const save = useMutation({
     mutationFn: async () => {
       if (!canAssign || !teams.data?.some(team => String(team.id) === teamId)) throw new Error('Select an active team.');
-      const response: any = await api.patch(`/customers/${customer.id}/assign-team`, { teamId: Number(teamId) });
-      const result = response?.data ?? response;
-      if (result?.id !== customer.id || result?.assignedTeamId !== Number(teamId)) throw new Error('Assignment response could not be verified. Refresh the customer before retrying.');
+      return customersApi.assignTeam(customer.id, Number(teamId));
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
+      await cacheSavedCustomerTeam(queryClient, saved);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers-list'] }),
         queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer'] }),
