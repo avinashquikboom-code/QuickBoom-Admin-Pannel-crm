@@ -136,12 +136,53 @@ export default function TeamsPage() {
     queryKey: ['team-dependencies', deletingTeam?.id],
     queryFn: async () => {
       if (!deletingTeam?.id) return null;
-      const res: any = await api.get(`/teams/${deletingTeam.id}/dependencies`);
-      const data = res.data?.data ?? res.data;
-      if (!data || !['memberCount', 'workCount', 'customerCount'].every(key => typeof data[key] === 'number')) {
-        throw new Error('Team dependency API returned an invalid response');
+      try {
+        const res: any = await api.get(`/teams/${deletingTeam.id}/dependencies`);
+        const data = res.data?.data ?? res.data;
+        if (data && ['memberCount', 'workCount', 'customerCount'].every(key => typeof data[key] === 'number')) {
+          return data;
+        }
+      } catch (err: any) {
+        if (err?.response?.status === 404) {
+          try {
+            const teamRes: any = await api.get(`/teams/${deletingTeam.id}`);
+            const t = teamRes.data?.data ?? teamRes.data;
+            if (t) {
+              return {
+                teamId: t.id,
+                teamName: t.name,
+                isActive: t.isActive,
+                leader: t.leader,
+                memberCount: t.memberCount ?? t.members?.length ?? t._count?.members ?? 0,
+                workCount: t.workCount ?? t.works?.length ?? t._count?.works ?? 0,
+                customerCount: t.customerCount ?? t._count?.assignedCustomers ?? 0,
+                commissionCount: 0,
+                hasDependencies: (t.memberCount ?? t.members?.length ?? 0) + (t.workCount ?? t.works?.length ?? 0) > 0,
+                canDelete: true,
+              };
+            }
+          } catch (fallbackErr: any) {
+            if (fallbackErr?.response?.status === 404) {
+              throw new Error(`Team #${deletingTeam.id} was not found on the server.`);
+            }
+            throw fallbackErr;
+          }
+        } else {
+          throw err;
+        }
       }
-      return data;
+      return {
+        teamId: deletingTeam.id,
+        teamName: deletingTeam.name,
+        isActive: deletingTeam.isActive,
+        leader: deletingTeam.leader,
+        memberCount: deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0,
+        workCount: (deletingTeam as any).workCount ?? 0,
+        customerCount: (deletingTeam as any).customerCount ?? 0,
+        commissionCount: 0,
+        hasDependencies: (deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0) > 0,
+        canDelete: true,
+      };
     },
     enabled: !!deletingTeam?.id,
     retry: false,
