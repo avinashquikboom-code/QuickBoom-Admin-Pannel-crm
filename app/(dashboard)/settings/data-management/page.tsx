@@ -166,6 +166,8 @@ export default function DataManagementPage() {
   const [showResetAllModal, setShowResetAllModal] = useState(false);
   const [isResettingAllCustomers, setIsResettingAllCustomers] = useState(false);
   const [resetAllConfirmationInput, setResetAllConfirmationInput] = useState('');
+  const [deleteAllCustomerCount, setDeleteAllCustomerCount] = useState<number | null>(null);
+  const [isLoadingDeleteAllCustomerCount, setIsLoadingDeleteAllCustomerCount] = useState(false);
   const [showResetAllCustomerDataModal, setShowResetAllCustomerDataModal] = useState(false);
   const [isResettingAllCustomerData, setIsResettingAllCustomerData] = useState(false);
   const [resetAllCustomerDataInput, setResetAllCustomerDataInput] = useState('');
@@ -456,10 +458,27 @@ export default function DataManagementPage() {
     }
   };
 
-  const handleOpenResetAllModal = async () => {
+  const loadDeleteAllCustomerCount = async () => {
+    setIsLoadingDeleteAllCustomerCount(true);
+    setDeleteAllCustomerCount(null);
+    try {
+      const res: any = await api.get('/admin/data-management/customers/count');
+      const data = res?.data || res;
+      if (typeof data?.totalCustomers !== 'number') {
+        throw new Error('Customer count was not returned.');
+      }
+      setDeleteAllCustomerCount(data.totalCustomers);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to load customer count');
+    } finally {
+      setIsLoadingDeleteAllCustomerCount(false);
+    }
+  };
+
+  const handleOpenDeleteAllCustomersModal = async () => {
     setResetAllConfirmationInput('');
     setShowResetAllModal(true);
-    await loadAllCustomersSummary();
+    await loadDeleteAllCustomerCount();
   };
 
   const handleExecuteResetAllCustomerData = async () => {
@@ -500,12 +519,11 @@ export default function DataManagementPage() {
     }
     setIsResettingAllCustomers(true);
     try {
-      const res: any = await api.post('/admin/data-management/customers/reset-all', {
-        confirmation: 'DELETE ALL CUSTOMERS',
-        reason: 'Admin executed Reset All Customers',
+      const res: any = await api.delete('/admin/data-management/customers/delete-all', {
+        data: { confirmation: 'DELETE ALL CUSTOMERS' },
       });
       const data = res?.data || res;
-      toast.success(data?.message || 'Successfully reset all client customers!');
+      toast.success(data?.message || `Deleted ${data?.deletedCount ?? 0} customers.`);
       setShowResetAllModal(false);
       setResetAllConfirmationInput('');
       setSelectedCustomerIds(new Set());
@@ -514,7 +532,7 @@ export default function DataManagementPage() {
         loadSummaryAndHistory(),
       ]);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to reset all customers');
+      toast.error(err?.response?.data?.message || 'Failed to delete all customers');
     } finally {
       setIsResettingAllCustomers(false);
     }
@@ -1722,7 +1740,7 @@ export default function DataManagementPage() {
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-rose-900/80 font-medium leading-relaxed max-w-2xl">
-                  Permanently delete specific or all customer client accounts and their associated operational records (calendar events, tasks, works, visits, invoices, and subscriptions). System settings, master plans, coupons, employee accounts, and payroll records are strictly protected.
+                  Delete all active customer accounts. Existing deletion rules cancel applicable subscriptions and unresolved checkouts, disable customer logins, permanently remove linked invoices, visits, and work, and archive only explicitly linked CRM companies and contacts. Shared plans, unconverted leads, employees, attendance, and payroll are protected.
                 </p>
               </div>
             </div>
@@ -1732,10 +1750,10 @@ export default function DataManagementPage() {
                 variant="danger"
                 size="md"
                 icon={Trash2}
-                onClick={handleOpenResetAllModal}
+                onClick={handleOpenDeleteAllCustomersModal}
                 className="w-full md:w-auto shadow-md shadow-rose-600/20"
               >
-                Reset All Customers
+                Delete All Customers
               </AdminButton>
             </div>
           </div>
@@ -2770,13 +2788,13 @@ export default function DataManagementPage() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-black text-rose-950">Reset All Customers</h3>
+                  <h3 className="text-lg font-black text-rose-950">Delete All Customers</h3>
                   <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black uppercase">
                     Extreme Action
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                  This operation permanently wipes ALL customer client accounts and cascades through all customer-dependent records across the system.
+                  This soft-deletes every active customer account in the authorized organization. Existing deletion rules cancel applicable subscriptions and unresolved checkouts, disable customer logins, permanently remove invoices, visits, and work linked through an explicit CRM company mapping, and archive the linked company and contacts. Shared plans, leads, employees, attendance, and payroll remain. Permanently removed linked records cannot be recovered.
                 </p>
               </div>
             </div>
@@ -2787,60 +2805,29 @@ export default function DataManagementPage() {
                 Total Affected Scope:
               </h4>
 
-              {isLoadingAllCustomersSummary ? (
+              {isLoadingDeleteAllCustomerCount ? (
                 <div className="py-6 flex flex-col items-center justify-center gap-2 text-rose-700">
                   <RefreshCw className="w-5 h-5 animate-spin" />
-                  <span className="text-xs font-bold">Calculating affected records...</span>
+                  <span className="text-xs font-bold">Counting active customers...</span>
                 </div>
-              ) : allCustomersSummary ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                    <div className="p-2.5 bg-white rounded-xl border border-rose-200 text-rose-950">
-                      Total Customers: <span className="font-black text-rose-600">{allCustomersSummary.totalCustomers}</span>
-                    </div>
-                    <div className="p-2.5 bg-white rounded-xl border border-rose-200 text-rose-950">
-                      Total Dependencies: <span className="font-black text-rose-600">~{allCustomersSummary.totalRelatedRecords.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  {allCustomersSummary.breakdown && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-semibold text-slate-700">
-                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
-                        Works: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.works ?? 0}</span>
-                      </div>
-                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
-                        Tasks: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.tasks ?? 0}</span>
-                      </div>
-                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
-                        Invoices: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.invoices ?? 0}</span>
-                      </div>
-                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
-                        Schedules: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.monthlySchedules ?? 0}</span>
-                      </div>
-                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
-                        Subscriptions: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.subscriptions ?? 0}</span>
-                      </div>
-                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
-                        Quotations: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.quotations ?? 0}</span>
-                      </div>
-                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
-                        Tickets: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.tickets ?? 0}</span>
-                      </div>
-                      <div className="p-2 bg-white/80 rounded-lg border border-rose-100">
-                        Visits: <span className="font-bold text-slate-900">{allCustomersSummary.breakdown.visits ?? 0}</span>
-                      </div>
-                    </div>
-                  )}
+              ) : deleteAllCustomerCount !== null ? (
+                <div className="p-3 bg-white rounded-xl border border-rose-200 text-sm font-bold text-rose-950">
+                  Active customers affected: <span className="font-black text-rose-600">{deleteAllCustomerCount.toLocaleString()}</span>
                 </div>
               ) : (
-                <p className="text-xs text-rose-800">Preview unavailable. Action will target all client customer records.</p>
+                <div className="space-y-2">
+                  <p className="text-xs text-rose-800">Customer count unavailable. The server will still restrict deletion to active customer accounts in the authorized organization.</p>
+                  <AdminButton variant="secondary" size="sm" icon={RefreshCw} onClick={loadDeleteAllCustomerCount}>
+                    Retry count
+                  </AdminButton>
+                </div>
               )}
             </div>
 
             {/* Type Confirmation Input */}
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/90 space-y-2">
               <label className="block text-[11px] font-black uppercase text-slate-600">
-                To confirm permanent deletion of ALL customers, type:{' '}
+                To confirm deletion of ALL customers, type:{' '}
                 <span className="text-rose-600 font-mono font-black select-all">DELETE ALL CUSTOMERS</span>
               </label>
               <input
@@ -2873,10 +2860,12 @@ export default function DataManagementPage() {
                 loading={isResettingAllCustomers}
                 disabled={
                   isResettingAllCustomers ||
+                  isLoadingDeleteAllCustomerCount ||
+                  deleteAllCustomerCount === null ||
                   resetAllConfirmationInput.trim().toUpperCase() !== 'DELETE ALL CUSTOMERS'
                 }
               >
-                {isResettingAllCustomers ? 'Deleting All Customers...' : 'Permanently Delete All Customers'}
+                {isResettingAllCustomers ? 'Deleting All Customers...' : 'Delete All Customers'}
               </AdminButton>
             </div>
           </div>
