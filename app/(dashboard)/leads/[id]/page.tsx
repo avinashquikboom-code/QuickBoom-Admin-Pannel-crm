@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Check, ChevronRight, GitCommit, Trash2, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, ChevronRight, GitCommit, Trash2, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminConfirmDialog, AdminPageHeader, AdminSelect } from '@/components/admin';
@@ -13,7 +13,8 @@ export default function LeadDetailsPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const client = useQueryClient();
-  const id = Number(params.id);
+  const rawId = params?.id;
+  const id = Number(rawId);
   const validId = Number.isInteger(id) && id > 0;
   const detail = useQuery({ queryKey: ['lead', id], queryFn: () => leadsApi.detail(id), enabled: validId });
   const stagesQuery = useQuery({ queryKey: ['lead-stages'], queryFn: leadsApi.stages, staleTime: 60_000 });
@@ -56,6 +57,40 @@ export default function LeadDetailsPage() {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
+  if (!validId) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto pb-16">
+        <AdminPageHeader
+          title="Invalid Lead ID"
+          description="The requested lead ID is not valid. Lead IDs must be positive integers."
+          icon={AlertCircle}
+          breadcrumbs={[{ label: 'Leads', href: '/leads' }, { label: 'Invalid Lead' }]}
+        />
+        <AdminCard title="Lead Not Found">
+          <div className="space-y-4 py-2">
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 text-sm">
+              <p className="font-semibold">
+                Invalid Lead ID: <span className="font-mono">{String(rawId || '')}</span>
+              </p>
+              <p className="mt-1 text-xs text-rose-600">
+                A valid lead identifier must be a positive integer. Please navigate from the Leads list.
+              </p>
+            </div>
+            <div>
+              <AdminButton
+                variant="primary"
+                icon={ArrowLeft}
+                onClick={() => router.push('/leads')}
+              >
+                Back to Leads
+              </AdminButton>
+            </div>
+          </div>
+        </AdminCard>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
       <AdminPageHeader
@@ -77,13 +112,16 @@ export default function LeadDetailsPage() {
           )
         }
       />
-      {!validId ? (
-        <p role="alert" className="text-rose-700">Invalid Lead ID.</p>
-      ) : detail.isError ? (
-        <div role="alert" className="space-y-3 text-rose-700">
-          <p>{getErrorMessage(detail.error)}</p>
-          <AdminButton variant="outline" onClick={() => detail.refetch()}>Retry</AdminButton>
-        </div>
+      {detail.isError ? (
+        <AdminCard title="Unable to Load Lead">
+          <div role="alert" className="space-y-3 text-rose-700">
+            <p>{getErrorMessage(detail.error)}</p>
+            <div className="flex gap-2">
+              <AdminButton variant="outline" onClick={() => detail.refetch()}>Retry</AdminButton>
+              <AdminButton variant="ghost" onClick={() => router.push('/leads')}>Back to Leads</AdminButton>
+            </div>
+          </div>
+        </AdminCard>
       ) : detail.isLoading ? (
         <p role="status">Loading Lead...</p>
       ) : lead && (

@@ -95,8 +95,13 @@ export default function LeadGenerationLimitsPage() {
   } = useQuery<RoleLimitItem[]>({
     queryKey: ['lead-limits-roles'],
     queryFn: async () => {
-      const res = await api.get('/lead-generation-limits/roles');
-      return Array.isArray(res.data) ? res.data : res.data?.data || [];
+      try {
+        const res = await api.get('/lead-generation-limits/roles');
+        return Array.isArray(res.data) ? res.data : res.data?.data || [];
+      } catch (err: any) {
+        if (process.env.NODE_ENV !== 'production') console.debug('[LEAD_LIMITS_ROLES_QUERY]', err);
+        return [];
+      }
     },
   });
 
@@ -107,8 +112,13 @@ export default function LeadGenerationLimitsPage() {
   } = useQuery<EmployeeLimitItem[]>({
     queryKey: ['lead-limits-employees'],
     queryFn: async () => {
-      const res = await api.get('/lead-generation-limits/employees');
-      return Array.isArray(res.data) ? res.data : res.data?.data || [];
+      try {
+        const res = await api.get('/lead-generation-limits/employees');
+        return Array.isArray(res.data) ? res.data : res.data?.data || [];
+      } catch (err: any) {
+        if (process.env.NODE_ENV !== 'production') console.debug('[LEAD_LIMITS_EMPLOYEES_QUERY]', err);
+        return [];
+      }
     },
   });
 
