@@ -12,8 +12,9 @@ export interface DeleteCustomerResult {
 export const customersApi = {
   async getAssignedTeam(id: number): Promise<SavedCustomerTeam> {
     if (!Number.isSafeInteger(id) || id < 1) throw new Error('Valid customer ID required.');
-    const response: any = await api.get(`/customers/${id}/assign-team`);
-    const saved = response?.data ?? response;
+    // The existing authorized details API includes the persisted assignment.
+    // Reuse its ID validation and response mapping instead of requiring a second read route.
+    const saved = await customersApi.getDetails(id);
     const teamId = saved?.assignedTeamId;
     if (saved?.id !== id || !(teamId === null || (Number.isSafeInteger(teamId) && teamId > 0)) ||
         (teamId === null ? saved.assignedTeam != null :

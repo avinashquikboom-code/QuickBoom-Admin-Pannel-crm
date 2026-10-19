@@ -29,7 +29,7 @@ export function AssignCustomerTeamDialog({ customer, canAssign, onClose }: Props
     queryKey: ['customer-team-dialog', customer?.id],
     enabled: isValidId,
     queryFn: async () => {
-      return customersApi.getDetails(customer.id);
+      return customersApi.getAssignedTeam(customer.id);
     },
   });
   const teams = useQuery({
@@ -90,6 +90,7 @@ export function AssignCustomerTeamDialog({ customer, canAssign, onClose }: Props
         {loading ? <p role="status" className="text-sm text-slate-500">Loading customer and teams…</p> : error ? <div role="alert" className="text-sm text-rose-600">
           <p>{getErrorMessage(error)}</p><button type="button" onClick={() => { detail.refetch(); teams.refetch(); }} className="mt-2 font-bold underline">Retry</button>
         </div> : <>
+          <p className="text-sm text-slate-500">Current team: {detail.data?.assignedTeam?.name ?? 'Unassigned'}</p>
           <label htmlFor="customer-team-selection" className="block text-xs font-bold text-slate-600">Team</label>
           <select id="customer-team-selection" value={teamId} disabled={save.isPending || !teams.data?.length}
             onChange={event => { setTeamId(event.target.value); setEdited(true); save.reset(); }}
