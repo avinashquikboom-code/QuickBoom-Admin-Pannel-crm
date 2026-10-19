@@ -136,64 +136,15 @@ export default function TeamsPage() {
     queryKey: ['team-dependencies', deletingTeam?.id],
     queryFn: async () => {
       if (!deletingTeam?.id) return null;
-      try {
-        const res: any = await api.get(`/teams/${deletingTeam.id}/dependencies`);
-        const data = res.data?.data ?? res.data;
-        if (data && (typeof data.assignedEmployees === 'number' || typeof data.memberCount === 'number')) {
-          return {
-            ...data,
-            assignedEmployees: data.assignedEmployees ?? data.memberCount ?? 0,
-            memberCount: data.assignedEmployees ?? data.memberCount ?? 0,
-            customerCount: data.customerCount ?? 0,
-            workCount: data.workCount ?? 0,
-          };
-        }
-      } catch (err: any) {
-        if (err?.response?.status === 404) {
-          try {
-            const teamRes: any = await api.get(`/teams/${deletingTeam.id}`);
-            const t = teamRes.data?.data ?? teamRes.data;
-            if (t) {
-              const members = t.memberCount ?? t.members?.length ?? t._count?.members ?? 0;
-              const works = t.workCount ?? t.works?.length ?? t._count?.works ?? 0;
-              const customers = t.customerCount ?? t._count?.assignedCustomers ?? 0;
-              return {
-                teamId: t.id,
-                teamName: t.name,
-                isActive: t.isActive,
-                leader: t.leader,
-                assignedEmployees: members,
-                memberCount: members,
-                workCount: works,
-                customerCount: customers,
-                commissionCount: 0,
-                hasDependencies: members + works + customers > 0,
-                canDelete: true,
-              };
-            }
-          } catch (fallbackErr: any) {
-            if (fallbackErr?.response?.status === 404) {
-              throw new Error(`Team #${deletingTeam.id} was not found on the server.`);
-            }
-            throw fallbackErr;
-          }
-        } else {
-          throw err;
-        }
+      const res: any = await api.get(`/teams/${deletingTeam.id}/dependencies`);
+      const data = res.data?.data ?? res.data;
+      if (Number(data?.teamId) !== deletingTeam.id ||
+          !['memberCount', 'customerCount', 'workCount', 'commissionCount'].every(key =>
+            typeof data?.[key] === 'number' && Number.isSafeInteger(data[key]) && data[key] >= 0) ||
+          !Array.isArray(data?.relatedRecords) || typeof data?.canDeleteAfterUnassign !== 'boolean') {
+        throw new Error('The server returned an incomplete team dependency summary. Retry or deactivate the team instead.');
       }
-      return {
-        teamId: deletingTeam.id,
-        teamName: deletingTeam.name,
-        isActive: deletingTeam.isActive,
-        leader: deletingTeam.leader,
-        assignedEmployees: deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0,
-        memberCount: deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0,
-        workCount: (deletingTeam as any).workCount ?? 0,
-        customerCount: (deletingTeam as any).customerCount ?? 0,
-        commissionCount: 0,
-        hasDependencies: (deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0) > 0,
-        canDelete: true,
-      };
+      return data;
     },
     enabled: !!deletingTeam?.id,
     retry: false,
@@ -355,7 +306,10 @@ export default function TeamsPage() {
       setDeletingTeam(null);
     },
     onError: (err: any) => {
-      toast.error(getErrorMessage(err));
+      const message = getErrorMessage(err);
+      // Match the interceptor's toast ID so a failure has one notification.
+      toast.error(message, { id: message });
+      queryClient.invalidateQueries({ queryKey: ['team-dependencies', deletingTeam?.id] });
     },
   });
 
@@ -687,6 +641,7 @@ export default function TeamsPage() {
                         </button>
                         <button
                           onClick={() => {
+                            deleteTeamMutation.reset();
                             setDeletingTeam(team);
                             setDeleteMode('REASSIGN');
                             setReassignTargetTeamId('');
@@ -1357,24 +1312,33 @@ export default function TeamsPage() {
                 <div className="grid grid-cols-3 gap-2 pt-1 text-center font-medium">
                   <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
                     <span className="block text-base font-black text-slate-800">
-                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.memberCount ?? deletingTeam.memberCount ?? deletingTeam.members?.length ?? 0)}
+                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.memberCount ?? '—')}
                     </span>
                     <span className="text-[11px] text-slate-500">Members</span>
                   </div>
                   <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
                     <span className="block text-base font-black text-slate-800">
-                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.customerCount ?? 0)}
+                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.customerCount ?? '—')}
                     </span>
                     <span className="text-[11px] text-slate-500">Customers</span>
                   </div>
                   <div className="bg-white/80 p-2 rounded-lg border border-amber-100">
                     <span className="block text-base font-black text-slate-800">
-                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.workCount ?? 0)}
+                      {isDependenciesLoading ? '...' : isDependenciesError ? '—' : (teamDependencies?.workCount ?? '—')}
                     </span>
                     <span className="text-[11px] text-slate-500">Schedules</span>
                   </div>
                 </div>
               </div>
+
+              {teamDependencies?.relatedRecords?.filter((record: any) => record.count > 0).map((record: any) => (
+                <p key={record.relation} className="text-xs text-slate-600">
+                  <strong>{record.name}: {record.count}.</strong> {record.action}
+                </p>
+              ))}
+              {teamDependencies?.canDeleteAfterUnassign === false && (
+                <p role="alert" className="text-xs text-rose-700">Some references require explicit resolution. Deactivate the team to preserve these records.</p>
+              )}
 
               {reassignmentTeamsError && <p role="alert" className="text-xs text-rose-700">Unable to load reassignment teams. Reopen to retry, or choose unassignment/deactivation.</p>}
               {/* Options */}
@@ -1406,7 +1370,7 @@ export default function TeamsPage() {
                           Reassign to another active team (Recommended)
                         </span>
                         <p className="text-[11px] text-slate-500">
-                          Transfer all employees, customers, and active work schedules to another team before deleting this team.
+                          Transfer team memberships, customer links, and work schedules (including completed schedules) to another team before deleting this team.
                         </p>
                         {deleteMode === 'REASSIGN' && (
                           <div className="pt-2">
@@ -1526,7 +1490,7 @@ export default function TeamsPage() {
                     });
                   }
                 }}
-                disabled={deleteTeamMutation.isPending || (deleteMode !== 'DEACTIVATE' && (isDependenciesLoading || isDependenciesError || !teamDependencies)) || (deleteMode === 'REASSIGN' && !reassignTargetTeamId)}
+                disabled={deleteTeamMutation.isPending || (deleteMode !== 'DEACTIVATE' && (isDependenciesLoading || isDependenciesError || !teamDependencies || teamDependencies.canDeleteAfterUnassign === false)) || (deleteMode === 'REASSIGN' && !reassignTargetTeamId)}
                 className={`px-5 py-2 text-xs font-bold text-white rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
                   deleteMode === 'DEACTIVATE'
                     ? 'bg-slate-700 hover:bg-slate-800 shadow-slate-700/20'
