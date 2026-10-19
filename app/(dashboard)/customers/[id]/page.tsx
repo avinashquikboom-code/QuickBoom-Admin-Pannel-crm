@@ -31,6 +31,7 @@ import {
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { customersApi } from '@/lib/customers-api';
+import { CustomerCalendar } from '@/components/admin/customers/CustomerCalendar';
 import { useAuthStore } from '@/lib/store';
 import { isUserAdmin } from '@/lib/access-control';
 import { AdminPageHeader, AdminButton } from '@/components/admin';
@@ -43,7 +44,7 @@ export default function CustomerDetailPage() {
   const queryClient = useQueryClient();
   const customerId = (params?.id as string) || '';
 
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'SUBSCRIPTION' | 'USERS' | 'CONTACT'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'SUBSCRIPTION' | 'USERS' | 'CONTACT' | 'CALENDAR'>('OVERVIEW');
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -224,10 +225,11 @@ export default function CustomerDetailPage() {
       />
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200">
+      <div className="flex overflow-x-auto border-b border-slate-200">
         {[
           { key: 'OVERVIEW', label: 'Account Overview', icon: Building2 },
           { key: 'SUBSCRIPTION', label: 'Subscription & Plans', icon: CreditCard },
+          { key: 'CALENDAR', label: 'Customer Calendar', icon: Calendar },
           { key: 'USERS', label: 'Users & Roles', icon: Users },
           { key: 'CONTACT', label: 'Contact Info', icon: Mail },
         ].map((tab) => {
@@ -249,6 +251,8 @@ export default function CustomerDetailPage() {
           );
         })}
       </div>
+
+      {activeTab === 'CALENDAR' && <CustomerCalendar customerId={numericCustomerId!} />}
 
       {/* Content based on Active Tab */}
       {activeTab === 'OVERVIEW' && (

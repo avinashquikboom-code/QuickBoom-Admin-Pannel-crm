@@ -105,11 +105,9 @@ export default function LeadsPage() {
   };
 
   return <div className="space-y-5 min-w-0 max-w-[1600px] mx-auto pb-16">
-    <AdminPageHeader title="Leads" description="Manage contacts, follow opportunities, and move your pipeline forward." icon={Users}
-      badge={{ text: 'CRM Pipeline', pulsingDot: false }}
-      className="!rounded-3xl !border-l-4 !border-l-emerald-400 !px-5 !py-6 sm:!px-7 [&_h1]:!tracking-tight [&_h1]:!text-2xl sm:[&_h1]:!text-3xl"
+    <AdminPageHeader title="Leads" description="Manage your business leads and opportunities." icon={Users}
       actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-        <AdminButton variant="glass" icon={Download} onClick={exportPage} disabled={!leads.length || list.isLoading}
+        <AdminButton variant="outline" icon={Download} onClick={exportPage} disabled={!leads.length || list.isLoading}
           title={selectedOnPage.length ? 'Export selected Leads on this page' : 'Export Leads on the current page'}>Export</AdminButton>
         <AdminButton icon={Plus} onClick={() => setOpen(true)}>Add Lead</AdminButton>
       </div>} />
