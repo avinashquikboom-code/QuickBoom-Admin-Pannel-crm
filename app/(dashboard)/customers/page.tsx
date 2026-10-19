@@ -73,8 +73,10 @@ interface CustomerRecord {
 
 function CustomerAssignedTeamLabel({ customer }: { customer: CustomerRecord }) {
   const hasTeamName = Boolean(customer.assignedTeam?.name?.trim());
-  // Verify empty/missing list assignments against the existing authoritative read API.
-  const needsLookup = !hasTeamName;
+  // An explicit null assignment from the list is a verified unassigned state.
+  // Only incomplete list records require another authorized customer read.
+  const isUnassigned = customer.assignedTeamId === null && customer.assignedTeam === null;
+  const needsLookup = !hasTeamName && !isUnassigned;
   const assignment = useQuery({
     queryKey: ['customer-assigned-team', customer.id],
     enabled: needsLookup,
@@ -83,10 +85,14 @@ function CustomerAssignedTeamLabel({ customer }: { customer: CustomerRecord }) {
     staleTime: 0,
   });
   if (hasTeamName) return <>{customer.assignedTeam!.name}</>;
-  if (assignment.isError) return <button type="button"
-    onClick={event => { event.stopPropagation(); assignment.refetch(); }}
-    title={getErrorMessage(assignment.error)}
-    className="text-rose-600 underline">Unable to load team · Retry</button>;
+  if (isUnassigned) return <>Unassigned</>;
+  if (assignment.isError) return <span className="text-rose-600">
+    {getErrorMessage(assignment.error)}{' '}
+    <button type="button" onClick={event => { event.stopPropagation(); assignment.refetch(); }}
+      disabled={assignment.isFetching} className="underline disabled:opacity-50">
+      {assignment.isFetching ? 'Retrying…' : 'Retry'}
+    </button>
+  </span>;
   if (assignment.isPending) return <>Loading team…</>;
   return <>{assignment.data?.assignedTeam?.name ?? 'Unassigned'}</>;
 }
