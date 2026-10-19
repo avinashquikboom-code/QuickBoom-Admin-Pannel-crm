@@ -26,7 +26,8 @@ export function AssignCustomerTeamDialog({ customer, canAssign, onClose }: Props
   const isValidId = Number.isSafeInteger(Number(customer?.id)) && Number(customer?.id) > 0;
 
   const detail = useQuery({
-    queryKey: ['customer-team-dialog', customer?.id],
+    queryKey: ['customer-assigned-team', customer?.id],
+    staleTime: 30_000,
     enabled: isValidId,
     queryFn: async () => {
       return customersApi.getAssignedTeam(customer.id);
@@ -65,7 +66,7 @@ export function AssignCustomerTeamDialog({ customer, canAssign, onClose }: Props
         queryClient.invalidateQueries({ queryKey: ['customers-list'] }),
         queryClient.invalidateQueries({ queryKey: ['admin-customer-details-drawer'] }),
         queryClient.invalidateQueries({ queryKey: ['admin-customer-details-page'] }),
-        queryClient.invalidateQueries({ queryKey: ['customer-team-dialog', customer.id] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-assigned-team', customer.id] }),
       ]);
       toast.success(`Team assigned to ${customer.companyName}.`);
       onClose();
@@ -88,7 +89,7 @@ export function AssignCustomerTeamDialog({ customer, canAssign, onClose }: Props
       </div>
       <div className="space-y-3 p-5">
         {loading ? <p role="status" className="text-sm text-slate-500">Loading customer and teams…</p> : error ? <div role="alert" className="text-sm text-rose-600">
-          <p>{getErrorMessage(error)}</p><button type="button" onClick={() => { detail.refetch(); teams.refetch(); }} className="mt-2 font-bold underline">Retry</button>
+          <p>{getErrorMessage(error)}</p><button type="button" onClick={() => { if (detail.isError) detail.refetch(); if (teams.isError) teams.refetch(); }} className="mt-2 font-bold underline">Retry</button>
         </div> : <>
           <p className="text-sm text-slate-500">Current team: {detail.data?.assignedTeam?.name ?? 'Unassigned'}</p>
           <label htmlFor="customer-team-selection" className="block text-xs font-bold text-slate-600">Team</label>

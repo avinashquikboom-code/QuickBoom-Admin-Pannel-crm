@@ -76,14 +76,16 @@ function CustomerAssignedTeamLabel({ customer }: { customer: CustomerRecord }) {
   // An explicit null assignment from the list is a verified unassigned state.
   // Only incomplete list records require another authorized customer read.
   const isUnassigned = customer.assignedTeamId === null && customer.assignedTeam === null;
-  const needsLookup = !hasTeamName && !isUnassigned;
+  const hasCustomerId = Number.isSafeInteger(customer.id) && customer.id > 0;
+  const needsLookup = hasCustomerId && !hasTeamName && !isUnassigned;
   const assignment = useQuery({
     queryKey: ['customer-assigned-team', customer.id],
     enabled: needsLookup,
     queryFn: () => customersApi.getAssignedTeam(customer.id),
     retry: false,
-    staleTime: 0,
+    staleTime: 30_000,
   });
+  if (!hasCustomerId) return <span title="This row has no valid customer account ID. Refresh after the customer list is corrected on the server.">Customer record unavailable</span>;
   if (hasTeamName) return <>{customer.assignedTeam!.name}</>;
   if (isUnassigned) return <>Unassigned</>;
   if (assignment.isError) return <span className="text-rose-600">
@@ -522,8 +524,10 @@ export default function CustomersPage() {
               <CustomerAssignedTeamLabel customer={c} />
             </span>
           {canDelete && <button type="button" onClick={event => { event.stopPropagation(); handleOpenTeamDialog(c); }}
-            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
-            title="Assign Team" aria-label={`Assign team to ${c.companyName}`}>
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!Number.isSafeInteger(c.id) || c.id <= 0}
+            title={Number.isSafeInteger(c.id) && c.id > 0 ? 'Assign Team' : 'A valid customer account is required before assigning a team.'}
+            aria-label={`Assign team to ${c.companyName}`}>
             <Users className="w-3.5 h-3.5" />
             <span>Assign Team</span>
           </button>}
