@@ -1,10 +1,11 @@
 'use client';
 
+import { GooglePlacesDrawer } from '@/components/admin/drawers/GooglePlacesDrawer';
 import React, { useEffect, useState } from 'react';
 import { LeadDetailsDrawer } from '@/components/admin/drawers/LeadDetailsDrawer';
 import { emptyLeadForm, LeadFormFields } from '@/components/admin/drawers/LeadFormFields';
 import { AdminRowActions } from '@/components/admin/tables/AdminRowActions';
-import { Download, Mail, Pencil, Phone, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
+import { Download, MapPin, Mail, Pencil, Phone, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminConfirmDialog, AdminDataTable, AdminFormDrawer, AdminPageHeader, AdminPagination, AdminSearchInput, AdminSelect, AdminStatusBadge } from '@/components/admin';
@@ -15,6 +16,7 @@ const emptyForm = emptyLeadForm;
 
 export default function LeadsPage() {
   const client = useQueryClient();
+  const [placesOpen, setPlacesOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<{ id: number; action: 'view' | 'edit' | 'stage' } | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<
@@ -109,6 +111,7 @@ export default function LeadsPage() {
       actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
         <AdminButton variant="outline" icon={Download} onClick={exportPage} disabled={!leads.length || list.isLoading}
           title={selectedOnPage.length ? 'Export selected Leads on this page' : 'Export Leads on the current page'}>Export</AdminButton>
+        <AdminButton variant="outline" icon={MapPin} onClick={() => setPlacesOpen(true)}>Google Places</AdminButton>
         <AdminButton icon={Plus} onClick={() => setOpen(true)}>Add Lead</AdminButton>
       </div>} />
     <AdminCard title="All Leads" description={`Showing ${total ? (page - 1) * limit + 1 : 0} - ${Math.min(page * limit, total)} of ${total} records • Page ${page} of ${totalPages}`}
@@ -208,6 +211,7 @@ export default function LeadsPage() {
       <AdminPagination page={page} pageSize={limit} total={total} totalPages={totalPages} onPageChange={setPage}
         onPageSizeChange={(value) => { setLimit(value); setPage(1); }} disabled={list.isFetching} />
     </AdminCard>
+    {placesOpen && <GooglePlacesDrawer onClose={() => setPlacesOpen(false)} onImported={() => setPage(1)} />}
     {selectedLead && <LeadDetailsDrawer key={selectedLead.id} id={selectedLead.id} initialAction={selectedLead.action} onClose={() => setSelectedLead(null)} />}
     <AdminFormDrawer isOpen={open} onClose={() => { if (!create.isPending) setOpen(false); }} title="Add Lead" icon={Users}
       onSave={() => {
