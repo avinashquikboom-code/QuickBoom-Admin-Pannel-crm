@@ -87,7 +87,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
 
   const handleSave = (event?: React.FormEvent) => {
     if (event) event.preventDefault();
-    if (busy || submitLock.current) return;
+    if (busy || submitLock.current || !lead) return;
     if (!formElement.current?.reportValidity()) return;
     const trimmedCompanyName = form.companyName?.trim();
     if (!trimmedCompanyName) {
@@ -102,12 +102,18 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
         return;
       }
     }
-    // Keep empty strings in PATCH so clearing an existing field is persisted on the backend.
+    // PATCH only changed, supported form fields. Preserve explicit clears while
+    // leaving unchanged server values out of the update request.
     const data = Object.fromEntries(
-      Object.entries(form).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : (value ?? '')])
+      (Object.keys(emptyLeadForm) as Array<keyof CreateLeadInput>)
+        .map(key => [key, form[key]?.trim() || ''] as const)
+        .filter(([key, value]) => value !== (lead[key]?.trim() || ''))
+        .map(([key, value]) => [key, key === 'email' ? value || null : value])
     ) as unknown as UpdateLeadInput;
-    data.companyName = trimmedCompanyName;
-    data.email = trimmedEmail || null;
+    if (!Object.keys(data).length) {
+      toast('No changes to save');
+      return;
+    }
     submitLock.current = true;
     edit.mutate(data);
   };

@@ -86,7 +86,6 @@ export const adminNavigation: {
         { name: 'Work Types', href: '/master/work-types', icon: Briefcase,  },
         { name: 'Activity Types', href: '/master/activity-types', icon: Activity,  },
         { name: 'Task Status', href: '/master/task-status', icon: CheckSquare,  },
-        { name: 'Lead Sources', href: '/master/lead-sources', icon: Target,  },
         { name: 'Subscription Plans', href: '/master/subscription-plans', icon: Layers,  },
         { name: 'Expense Categories', href: '/master/expense-categories', icon: CreditCard,  },
         { name: 'Loan Types', href: '/master/loan-types', icon: DollarSign,  },
