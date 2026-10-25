@@ -9,11 +9,9 @@ import {
   Edit2,
   Trash2,
   Check,
-  ArrowLeft,
   Sliders,
   Settings2,
 } from 'lucide-react';
-import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { AdminPageHeader, AdminButton, AdminFormDrawer } from '@/components/admin';
 import { getErrorMessage } from '@/lib/utils';
@@ -337,15 +335,6 @@ export default function SubscriptionPlansPage() {
         ]}
         actions={
           <div className="flex items-center gap-2.5">
-            <Link href="/master">
-              <AdminButton
-                variant="outline"
-                size="md"
-                icon={ArrowLeft}
-              >
-                Master
-              </AdminButton>
-            </Link>
             <AdminButton
               variant="primary"
               size="md"
