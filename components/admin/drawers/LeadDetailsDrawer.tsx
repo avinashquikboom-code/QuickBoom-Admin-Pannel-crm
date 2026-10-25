@@ -38,9 +38,9 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   const lead = detail.data;
   const assignees = useQuery({
     queryKey: ['lead-bpo-assignees'],
-    enabled: canAssign && editing,
+    enabled: canAssign,
     queryFn: async ({ signal }) => {
-      const employees: Array<{ id: number; firstName?: string; lastName?: string; employeeCode?: string }> = [];
+      const employees: Array<{ id: number; firstName?: string; lastName?: string; email?: string; employeeCode?: string }> = [];
       let page = 1;
       let totalPages = 1;
       do {
@@ -49,7 +49,31 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
         const body = root?.data && !Array.isArray(root.data) ? root.data : root;
         const items = Array.isArray(body) ? body : body?.items ?? body?.employees ?? body?.data;
         if (!Array.isArray(items)) throw new Error('Invalid employee list response');
-        employees.push(...items);
+        for (const item of items) {
+          const fn = (item.firstName || '').toLowerCase();
+          const ln = (item.lastName || '').toLowerCase();
+          const em = (item.email || '').toLowerCase();
+          const desig = (item.designation?.name || '').toLowerCase();
+          if (
+            fn.includes('super admin') ||
+            ln.includes('super admin') ||
+            (fn === 'super' && ln === 'admin') ||
+            em.includes('admin@quickboom') ||
+            em.includes('admin@quikboom') ||
+            em.includes('superadmin') ||
+            desig.includes('super admin') ||
+            desig.includes('platform administrator')
+          ) {
+            continue;
+          }
+          employees.push({
+            id: Number(item.id),
+            firstName: item.firstName,
+            lastName: item.lastName,
+            email: item.email,
+            employeeCode: item.employeeCode,
+          });
+        }
         totalPages = Number(body?.pagination?.totalPages ?? root?.pagination?.totalPages ?? res?.pagination?.totalPages ?? 1);
         if (!Number.isSafeInteger(totalPages) || totalPages < 1) throw new Error('Invalid employee pagination');
         page++;
@@ -170,7 +194,30 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
-  const busy = edit.isPending || changeStage.isPending || deleteMutation.isPending;
+  const assignMutation = useMutation({
+    mutationFn: async (targetEmployeeId: number | null) => {
+      const result = await leadsApi.update(id, { assignedToId: targetEmployeeId });
+      if (result?.id !== id) throw new Error('The assignment response does not match the selected Lead');
+      return result;
+    },
+    onSuccess: async (updated, targetEmployeeId) => {
+      await saved(updated);
+      const emp = assignees.data?.find(e => e.id === targetEmployeeId);
+      const empName = emp
+        ? [emp.firstName, emp.lastName].filter(Boolean).join(' ') || `Employee #${emp.id}`
+        : targetEmployeeId
+        ? `Employee #${targetEmployeeId}`
+        : 'Unassigned';
+      toast.success(targetEmployeeId ? `Lead assigned to ${empName}` : 'Lead unassigned');
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+  const handleQuickAssign = (targetEmployeeId: number | null) => {
+    if (busy || assignMutation.isPending || !lead) return;
+    if (targetEmployeeId === (lead.assignedToId ?? null)) return;
+    assignMutation.mutate(targetEmployeeId);
+  };
+  const busy = edit.isPending || changeStage.isPending || deleteMutation.isPending || assignMutation.isPending;
   const fields = (values: Record<string, unknown>) => <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
     {Object.entries(values).map(([label, value]) => <div key={label} className="min-w-0">
       <dt className="text-xs font-medium text-slate-500">{label}</dt>
@@ -194,13 +241,21 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
               <option value="">Unassigned</option>
               {assignedToId !== null && !assignees.data?.some(employee => employee.id === assignedToId) &&
                 <option value={assignedToId}>{[lead.assignedTo?.firstName, lead.assignedTo?.lastName].filter(Boolean).join(' ') || `Employee #${assignedToId}`} (current)</option>}
-              {assignees.data?.map(employee => <option key={employee.id} value={employee.id}>
-                {[employee.firstName, employee.lastName].filter(Boolean).join(' ') || employee.employeeCode || `Employee #${employee.id}`}
-                {employee.employeeCode ? ` (${employee.employeeCode})` : ''}
-              </option>)}
+              {assignees.data?.map(employee => {
+                const name = [employee.firstName, employee.lastName].filter(Boolean).join(' ') || employee.employeeCode || `Employee #${employee.id}`;
+                const details = [employee.employeeCode, employee.email].filter(Boolean).join(' • ');
+                return (
+                  <option key={employee.id} value={employee.id}>
+                    {name}{details ? ` (${details})` : ''}
+                  </option>
+                );
+              })}
             </AdminSelect>
             {assignees.isFetching && <p role="status" className="text-xs text-slate-500">Loading BPO employees…</p>}
             {assignees.isError && <div role="alert" className="text-xs text-rose-700">{getErrorMessage(assignees.error)} <button type="button" onClick={() => assignees.refetch()}>Retry</button></div>}
+            {!assignees.isFetching && !assignees.isError && (!assignees.data || assignees.data.length === 0) && (
+              <p className="text-xs text-amber-700">No active BPO employees available to assign leads.</p>
+            )}
           </div>}
           <LeadFormFields value={form} onChange={setForm} disabled={busy} />
           {edit.isError && <p role="alert" className="text-sm text-rose-700">{getErrorMessage(edit.error)}</p>}
@@ -293,7 +348,81 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
               )}
             </AdminCard>
           </div>
-          <AdminCard title="Lead Information">{fields({ 'Lead ID': lead.id, Status: stage?.name || lead.status, Source: lead.source, 'Assigned To': [lead.assignedTo?.firstName, lead.assignedTo?.lastName].filter(Boolean).join(' ') || (lead.assignedToId ? `Employee #${lead.assignedToId}` : 'Unassigned'), 'Created from': lead.createdFrom, 'Created on': lead.createdAt ? new Date(lead.createdAt).toLocaleString() : null, 'Google Place ID': lead.googlePlaceId, Latitude: lead.latitude, Longitude: lead.longitude, Notes: lead.notes })}</AdminCard>
+          <AdminCard title="Lead Information">
+            <div className="space-y-4">
+              {canAssign && (
+                <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor="view-lead-assigned-to" className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                      Assigned To (BPO Team)
+                    </label>
+                    {assignMutation.isPending && (
+                      <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium" role="status">
+                        <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-[#23C45E] rounded-full animate-spin" />
+                        <span>Saving assignment…</span>
+                      </div>
+                    )}
+                  </div>
+                  <AdminSelect
+                    id="view-lead-assigned-to"
+                    value={lead.assignedToId ?? ''}
+                    disabled={busy || assignees.isFetching || assignMutation.isPending}
+                    onChange={(event) => {
+                      const val = event.target.value ? Number(event.target.value) : null;
+                      handleQuickAssign(val);
+                    }}
+                    className="!bg-white shadow-2xs"
+                  >
+                    <option value="">Unassigned</option>
+                    {lead.assignedToId !== null &&
+                      !assignees.data?.some(employee => employee.id === lead.assignedToId) && (
+                        <option value={lead.assignedToId}>
+                          {[lead.assignedTo?.firstName, lead.assignedTo?.lastName].filter(Boolean).join(' ') || `Employee #${lead.assignedToId}`} (current)
+                        </option>
+                      )}
+                    {assignees.data?.map(employee => {
+                      const name = [employee.firstName, employee.lastName].filter(Boolean).join(' ') || employee.employeeCode || `Employee #${employee.id}`;
+                      const details = [employee.employeeCode, employee.email].filter(Boolean).join(' • ');
+                      return (
+                        <option key={employee.id} value={employee.id}>
+                          {name}{details ? ` (${details})` : ''}
+                        </option>
+                      );
+                    })}
+                  </AdminSelect>
+                  {assignees.isFetching && (
+                    <p role="status" className="text-xs text-slate-500">Loading BPO employees…</p>
+                  )}
+                  {assignees.isError && (
+                    <div role="alert" className="text-xs text-rose-700 flex items-center gap-2">
+                      <span>Failed to load BPO employees: {getErrorMessage(assignees.error)}</span>
+                      <button type="button" className="underline font-semibold" onClick={() => assignees.refetch()}>Retry</button>
+                    </div>
+                  )}
+                  {!assignees.isFetching && !assignees.isError && (!assignees.data || assignees.data.length === 0) && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 font-medium">
+                      No active BPO employees available to handle leads.
+                    </div>
+                  )}
+                </div>
+              )}
+              {fields({
+                'Lead ID': lead.id,
+                Status: stage?.name || lead.status,
+                Source: lead.source,
+                ...(!canAssign ? {
+                  'Assigned To': [lead.assignedTo?.firstName, lead.assignedTo?.lastName].filter(Boolean).join(' ') ||
+                    (lead.assignedToId ? `Employee #${lead.assignedToId}` : 'Unassigned'),
+                } : {}),
+                'Created from': lead.createdFrom,
+                'Created on': lead.createdAt ? new Date(lead.createdAt).toLocaleString() : null,
+                'Google Place ID': lead.googlePlaceId,
+                Latitude: lead.latitude,
+                Longitude: lead.longitude,
+                Notes: lead.notes,
+              })}
+            </div>
+          </AdminCard>
         </>}
     </AdminFormDrawer>
     <AdminConfirmDialog

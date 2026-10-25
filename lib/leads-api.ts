@@ -77,7 +77,7 @@ export interface Lead {
   stage?: LeadStage;
   notes?: string | null;
   assignedToId?: number | null;
-  assignedTo?: { id: number; firstName?: string; lastName?: string; employeeCode?: string } | null;
+  assignedTo?: { id: number; firstName?: string; lastName?: string; employeeCode?: string; email?: string } | null;
   createdById: number;
   deletedAt?: string | null;
   createdAt: string;
@@ -169,6 +169,7 @@ export const leadsApi = {
   detail: async (id: number) => unwrap<Lead>(await api.get(`/leads/${id}`)),
   create: async (data: CreateLeadInput) => unwrap<Lead>(await api.post('/leads', { ...data, source: 'MANUAL', createdFrom: 'ADMIN_PANEL' })),
   update: async (id: number, data: UpdateLeadInput) => unwrap<Lead>(await api.patch(`/leads/${id}`, data)),
+  assign: async (id: number, assignedToId: number | null) => unwrap<Lead>(await api.patch(`/leads/${id}/assign`, { assignedToId })),
   stages: async (): Promise<LeadStage[]> => {
     const res = await api.get('/leads/stages');
     const data = unwrap<any>(res);
