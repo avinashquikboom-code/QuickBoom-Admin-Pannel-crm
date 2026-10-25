@@ -7,12 +7,18 @@ import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminConfirmDialog, AdminFormDrawer, AdminSelect } from '@/components/admin';
 import { CreateLeadInput, Lead, LeadStage, UpdateLeadInput, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
+import api from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import { isUserAdmin } from '@/lib/access-control';
 import { emptyLeadForm, LeadFormFields } from './LeadFormFields';
 
 export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   id: number; onClose: () => void; initialAction?: 'view' | 'edit' | 'stage';
 }) {
   const client = useQueryClient();
+  const user = useAuthStore(state => state.user);
+  const canAssign = isUserAdmin(user);
+  const [assignedToId, setAssignedToId] = useState<number | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const formElement = useRef<HTMLFormElement>(null);
   const submitLock = useRef(false);
@@ -30,6 +36,27 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   const stagesQuery = useQuery({ queryKey: ['lead-stages'], queryFn: leadsApi.stages, staleTime: 60_000 });
   const configuredStages = stagesQuery.data || [];
   const lead = detail.data;
+  const assignees = useQuery({
+    queryKey: ['lead-bpo-assignees'],
+    enabled: canAssign && editing,
+    queryFn: async ({ signal }) => {
+      const employees: Array<{ id: number; firstName?: string; lastName?: string; employeeCode?: string }> = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const res: any = await api.get('/employees', { signal, params: { bpoOnly: true, status: 'ACTIVE', page, limit: 100 } });
+        const root = res?.data ?? res;
+        const body = root?.data && !Array.isArray(root.data) ? root.data : root;
+        const items = Array.isArray(body) ? body : body?.items ?? body?.employees ?? body?.data;
+        if (!Array.isArray(items)) throw new Error('Invalid employee list response');
+        employees.push(...items);
+        totalPages = Number(body?.pagination?.totalPages ?? root?.pagination?.totalPages ?? res?.pagination?.totalPages ?? 1);
+        if (!Number.isSafeInteger(totalPages) || totalPages < 1) throw new Error('Invalid employee pagination');
+        page++;
+      } while (page <= totalPages);
+      return employees;
+    },
+  });
   const stage = lead?.stage || configuredStages.find(item => item.key === lead?.status);
 
   useEffect(() => {
@@ -39,6 +66,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   }, [stage?.key]);
   const beginEdit = (record: Lead) => {
     setForm(Object.fromEntries(Object.keys(emptyLeadForm).map(key => [key, record[key as keyof Lead] ?? ''])) as unknown as CreateLeadInput);
+    setAssignedToId(record.assignedToId ?? null);
     setEditing(true);
   };
   const initialized = useRef<string | null>(null);
@@ -110,6 +138,13 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
         .filter(([key, value]) => value !== (lead[key]?.trim() || ''))
         .map(([key, value]) => [key, key === 'email' ? value || null : value])
     ) as unknown as UpdateLeadInput;
+    if (canAssign && assignedToId !== (lead.assignedToId ?? null)) {
+      if (assignedToId !== null && !assignees.data?.some(employee => employee.id === assignedToId)) {
+        toast.error('Select an available BPO employee');
+        return;
+      }
+      data.assignedToId = assignedToId;
+    }
     if (!Object.keys(data).length) {
       toast('No changes to save');
       return;
@@ -152,6 +187,21 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
         : !lead ? <p role="status">Lead details are unavailable.</p>
         : editing ? <form ref={formElement} onSubmit={handleSave} className="space-y-4">
           <div className="flex items-center justify-between"><h3 className="font-semibold">Edit Lead</h3><AdminButton type="button" variant="ghost" size="sm" disabled={busy} onClick={() => setEditing(false)}>Cancel editing</AdminButton></div>
+          {canAssign && <div className="space-y-1.5">
+            <label htmlFor="lead-assigned-to" className="text-sm font-semibold text-slate-700">Assigned To</label>
+            <AdminSelect id="lead-assigned-to" value={assignedToId ?? ''} disabled={busy || assignees.isFetching}
+              onChange={event => setAssignedToId(event.target.value ? Number(event.target.value) : null)}>
+              <option value="">Unassigned</option>
+              {assignedToId !== null && !assignees.data?.some(employee => employee.id === assignedToId) &&
+                <option value={assignedToId}>{[lead.assignedTo?.firstName, lead.assignedTo?.lastName].filter(Boolean).join(' ') || `Employee #${assignedToId}`} (current)</option>}
+              {assignees.data?.map(employee => <option key={employee.id} value={employee.id}>
+                {[employee.firstName, employee.lastName].filter(Boolean).join(' ') || employee.employeeCode || `Employee #${employee.id}`}
+                {employee.employeeCode ? ` (${employee.employeeCode})` : ''}
+              </option>)}
+            </AdminSelect>
+            {assignees.isFetching && <p role="status" className="text-xs text-slate-500">Loading BPO employees…</p>}
+            {assignees.isError && <div role="alert" className="text-xs text-rose-700">{getErrorMessage(assignees.error)} <button type="button" onClick={() => assignees.refetch()}>Retry</button></div>}
+          </div>}
           <LeadFormFields value={form} onChange={setForm} disabled={busy} />
           {edit.isError && <p role="alert" className="text-sm text-rose-700">{getErrorMessage(edit.error)}</p>}
         </form> : <>
@@ -243,7 +293,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
               )}
             </AdminCard>
           </div>
-          <AdminCard title="Lead Information">{fields({ 'Lead ID': lead.id, Status: stage?.name || lead.status, Source: lead.source, 'Created from': lead.createdFrom, 'Created on': lead.createdAt ? new Date(lead.createdAt).toLocaleString() : null, 'Google Place ID': lead.googlePlaceId, Latitude: lead.latitude, Longitude: lead.longitude, Notes: lead.notes })}</AdminCard>
+          <AdminCard title="Lead Information">{fields({ 'Lead ID': lead.id, Status: stage?.name || lead.status, Source: lead.source, 'Assigned To': [lead.assignedTo?.firstName, lead.assignedTo?.lastName].filter(Boolean).join(' ') || (lead.assignedToId ? `Employee #${lead.assignedToId}` : 'Unassigned'), 'Created from': lead.createdFrom, 'Created on': lead.createdAt ? new Date(lead.createdAt).toLocaleString() : null, 'Google Place ID': lead.googlePlaceId, Latitude: lead.latitude, Longitude: lead.longitude, Notes: lead.notes })}</AdminCard>
         </>}
     </AdminFormDrawer>
     <AdminConfirmDialog

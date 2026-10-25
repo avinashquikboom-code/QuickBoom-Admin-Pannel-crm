@@ -77,6 +77,7 @@ export interface Lead {
   stage?: LeadStage;
   notes?: string | null;
   assignedToId?: number | null;
+  assignedTo?: { id: number; firstName?: string; lastName?: string; employeeCode?: string } | null;
   createdById: number;
   deletedAt?: string | null;
   createdAt: string;
@@ -151,7 +152,7 @@ export function normalizeLeadList(response: any, request: { page?: unknown; limi
   const normalized: LeadPagination = { page, limit, total, totalPages: calculatedPages };
   return { data: records, items: records, ...normalized, pagination: normalized };
 }
-export type UpdateLeadInput = Omit<Partial<CreateLeadInput>, 'email'> & { email?: string | null };
+export type UpdateLeadInput = Omit<Partial<CreateLeadInput>, 'email'> & { email?: string | null; assignedToId?: number | null };
 
 export const leadsApi = {
   list: async (params: Record<string, unknown>) => {
