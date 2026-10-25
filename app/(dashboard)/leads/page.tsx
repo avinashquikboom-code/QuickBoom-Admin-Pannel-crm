@@ -631,7 +631,50 @@ export default function LeadsPage() {
                   },
                 },
 
-                // 7. Source
+                // 7. Assigned To
+                {
+                  key: 'assignedTo',
+                  header: 'Assigned To',
+                  headerClassName: 'w-[14%]',
+                  render: lead => {
+                    const assignedName = [lead.assignedTo?.firstName, lead.assignedTo?.lastName]
+                      .filter(Boolean)
+                      .join(' ')
+                      .trim();
+                    if (assignedName) {
+                      const initial = assignedName[0].toUpperCase();
+                      return (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 border border-emerald-200/60">
+                            {initial}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-slate-800 text-xs truncate">{assignedName}</p>
+                            {lead.assignedTo?.employeeCode && (
+                              <p className="text-[10px] text-slate-400 font-medium truncate">
+                                {lead.assignedTo.employeeCode}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (lead.assignedToId) {
+                      return (
+                        <span className="text-xs text-slate-500 font-medium">
+                          Employee #{lead.assignedToId}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="inline-block text-[11px] font-medium text-slate-400 bg-slate-50 border border-slate-200/60 px-2 py-0.5 rounded-md">
+                        Unassigned
+                      </span>
+                    );
+                  },
+                },
+
+                // 8. Source
                 {
                   key: 'source',
                   header: 'Source',
