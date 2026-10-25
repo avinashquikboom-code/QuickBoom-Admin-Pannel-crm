@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, Check, ChevronRight, GitCommit, Trash2, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, ChevronRight, GitCommit, Pencil, Trash2, Users } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { AdminButton, AdminCard, AdminConfirmDialog, AdminPageHeader, AdminSelect } from '@/components/admin';
 import { LeadStage, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
+import { LeadDetailsDrawer } from '@/components/admin/drawers/LeadDetailsDrawer';
 
 export default function LeadDetailsPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function LeadDetailsPage() {
 
   const [selectedStageKey, setSelectedStageKey] = useState<string>('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     if (currentStage?.key) {
@@ -100,6 +102,14 @@ export default function LeadDetailsPage() {
         breadcrumbs={[{ label: 'Leads', href: '/leads' }, { label: lead ? String(lead.id) : 'Details' }]}
         actions={
           lead && (
+            <div className="flex items-center gap-2">
+            <AdminButton
+              icon={Pencil}
+              disabled={deleteMutation.isPending || updateStage.isPending}
+              onClick={() => setEditOpen(true)}
+            >
+              Edit Lead
+            </AdminButton>
             <AdminButton
               variant="outline"
               icon={Trash2}
@@ -109,6 +119,7 @@ export default function LeadDetailsPage() {
             >
               Delete Lead
             </AdminButton>
+            </div>
           )
         }
       />
@@ -253,6 +264,10 @@ export default function LeadDetailsPage() {
             </dl>
           </AdminCard>
         </>
+      )}
+
+      {editOpen && (
+        <LeadDetailsDrawer id={id} initialAction="edit" onClose={() => setEditOpen(false)} />
       )}
 
       <AdminConfirmDialog
