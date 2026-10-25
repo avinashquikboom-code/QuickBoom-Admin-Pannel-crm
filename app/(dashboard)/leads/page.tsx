@@ -30,6 +30,7 @@ import {
   AdminConfirmDialog,
   AdminDataTable,
   AdminFormDrawer,
+  AdminPageHeader,
   AdminPagination,
   AdminSelect,
   AdminStatCard,
@@ -203,67 +204,47 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-5 min-w-0 max-w-[1600px] mx-auto pb-16">
-      {/* 1. Header: Premium Dark Teal / Green Gradient Header Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#05291c] via-[#093c28] to-[#041f15] p-5 sm:p-7 text-white border border-emerald-800/40 shadow-xl shadow-emerald-950/20">
-        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute right-1/3 -bottom-16 h-48 w-48 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          {/* Title & Description */}
-          <div className="flex items-start sm:items-center gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center font-bold shadow-inner shrink-0">
-              <Users className="w-6 h-6 text-[#23C45E]" />
-            </div>
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                  Leads
-                </h1>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  CRM Pipeline
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-emerald-100/75 font-normal mt-1 max-w-2xl leading-relaxed">
-                Manage your business leads, track pipeline stages, and discover high-value opportunities.
-              </p>
-            </div>
-          </div>
-
-          {/* Right Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              type="button"
+      {/* 1. Header: Unified Dark Navy Gradient Header */}
+      <AdminPageHeader
+        title="Leads"
+        description="Manage your business leads, track pipeline stages, and discover high-value opportunities."
+        icon={Users}
+        badge={{
+          text: 'CRM Pipeline',
+          variant: 'emerald',
+          pulsingDot: true,
+        }}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AdminButton
+              variant="outline"
+              icon={Download}
               onClick={exportPage}
               disabled={!leads.length || list.isLoading}
               title={selectedOnPage.length ? 'Export selected Leads on this page' : 'Export Leads on the current page'}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/15 border border-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer active:scale-[0.98]"
+              className="bg-white/10 hover:bg-white/15 text-white border-white/20"
             >
-              <Download className="w-4 h-4" />
-              <span>Export</span>
-            </button>
+              Export
+            </AdminButton>
 
-            <button
-              type="button"
+            <AdminButton
+              variant="outline"
+              icon={MapPin}
               onClick={() => setPlacesOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+              className="bg-emerald-500/15 hover:bg-emerald-500/25 text-[#10B981] border-emerald-500/30"
             >
-              <MapPin className="w-4 h-4 text-emerald-400" />
-              <span>Google Places</span>
-            </button>
+              Google Places
+            </AdminButton>
 
-            <button
-              type="button"
+            <AdminButton
+              icon={Plus}
               onClick={() => setOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#23C45E] hover:bg-[#1AA14D] transition-all shadow-md shadow-emerald-950/30 cursor-pointer active:scale-[0.98]"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add Lead</span>
-            </button>
+              Add Lead
+            </AdminButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. Summary Cards: Real Pipeline Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
