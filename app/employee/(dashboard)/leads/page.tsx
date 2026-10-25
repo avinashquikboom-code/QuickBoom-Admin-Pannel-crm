@@ -236,7 +236,7 @@ export default function EmployeeLeadsPage() {
             const seen = new Set<string>();
             let page = 1;
             let totalPages = 1;
-            while (page <= totalPages && page <= 10) {
+            while (page <= totalPages) {
               const response: unknown = await api.get('/leads', {
                 ...authHeader,
                 params: {
@@ -292,6 +292,13 @@ export default function EmployeeLeadsPage() {
 
   useEffect(() => {
     fetchLeadsData();
+  }, [fetchLeadsData]);
+
+  useEffect(() => {
+    const reload = () => { if (document.visibilityState === 'visible') void fetchLeadsData(true); };
+    window.addEventListener('focus', reload);
+    document.addEventListener('visibilitychange', reload);
+    return () => { window.removeEventListener('focus', reload); document.removeEventListener('visibilitychange', reload); };
   }, [fetchLeadsData]);
 
   // ── Multi-select Handlers ──────────────────────────────────────────────────
