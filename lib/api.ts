@@ -112,7 +112,13 @@ export function getPersistedAuthSession() {
         userSwitched ||
         !activeStore._hasHydrated ||
         (!activeStore.token && Boolean(persisted.token)) ||
-        persistedExp > activeExp;
+        persistedExp > activeExp ||
+        // Access JWTs issued in the same second can be identical while the
+        // refresh token rotates. Storage holds the pair shared with other tabs.
+        (persistedExp === activeExp &&
+          isValidTokenString(persisted.refreshToken) &&
+          persisted.refreshToken !== activeStore.refreshToken &&
+          String(persisted.user?.id) === String(activeStore.user?.id));
 
       if (preferPersisted) {
         session = persisted;
@@ -232,7 +238,9 @@ export async function performTokenRefresh(): Promise<string> {
     if (employeePortal !== isEmployeePortalRoute() || before.user?.id !== current.user?.id) {
       throw new Error('Authentication session changed during refresh');
     }
-    if (current.token && current.token !== before.token) return current.token;
+    if (current.token && (
+      current.token !== before.token || current.refreshToken !== before.refreshToken
+    )) return current.token;
     return refreshCurrentSession();
   });
 }

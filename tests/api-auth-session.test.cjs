@@ -31,6 +31,62 @@ function fixture() {
   return { exports, storage, window, state, employee, hooks, axios };
 }
 const config = () => ({ method: 'get', url: '/employees/12', headers: new AxiosHeaders(), params: {} });
+test('Lead GET uses a refresh token rotated in another tab even when access token is unchanged', async () => {
+  const f = fixture();
+  f.window.location.pathname = '/leads';
+  f.storage.set('quikboom-next-auth-storage', JSON.stringify({ state: {
+    token: f.state.token, refreshToken: 'rotated-refresh', user: f.state.user,
+  } }));
+  let calls = 0;
+  f.axios.post = async (_url, body) => {
+    calls++;
+    assert.equal(body.refreshToken, 'rotated-refresh');
+    return { data: { accessToken: token(1, 4500000000), refreshToken: 'next-refresh' } };
+  };
+  const request = await f.hooks.request({ ...config(), url: '/leads', params: { limit: 1, status: 'NEW' } });
+  const retry = await f.hooks.error({ config: request, response: { status: 401 } });
+  assert.equal(calls, 1);
+  assert.equal(retry.url, '/leads');
+  assert.deepEqual(retry.params, { limit: 1, status: 'NEW' });
+  assert.equal(retry.headers.get('Authorization'), `Bearer ${f.state.token}`);
+});
+
+test('concurrent refresh with Web Locks reuses a rotated refresh pair when access token is identical', async () => {
+  const f = fixture();
+  let tail = Promise.resolve(), calls = 0;
+  f.window.navigator = { locks: { request(_name, run) {
+    const result = tail.then(run); tail = result.catch(() => {}); return result;
+  } } };
+  const access = f.state.token;
+  f.axios.post = async () => {
+    calls++;
+    return { data: { accessToken: access, refreshToken: `rotated-${calls}` } };
+  };
+  assert.deepEqual(await Promise.all([
+    f.exports.performTokenRefresh(), f.exports.performTokenRefresh(),
+  ]), [access, access]);
+  assert.equal(calls, 1);
+});
+
+test('expired Lead GET refreshes before sending; rejected refresh requires login', async () => {
+  const f = fixture(); f.window.location.pathname = '/leads'; f.state.token = token(1, 1);
+  let calls = 0;
+  f.axios.post = async () => {
+    calls++;
+    return { data: { accessToken: token(1, 4500000000), refreshToken: 'rotated' } };
+  };
+  const request = await f.hooks.request({ ...config(), url: '/leads', params: { limit: 1, status: 'NEW' } });
+  assert.equal(calls, 1);
+  assert.equal(request.headers.get('Authorization'), `Bearer ${f.state.token}`);
+  f.state.token = 'invalid-token';
+  const invalidRequest = await f.hooks.request({ ...config(), url: '/leads' });
+  f.axios.post = async () => { throw { response: { status: 401 } }; };
+  await assert.rejects(f.hooks.error({ config: invalidRequest, response: { status: 401 } }));
+  assert.equal(f.state.token, null);
+  assert.equal(f.state.refreshToken, null);
+  assert.equal(f.window.location.href, '/login');
+});
+
 test('current session wins over later-expiring legacy credentials; request uses Bearer', async () => {
   const f = fixture(); f.storage.set('accessToken', token(99, 5000000000));
   f.storage.set('refreshToken', 'unrelated');
