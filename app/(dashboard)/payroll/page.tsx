@@ -492,7 +492,7 @@ export default function PayrollPage() {
       });
       const items = res?.data?.data || res?.data?.items || res?.data || (Array.isArray(res) ? res : []);
       const list = Array.isArray(items) ? items : [];
-      let found = list.find((s: any) => String(s.employeeId) === String(empId) && (s.status === 'ACTIVE' || !s.status)) || list[0];
+      let found = list.find((s: any) => String(s.employeeId) === String(empId) && (s.status === 'ACTIVE' || !s.status));
 
       // Local query cache fallback if needed
       if (!found && Array.isArray(salaryStructures)) {
@@ -1292,6 +1292,7 @@ export default function PayrollPage() {
                   <th className="p-3">Basic Salary</th>
                   <th className="p-3">HRA</th>
                   <th className="p-3">Allowances</th>
+                  <th className="p-3">Gross Salary</th>
                   <th className="p-3">Deductions</th>
                   <th className="p-3">Net Payout</th>
                   <th className="p-3">Status</th>
@@ -1307,7 +1308,7 @@ export default function PayrollPage() {
                   return name.includes(q) || code.includes(q);
                 }).length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-400">
+                    <td colSpan={9} className="p-8 text-center text-slate-400">
                       No salary structures configured yet. Click "Add Structure" to set up employee compensation.
                     </td>
                   </tr>
@@ -1324,7 +1325,7 @@ export default function PayrollPage() {
                       const empName = `${st.employee?.firstName || ''} ${st.employee?.lastName || ''}`.trim() || `Employee #${st.employeeId}`;
                       const deptName = st.employee?.department?.name || st.employee?.designation?.name || 'General';
                       return (
-                        <tr key={st.id} className="hover:bg-slate-50/60 transition-colors">
+                        <tr key={st.id ?? `employee-${st.employeeId}`} className="hover:bg-slate-50/60 transition-colors">
                           <td className="p-3">
                             <div className="flex items-center gap-2.5">
                               <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-[10px]">
@@ -1339,6 +1340,7 @@ export default function PayrollPage() {
                           <td className="p-3 font-semibold text-slate-700">{formatCurrency(st.basicSalary)}</td>
                           <td className="p-3 text-slate-600">{formatCurrency(st.hra)}</td>
                           <td className="p-3 text-slate-600">{formatCurrency(Number(st.allowances || 0) + Number(st.specialAllowance || 0))}</td>
+                          <td className="p-3 font-semibold text-slate-700">{formatCurrency(st.grossSalary)}</td>
                           <td className="p-3 font-medium text-rose-600">{formatCurrency(st.totalDeductions || (Number(st.pf || 0) + Number(st.esi || 0) + Number(st.professionalTax || 0)))}</td>
                           <td className="p-3 font-black text-emerald-700">{formatCurrency(st.netSalary)}</td>
                           <td className="p-3">
@@ -1375,6 +1377,7 @@ export default function PayrollPage() {
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                 title="Delete Structure"
+                                disabled={!st.id}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
