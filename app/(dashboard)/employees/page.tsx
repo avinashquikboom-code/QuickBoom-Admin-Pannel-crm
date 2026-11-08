@@ -417,6 +417,7 @@ export default function EmployeesPage() {
         customerId: e.customerId,
         documents: e.documents || null,
         bankDetails: e.bankDetails || null,
+        salaryStructure: e.salaryStructure || null,
         emergencyContact: emergencyParsed || null,
         createdAt: e.createdAt || new Date().toISOString(),
         updatedAt: e.updatedAt || new Date().toISOString(),
