@@ -87,7 +87,7 @@ export default function LeadsRoute() {
     setAllowed(sessionCan('LEADS') || sessionCan('CRM'));
     setCanCapture(sessionCan('DATA_CAPTURE') || sessionCan('LEADS') || sessionCan('CRM'));
     setCanDelete(sessionCan('LEADS') || sessionCan('CRM'));
-    loadEmployees().then(setEmployees).catch(() => setEmployees([]));
+    loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
     loadDepartments().then(setDepartments).catch(() => setDepartments([]));
   }, []);
   const load = React.useCallback(async (query) => {
@@ -128,7 +128,7 @@ export default function LeadsRoute() {
           { key: 'status', label: 'All statuses', options: STATUSES.map((status) => ({ value: status, label: status })) },
           { key: 'priority', label: 'All priorities', options: PRIORITIES.map((item) => ({ value: item, label: item })) },
           { key: 'source', label: 'All sources', options: sourceOptions.map((item) => ({ value: item, label: item })) },
-          { key: 'assignedToId', label: 'All employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
+          { key: 'assignedToId', label: 'All BPO employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
           { key: 'from', label: 'From', type: 'date' },
           { key: 'to', label: 'To', type: 'date' },
         ]}
