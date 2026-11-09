@@ -296,7 +296,7 @@ export default function LeaveManagementPage() {
 
       {/* Table */}
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} />
-      {!loading && !error && <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No leave applications found.</div>}/>}
+      {!loading && !error && <DataTable hideToolbar columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No leave applications found.</div>}/>}
 
       <RequestDecisionDialogSwitch
         open={confirmDialog.open}

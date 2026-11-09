@@ -106,7 +106,7 @@ export default function CustomersPage() {
       {/* Table */}
       <Card className="border-slate-200/80 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <DataTable data={filtered} columns={[
+          <DataTable hideToolbar data={filtered} columns={[
 { header: 'Contact', cell: (c) => <>
                     <div>{c.name}</div>
                     <div className="text-[11px] text-slate-400">{c.email}</div>

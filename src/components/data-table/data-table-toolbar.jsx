@@ -14,13 +14,14 @@ export function DataTableToolbar({
     searchPlaceholder = 'Filter records...',
     facetedFilters = [],
     actions,
+    hideSearch = false,
 }) {
     const isFiltered = table.getState().columnFilters.length > 0 || !!table.getState().globalFilter;
 
     return (
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-slate-100">
             <div className="flex flex-1 flex-wrap items-center gap-2">
-                <div className="relative w-full sm:w-64 lg:w-72">
+                {!hideSearch && <div className="relative w-full sm:w-64 lg:w-72">
                     <FontAwesomeIcon
                         icon={faMagnifyingGlass}
                         className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-slate-400"
@@ -41,7 +42,7 @@ export function DataTableToolbar({
                         }}
                         className="h-8 pl-8 text-xs bg-slate-50/70 border-slate-200 focus-visible:bg-white focus-visible:ring-brand"
                     />
-                </div>
+                </div>}
 
                 {facetedFilters.map((filter) => {
                     const col = table.getColumn(filter.columnKey);

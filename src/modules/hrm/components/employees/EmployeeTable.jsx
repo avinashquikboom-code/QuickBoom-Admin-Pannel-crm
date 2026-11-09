@@ -137,8 +137,18 @@ export function EmployeeTable({ employees, onSelectEmployee, }) {
       </div>
 
       {/* Employees DataTable */}
-      <DataTable enableRowSelection label="Employees" columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">
+      <DataTable
+        hideToolbar
+        enableRowSelection
+        label="Employees"
+        columns={columns}
+        data={filtered}
+        pageSize={8}
+        emptyState={
+          <div className="py-8 text-center text-slate-500">
             No employees found matching the filters.
-          </div>}/>
+          </div>
+        }
+      />
     </div>);
 }

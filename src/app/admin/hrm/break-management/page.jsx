@@ -188,7 +188,7 @@ export default function BreakManagementPage() {
 
       {/* Table */}
       <HrmNotice loading={loading} error={error} />
-      {!loading && !error && <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No break logs recorded.</div>}/>}
+      {!loading && !error && <DataTable hideToolbar columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No break logs recorded.</div>}/>}
 
       {/* Manual Break FormDrawer */}
       <FormDrawer

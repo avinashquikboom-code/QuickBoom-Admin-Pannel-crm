@@ -29,13 +29,22 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { getSectionConfig } from '@/config/admin-sections';
 import { hrmError, loadOffices, loadTeams, removeOffice, removeTeam, saveOffice, saveTeam } from '@/modules/hrm/hrm-api';
+import { isLiveMasterSlug, MasterManagement } from '@/modules/master/MasterManagement';
 
 export default function SectionPage() {
     return (
         <React.Suspense fallback={<div className="p-8 text-center text-slate-400">Loading workspace...</div>}>
-            <SectionPageContent />
+            <SectionRoute />
         </React.Suspense>
     );
+}
+
+function SectionRoute() {
+    const params = useParams();
+    const raw = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+    const slug = String(raw || 'departments').toLowerCase();
+    if (isLiveMasterSlug(slug)) return <MasterManagement slug={slug} />;
+    return <SectionPageContent />;
 }
 
 function SectionPageContent() {
