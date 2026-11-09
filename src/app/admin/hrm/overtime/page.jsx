@@ -11,7 +11,7 @@ import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DataTable, DataTableColumnHeader, AdminRowActions } from '@/components/data-table';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faCheck, faDownload, faPlus, faRotateRight, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faDownload, faRotateRight, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
 import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import {
@@ -152,7 +152,7 @@ export default function OvertimePage() {
       <PageHeader
         title="Overtime Approvals"
         description="Review overtime requests, approve payable time, and send approved amounts to payroll."
-        actions={<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><Button type="button" variant="outline" className="h-9 text-xs" onClick={() => setRefresh((value) => value + 1)}><FontAwesomeIcon icon={faRotateRight} className="size-3.5" /> Refresh</Button><Button type="button" variant="outline" className="h-9 text-xs" onClick={() => rows.length ? downloadCsv('overtime-requests.csv', rows.map(csvRow)) : toast.error('There are no overtime requests to export')}><FontAwesomeIcon icon={faDownload} className="size-3.5" /> Export CSV</Button><Button type="button" className="h-9 bg-brand text-xs text-primary-foreground hover:bg-primary-hover" onClick={() => setCreateOpen(true)}><FontAwesomeIcon icon={faPlus} className="size-3.5" /> Add request</Button></div>}
+        actions={<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><Button type="button" variant="outline" className="h-9 text-xs" onClick={() => setRefresh((value) => value + 1)}><FontAwesomeIcon icon={faRotateRight} className="size-3.5" /> Refresh</Button><Button type="button" variant="outline" className="h-9 text-xs" onClick={() => rows.length ? downloadCsv('overtime-requests.csv', rows.map(csvRow)) : toast.error('There are no overtime requests to export')}><FontAwesomeIcon icon={faDownload} className="size-3.5" /> Export CSV</Button></div>}
       />
       <HrmStats items={[
         { label: 'Total requests', value: summary.totalRequests ?? 0 },
