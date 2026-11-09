@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { DataTable, DataTableColumnHeader } from '@/components/data-table';
+import { DataTable, DataTableColumnHeader, AdminRowActions } from '@/components/data-table';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faCheck, faDownload, faPlus, faRotateRight, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
@@ -207,7 +207,41 @@ export default function OvertimePage() {
 function RowActions({ row, onView, onApprove, onReject, onCancel }) {
   const pending = row.approvalStatus === 'PENDING';
   const cancellable = ['PENDING', 'APPROVED'].includes(row.approvalStatus) && !['PROCESSED', 'PAID'].includes(row.payrollStatus);
-  return <div className="flex justify-end gap-1"><Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => onView(row)}>View</Button>{pending ? <Button type="button" className="h-8 bg-brand px-2 text-xs text-primary-foreground" onClick={() => onApprove(row)}><FontAwesomeIcon icon={faCheck} className="size-3" /></Button> : null}{pending ? <Button type="button" variant="outline" className="h-8 px-2 text-xs text-rose-600" onClick={() => onReject(row)}><FontAwesomeIcon icon={faXmark} className="size-3" /></Button> : null}{cancellable ? <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => onCancel(row)}>Cancel</Button> : null}</div>;
+
+  const actions = [];
+  if (pending) {
+    actions.push({
+      label: 'Approve Request',
+      icon: faCheck,
+      onClick: () => onApprove(row),
+    });
+    actions.push({
+      label: 'Reject Request',
+      icon: faXmark,
+      variant: 'destructive',
+      onClick: () => onReject(row),
+    });
+  }
+  if (cancellable) {
+    actions.push({
+      label: 'Cancel Request',
+      icon: faXmark,
+      variant: 'destructive',
+      onClick: () => onCancel(row),
+    });
+  }
+
+  return (
+    <div className="flex justify-end">
+      <AdminRowActions
+        record={row}
+        recordName={row.employeeName ? `${row.employeeName}'s overtime` : 'Overtime request'}
+        onView={() => onView(row)}
+        viewLabel="View Request"
+        actions={actions}
+      />
+    </div>
+  );
 }
 
 function RequestCards({ rows, onView, onApprove, onReject, onCancel }) {

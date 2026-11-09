@@ -14,11 +14,13 @@ import {
     faArrowUp,
     faArrowsUpDown,
     faColumns,
+    faCopy,
     faEllipsis,
     faMagnifyingGlass,
     faInbox,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 import {
     Table,
     TableBody,
@@ -67,6 +69,7 @@ function DataTableContent({
     hideToolbar = false,
     hideSearch = false,
     toolbarActions,
+    onSelectionChange,
 }) {
     const [sorting, setSorting] = React.useState(() => initialSorting);
     const [globalFilter, setGlobalFilter] = React.useState('');
@@ -132,56 +135,50 @@ function DataTableContent({
             });
         }
 
-        result.push({
-            id: '__menu',
-            header: () => <span className="sr-only">Actions</span>,
-            enableSorting: false,
-            enableHiding: false,
-            cell: ({ row }) => (
-                <div className="flex items-center justify-end">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger
-                            render={
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
-                                    aria-label={`Actions for record ${row.id}`}
-                                />
-                            }
-                        >
-                            <FontAwesomeIcon icon={faEllipsis} className="size-3.5" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-white border-slate-200 shadow-md rounded-xl p-1">
-                            <DropdownMenuItem
-                                onClick={async () => {
-                                    try {
-                                        await navigator.clipboard.writeText(
-                                            String(row.original.id ?? row.id)
-                                        );
-                                        toast.success('Record ID copied');
-                                    } catch {
-                                        toast.error('Unable to access the clipboard');
-                                    }
-                                }}
-                                className="text-xs font-medium cursor-pointer rounded-lg"
-                            >
-                                Copy record ID
-                            </DropdownMenuItem>
-                            {rowActions.map((action) => (
-                                <DropdownMenuItem
-                                    key={action.label}
-                                    onClick={() => action.onSelect(row.original)}
-                                    className="text-xs font-medium cursor-pointer rounded-lg"
-                                >
-                                    {action.label}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            ),
-        });
+        const hasExistingActions = columns.some(
+            (c) =>
+                c.id === 'actions' ||
+                c.id === '__menu' ||
+                (typeof c.header === 'string' && /actions?/i.test(c.header))
+        );
+
+        if (!hasExistingActions || rowActions.length > 0) {
+            result.push({
+                id: '__menu',
+                header: () => <span className="sr-only">Actions</span>,
+                enableSorting: false,
+                enableHiding: false,
+                cell: ({ row }) => (
+                    <div className="flex items-center justify-end">
+                        <AdminRowActions
+                            row={row}
+                            actions={[
+                                {
+                                    label: 'Copy record ID',
+                                    icon: faCopy,
+                                    onClick: async () => {
+                                        try {
+                                            await navigator.clipboard.writeText(
+                                                String(row.original.id ?? row.id)
+                                            );
+                                            toast.success('Record ID copied');
+                                        } catch {
+                                            toast.error('Unable to access the clipboard');
+                                        }
+                                    },
+                                },
+                                ...rowActions.map((action) => ({
+                                    label: action.label,
+                                    icon: action.icon,
+                                    variant: action.variant || (action.label?.toLowerCase().includes('delete') ? 'destructive' : undefined),
+                                    onClick: () => action.onSelect(row.original),
+                                })),
+                            ]}
+                        />
+                    </div>
+                ),
+            });
+        }
 
         return result;
     }, [columns, data, enableRowSelection, rowActions]);
@@ -211,6 +208,25 @@ function DataTableContent({
             },
         },
     });
+
+    React.useEffect(() => {
+        table.setPageSize(Math.max(1, Math.floor(pageSize) || 10));
+        // Apply the latest page size after this render.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageSize]);
+
+    React.useEffect(() => {
+        setRowSelection({});
+    }, [data]);
+
+    const onSelectionChangeRef = React.useRef(onSelectionChange);
+    onSelectionChangeRef.current = onSelectionChange;
+    React.useEffect(() => {
+        if (typeof onSelectionChangeRef.current !== 'function') return;
+        onSelectionChangeRef.current(table.getSelectedRowModel().rows.map((row) => row.original));
+        // table is read from this render; rowSelection and data are the selection inputs.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rowSelection, data]);
 
     if (isLoading) {
         return (

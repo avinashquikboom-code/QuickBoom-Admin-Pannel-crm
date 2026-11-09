@@ -4,4 +4,4 @@ export { DataTablePagination } from './data-table-pagination';
 export { DataTableViewOptions } from './data-table-view-options';
 export { DataTableFacetedFilter } from './data-table-faceted-filter';
 export { DataTableColumnHeader } from './data-table-column-header';
-export { DataTableRowActions } from './data-table-row-actions';
+export { DataTableRowActions, AdminRowActions } from './data-table-row-actions';

@@ -12,6 +12,7 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 import { FormDrawer, DrawerFormField } from '@/components/common/drawers/FormDrawer';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/common/Drawer';
 import { Label } from '@/components/common/Label';
@@ -179,11 +180,24 @@ export default function LeadsPage() {
 { header: 'Status', cell: (lead) => <>
                       <StatusBadge status={lead.status}/>
                     </> },
-{ header: 'Actions', cell: (lead) => <>
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedLead(lead)} className="h-8 text-brand hover:text-brand-dark hover:bg-brand-light text-xs font-semibold">
-                        Details
-                      </Button>
-                    </>, className: 'text-right' }
+{ header: 'Actions', cell: (lead) => (
+                      <div className="flex items-center justify-end">
+                        <AdminRowActions
+                          record={lead}
+                          recordName={lead.name}
+                          onView={() => setSelectedLead(lead)}
+                          viewLabel="View Lead Dossier"
+                          onToggleStatus={() => {
+                            setLeads((prev) => prev.map((item) => item.id === lead.id ? { ...item, status: item.status === 'qualified' ? 'contacted' : 'qualified' } : item));
+                            toast.success('Lead status updated');
+                          }}
+                          onDelete={() => {
+                            setLeads((prev) => prev.filter((item) => item.id !== lead.id));
+                            toast.success('Lead deleted');
+                          }}
+                        />
+                      </div>
+                    ), className: 'text-right' }
 ]} />
         </div>
       </Card>

@@ -190,6 +190,25 @@ export function payPayrollItem(id) {
   return api.post(`/admin/payroll/items/${id}/pay`, {});
 }
 
+function targetPayload(payload) {
+  if (payload?.rows) return payload;
+  if (payload?.data?.rows) return payload.data;
+  return payload?.data || payload || { rows: [], employees: [], teams: [] };
+}
+
+export async function loadSalaryTargets(month, year) {
+  const payload = await api.get('/admin/payroll/targets', { params: { month, year } });
+  return targetPayload(payload);
+}
+
+export function saveSalaryTarget(body) {
+  return api.post('/admin/payroll/targets', body);
+}
+
+export function approveSalaryTarget(body) {
+  return api.post('/admin/payroll/targets/approve', body);
+}
+
 export async function loadSalarySlips() {
   const payload = await api.get('/admin/payroll/slips', { params: { page: 1, limit: 100 } });
   return listFrom(payload).map((slip) => {

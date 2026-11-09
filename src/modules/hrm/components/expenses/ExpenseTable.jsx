@@ -10,6 +10,7 @@ import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { faCheck, faPaperclip, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { faEye } from '@fortawesome/free-regular-svg-icons';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 export function ExpenseTable({ claims, onApprove, onReject, onViewDetail, }) {
     const columns = [
         {
@@ -64,20 +65,39 @@ export function ExpenseTable({ claims, onApprove, onReject, onViewDetail, }) {
         {
             header: 'Actions',
             className: 'text-right',
-            cell: (exp) => (<div className="flex items-center justify-end gap-1.5">
-          {exp.status === 'pending' ? (<>
-              <Button size="sm" onClick={() => onApprove(exp)} className="h-7.5 px-2.5 bg-brand hover:bg-primary-hover text-primary-foreground text-xs font-semibold">
-                <FontAwesomeIcon icon={faCheck} className="size-3.5 mr-1"/>
-                Approve
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => onReject(exp)} className="h-7.5 px-2 border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50 text-xs">
-                <FontAwesomeIcon icon={faXmark} className="size-3.5"/>
-              </Button>
-            </>) : (<Button size="sm" variant="ghost" onClick={() => onViewDetail(exp)} className="h-7.5 text-xs text-slate-600 hover:text-slate-900">
-              <FontAwesomeIcon icon={faEye} className="size-3.5 mr-1 text-slate-400"/>
-              Review
-            </Button>)}
-        </div>),
+            cell: (exp) => (
+                <div className="flex items-center justify-end">
+                    <AdminRowActions
+                        record={exp}
+                        recordName={exp.claimId ? `${exp.claimId} (${exp.employeeName})` : exp.employeeName}
+                        onView={() => onViewDetail(exp)}
+                        viewLabel="Review Claim"
+                        customActions={
+                            exp.status === 'pending'
+                                ? [
+                                    {
+                                        label: 'Approve Claim',
+                                        icon: faCheck,
+                                        onClick: () => onApprove(exp),
+                                    },
+                                    {
+                                        label: 'Reject Claim',
+                                        icon: faXmark,
+                                        variant: 'destructive',
+                                        confirm: {
+                                            title: `Reject Claim ${exp.claimId}?`,
+                                            description: `Are you sure you want to reject this expense claim of ${formatCurrency(exp.amount)}?`,
+                                            confirmLabel: 'Reject',
+                                            variant: 'destructive',
+                                        },
+                                        onClick: () => onReject(exp),
+                                    },
+                                ]
+                                : []
+                        }
+                    />
+                </div>
+            ),
         },
     ];
     return (<DataTable columns={columns} data={claims} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">

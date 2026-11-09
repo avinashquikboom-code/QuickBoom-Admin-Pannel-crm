@@ -1,4 +1,4 @@
-import { faBell, faBuilding, faClock, faIndianRupeeSign, faGauge, faLocationDot, faMugHot, faPeopleGroup, faPercent, faSackDollar, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
+import { faBell, faBuilding, faBullseye, faClock, faIndianRupeeSign, faGauge, faLocationDot, faMugHot, faPeopleGroup, faPercent, faSackDollar, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
 import { faCalendar, faCalendarCheck, faCalendarXmark, faFileLines } from '@fortawesome/free-regular-svg-icons';
 export const navigation = [
         {
@@ -42,6 +42,12 @@ export const navigation = [
             name: 'Payroll',
             href: '/admin/hrm/payroll',
             icon: faWallet,
+            tag: 'PAYROLL',
+        },
+        {
+            name: 'Target Salary',
+            href: '/admin/hrm/salary-targets',
+            icon: faBullseye,
             tag: 'PAYROLL',
         },
         {
