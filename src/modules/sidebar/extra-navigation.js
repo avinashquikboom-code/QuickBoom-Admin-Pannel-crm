@@ -64,30 +64,31 @@ export const templatesNavigation = [
 ];
 
 export const aiSocialNavigation = [
-    { name: 'AI Studio & Social', href: '/admin/sections/ai-studio', icon: faStar },
-    { name: 'AI Credits Management', href: '/admin/sections/ai-credits', icon: faCreditCard },
-    { name: 'SSM Account Access Details', href: '/admin/sections/ssm-access', icon: faShareNodes },
+    { name: 'AI Studio & Social', href: '/admin/ai-studio', icon: faStar },
+    { name: 'AI Credits Management', href: '/admin/ai-credits', icon: faCreditCard },
+    { name: 'SSM Account Access Details', href: '/admin/ssm-access', icon: faShareNodes },
 ];
 
 export const influencerNavigation = [
-    { name: 'Influencer Hub', href: '/admin/sections/influencer-hub', icon: faIdBadge },
-    { name: 'Influencer Applications', href: '/admin/sections/influencer-applications', icon: faUsers },
-    { name: 'Influencer Bookings', href: '/admin/sections/influencer-bookings', icon: faClock },
+    { name: 'Influencer Hub', href: '/admin/influencers', icon: faIdBadge },
+    { name: 'Influencer Applications', href: '/admin/influencers/applications', icon: faUsers },
+    { name: 'Influencer Bookings', href: '/admin/influencers/bookings', icon: faClock },
 ];
 
 export const contentNavigation = [
-    { name: 'Trending Content', href: '/admin/sections/trending-content', icon: faChartBar },
-    { name: 'Home Banners', href: '/admin/sections/home-banners', icon: faImage },
-    { name: 'Marketing Videos', href: '/admin/sections/marketing-videos', icon: faVideo },
+    { name: 'Trending Content', href: '/admin/content/trending', icon: faChartBar },
+    { name: 'Home Banners', href: '/admin/content/banners', icon: faImage },
+    { name: 'Marketing Videos', href: '/admin/content/videos', icon: faVideo },
 ];
 
 export const settingsNavigation = [
     { name: 'General Settings', href: '/admin/settings', icon: faGear, matchExact: true },
-    { name: 'Company Settings', href: '/admin/sections/company-settings', icon: faBuilding },
-    { name: 'User Management', href: '/admin/sections/user-management', icon: faUsers },
+    { name: 'Company Settings', href: '/admin/settings/company', icon: faBuilding },
+    { name: 'User Management', href: '/admin/settings/users', icon: faUsers },
+    { name: 'Roles & Permissions', href: '/admin/settings/roles', icon: faIdBadge },
     { name: 'Integrations', href: '/admin/settings/integrations', icon: faBolt },
-    { name: 'Notifications', href: '/admin/sections/notification-center', icon: faBell },
+    { name: 'Notifications', href: '/admin/settings/notifications', icon: faBell },
     { name: 'Data Management', href: '/admin/settings/data-management', icon: faTrash },
-    { name: 'Commission Settings', href: '/admin/sections/commission-settings', icon: faCreditCard },
-    { name: 'Activity Logs', href: '/admin/sections/activity-logs', icon: faChartBar },
+    { name: 'Commission Settings', href: '/admin/settings/commissions', icon: faCreditCard },
+    { name: 'Activity Logs', href: '/admin/settings/activity-logs', icon: faChartBar },
 ];

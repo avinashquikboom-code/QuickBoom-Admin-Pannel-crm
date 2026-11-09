@@ -52,7 +52,7 @@ const groups = [
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
     { name: 'Content Management', icon: faVideo, items: contentNavigation },
     { name: 'Data Management', icon: faTrash, href: '/admin/settings/data-management' },
-    { name: 'Reports', icon: faChartBar, href: '/admin/sections/reports' },
+    { name: 'Reports', icon: faChartBar, href: '/admin/reports' },
     { name: 'Settings', icon: faGear, items: settingsNavigation },
 ];
 
