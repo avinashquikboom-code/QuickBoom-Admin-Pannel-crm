@@ -643,7 +643,7 @@ function LeavePolicyScreen({ config }) {
 
 function ScreenFrame({ config, kpis, tab, onTab, counts, query, onQuery, placeholder, notice, onRefresh, onExport, onCreate, createLabel, children }) {
   return (
-    <div className="space-y-6 overflow-x-hidden">
+    <div className="space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
       <PageHeader
         category={config.category}
         title={config.title}
@@ -658,19 +658,21 @@ function ScreenFrame({ config, kpis, tab, onTab, counts, query, onQuery, placeho
         )}
       />
       <KpiGrid cards={kpis.map((item) => ({ ...item, icon: config.icon }))} />
-      {notice ? <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-600">{notice}</p> : null}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      {notice ? <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs leading-relaxed text-slate-600 break-words">{notice}</p> : null}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between w-full min-w-0">
         {onTab ? (
-          <SegmentedTabs
-            tabs={[
-              { label: 'All', value: 'all', count: counts.all },
-              { label: 'Active', value: 'active', count: counts.active },
-              { label: 'Inactive', value: 'inactive', count: counts.inactive },
-              { label: 'Archived', value: 'archived', count: 0 },
-            ]}
-            value={tab}
-            onChange={onTab}
-          />
+          <div className="w-full lg:w-auto overflow-x-auto">
+            <SegmentedTabs
+              tabs={[
+                { label: 'All', value: 'all', count: counts.all },
+                { label: 'Active', value: 'active', count: counts.active },
+                { label: 'Inactive', value: 'inactive', count: counts.inactive },
+                { label: 'Archived', value: 'archived', count: 0 },
+              ]}
+              value={tab}
+              onChange={onTab}
+            />
+          </div>
         ) : <span />}
         {onQuery ? <Input value={query} onChange={(event) => onQuery(event.target.value)} placeholder={placeholder} className="h-9 w-full text-xs lg:max-w-xs" /> : null}
       </div>

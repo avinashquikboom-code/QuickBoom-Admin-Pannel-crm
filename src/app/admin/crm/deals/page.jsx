@@ -14,9 +14,14 @@ const STAGE_ORDER = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation',
 const inr = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0);
 
 function leadName(lead) {
-  if (!lead) return '—';
-  const name = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
-  return name || lead.title || '—';
+  if (!lead?.id) return 'Not Linked';
+  const person = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+  return person || lead.name || lead.title || lead.companyName || `Lead #${lead.id}`;
+}
+
+function LeadLink({ lead, onOpen }) {
+  if (!lead?.id) return <span className="text-[#718078]">Not Linked</span>;
+  return <button type="button" className="font-semibold text-[#163A2E] underline-offset-2 hover:underline" onClick={() => onOpen?.({ lead })}>{leadName(lead)}</button>;
 }
 
 function dateLabel(value) {
@@ -61,18 +66,24 @@ export default function DealsRoute() {
       { key: 'closeTo', label: 'Expected close to', type: 'date' },
     ]}
     below={(rows) => <Pipeline rows={rows} />}
-    columns={[
+    columns={({ open }) => [
       { header: 'Deal Name', accessorKey: 'title' },
       { header: 'Deal Value', cell: (row) => inr(row.amount) },
       { header: 'Customer / Company', cell: (row) => row.company?.name || row.lead?.companyName || row.contact?.firstName || '—' },
-      { header: 'Lead Name', cell: (row) => leadName(row.lead) },
+      { header: 'Lead Name', cell: (row) => <LeadLink lead={row.lead} onOpen={() => open(row)} /> },
+      { header: 'Lead Mobile Number', cell: (row) => row.lead?.phone || row.lead?.mobileNumber || 'Not Linked' },
+      { header: 'Lead Email', cell: (row) => row.lead?.email || 'Not Linked' },
       { header: 'Deal Stage', cell: (row) => <StageBadge name={row.stage?.name} won={row.isWon} lost={row.isLost} /> },
       { header: 'Probability', cell: (row) => row.probability == null ? '—' : `${row.probability}%` },
       { header: 'Expected Close Date', cell: (row) => String(row.expectedClosing || '').slice(0, 10) || '—' },
       { header: 'Assigned Employee', cell: (row) => personName(row.assignedTo) },
-      { header: 'Next Follow-up Date', cell: (row) => dateLabel(row.nextFollowUpDate) },
+      { header: 'Next Follow-up Date', cell: (row) => row.lead ? dateLabel(row.nextFollowUpDate) : 'Not Linked' },
       { header: 'Deal Status', cell: (row) => <StatusBadge status={row.isWon ? 'won' : row.isLost ? 'lost' : 'open'} /> },
     ]}
+    gap={(rows) => {
+      const missing = (rows || []).filter((row) => !row.lead?.id);
+      return missing.length ? { title: 'Deals without a lead link', detail: `${missing.length} deal${missing.length === 1 ? '' : 's'} on this page have no lead id, converted deal, or converted contact: ${missing.map((row) => row.title).join(', ')}. They are not linked automatically by name.` } : null;
+    }}
     renderForm={(form, setForm) => <div className="grid gap-3 sm:grid-cols-2"><Field label="Title"><Input required value={form.title || ''} onChange={(event) => setForm({ ...form, title: event.target.value })} /></Field><Field label="Amount"><Input required type="number" value={form.amount || ''} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field><Field label="Lead id"><Input value={form.leadId || ''} onChange={(event) => setForm({ ...form, leadId: event.target.value })} /></Field><Field label="Contact id"><Input value={form.contactId || ''} onChange={(event) => setForm({ ...form, contactId: event.target.value })} /></Field><Field label="Company id"><Input value={form.companyId || ''} onChange={(event) => setForm({ ...form, companyId: event.target.value })} /></Field><Field label="Assigned user id"><Input value={form.assignedToId || ''} onChange={(event) => setForm({ ...form, assignedToId: event.target.value })} /></Field><Field label="Expected closing"><Input type="date" value={String(form.expectedClosing || '').slice(0, 10)} onChange={(event) => setForm({ ...form, expectedClosing: event.target.value })} /></Field><Field label="Probability"><Input type="number" value={form.probability || ''} onChange={(event) => setForm({ ...form, probability: event.target.value })} /></Field></div>}
     onSave={async (form, id) => { await saveDeal(form, id); toast.success(id ? 'Deal updated' : 'Deal created'); }}
     detail={(row) => <DealDetail row={row} />}
@@ -89,8 +100,8 @@ function DealDetail({ row }) {
     <p className="text-base font-semibold">{row.title}</p>
     <div className="grid gap-2 sm:grid-cols-2">
       <p>Lead name: {leadName(lead)}</p>
-      <p>Mobile: {lead?.phone || '—'}</p>
-      <p>Email: {lead?.email || '—'}</p>
+      <p>Mobile: {lead?.phone || lead?.mobileNumber || 'Not Linked'}</p>
+      <p>Email: {lead?.email || 'Not Linked'}</p>
       <p>Company: {lead?.companyName || row.company?.name || '—'}</p>
       <p>Lead source: {lead?.source || '—'}</p>
       <p>Lead status: {lead?.stage?.name || lead?.status || '—'}</p>

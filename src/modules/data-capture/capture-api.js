@@ -20,6 +20,24 @@ export async function loadCaptureHistory() {
   return rowsOf(payload);
 }
 
+export async function loadCaptureSessions(params = {}) {
+  const payload = await api.get('/data-capture/sessions', { params });
+  const body = payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
+  return {
+    rows: Array.isArray(payload?.data) ? payload.data : rowsOf(payload),
+    summary: payload?.summary || body?.summary || {},
+    meta: payload?.meta || body?.meta || {},
+    pagination: payload?.pagination || body?.pagination || {},
+  };
+}
+
+export const loadCaptureSession = (jobId) => api.get(`/data-capture/sessions/${encodeURIComponent(jobId)}`);
+export const retryFailedCapture = (jobId) => api.post(`/data-capture/sessions/${encodeURIComponent(jobId)}/retry-failed`, {});
+
+export function exportCaptureSessions(params = {}, format = 'csv') {
+  return api.get('/data-capture/sessions/export', { params: { ...params, format }, responseType: 'blob' });
+}
+
 export function createCapture(values) {
   return api.post('/data-capture', {
     businessName: values.businessName,
