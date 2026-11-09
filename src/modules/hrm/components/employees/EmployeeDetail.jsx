@@ -116,22 +116,28 @@ export function EmployeeDetail({ employee, open, onOpenChange, }) {
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-slate-500">
                   <FontAwesomeIcon icon={faIndianRupeeSign} className="size-4 text-brand shrink-0"/>
-                  Basic Monthly
+                  Registered Monthly Salary
                 </span>
                 <span className="font-bold text-slate-900">
-                  {formatCurrency(employee.salary.basic)}
+                  {employee.registeredSalary == null ? 'Not set' : formatCurrency(employee.registeredSalary)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Monthly Allowances</span>
+                <span className="text-slate-500">HRA</span>
                 <span className="font-semibold text-slate-800">
-                  {formatCurrency(employee.salary.allowances)}
+                  {formatCurrency(employee.salary?.hra || 0)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Overtime Hourly Rate</span>
+                <span className="text-slate-500">Allowances</span>
+                <span className="font-semibold text-slate-800">
+                  {formatCurrency(employee.salary?.allowances || 0)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Net before payroll adjustments</span>
                 <span className="font-semibold text-brand-dark">
-                  {formatCurrency(employee.salary.hourlyRate)}/hr
+                  {employee.salary?.net == null ? 'Not set' : formatCurrency(employee.salary.net)}
                 </span>
               </div>
             </div>

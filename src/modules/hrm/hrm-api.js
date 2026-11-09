@@ -62,12 +62,22 @@ export async function loadEmployees(params = {}) {
       joinDate: employee.joiningDate ? String(employee.joiningDate).slice(0, 10) : '—',
       phone: employee.phone || '—',
       email: employee.email || '—',
+      registeredSalary: employee.registeredSalary ?? employee.salary?.registered ?? employee.salary?.basic ?? null,
+      salary: employee.salary || null,
     };
   });
 }
 
 export async function createEmployee(values) {
   await api.post('/employees', values);
+}
+
+export function updateEmployee(id, values) {
+  return api.patch(`/employees/${id}`, values);
+}
+
+export function deactivateEmployee(id) {
+  return api.delete(`/employees/${id}`);
 }
 
 export async function loadLiveDashboard(date) {
@@ -171,7 +181,8 @@ export async function loadPayrollItems() {
       employeeName: personName(employee),
       employeeId: String(employee.employeeCode || employee.id || ''),
       department: employee.department?.name || 'General',
-      basicSalary: Number(item.grossSalary || 0),
+      registeredSalary: Number(item.registeredSalary || item.basicSalary || 0),
+      basicSalary: Number(item.basicSalary || 0),
       allowances: 0,
       overtimePay: Number(item.commission || 0),
       reimbursements: Number(item.reimbursement || 0),
@@ -224,8 +235,9 @@ export async function loadSalarySlips() {
       totalDeductions: Number(slip.totalDeductions || 0),
       netPay: Number(slip.netSalary || 0),
       status: String(slip.status || '').toLowerCase(),
-      basicSalary: Number(slip.grossSalary || 0),
-      allowances: 0,
+      registeredSalary: Number(slip.registeredSalary || slip.basicSalary || 0),
+      basicSalary: Number(slip.basicSalary || 0),
+      allowances: Number(slip.allowances || 0),
       deductions: { tax: 0 },
     };
   });
@@ -291,6 +303,27 @@ function objectFrom(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
   if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) return payload.data;
   return payload;
+}
+
+export function sessionCanAction(moduleName, action) {
+  if (typeof window === 'undefined') return false;
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('quikboom-next-auth-storage') || '{}')?.state?.user || null;
+  } catch {
+    user = null;
+  }
+  if (!user) return false;
+  const wanted = String(action || '').toUpperCase();
+  const permissions = Array.isArray(user.permissions) ? user.permissions : null;
+  if (permissions) {
+    return permissions.some((permission) => {
+      const code = String(typeof permission === 'string' ? permission : permission?.code || `${permission?.module}:${permission?.action}`).toUpperCase();
+      const [module, permissionAction] = code.split(':');
+      return code === '*' || ((module === String(moduleName).toUpperCase() || module === 'HRM') && ['ALL', 'MANAGE', wanted, wanted === 'EDIT' ? 'UPDATE' : 'DEACTIVATE'].includes(permissionAction));
+    });
+  }
+  return sessionCan(moduleName);
 }
 
 export function sessionCan(moduleName) {

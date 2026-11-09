@@ -8,9 +8,7 @@ import { Label } from '@/components/common/Label';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { disconnectIntegration, loadIntegrations, saveIntegration, setIntegrationEnabled, suiteError, testIntegration } from '@/modules/suite/suite-api';
-import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faEllipsisVertical } from '@fortawesome/free-solid-svg-icons';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 import { toast } from '@/hooks/use-toast';
 
 const PRESENTATION = {
@@ -166,15 +164,11 @@ export default function IntegrationsPage() {
               </div>
               <div className="flex items-center gap-1">
                 <ConnectionBadge status={busy ? 'TESTING' : row.status} />
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="inline-flex size-8 items-center justify-center rounded-md text-[#172B24] hover:bg-[#E8F1EC]" aria-label={`${labelOf(row)} actions`}>
-                    <FontAwesomeIcon icon={faEllipsisVertical} className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => run(() => setIntegrationEnabled(row.provider, !row.isEnabled))}>{row.isEnabled ? 'Disable' : 'Enable'}</DropdownMenuItem>
-                    {row.status !== 'NOT_CONFIGURED' && <DropdownMenuItem variant="destructive" onClick={() => disconnect(row)}>Disconnect</DropdownMenuItem>}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <AdminRowActions record={row} recordName={labelOf(row)} disabled={busy}
+                  onToggleStatus={() => run(() => setIntegrationEnabled(row.provider, !row.isEnabled))}
+                  statusLabel={row.isEnabled ? 'Disable' : 'Enable'}
+                  actions={row.status !== 'NOT_CONFIGURED' ? [{ label: 'Disconnect', variant: 'destructive', confirm: false, onClick: () => disconnect(row) }] : []}
+                />
               </div>
             </div>
             <p className="mt-3 text-xs text-[#718078]">Last tested: {testedAt || '—'}</p>

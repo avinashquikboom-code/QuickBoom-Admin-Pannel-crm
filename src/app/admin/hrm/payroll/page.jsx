@@ -147,6 +147,10 @@ export default function PayrollPage() {
                     Earnings
                   </span>
                   <div className="flex justify-between">
+                    <span className="text-slate-500">Registered Monthly Salary</span>
+                    <span className="font-semibold text-slate-800">{formatCurrency(selectedRecord.registeredSalary || selectedRecord.basicSalary)}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-slate-500">Basic Salary</span>
                     <span className="font-semibold text-slate-800">
                       {formatCurrency(selectedRecord.basicSalary)}

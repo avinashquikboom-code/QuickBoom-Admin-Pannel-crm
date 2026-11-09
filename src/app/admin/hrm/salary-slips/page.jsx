@@ -195,6 +195,10 @@ export default function SalarySlipsPage() {
                     Gross Earnings
                   </span>
                   <div className="flex justify-between">
+                    <span>Registered salary:</span>
+                    <span>{formatCurrency(activeSlip.registeredSalary || activeSlip.basicSalary)}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span>Basic Salary:</span>
                     <span>{formatCurrency(activeSlip.basicSalary)}</span>
                   </div>
