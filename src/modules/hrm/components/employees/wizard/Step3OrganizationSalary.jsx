@@ -184,7 +184,7 @@ export function Step3OrganizationSalary({ onValidationChange }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <InputField
-              label="Basic Salary (₹)"
+              label="Monthly Salary (₹)"
               required
               type="number"
               placeholder="50000"

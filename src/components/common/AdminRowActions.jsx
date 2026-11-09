@@ -2,14 +2,6 @@
 
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import {
@@ -20,7 +12,6 @@ import {
     faCircleInfo,
     faCopy,
     faDownload,
-    faEllipsis,
     faEye,
     faPenToSquare,
     faRotateLeft,
@@ -91,6 +82,7 @@ export function AdminRowActions({
     onDelete,
     deleteLabel = 'Delete',
     deleteIcon,
+    deleteDescription,
     confirmDelete = true,
     actions = [],
     customActions = [],
@@ -146,7 +138,7 @@ export function AdminRowActions({
             setConfirmState({
                 open: true,
                 title: `Delete ${title}?`,
-                description: `Are you sure you want to delete this record? This action cannot be undone.`,
+                description: deleteDescription || `Are you sure you want to delete ${title}? This action cannot be undone.`,
                 confirmLabel: 'Delete',
                 variant: 'destructive',
                 onConfirm: () => onDelete(item),
@@ -154,7 +146,7 @@ export function AdminRowActions({
         } else {
             onDelete(item);
         }
-    }, [onDelete, confirmDelete, title, item]);
+    }, [onDelete, confirmDelete, deleteDescription, title, item]);
 
     // Handle archive with optional confirmation
     const handleArchive = React.useCallback(() => {
@@ -307,96 +299,34 @@ export function AdminRowActions({
     const totalActions = combinedStandard.length + destructiveActions.length;
     if (totalActions === 0) return null;
 
+    const visibleActions = [...combinedStandard, ...destructiveActions];
+
     return (
         <>
-            <DropdownMenu>
-                <DropdownMenuTrigger
-                    render={
+            <div className={cn('flex items-center justify-end gap-1', className)}>
+                {visibleActions.map((act) => {
+                    const tone = act.isDestructive
+                        ? 'text-[#DC2626] hover:bg-rose-50'
+                        : act.id === 'edit'
+                          ? 'text-[#163A2E] hover:bg-[#E8F1EC]'
+                          : 'text-slate-600 hover:bg-slate-100';
+                    return (
                         <Button
+                            key={act.id}
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            disabled={disabled}
-                            className={cn(
-                                'size-8 rounded-lg border border-transparent text-slate-500',
-                                'hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200/60',
-                                'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1',
-                                'data-[state=open]:bg-emerald-50 data-[state=open]:text-emerald-800 data-[state=open]:border-emerald-200/80',
-                                'transition-all duration-150 shrink-0 cursor-pointer',
-                                className
-                            )}
-                            title="More actions"
-                            aria-label={`More actions for ${title}`}
-                        />
-                    }
-                >
-                    <FontAwesomeIcon icon={faEllipsis} className="size-3.5" />
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent
-                    align={align}
-                    side={side}
-                    sideOffset={4}
-                    className="w-48 bg-white border border-slate-200/90 shadow-lg shadow-slate-200/60 rounded-xl p-1 z-50 text-xs"
-                >
-                    {combinedStandard.length > 0 && (
-                        <DropdownMenuGroup>
-                            {combinedStandard.map((act) => (
-                                <DropdownMenuItem
-                                    key={act.id}
-                                    disabled={act.disabled}
-                                    onClick={act.onClick}
-                                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 focus:bg-emerald-50 focus:text-emerald-800 transition-colors cursor-pointer select-none"
-                                >
-                                    {act.icon && (
-                                        <FontAwesomeIcon
-                                            icon={act.icon}
-                                            className="size-3.5 text-slate-400 shrink-0"
-                                        />
-                                    )}
-                                    <span className="truncate">{act.label}</span>
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuGroup>
-                    )}
-
-                    {destructiveActions.length > 0 && (
-                        <>
-                            {combinedStandard.length > 0 && (
-                                <DropdownMenuSeparator className="-mx-1 my-1 h-px bg-slate-100" />
-                            )}
-                            <DropdownMenuGroup>
-                                {destructiveActions.map((act) => (
-                                    <DropdownMenuItem
-                                        key={act.id}
-                                        disabled={act.disabled}
-                                        onClick={act.onClick}
-                                        className={cn(
-                                            'flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer select-none',
-                                            act.isDestructive
-                                                ? 'text-rose-600 hover:bg-rose-50 hover:text-rose-700 focus:bg-rose-50 focus:text-rose-700'
-                                                : 'text-amber-700 hover:bg-amber-50 hover:text-amber-800 focus:bg-amber-50 focus:text-amber-800'
-                                        )}
-                                    >
-                                        {act.icon && (
-                                            <FontAwesomeIcon
-                                                icon={act.icon}
-                                                className={cn(
-                                                    'size-3.5 shrink-0',
-                                                    act.isDestructive
-                                                        ? 'text-rose-500'
-                                                        : 'text-amber-600'
-                                                )}
-                                            />
-                                        )}
-                                        <span className="truncate">{act.label}</span>
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuGroup>
-                        </>
-                    )}
-                </DropdownMenuContent>
-            </DropdownMenu>
+                            disabled={disabled || act.disabled}
+                            title={act.label}
+                            aria-label={`${act.label} ${title}`}
+                            className={cn('size-8 rounded-lg', tone)}
+                            onClick={act.onClick}
+                        >
+                            {act.icon && <FontAwesomeIcon icon={act.icon} className="size-4" />}
+                        </Button>
+                    );
+                })}
+            </div>
 
             {/* Built-in Confirmation Dialog */}
             {confirmState.open && (

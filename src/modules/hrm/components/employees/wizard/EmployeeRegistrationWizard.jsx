@@ -105,31 +105,16 @@ export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess }) {
 
     setLoading(true);
     try {
-      // Simulate API call to create employee
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
       const data = store.getAllData();
-      const newEmployeeId = `EMP-${1000 + Math.floor(Math.random() * 9000)}`;
-
-      // Here you would make an actual API call
-      // const response = await fetch('/api/employees', { method: 'POST', body: JSON.stringify(data) });
-
-      console.log('Employee Registration Data:', {
-        ...data,
-        employeeId: newEmployeeId,
-      });
+      await onSuccess?.(data);
 
       toast.success('Employee Registered Successfully', {
-        description: `${data.personal.firstName} ${data.personal.lastName} (${newEmployeeId}) has been onboarded.`,
+        description: `${data.personal.firstName} ${data.personal.lastName} has been onboarded.`,
       });
 
       // Reset and close
       store.reset();
       onOpenChange(false);
-      onSuccess?.({
-        ...data,
-        employeeId: newEmployeeId,
-      });
     } catch (error) {
       toast.error('Registration Failed', {
         description: error.message || 'Please try again',

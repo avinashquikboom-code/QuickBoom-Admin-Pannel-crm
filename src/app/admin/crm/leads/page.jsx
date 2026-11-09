@@ -12,7 +12,8 @@ import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
 import { addLeadNote, archiveLeads, bulkAssignLeads, bulkLeadPriority, bulkLeadStatus, checkLeadDuplicate, convertLead, crmError, listLeadPage, loadEmployees, loadLeadNotes, loadLeads, personName, removeLead, saveLead, sessionCan, uploadLeadImage } from '@/modules/crm/crm-api';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faEnvelope, faGlobe, faLocationDot, faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faBuilding, faEnvelope, faGlobe, faLink, faLocationDot, faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faFacebook, faInstagram, faLinkedin, faPinterest, faTiktok, faWhatsapp, faXTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
 import { loadDepartments } from '@/modules/master/master-api';
 
 const LEAD_STAGES = [
@@ -35,7 +36,18 @@ function stageLabel(value) {
 }
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 const SOURCE_OPTIONS = ['Manual', 'Google Maps', 'Google Places', 'Website', 'WhatsApp', 'Facebook', 'Instagram', 'Referral', 'Other'];
-const blank = { leadName: '', companyName: '', phone: '', whatsapp: '', email: '', website: '', address: '', city: '', state: '', country: '', pincode: '', source: 'Manual', category: '', priority: 'MEDIUM', status: 'NEW', assignedToId: '', assignedTeam: '', value: '', notes: '' };
+const SOCIAL_FIELDS = [
+  ['instagram', 'Instagram URL', faInstagram, '#E1306C'],
+  ['facebook', 'Facebook URL', faFacebook, '#1877F2'],
+  ['linkedin', 'LinkedIn URL', faLinkedin, '#0A66C2'],
+  ['youtube', 'YouTube URL', faYoutube, '#FF0000'],
+  ['twitter', 'X / Twitter URL', faXTwitter, '#172B24'],
+  ['whatsapp', 'WhatsApp Business URL', faWhatsapp, '#25D366'],
+  ['tiktok', 'TikTok URL', faTiktok, '#111111'],
+  ['pinterest', 'Pinterest URL', faPinterest, '#E60023'],
+  ['other', 'Other social URL', faLink, '#163A2E'],
+];
+const blank = { leadName: '', companyName: '', phone: '', whatsapp: '', email: '', website: '', address: '', city: '', state: '', country: '', pincode: '', source: 'Manual', category: '', priority: 'MEDIUM', status: 'NEW', assignedToId: '', assignedTeam: '', value: '', notes: '', instagram: '', facebook: '', linkedin: '', youtube: '', twitter: '', whatsappUrl: '', tiktok: '', pinterest: '', other: '' };
 
 function unwrap(payload) {
   if (payload?.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) return payload.data;
@@ -127,7 +139,7 @@ export default function LeadsRoute() {
         blank={blank}
         enableSelection
         refreshToken={reloadKey}
-        toForm={(row) => ({ leadName: personName(row) === '—' ? '' : personName(row), assignedToId: row.employeeId || row.assignedToId || '', imageUrl: row.imageUrl || '' })}
+        toForm={(row) => ({ leadName: personName(row) === '—' ? '' : personName(row), assignedToId: row.employeeId || row.assignedToId || '', imageUrl: row.imageUrl || '', ...socialFormValues(row) })}
         stats={(result) => [
           { label: 'Total leads', value: result.metrics?.total },
           { label: 'New', value: result.metrics?.new },
@@ -145,9 +157,10 @@ export default function LeadsRoute() {
           { key: 'to', label: 'To', type: 'date' },
         ]}
         columns={[
-          { header: 'Lead', cell: (row) => <span className="inline-flex min-w-0 items-center gap-2"><LeadAvatar lead={row} /><span className="truncate">{personName(row)}</span></span> },
+          { header: 'Lead', className: 'min-w-0 max-w-[280px]', cell: (row) => <span className="flex min-w-0 items-center gap-2"><LeadAvatar lead={row} /><span className="min-w-0 truncate">{personName(row)}</span></span> },
           { header: 'Category', cell: (row) => row.category || '—' },
           { header: 'Company', cell: (row) => row.companyName || '—' },
+          { header: 'Social Media', className: 'max-w-[190px]', cell: (row) => <SocialLinks lead={row} /> },
           { header: 'Phone', cell: (row) => row.phone || '—' },
           { header: 'Email', cell: (row) => row.email || '—' },
           { header: 'Source', cell: (row) => /google/i.test(row.source || '') ? 'Google Maps' : row.source || '—' },
@@ -158,7 +171,7 @@ export default function LeadsRoute() {
         ]}
         renderForm={(form, setForm) => <LeadForm form={form} setForm={setForm} sources={sourceOptions} employees={employees} departments={departments} />}
         onSave={async (form, id) => { await persistLead(form, id); toast.success(id ? 'Lead updated' : 'Lead created'); }}
-        detail={(row) => <div className="space-y-2 text-sm"><p>{personName(row)} · {row.companyName || 'No company'}</p><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Category {row.category || '—'} · Website {row.website || '—'}</p><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
+        detail={(row) => <div className="space-y-2 text-sm"><p className="flex items-center gap-2"><LeadAvatar lead={row} /><span className="min-w-0">{personName(row)} · {row.companyName || 'No company'}</span></p><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Category {row.category || '—'} · Website {row.website || '—'}</p><div className="flex items-center gap-2">Social media <SocialLinks lead={row} /></div><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
         toolbar={({ query, selected, reload, payload }) => <BulkBar query={query} selected={selected} total={payload.pagination?.total} reload={reload} employees={employees} departments={departments} canDelete={canDelete} />}
         rowActions={(reload) => allowed ? [
           { label: 'Convert', onSelect: async (row) => { try { await convertLead(row.id, { companyName: row.companyName, dealTitle: row.title || row.companyName }); reload((value) => value + 1); toast.success('Lead conversion requested'); } catch (err) { toast.error(crmError(err)); } } },
@@ -177,8 +190,9 @@ async function persistLead(form, id) {
   if (!validEmail(form.email)) throw new Error('Enter a valid email address.');
   if (!validPhone(form.phone) || !validPhone(form.whatsapp)) throw new Error('Enter a valid phone number.');
   if (form.value !== '' && form.value != null && Number.isNaN(Number(form.value))) throw new Error('Estimated deal value must be a number.');
-  const { imageFile, imagePreview, ...leadValues } = form;
-  const values = { ...leadValues, ...name, source: form.source === 'Google Places' ? 'GOOGLE_PLACES' : form.source };
+  const socialMedia = socialPayload(form);
+  const { imageFile, imagePreview, instagram, facebook, linkedin, youtube, twitter, whatsappUrl, tiktok, pinterest, other, ...leadValues } = form;
+  const values = { ...leadValues, ...name, socialMedia, source: form.source === 'Google Places' ? 'GOOGLE_PLACES' : form.source };
   if (!id) {
     const duplicate = unwrap(await checkLeadDuplicate(values));
     if (duplicate.isDuplicate) throw new Error(duplicate.matchReason || 'A matching lead already exists.');
@@ -200,6 +214,8 @@ function LeadForm({ form, setForm, sources, employees, departments }) {
     <Field label="WhatsApp number"><Input value={form.whatsapp || ''} onChange={set('whatsapp')} /></Field>
     <Field label="Email"><Input type="email" value={form.email || ''} onChange={set('email')} /></Field>
     <Field label="Website"><Input value={form.website || ''} onChange={set('website')} /></Field>
+    <p className="sm:col-span-2 pt-1 text-xs font-semibold text-[#163A2E]">Social media</p>
+    {SOCIAL_FIELDS.map(([key, label]) => <Field key={key} label={label}><Input type="url" inputMode="url" placeholder="https://" value={form[key === 'whatsapp' ? 'whatsappUrl' : key] || ''} onChange={set(key === 'whatsapp' ? 'whatsappUrl' : key)} /></Field>)}
     <Field label="Business address" className="sm:col-span-2"><Input value={form.address || ''} onChange={set('address')} /></Field>
     <Field label="City"><Input value={form.city || ''} onChange={set('city')} /></Field>
     <Field label="State"><Input value={form.state || ''} onChange={set('state')} /></Field>
@@ -345,11 +361,96 @@ function LeadNotes({ id }) {
 
 function Field({ label, children, className = '' }) { return <Label className={`grid gap-1 text-xs ${className}`}>{label}{children}</Label>; }
 
+function leadInitials(name) {
+  const words = String(name || '').trim().split(/\s+/).flatMap((word) => {
+    if (word.endsWith(':')) return [];
+    const cleaned = word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    return cleaned ? [cleaned] : [];
+  });
+  if (!words.length) return '';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+function leadImageUrl(lead) {
+  const nested = Array.isArray(lead?.images) ? lead.images.find((image) => /^https?:\/\//i.test(image?.url || ''))?.url : '';
+  const candidates = [lead?.imagePreview, lead?.imageUrl, nested];
+  return candidates.find((value) => typeof value === 'string' && (/^https?:\/\//i.test(value) || value.startsWith('blob:'))) || '';
+}
+
+function safeProfileUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : (/^[\w.-]+\.[a-z]{2,}([/:?#].*)?$/i.test(raw) ? `https://${raw}` : '');
+  if (!withScheme) return '';
+  try {
+    const url = new URL(withScheme);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function socialFormValues(row) {
+  const social = row?.socialMedia && typeof row.socialMedia === 'object' ? row.socialMedia : {};
+  return {
+    instagram: social.instagram || '',
+    facebook: social.facebook || '',
+    linkedin: social.linkedin || '',
+    youtube: social.youtube || '',
+    twitter: social.twitter || '',
+    whatsappUrl: social.whatsapp || '',
+    tiktok: social.tiktok || '',
+    pinterest: social.pinterest || '',
+    other: social.other || '',
+  };
+}
+
+function socialPayload(form) {
+  const entries = [
+    ['instagram', form.instagram],
+    ['facebook', form.facebook],
+    ['linkedin', form.linkedin],
+    ['youtube', form.youtube],
+    ['twitter', form.twitter],
+    ['whatsapp', form.whatsappUrl],
+    ['tiktok', form.tiktok],
+    ['pinterest', form.pinterest],
+    ['other', form.other],
+  ];
+  const payload = {};
+  for (const [key, value] of entries) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      payload[key] = '';
+      continue;
+    }
+    const safe = safeProfileUrl(raw);
+    if (!safe) throw new Error(`Enter a valid ${key} URL starting with http:// or https://.`);
+    payload[key] = safe;
+  }
+  return payload;
+}
+
+function SocialLinks({ lead }) {
+  const social = lead?.socialMedia && typeof lead.socialMedia === 'object' ? lead.socialMedia : {};
+  const links = SOCIAL_FIELDS.flatMap(([key, label, icon, color]) => {
+    const href = safeProfileUrl(social[key]);
+    return href ? [{ key, label: label.replace(' URL', ''), href, icon, color }] : [];
+  });
+  if (!links.length) return <span className="text-[#718078]">Not Available</span>;
+  return <div className="flex max-w-[168px] items-center gap-1 overflow-x-auto">{links.map((link) => <a key={link.key} href={link.href} target="_blank" rel="noopener noreferrer" title={link.label} aria-label={link.label} className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-[#E2E8E5] bg-white" style={{ color: link.color }}><FontAwesomeIcon icon={link.icon} className="size-3.5" /></a>)}</div>;
+}
+
 function LeadAvatar({ lead }) {
   const [failed, setFailed] = React.useState(false);
-  const remote = /^https?:\/\//i.test(lead?.imageUrl || '') ? lead.imageUrl : '';
-  const src = !failed ? (lead?.imagePreview || remote) : '';
-  const initials = personName(lead).split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'LB';
-  if (!src) return <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#E2E8E5] bg-[#E8F1EC] text-xs font-semibold text-[#163A2E]">{initials}</span>;
-  return <img src={src} alt="" width={40} height={40} className="size-10 shrink-0 rounded-lg border border-[#E2E8E5] object-cover" onError={() => setFailed(true)} />;
+  const src = failed ? '' : leadImageUrl(lead);
+  const displayName = personName(lead);
+  const initials = leadInitials(displayName === '—' ? '' : displayName);
+  React.useEffect(() => { setFailed(false); }, [lead?.imageUrl, lead?.imagePreview]);
+  const frame = 'inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E2E8E5] bg-[#E8F1EC] align-middle';
+  if (!src) {
+    return <span className={`${frame} text-xs font-bold leading-none text-[#163A2E]`} aria-hidden="true">{initials || <FontAwesomeIcon icon={faBuilding} className="size-4" />}</span>;
+  }
+  return <img src={src} alt="" width={40} height={40} className={`${frame} object-cover`} onError={() => setFailed(true)} />;
 }

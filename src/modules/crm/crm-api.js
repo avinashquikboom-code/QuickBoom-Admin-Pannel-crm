@@ -57,6 +57,7 @@ export function saveLead(values, id) {
     googlePlaceId: values.googlePlaceId || undefined,
     workNotes: values.workNotes || undefined,
     value: values.value === '' || values.value == null ? undefined : Number(values.value),
+    socialMedia: values.socialMedia,
   };
   return id ? api.patch(`/leads/${id}`, body) : api.post('/leads', body);
 }

@@ -4,13 +4,12 @@ import * as React from 'react';
 import { DataTable } from '@/components/common/DataTable';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
-import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
 import { faMagnifyingGlass, faPhone } from '@fortawesome/free-solid-svg-icons';
-import { faEnvelope, faEye } from '@fortawesome/free-regular-svg-icons';
+import { faEnvelope } from '@fortawesome/free-regular-svg-icons';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
-export function EmployeeTable({ employees, onSelectEmployee, }) {
+export function EmployeeTable({ employees, onSelectEmployee, onEditEmployee, onDeleteEmployee, canEdit = false, canDelete = false }) {
     const [search, setSearch] = React.useState('');
     const [selectedDept, setSelectedDept] = React.useState('All Departments');
     const [selectedStatus, setSelectedStatus] = React.useState('all');
@@ -69,6 +68,10 @@ export function EmployeeTable({ employees, onSelectEmployee, }) {
         </div>),
         },
         {
+            header: 'Monthly Salary',
+            cell: (emp) => emp.registeredSalary == null ? <span className="text-slate-400">Not set</span> : <span className="font-semibold text-slate-800">₹{Number(emp.registeredSalary).toLocaleString('en-IN')}</span>,
+        },
+        {
             header: 'Employment',
             accessorKey: 'employmentType',
             cell: (emp) => (<div className="flex flex-col text-xs">
@@ -86,18 +89,17 @@ export function EmployeeTable({ employees, onSelectEmployee, }) {
             header: 'Actions',
             className: 'text-right',
             cell: (emp) => (
-                <div className="flex items-center justify-end gap-1">
-                    <Button size="sm" variant="outline" onClick={() => onSelectEmployee(emp)} className="h-8 px-2.5 text-xs text-slate-700 hover:text-emerald-800 hover:bg-emerald-50 border-slate-200 rounded-lg">
-                        <FontAwesomeIcon icon={faEye} className="size-3.5 mr-1 text-slate-400"/>
-                        View Profile
-                    </Button>
-                    <AdminRowActions
-                        record={emp}
-                        recordName={emp.name}
-                        onView={() => onSelectEmployee(emp)}
-                        viewLabel="View Profile"
-                    />
-                </div>
+                <AdminRowActions
+                    record={emp}
+                    recordName={`${emp.name} (${emp.id})`}
+                    onView={() => onSelectEmployee(emp)}
+                    viewLabel="View Profile"
+                    onEdit={canEdit ? () => onEditEmployee(emp) : undefined}
+                    editLabel="Edit Employee"
+                    onDelete={canDelete ? () => onDeleteEmployee(emp) : undefined}
+                    deleteLabel="Delete Employee"
+                    deleteDescription={`Deactivate ${emp.name} (${emp.id})? Attendance, payroll, and salary history will be kept.`}
+                />
             ),
         },
     ];

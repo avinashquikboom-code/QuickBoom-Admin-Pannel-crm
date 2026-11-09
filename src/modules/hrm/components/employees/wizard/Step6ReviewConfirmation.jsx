@@ -181,7 +181,8 @@ export function Step6ReviewConfirmation({ onEdit }) {
               <DetailRow label="Cost Center" value={data.organization.costCenter} />
               <hr className="my-2 border-slate-200" />
               <DetailRow label="Salary Structure" value={data.organization.salaryStructure} />
-              <DetailRow label="Basic Salary" value={`₹ ${data.organization.salary.basic}`} emphasis />
+              <DetailRow label="Monthly Salary" value={`₹ ${data.organization.salary.basic}`} emphasis />
+              <DetailRow label="Registered monthly salary" value={`₹ ${Number(data.organization.salary.basic || 0) + Number(data.organization.salary.hra || 0) + Number(data.organization.salary.allowances || 0) + Number(data.organization.salary.otherEarnings || 0)}`} emphasis />
               <DetailRow label="HRA" value={`₹ ${data.organization.salary.hra}`} />
               <DetailRow label="Allowances" value={`₹ ${data.organization.salary.allowances}`} />
               <DetailRow label="Other Earnings" value={`₹ ${data.organization.salary.otherEarnings}`} />
