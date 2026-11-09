@@ -44,8 +44,8 @@ function personName(record) {
   return record?.name || `${record?.firstName || ''} ${record?.lastName || ''}`.trim() || 'Employee';
 }
 
-export async function loadEmployees() {
-  const payload = await api.get('/employees', { params: { page: 1, limit: 100 } });
+export async function loadEmployees(params = {}) {
+  const payload = await api.get('/employees', { params: { page: 1, limit: 100, ...params } });
   return listFrom(payload).map((employee) => {
     const status = String(employee.status || 'ACTIVE').toLowerCase();
     return {

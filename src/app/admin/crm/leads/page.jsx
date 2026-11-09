@@ -87,7 +87,7 @@ export default function LeadsRoute() {
     setAllowed(sessionCan('LEADS') || sessionCan('CRM'));
     setCanCapture(sessionCan('DATA_CAPTURE') || sessionCan('LEADS') || sessionCan('CRM'));
     setCanDelete(sessionCan('LEADS') || sessionCan('CRM'));
-    loadEmployees().then(setEmployees).catch(() => setEmployees([]));
+    loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
     loadDepartments().then(setDepartments).catch(() => setDepartments([]));
   }, []);
   const load = React.useCallback(async (query) => {
@@ -128,7 +128,7 @@ export default function LeadsRoute() {
           { key: 'status', label: 'All statuses', options: STATUSES.map((status) => ({ value: status, label: status })) },
           { key: 'priority', label: 'All priorities', options: PRIORITIES.map((item) => ({ value: item, label: item })) },
           { key: 'source', label: 'All sources', options: sourceOptions.map((item) => ({ value: item, label: item })) },
-          { key: 'assignedToId', label: 'All employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
+          { key: 'assignedToId', label: 'All BPO employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
           { key: 'from', label: 'From', type: 'date' },
           { key: 'to', label: 'To', type: 'date' },
         ]}
@@ -195,7 +195,6 @@ function LeadForm({ form, setForm, sources, employees, departments }) {
     <Field label="Priority"><select className="h-9 rounded-md border px-2 text-sm" value={form.priority || 'MEDIUM'} onChange={set('priority')}>{PRIORITIES.map((item) => <option key={item}>{item}</option>)}</select></Field>
     <Field label="Lead status"><select className="h-9 rounded-md border px-2 text-sm" value={form.status || 'NEW'} onChange={set('status')}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></Field>
     <Field label="Assigned employee"><select className="h-9 rounded-md border px-2 text-sm" value={form.assignedToId || ''} onChange={set('assignedToId')}><option value="">Unassigned</option>{employees.map((employee) => <option key={employee.recordId} value={employee.recordId}>{employee.name}</option>)}</select></Field>
-    <Field label="Assigned department"><select className="h-9 rounded-md border px-2 text-sm" value={form.assignedTeam || ''} onChange={set('assignedTeam')}><option value="">None</option>{departments.map((department) => <option key={department.id} value={department.name}>{department.name}</option>)}</select></Field>
     <Field label="Estimated deal value"><Input type="number" min="0" value={form.value ?? ''} onChange={set('value')} /></Field>
     <Field label="Notes" className="sm:col-span-2"><Input value={form.notes || ''} onChange={set('notes')} /></Field>
   </div>;
