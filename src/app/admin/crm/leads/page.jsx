@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { GooglePlacesPanel } from '@/modules/data-capture/GooglePlacesPanel';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
@@ -11,7 +10,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { AdminBulkActions, AdminBulkSelectionToolbar, AdminSelectCheckbox, AdminSelectionSummary } from '@/components/admin/bulk-selection';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
-import { addLeadNote, archiveLeads, bulkAssignLeads, bulkLeadPriority, bulkLeadStatus, checkLeadDuplicate, convertLead, crmError, importGooglePlaces, listLeadPage, loadCapturedPlace, loadEmployees, loadLeadNotes, loadLeads, personName, removeLead, resolveGoogleLocation, saveLead, searchGooglePlaces, sessionCan, suggestGoogleLocations, uploadLeadImage } from '@/modules/crm/crm-api';
+import { addLeadNote, archiveLeads, bulkAssignLeads, bulkLeadPriority, bulkLeadStatus, checkLeadDuplicate, convertLead, crmError, listLeadPage, loadEmployees, loadLeadNotes, loadLeads, personName, removeLead, saveLead, sessionCan, uploadLeadImage } from '@/modules/crm/crm-api';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faEnvelope, faGlobe, faLocationDot, faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { loadDepartments } from '@/modules/master/master-api';
@@ -95,17 +94,14 @@ function downloadCsv(rows) {
 
 export default function LeadsRoute() {
   const [allowed, setAllowed] = React.useState(false);
-  const [canCapture, setCanCapture] = React.useState(false);
   const [canDelete, setCanDelete] = React.useState(false);
   const [sources, setSources] = React.useState([]);
   const [employees, setEmployees] = React.useState([]);
   const [departments, setDepartments] = React.useState([]);
-  const [googleOpen, setGoogleOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
   const [reloadKey, setReloadKey] = React.useState(0);
   React.useEffect(() => {
     setAllowed(sessionCan('LEADS') || sessionCan('CRM'));
-    setCanCapture(sessionCan('DATA_CAPTURE') || sessionCan('LEADS') || sessionCan('CRM'));
     setCanDelete(sessionCan('LEADS') || sessionCan('CRM'));
     loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
     loadDepartments().then(setDepartments).catch(() => setDepartments([]));
@@ -124,7 +120,7 @@ export default function LeadsRoute() {
     <>
       <CrmScreen
         title="Leads"
-        description="Create leads manually, discover businesses with Google Places, and update selected leads in bulk."
+        description="Create leads manually and manage existing CRM leads individually or in bulk."
         actionLabel="Add lead"
         canCreate={allowed}
         load={load}
@@ -132,9 +128,6 @@ export default function LeadsRoute() {
         enableSelection
         refreshToken={reloadKey}
         toForm={(row) => ({ leadName: personName(row) === '—' ? '' : personName(row), assignedToId: row.employeeId || row.assignedToId || '', imageUrl: row.imageUrl || '' })}
-        extraHeaderActions={<>
-          <Button variant="outline" disabled={!canCapture} onClick={() => setGoogleOpen(true)}>Find leads from Google</Button>
-        </>}
         stats={(result) => [
           { label: 'Total leads', value: result.metrics?.total },
           { label: 'New', value: result.metrics?.new },
@@ -173,7 +166,6 @@ export default function LeadsRoute() {
         ] : []}
         below={() => <p className="text-xs text-[#718078]">Tags are not stored on the lead record. Department is saved as the assigned team name.</p>}
       />
-      <GooglePlacesPanel open={googleOpen} onOpenChange={setGoogleOpen} onImported={() => setReloadKey((value) => value + 1)} />
       <CsvImportPanel open={importOpen} onOpenChange={setImportOpen} onImported={() => setReloadKey((value) => value + 1)} />
     </>
   );

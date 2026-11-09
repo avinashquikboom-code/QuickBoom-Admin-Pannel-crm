@@ -104,11 +104,11 @@ export default function ExpenseClaimsPage() {
     const approvedAmount = claims
         .filter((c) => c.status === 'approved')
         .reduce((acc, curr) => acc + curr.amount, 0);
-    return (<div className="space-y-6 max-w-7xl mx-auto">
+    return (<div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
       <PageHeader title="Expense Claims & Reimbursements" description="Review corporate travel, equipment allowances, subscriptions, and receipts for payroll reimbursement."/>
 
       {/* KPI Stats Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 min-[440px]:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
         <div className="p-3.5 rounded-xl border border-amber-100 bg-amber-50/50">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-amber-700 uppercase">
@@ -154,15 +154,15 @@ export default function ExpenseClaimsPage() {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
-        <div className="relative flex-1 sm:max-w-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs w-full min-w-0">
+        <div className="relative flex-1 w-full sm:max-w-xs">
           <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search claim, employee, receipt..." className="h-9 pl-8 pr-3 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white"/>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search claim, employee, receipt..." className="h-9 pl-8 pr-3 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white w-full"/>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col min-[480px]:flex-row flex-wrap items-stretch min-[480px]:items-center gap-2 w-full sm:w-auto">
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="h-9 text-xs border-slate-200 w-44 bg-slate-50/50">
+            <SelectTrigger className="h-9 text-xs border-slate-200 w-full min-[480px]:w-44 bg-slate-50/50">
               <SelectValue placeholder="Category"/>
             </SelectTrigger>
             <SelectContent>
@@ -191,7 +191,7 @@ export default function ExpenseClaimsPage() {
           </Select>
 
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="h-9 text-xs border-slate-200 w-32 bg-slate-50/50">
+            <SelectTrigger className="h-9 text-xs border-slate-200 w-full min-[480px]:w-32 bg-slate-50/50">
               <SelectValue placeholder="Status"/>
             </SelectTrigger>
             <SelectContent>

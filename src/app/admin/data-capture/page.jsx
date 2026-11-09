@@ -6,6 +6,8 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { Button } from '@/components/common/Button';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
 import { captureError, captureGaps, createCapture, loadCaptureUsage, loadCaptures, rejectCapture, removeCapture, sessionCan, updateCapture, validateCapture } from '@/modules/data-capture/capture-api';
@@ -25,6 +27,7 @@ export default function DataCapturePage() {
 
   return <>
     <CrmScreen title="Data Capture" description="Captured business records for this tenant, with validation and lead conversion." refreshToken={refresh} enableSelection toolbar={({ selected }) => <Button disabled={!allowed || !selected.length} onClick={() => { setSelectedPlaces(selected); setExtractOpen(true); }}>Import Selected ({selected.length})</Button>} actionLabel="Add record" canCreate={allowed} load={load} blank={blank}
+      extraHeaderActions={allowed && <Button onClick={() => { setSelectedPlaces(null); setExtractOpen(true); }}><FontAwesomeIcon icon={faMagnifyingGlass} className="mr-2 size-4" />Find Leads from Google</Button>}
       gap={{ title: 'Dates, sources, and export', detail: `${captureGaps.dates} ${captureGaps.sources} ${captureGaps.export}` }}
       stats={() => [{ label: 'Captured records', value: usage.totalLeadsCaptured }, { label: 'Validated', value: usage.validatedCount }, { label: 'Converted to leads', value: usage.convertedCount }, { label: 'Extractions', value: usage.totalExtractions }]}
       filters={[{ key: 'status', label: 'All statuses', options: STATUSES.map((value) => ({ value, label: value })) }, { key: 'source', label: 'All sources', options: [{ value: 'GOOGLE_PLACES', label: 'Google Places' }] }]}
@@ -48,7 +51,6 @@ export default function DataCapturePage() {
       ] : []}
       detail={(row) => <div className="space-y-1 text-sm"><p className="font-medium">{row.businessName}</p><p>{row.category || 'No category'} · {row.source}</p><p>{row.phone || 'No phone'} · {row.email || 'No email'}</p><p>{row.address || 'No address'}</p><p>Website {row.website || '—'} · Lead {row.importedLeadId || 'Not imported'}</p><p>{row.notes || ''}</p></div>}
     />
-    {allowed && <div className="mx-auto mt-4 max-w-7xl"><Button variant="outline" onClick={() => { setSelectedPlaces(null); setExtractOpen(true); }}>Search Google Maps</Button></div>}
     <GooglePlacesPanel open={extractOpen} onOpenChange={setExtractOpen} initialPlaces={selectedPlaces} onImported={() => setRefresh((value) => value + 1)} />
   </>;
 }
