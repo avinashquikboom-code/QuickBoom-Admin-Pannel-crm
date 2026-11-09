@@ -82,7 +82,7 @@ export default function AdminDashboardPage() {
       <Input type="date" aria-label="To date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
     </div>
     {failed.length > 0 && <HrmNotice error={`These requests failed: ${failedNames}. ${failed[0].error}`} onRetry={() => setRefresh((value) => value + 1)} />}
-    <HrmGap title="Charts without a time series" detail="There is no monthly revenue series, sales-target comparison, employee performance ranking, production overview, customer-growth series, overtime inbox, or announcement API. Those sections are omitted. Counts below are the fields each API returned." />
+    <HrmGap title="Charts without a time series" detail="There is no monthly revenue series, sales-target comparison, employee performance ranking, production overview, or customer-growth series. Those sections are omitted. Counts below are the fields each API returned." />
     <HrmNotice loading={loading} empty={!loading && !data ? 'Dashboard data has not loaded.' : ''}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi title="Total employees" value={summary.workforce?.total} failed={has(failed, 'summary')} />
@@ -115,7 +115,7 @@ export default function AdminDashboardPage() {
         <Panel title="Recent attendance" failed={has(failed, 'attendanceRows')}><List rows={punches} render={(row) => `${row.date || ''} · ${row.employeeName || 'Employee'} · ${row.status || ''}`} /></Panel>
         <Panel title="Recent activity" failed={has(failed, 'activity')}><List rows={activity} render={(row) => `${String(row.createdAt || '').slice(0, 16).replace('T', ' ')} · ${row.action || 'Action'} · ${row.module || ''}`} /></Panel>
         <Panel title="Pending leave" failed={has(failed, 'leaves')}><p className="text-xs text-slate-500">{leaveCounts.pending ?? pendingLeaves.length} pending</p><List rows={pendingLeaves} render={(row) => `${row.employee?.name || row.employeeCode || 'Employee'} · ${row.leaveType || ''} · ${row.fromDate || ''}`} /></Panel>
-        <Panel title="Quick actions"><div className="flex flex-wrap gap-2">{links.map(([label, href]) => <Link key={href} href={href} className="rounded-md bg-brand px-3 py-2 text-xs font-medium text-white">{label}</Link>)}</div><p className="mt-3 text-xs text-slate-500">Announcements and overtime requests have no admin API, so they are not listed as actions.</p></Panel>
+        <Panel title="Quick actions"><div className="flex flex-wrap gap-2">{links.map(([label, href]) => <Link key={href} href={href} className="rounded-md bg-brand px-3 py-2 text-xs font-medium text-white">{label}</Link>)}</div></Panel>
       </div>
     </HrmNotice>
   </div>;

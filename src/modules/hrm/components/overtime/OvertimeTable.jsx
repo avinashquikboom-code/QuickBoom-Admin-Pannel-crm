@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
 import { Button } from '@/components/common/Button';
 import { faCheck, faCircleInfo, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 export function OvertimeTable({ records, onApprove, onReject, onViewDetails, }) {
     const columns = [
         {
@@ -66,20 +67,39 @@ export function OvertimeTable({ records, onApprove, onReject, onViewDetails, }) 
         {
             header: 'Actions',
             className: 'text-right',
-            cell: (ot) => (<div className="flex items-center justify-end gap-1.5">
-          {ot.status === 'pending' ? (<>
-              <Button size="sm" onClick={() => onApprove(ot)} className="h-7.5 px-2.5 bg-brand hover:bg-primary-hover text-primary-foreground text-xs font-semibold">
-                <FontAwesomeIcon icon={faCheck} className="size-3.5 mr-1"/>
-                Approve
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => onReject(ot)} className="h-7.5 px-2 border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50 text-xs">
-                <FontAwesomeIcon icon={faXmark} className="size-3.5"/>
-              </Button>
-            </>) : (<Button size="sm" variant="ghost" onClick={() => onViewDetails(ot)} className="h-7.5 text-xs text-slate-500 hover:text-slate-800">
-              <FontAwesomeIcon icon={faCircleInfo} className="size-3.5 mr-1 text-slate-400"/>
-              Details
-            </Button>)}
-        </div>),
+            cell: (ot) => (
+                <div className="flex items-center justify-end">
+                    <AdminRowActions
+                        record={ot}
+                        recordName={`${ot.employeeName}'s overtime request`}
+                        onView={() => onViewDetails(ot)}
+                        viewLabel="View Details"
+                        actions={
+                            ot.status === 'pending'
+                                ? [
+                                    {
+                                        label: 'Approve Request',
+                                        icon: faCheck,
+                                        onClick: () => onApprove(ot),
+                                    },
+                                    {
+                                        label: 'Reject Request',
+                                        icon: faXmark,
+                                        variant: 'destructive',
+                                        confirm: {
+                                            title: `Reject Overtime for ${ot.employeeName}?`,
+                                            description: `Are you sure you want to reject this ${ot.hours} hrs overtime request?`,
+                                            confirmLabel: 'Reject',
+                                            variant: 'destructive',
+                                        },
+                                        onClick: () => onReject(ot),
+                                    },
+                                ]
+                                : []
+                        }
+                    />
+                </div>
+            ),
         },
     ];
     return (<DataTable columns={columns} data={records} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">

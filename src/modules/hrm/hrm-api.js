@@ -190,6 +190,25 @@ export function payPayrollItem(id) {
   return api.post(`/admin/payroll/items/${id}/pay`, {});
 }
 
+function targetPayload(payload) {
+  if (payload?.rows) return payload;
+  if (payload?.data?.rows) return payload.data;
+  return payload?.data || payload || { rows: [], employees: [], teams: [] };
+}
+
+export async function loadSalaryTargets(month, year) {
+  const payload = await api.get('/admin/payroll/targets', { params: { month, year } });
+  return targetPayload(payload);
+}
+
+export function saveSalaryTarget(body) {
+  return api.post('/admin/payroll/targets', body);
+}
+
+export function approveSalaryTarget(body) {
+  return api.post('/admin/payroll/targets/approve', body);
+}
+
 export async function loadSalarySlips() {
   const payload = await api.get('/admin/payroll/slips', { params: { page: 1, limit: 100 } });
   return listFrom(payload).map((slip) => {
@@ -447,9 +466,57 @@ export function removeLoan(id) {
   return api.delete(`/admin/loans/${id}`);
 }
 
+export async function loadOvertime(params = {}) {
+  const [list, summary] = await Promise.all([
+    api.get('/admin/hrm/overtime', { params }),
+    api.get('/admin/hrm/overtime/summary', { params }),
+  ]);
+  return { rows: listFrom(list), summary: objectFrom(summary), pagination: list?.meta || list?.data?.meta || {} };
+}
+
+export async function loadOvertimeRequest(id) {
+  return objectFrom(await api.get(`/admin/hrm/overtime/${id}`));
+}
+
+export function createOvertime(values) {
+  return api.post('/admin/hrm/overtime', values);
+}
+
+export function approveOvertime(id, values) {
+  return api.patch(`/admin/hrm/overtime/${id}/approve`, values);
+}
+
+export function rejectOvertime(id, values) {
+  return api.patch(`/admin/hrm/overtime/${id}/reject`, values);
+}
+
+export function cancelOvertime(id, values = {}) {
+  return api.patch(`/admin/hrm/overtime/${id}/cancel`, values);
+}
+
+export async function previewOvertime(id, approvedMinutes) {
+  return objectFrom(await api.get(`/admin/hrm/overtime/${id}/preview`, { params: { approvedMinutes } }));
+}
+
+export async function loadAnnouncements(params = {}) {
+  const [list, summary] = await Promise.all([
+    api.get('/admin/hrm/announcements', { params }),
+    api.get('/admin/hrm/announcements/summary', { params }),
+  ]);
+  return { rows: listFrom(list), summary: objectFrom(summary), pagination: list?.meta || {} };
+}
+
+export const loadAnnouncement = async (id) => objectFrom(await api.get(`/admin/hrm/announcements/${id}`));
+export const createAnnouncement = (values) => api.post('/admin/hrm/announcements', values);
+export const updateAnnouncement = (id, values) => api.patch(`/admin/hrm/announcements/${id}`, values);
+export const publishAnnouncement = (id) => api.patch(`/admin/hrm/announcements/${id}/publish`);
+export const scheduleAnnouncement = (id, publishAt) => api.patch(`/admin/hrm/announcements/${id}/schedule`, { publishAt });
+export const archiveAnnouncement = (id) => api.patch(`/admin/hrm/announcements/${id}/archive`);
+export const removeAnnouncement = (id) => api.delete(`/admin/hrm/announcements/${id}`);
+
 export const missingHrmApis = {
-  overtime: 'The backend has shift overtime rules, but no overtime-request list or approve/reject API.',
-  announcements: 'The backend has user notifications and offer campaigns, but no HR announcement API with audience, publish date, and expiry.',
+  overtime: '',
+  announcements: '',
   attendanceCorrection: 'The attendance API records punch in, punch out, and breaks. It does not provide an admin correction endpoint.',
   breakPolicy: 'Break history comes from live attendance. There is no separate break-policy configuration API.',
   shiftHistory: 'Shift assignment is current. The API does not return a separate shift-change history.',

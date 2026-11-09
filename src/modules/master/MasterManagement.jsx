@@ -841,7 +841,7 @@ function metricColumn(slug, module) {
 function actionsColumn(onView, onEdit, onDelete) {
   return {
     id: 'actions',
-    cell: ({ row }) => <DataTableRowActions row={row} onView={onView} onEdit={onEdit} onDelete={onDelete} />,
+    cell: ({ row }) => <DataTableRowActions row={row} onView={onView} onEdit={onEdit} onDelete={onDelete} confirmDelete={false} />,
   };
 }
 

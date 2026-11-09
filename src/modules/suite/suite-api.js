@@ -36,7 +36,18 @@ export const saveIntegration = (provider, body) => api.put(`/admin/settings/inte
 export const testIntegration = (provider) => api.post(`/admin/settings/integrations/${provider}/test`, {});
 export const disconnectIntegration = (provider) => api.delete(`/admin/settings/integrations/${provider}`);
 
-export const loadCampaigns = (page = 1) => list('/notifications/admin/campaigns', { page, limit: 20 });
+export const loadCampaigns = (query = {}) => list('/notifications/admin/campaigns', { page: query.page || 1, limit: 20, search: query.search || undefined, status: query.status && query.status !== 'ALL' ? query.status : undefined });
+export const loadCampaignSummary = () => api.get('/notifications/admin/campaigns/summary');
+export const saveCampaign = (values) => api.post('/notifications/admin/offer', values);
+export const cancelCampaign = (id) => api.post(`/notifications/admin/campaigns/${id}/cancel`);
+export const removeCampaign = (id) => api.delete(`/notifications/admin/campaigns/${id}`);
+export const resendCampaign = (id) => api.post(`/notifications/admin/campaigns/${id}/resend`);
+export const loadNotificationHistory = (query = {}) => list('/notifications/admin/history', { page: query.page || 1, limit: 20, search: query.search || undefined, status: query.status || undefined, from: query.from || undefined, to: query.to || undefined });
+export function uploadCampaignImage(file) {
+  const form = new FormData();
+  form.append('image', file);
+  return api.post('/notifications/admin/upload-image', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+}
 export const loadAuditLogs = (query = {}) => list('/audit-logs', { search: query.search, page: query.page, limit: 20 });
 export const loadRoles = () => api.get('/auth/roles').then(rowsOf);
 export const loadPermissions = () => api.get('/auth/permissions').then(rowsOf);
@@ -53,7 +64,7 @@ export const suiteGaps = {
   general: 'There is no general-settings API for application name, logo, language, currency, timezone, or date format.',
   company: 'There is no company-profile settings API for address, tax, or registration details. CRM companies are a separate record type.',
   users: 'There is no admin user list, create, edit, or deactivate API. Roles can be managed separately.',
-  notifications: 'Notification history is the offer-campaign list. There is no email, SMS, push, or WhatsApp preference API on this screen. Those providers are under Integrations.',
+  notifications: '',
   reports: 'Report data is limited to attendance, payroll, leaves, employees, visits, and revenue. Commission, subscription, and AI-usage reports are not report types.',
   upload: 'Create and edit accept media URLs. File upload stays on the same endpoints when a file is sent as multipart form data.',
 };

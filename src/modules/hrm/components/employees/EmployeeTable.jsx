@@ -9,6 +9,7 @@ import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
 import { faMagnifyingGlass, faPhone } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope, faEye } from '@fortawesome/free-regular-svg-icons';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 export function EmployeeTable({ employees, onSelectEmployee, }) {
     const [search, setSearch] = React.useState('');
     const [selectedDept, setSelectedDept] = React.useState('All Departments');
@@ -84,12 +85,20 @@ export function EmployeeTable({ employees, onSelectEmployee, }) {
         {
             header: 'Actions',
             className: 'text-right',
-            cell: (emp) => (<div className="flex items-center justify-end gap-1.5">
-          <Button size="sm" variant="outline" onClick={() => onSelectEmployee(emp)} className="h-8 px-2.5 text-xs text-slate-700 hover:text-brand-dark hover:bg-brand-light border-slate-200">
-            <FontAwesomeIcon icon={faEye} className="size-3.5 mr-1 text-slate-400"/>
-            View Profile
-          </Button>
-        </div>),
+            cell: (emp) => (
+                <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="outline" onClick={() => onSelectEmployee(emp)} className="h-8 px-2.5 text-xs text-slate-700 hover:text-emerald-800 hover:bg-emerald-50 border-slate-200 rounded-lg">
+                        <FontAwesomeIcon icon={faEye} className="size-3.5 mr-1 text-slate-400"/>
+                        View Profile
+                    </Button>
+                    <AdminRowActions
+                        record={emp}
+                        recordName={emp.name}
+                        onView={() => onSelectEmployee(emp)}
+                        viewLabel="View Profile"
+                    />
+                </div>
+            ),
         },
     ];
     return (<div className="space-y-4">

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { DataTable, DataTableColumnHeader } from '@/components/data-table';
+import { DataTable, DataTableColumnHeader, AdminRowActions } from '@/components/data-table';
 import { KpiGrid } from '@/components/common/KpiCard';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { Button } from '@/components/ui/button';
@@ -234,33 +234,30 @@ export function DepartmentsScreen() {
       enableHiding: false,
       header: () => <span className="sr-only">Actions</span>,
       cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="text-slate-500" aria-label={`Actions for ${row.original.name}`} disabled={mutating || loading} />}>
-            <Icon icon={faEllipsis} className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 bg-white">
-            <DropdownMenuItem inset={false} className="gap-2 text-xs" onClick={() => setDrawer({ id: row.original.id, mode: 'view' })}>
-              <Icon icon={faEye} className="size-3" />View Details
-            </DropdownMenuItem>
-            {canManage && (
-              <>
-                <DropdownMenuItem inset={false} className="gap-2 text-xs" onClick={() => setDrawer({ id: row.original.id, mode: 'edit' })}>
-                  <Icon icon={faPenToSquare} className="size-3" />Edit Department
-                </DropdownMenuItem>
-                <DropdownMenuItem inset={false} className="gap-2 text-xs" onClick={() => ask(row.original, 'status')}>
-                  <Icon icon={faToggleOn} className="size-3" />Change Status
-                </DropdownMenuItem>
-                <DropdownMenuItem inset={false} className="gap-2 text-xs" onClick={() => ask(row.original, 'archive')}>
-                  <Icon icon={faBoxArchive} className="size-3" />Archive Department
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-slate-100" />
-                <DropdownMenuItem inset={false} variant="destructive" className="gap-2 text-xs" onClick={() => ask(row.original, 'delete')}>
-                  <Icon icon={faTrash} className="size-3" />Delete Department
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <AdminRowActions
+          row={row}
+          recordName={row.original.name}
+          disabled={mutating || loading}
+          onView={() => setDrawer({ id: row.original.id, mode: 'view' })}
+          viewLabel="View Details"
+          onEdit={canManage ? () => setDrawer({ id: row.original.id, mode: 'edit' }) : undefined}
+          editLabel="Edit Department"
+          customActions={canManage ? [
+            {
+              label: 'Change Status',
+              icon: faToggleOn,
+              onClick: () => ask(row.original, 'status'),
+            },
+            {
+              label: 'Archive Department',
+              icon: faBoxArchive,
+              onClick: () => ask(row.original, 'archive'),
+            },
+          ] : []}
+          onDelete={canManage ? () => ask(row.original, 'delete') : undefined}
+          deleteLabel="Delete Department"
+          confirmDelete={false}
+        />
       ),
       meta: { className: 'max-md:col-span-2 max-md:flex max-md:justify-end max-md:border-t max-md:border-slate-100' },
     },

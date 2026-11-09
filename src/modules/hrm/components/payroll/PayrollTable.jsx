@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar'
 import { Button } from '@/components/common/Button';
 import { faCheckDouble } from '@fortawesome/free-solid-svg-icons';
 import { faFileLines } from '@fortawesome/free-regular-svg-icons';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 export function PayrollTable({ records, onViewPayslip, onMarkPaid, }) {
     const columns = [
         {
@@ -83,16 +84,32 @@ export function PayrollTable({ records, onViewPayslip, onMarkPaid, }) {
         {
             header: 'Actions',
             className: 'text-right',
-            cell: (rec) => (<div className="flex items-center justify-end gap-1.5">
-          <Button size="sm" variant="outline" onClick={() => onViewPayslip(rec)} className="h-7.5 px-2.5 border-slate-200 text-slate-700 hover:text-brand-dark hover:bg-brand-light text-xs">
-            <FontAwesomeIcon icon={faFileLines} className="size-3.5 mr-1 text-slate-400"/>
-            Payslip
-          </Button>
-          {rec.status === 'pending' && onMarkPaid && (<Button size="sm" onClick={() => onMarkPaid(rec)} className="h-7.5 px-2 bg-brand hover:bg-primary-hover text-primary-foreground text-xs font-semibold">
-              <FontAwesomeIcon icon={faCheckDouble} className="size-3.5 mr-1"/>
-              Pay
-            </Button>)}
-        </div>),
+            cell: (rec) => (
+                <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="outline" onClick={() => onViewPayslip(rec)} className="h-7.5 px-2.5 border-slate-200 text-slate-700 hover:text-emerald-800 hover:bg-emerald-50 text-xs rounded-lg">
+                        <FontAwesomeIcon icon={faFileLines} className="size-3.5 mr-1 text-slate-400"/>
+                        Payslip
+                    </Button>
+                    <AdminRowActions
+                        record={rec}
+                        recordName={rec.employeeName}
+                        onView={() => onViewPayslip(rec)}
+                        viewLabel="View Payslip"
+                        viewIcon={faFileLines}
+                        customActions={
+                            rec.status === 'pending' && onMarkPaid
+                                ? [
+                                    {
+                                        label: 'Mark as Paid',
+                                        icon: faCheckDouble,
+                                        onClick: () => onMarkPaid(rec),
+                                    },
+                                ]
+                                : []
+                        }
+                    />
+                </div>
+            ),
         },
     ];
     return (<DataTable columns={columns} data={records} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">

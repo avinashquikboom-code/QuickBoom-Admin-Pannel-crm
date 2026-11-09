@@ -16,6 +16,7 @@ import { faEnvelope, faFileLines } from '@fortawesome/free-regular-svg-icons';
 import { downloadSalarySlip, viewSalarySlip } from '../../../../../lib/salary-slip-pdf';
 import { hrmError, loadSalarySlips } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 export default function SalarySlipsPage() {
     const [records, setRecords] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
@@ -87,15 +88,28 @@ export default function SalarySlipsPage() {
         {
             header: 'Actions',
             className: 'text-right',
-            cell: (r) => (<div className="flex items-center justify-end gap-1.5">
-          <Button size="sm" variant="outline" onClick={() => setActiveSlip(r)} className="h-7.5 px-2.5 border-slate-200 text-slate-700 hover:text-brand-dark hover:bg-brand-light text-xs">
-            <FontAwesomeIcon icon={faFileLines} className="size-3.5 mr-1 text-slate-400"/>
-            View Slip
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => downloadSalarySlip(r.recordId)} className="h-7.5 px-2 text-slate-600 hover:text-slate-900">
-            <FontAwesomeIcon icon={faDownload} className="size-3.5"/>
-          </Button>
-        </div>),
+            cell: (r) => (
+                <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="outline" onClick={() => setActiveSlip(r)} className="h-7.5 px-2.5 border-slate-200 text-slate-700 hover:text-emerald-800 hover:bg-emerald-50 text-xs rounded-lg">
+                        <FontAwesomeIcon icon={faFileLines} className="size-3.5 mr-1 text-slate-400"/>
+                        View Slip
+                    </Button>
+                    <AdminRowActions
+                        record={r}
+                        recordName={`${r.employeeName}'s payslip`}
+                        onView={() => setActiveSlip(r)}
+                        viewLabel="View Slip"
+                        viewIcon={faFileLines}
+                        customActions={[
+                            {
+                                label: 'Download PDF',
+                                icon: faDownload,
+                                onClick: () => downloadSalarySlip(r.recordId),
+                            },
+                        ]}
+                    />
+                </div>
+            ),
         },
     ];
     return (<div className="space-y-6 max-w-7xl mx-auto">

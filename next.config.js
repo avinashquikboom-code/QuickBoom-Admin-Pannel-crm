@@ -16,6 +16,9 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
+  async rewrites() {
+    return [{ source: '/hrm/:path*', destination: '/admin/hrm/:path*' }];
+  },
 };
 
 module.exports = nextConfig;

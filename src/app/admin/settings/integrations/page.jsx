@@ -5,10 +5,12 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
-import { StatusBadge } from '@/components/common/StatusBadge';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { disconnectIntegration, loadIntegrations, saveIntegration, setIntegrationEnabled, suiteError, testIntegration } from '@/modules/suite/suite-api';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { faEllipsisVertical } from '@fortawesome/free-solid-svg-icons';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 
 const PRESENTATION = {
@@ -149,13 +151,42 @@ export default function IntegrationsPage() {
       <div className="flex flex-wrap gap-1">{['ALL', 'CONNECTED', 'NOT_CONFIGURED', 'ERROR', 'DISABLED'].map((item) => <Button key={item} size="sm" variant={filter === item ? 'default' : 'outline'} onClick={() => setFilter(item)}>{filterLabel(item)}</Button>)}</div>
     </div>
     <HrmNotice loading={loading} error={error} empty={!loading && !error && visible.length === 0 ? 'No integrations match these filters.' : ''} onRetry={() => setRefresh((value) => value + 1)}>
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b text-xs text-slate-500"><tr><th className="py-2 pr-3">Integration</th><th className="py-2 pr-3">Category</th><th className="py-2 pr-3">Status</th><th className="py-2 pr-3">Last tested</th><th className="py-2">Actions</th></tr></thead>
-          <tbody>{visible.map((row) => <tr key={row.provider} className="border-b border-slate-100"><td className="py-2 pr-3 font-medium">{labelOf(row.provider)}</td><td className="py-2 pr-3">{categoryOf(row.provider)}</td><td className="py-2 pr-3"><StatusBadge status={statusText(row.status)} /></td><td className="py-2 pr-3">{tests[row.provider]?.at || '—'}</td><td className="py-2"><Actions row={row} testing={testing} onOpen={() => open(row)} onTest={() => runTest(row)} onToggle={() => run(() => setIntegrationEnabled(row.provider, !row.isEnabled))} onDisconnect={() => disconnect(row)} /></td></tr>)}</tbody>
-        </table>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {visible.map((row) => {
+          const result = tests[row.provider];
+          const testedAt = result?.at || formatTested(row.config?.lastTestedAt);
+          const busy = testing === row.provider;
+          return <article key={row.provider} className="flex min-w-0 flex-col rounded-xl border border-[#E2E8E5] bg-white p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[#172B24]">{labelOf(row.provider)}</h3>
+                <p className="text-xs text-[#718078]">{categoryOf(row.provider)}</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <ConnectionBadge status={busy ? 'TESTING' : row.status} />
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="inline-flex size-8 items-center justify-center rounded-md text-[#172B24] hover:bg-[#E8F1EC]" aria-label={`${labelOf(row.provider)} actions`}>
+                    <FontAwesomeIcon icon={faEllipsisVertical} className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => run(() => setIntegrationEnabled(row.provider, !row.isEnabled))}>{row.isEnabled ? 'Disable' : 'Enable'}</DropdownMenuItem>
+                    {row.status !== 'NOT_CONFIGURED' && <DropdownMenuItem variant="destructive" onClick={() => disconnect(row)}>Disconnect</DropdownMenuItem>}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-[#718078]">Last tested: {testedAt || '—'}</p>
+            {result?.message && <p className={`mt-1 text-xs ${result.ok ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>{result.message}</p>}
+            {!result?.message && row.config?.lastTestError && row.status === 'ERROR' && <p className="mt-1 text-xs text-[#DC2626]">{row.config.lastTestError}</p>}
+            <div className="mt-4 grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
+              <Button type="button" onClick={() => open(row)}>Configure</Button>
+              <Button type="button" variant="outline" disabled={busy} onClick={() => runTest(row)}>
+                {busy ? <span className="inline-flex items-center gap-2"><span className="size-3 animate-spin rounded-full border-2 border-current border-r-transparent" />Testing...</span> : 'Test Connection'}
+              </Button>
+            </div>
+          </article>;
+        })}
       </div>
-      <div className="grid gap-2 md:hidden">{visible.map((row) => <article key={row.provider} className="rounded-xl border bg-white p-3 text-sm"><div className="flex items-center justify-between"><p className="font-medium">{labelOf(row.provider)}</p><StatusBadge status={statusText(row.status)} /></div><p className="text-xs text-slate-500">{categoryOf(row.provider)} · Tested {tests[row.provider]?.at || '—'}</p>{tests[row.provider]?.message && <p className="mt-1 text-xs">{tests[row.provider].message}</p>}<div className="mt-2"><Actions row={row} testing={testing} onOpen={() => open(row)} onTest={() => runTest(row)} onToggle={() => run(() => setIntegrationEnabled(row.provider, !row.isEnabled))} onDisconnect={() => disconnect(row)} /></div></article>)}</div>
     </HrmNotice>
     <FormDrawer open={Boolean(active)} onOpenChange={(next) => { if (!next) setActive(null); }} title={active ? labelOf(active.provider) : 'Integration'} description="Blank secret fields keep the saved value. Secrets are not written back into this form." onSubmit={save}>
       {active && <div className="grid gap-3">{fieldsFor(active).map(([key, label, secret, , options]) => <Label key={key} className="grid gap-1 text-xs">{label}{options ? <select className="h-9 rounded-md border px-2 text-sm" value={form[key] || options[0]} onChange={(event) => setForm({ ...form, [key]: event.target.value })}>{options.map((option) => <option key={option}>{option}</option>)}</select> : <div className="flex gap-2"><Input type={secret && !reveal[key] ? 'password' : 'text'} autoComplete="new-password" value={form[key] || ''} placeholder={secret ? 'Leave blank to keep the saved value' : ''} onChange={(event) => setForm({ ...form, [key]: event.target.value })} />{secret && <Button type="button" variant="outline" onClick={() => setReveal({ ...reveal, [key]: !reveal[key] })}>{reveal[key] ? 'Hide' : 'Show'}</Button>}</div>}</Label>)}{active.provider === 'WHATSAPP' && active.config?.webhookUrl && <p className="text-xs text-slate-500">Webhook URL from the server: {active.config.webhookUrl}</p>}</div>}
@@ -166,11 +197,26 @@ export default function IntegrationsPage() {
     action().then(() => setRefresh((value) => value + 1)).catch((err) => toast.error(suiteError(err)));
   }
   async function runTest(row) {
+    if (!row.configured || row.source === 'NONE' || row.status === 'NOT_CONFIGURED') {
+      toast.error('Configure this integration before testing.');
+      return;
+    }
     setTesting(row.provider);
     try {
       const result = await testIntegration(row.provider);
-      setTests((current) => ({ ...current, [row.provider]: { ok: result?.success !== false && result?.status !== 'FAILED', message: result?.message || 'Connection test finished', at: new Date().toLocaleString() } }));
-      toast.success(result?.message || 'Connection test finished');
+      const body = result?.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : result;
+      const ok = body?.success !== false && !/fail|error/i.test(String(body?.status || ''));
+      const at = formatTested(body?.lastTestedAt) || new Date().toLocaleString();
+      if (!ok) {
+        const message = body?.message || 'Connection test failed';
+        setTests((current) => ({ ...current, [row.provider]: { ok: false, message, at } }));
+        toast.error(message);
+        setRefresh((value) => value + 1);
+        return;
+      }
+      setTests((current) => ({ ...current, [row.provider]: { ok: true, message: 'Connection successful.', at } }));
+      toast.success('Connection successful.');
+      setRefresh((value) => value + 1);
     } catch (err) {
       const message = suiteError(err);
       setTests((current) => ({ ...current, [row.provider]: { ok: false, message, at: new Date().toLocaleString() } }));
@@ -185,16 +231,6 @@ export default function IntegrationsPage() {
   }
 }
 
-function Actions({ row, testing, onOpen, onTest, onToggle, onDisconnect }) {
-  const configured = row.status !== 'NOT_CONFIGURED';
-  return <div className="flex flex-wrap gap-1">
-    <Button size="sm" variant="outline" onClick={onOpen}>{configured ? 'Manage' : 'Configure'}</Button>
-    <Button size="sm" variant="outline" disabled={testing === row.provider} onClick={onTest}>{testing === row.provider ? 'Testing' : row.status === 'ERROR' ? 'Retry' : 'Test'}</Button>
-    <Button size="sm" variant="outline" onClick={onToggle}>{row.isEnabled ? 'Disable' : 'Enable'}</Button>
-    {configured && <Button size="sm" variant="outline" onClick={onDisconnect}>Disconnect</Button>}
-  </div>;
-}
-
 function fieldsFor(row) {
   if (FIELDS[row.provider]) return FIELDS[row.provider];
   return Object.keys(row.credentials || {}).filter((key) => !key.startsWith('has') && !key.startsWith('is')).map((key) => [key, key, /secret|password|token|apikey|privatekey/i.test(key)]);
@@ -202,14 +238,30 @@ function fieldsFor(row) {
 function labelOf(provider) { return PRESENTATION[provider]?.[0] || provider; }
 function categoryOf(provider) { return PRESENTATION[provider]?.[1] || '—'; }
 function statusOf(row, test) {
+  if (!row.configured || row.source === 'NONE') return 'NOT_CONFIGURED';
   if (test && test.ok === false) return 'ERROR';
   if (test && test.ok === true) return 'CONNECTED';
-  if (!row.configured || row.source === 'NONE') return 'NOT_CONFIGURED';
+  if (row.config?.lastTestResult === 'FAILED') return 'ERROR';
+  if (row.config?.lastTestResult === 'SUCCESS') return 'CONNECTED';
   if (row.isEnabled === false) return 'DISABLED';
   return 'NOT_TESTED';
 }
-function statusText(status) {
-  return { CONNECTED: 'connected', NOT_CONFIGURED: 'not configured', ERROR: 'error', DISABLED: 'inactive', NOT_TESTED: 'not tested' }[status] || status;
+function formatTested(value) {
+  if (!value || value === '—') return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
+function ConnectionBadge({ status }) {
+  const styles = {
+    CONNECTED: 'bg-[#DCFCE7] text-[#16A34A]',
+    ERROR: 'bg-[#FEE2E2] text-[#DC2626]',
+    NOT_CONFIGURED: 'bg-slate-100 text-slate-600',
+    DISABLED: 'bg-slate-100 text-slate-500',
+    TESTING: 'bg-[#FEF3C7] text-[#D97706]',
+    NOT_TESTED: 'bg-[#E8F1EC] text-[#163A2E]',
+  };
+  const labels = { CONNECTED: 'Connected', ERROR: 'Connection Error', NOT_CONFIGURED: 'Not configured', DISABLED: 'Disabled', TESTING: 'Testing...', NOT_TESTED: 'Not tested' };
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[status] || styles.NOT_TESTED}`}>{labels[status] || status}</span>;
 }
 function filterLabel(status) {
   return { ALL: 'All', CONNECTED: 'Connected', NOT_CONFIGURED: 'Not configured', ERROR: 'Error', DISABLED: 'Disabled' }[status];

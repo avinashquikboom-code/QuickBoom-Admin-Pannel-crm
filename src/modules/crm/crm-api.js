@@ -18,6 +18,11 @@ export function personName(record) {
   return record.name || `${record.firstName || ''} ${record.lastName || ''}`.trim() || record.employeeName || '—';
 }
 
+export async function listLeadPage(params = {}) {
+  const list = await api.get('/leads', { params });
+  return { rows: listFrom(list), pagination: pageOf(list) };
+}
+
 export async function loadLeads(params = {}) {
   const [list, metrics, sources] = await Promise.all([
     api.get('/leads', { params }),
@@ -41,9 +46,47 @@ export function saveLead(values, id) {
     assignedToId: values.assignedToId ? Number(values.assignedToId) : undefined,
     nextFollowUpDate: values.nextFollowUpDate || undefined,
     nextFollowUpTime: values.nextFollowUpTime || undefined,
+    website: values.website || undefined,
+    address: values.address || undefined,
+    city: values.city || undefined,
+    state: values.state || undefined,
+    country: values.country || undefined,
+    pincode: values.pincode || undefined,
+    category: values.category || undefined,
+    assignedTeam: values.assignedTeam || undefined,
+    googlePlaceId: values.googlePlaceId || undefined,
+    workNotes: values.workNotes || undefined,
+    value: values.value === '' || values.value == null ? undefined : Number(values.value),
   };
   return id ? api.patch(`/leads/${id}`, body) : api.post('/leads', body);
 }
+
+export const checkLeadDuplicate = (values) => api.post('/leads/check-duplicate', {
+  phone: values.phone || undefined,
+  email: values.email || undefined,
+  companyName: values.companyName || undefined,
+  website: values.website || undefined,
+  googlePlaceId: values.googlePlaceId || undefined,
+});
+
+export const searchGooglePlaces = (values) => api.post('/data-capture/extract', {
+  keyword: values.keyword || undefined,
+  category: values.category || undefined,
+  location: values.location || undefined,
+  city: values.city || undefined,
+  state: values.state || undefined,
+  country: values.country || undefined,
+  radius: values.radius ? Number(values.radius) : undefined,
+  query: values.query || undefined,
+  maxResults: values.maxResults ? Number(values.maxResults) : 20,
+});
+
+export const importGooglePlaces = (placeIds, jobId) => api.post('/data-capture/import-to-leads', { placeIds, jobId });
+export const loadCapturedPlace = (id) => api.get(`/data-capture/${id}`);
+export const bulkAssignLeads = (body) => api.post('/leads/bulk/assign', body);
+export const bulkLeadStatus = (body) => api.post('/leads/bulk/status', body);
+export const bulkLeadPriority = (body) => api.post('/leads/bulk/priority', body);
+export const archiveLeads = (ids) => api.post('/leads/bulk-delete', { ids });
 
 export const removeLead = (id) => api.delete(`/leads/${id}`);
 export const convertLead = (id, values) => api.post(`/leads/${id}/convert`, values);

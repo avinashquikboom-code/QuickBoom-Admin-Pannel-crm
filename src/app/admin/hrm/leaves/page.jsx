@@ -17,6 +17,7 @@ import { faCheck, faHeartPulse, faMagnifyingGlass, faPlus, faXmark } from '@fort
 import { faCalendarCheck, faCalendarXmark } from '@fortawesome/free-regular-svg-icons';
 import { decideLeave, hrmError, loadLeaves, submitLeave } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 export default function LeaveManagementPage() {
     const [leaves, setLeaves] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
@@ -174,17 +175,37 @@ export default function LeaveManagementPage() {
         {
             header: 'Actions',
             className: 'text-right',
-            cell: (l) => (<div className="flex items-center justify-end gap-1.5">
-          {l.status === 'pending' ? (<>
-              <Button size="sm" onClick={() => handleApprove(l)} className="h-7.5 px-2.5 bg-brand hover:bg-primary-hover text-primary-foreground text-xs font-semibold">
-                <FontAwesomeIcon icon={faCheck} className="size-3.5 mr-1"/>
-                Approve
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleReject(l)} className="h-7.5 px-2 border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50 text-xs">
-                <FontAwesomeIcon icon={faXmark} className="size-3.5"/>
-              </Button>
-            </>) : (<span className="text-xs text-slate-400 italic">Processed</span>)}
-        </div>),
+            cell: (l) => (
+                <div className="flex items-center justify-end">
+                    <AdminRowActions
+                        record={l}
+                        recordName={`${l.employeeName}'s leave application`}
+                        actions={
+                            l.status === 'pending'
+                                ? [
+                                    {
+                                        label: 'Approve Leave',
+                                        icon: faCheck,
+                                        onClick: () => handleApprove(l),
+                                    },
+                                    {
+                                        label: 'Reject Leave',
+                                        icon: faXmark,
+                                        variant: 'destructive',
+                                        confirm: {
+                                            title: `Reject Leave for ${l.employeeName}?`,
+                                            description: `Are you sure you want to reject this leave request?`,
+                                            confirmLabel: 'Reject',
+                                            variant: 'destructive',
+                                        },
+                                        onClick: () => handleReject(l),
+                                    },
+                                ]
+                                : []
+                        }
+                    />
+                </div>
+            ),
         },
     ];
     return (<div className="space-y-6 max-w-7xl mx-auto">

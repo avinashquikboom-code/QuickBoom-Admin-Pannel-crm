@@ -357,6 +357,7 @@ function SectionPageContent() {
                         onView={handleOpenView}
                         onEdit={handleOpenEdit}
                         onDelete={handleOpenDelete}
+                        confirmDelete={false}
                     />
                 ),
             },

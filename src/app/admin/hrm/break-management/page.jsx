@@ -4,15 +4,11 @@ import * as React from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
-import { Button } from '@/components/common/Button';
-import { FormDrawer, DrawerFormField } from '@/components/common/drawers/FormDrawer';
 import { Badge } from '@/components/common/Badge';
 import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/common/Select';
-import { Label } from '@/components/common/Label';
-import { toast } from '@/hooks/use-toast';
-import { faCheckCircle, faClock, faMagnifyingGlass, faMugHot, faPlus, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
-import { hrmError, loadBreaks, missingHrmApis } from '@/modules/hrm/hrm-api';
+import { faCheckCircle, faClock, faMagnifyingGlass, faMugHot, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
+import { hrmError, loadBreaks } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function BreakManagementPage() {
     const [breaks, setBreaks] = React.useState([]);
@@ -25,13 +21,6 @@ export default function BreakManagementPage() {
     }, []);
     const [search, setSearch] = React.useState('');
     const [selectedType, setSelectedType] = React.useState('all');
-    const [logDialogOpen, setLogDialogOpen] = React.useState(false);
-    const [formData, setFormData] = React.useState({
-        employeeName: 'Sarah Jenkins',
-        breakType: 'Coffee Break',
-        startTime: '03:00 PM',
-        endTime: '03:15 PM',
-    });
     const filtered = React.useMemo(() => {
         return breaks.filter((b) => {
             const matchSearch = b.employeeName.toLowerCase().includes(search.toLowerCase()) ||
@@ -40,10 +29,6 @@ export default function BreakManagementPage() {
             return matchSearch && matchType;
         });
     }, [breaks, search, selectedType]);
-    const handleAddBreak = (e) => {
-        e.preventDefault();
-        toast.error(missingHrmApis.breakPolicy);
-    };
     const columns = [
         {
             header: 'Employee',
@@ -111,10 +96,7 @@ export default function BreakManagementPage() {
         },
     ];
     return (<div className="space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Break & Interval Management" description="Monitor lunch and short break durations in compliance with workplace time policies." actions={<Button size="sm" onClick={() => setLogDialogOpen(true)} className="bg-brand hover:bg-primary-hover text-primary-foreground font-medium text-xs h-9">
-            <FontAwesomeIcon icon={faPlus} className="size-4 mr-1.5"/>
-            Log Manual Break
-          </Button>}/>
+      <PageHeader title="Break & Interval Management" description="Monitor lunch and short break durations in compliance with workplace time policies." />
 
       {/* Break Policy KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -189,48 +171,5 @@ export default function BreakManagementPage() {
       {/* Table */}
       <HrmNotice loading={loading} error={error} />
       {!loading && !error && <DataTable hideToolbar columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No break logs recorded.</div>}/>}
-
-      {/* Manual Break FormDrawer */}
-      <FormDrawer
-        open={logDialogOpen}
-        onOpenChange={setLogDialogOpen}
-        title="Record Manual Break Log"
-        description="Log a break duration for offline or off-site personnel."
-        onSubmit={handleAddBreak}
-        submitLabel="Save Record"
-        size="standard"
-      >
-        <DrawerFormField label="Employee Name" required>
-          <Input value={formData.employeeName} onChange={(e) => setFormData((prev) => ({ ...prev, employeeName: e.target.value }))} className="h-9 text-xs"/>
-        </DrawerFormField>
-
-        <DrawerFormField label="Break Type" required>
-          <Select value={formData.breakType} onValueChange={(val) => setFormData((prev) => ({ ...prev, breakType: val }))}>
-            <SelectTrigger className="h-9 text-xs w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Lunch Break" className="text-xs">
-                Lunch Break
-              </SelectItem>
-              <SelectItem value="Coffee Break" className="text-xs">
-                Coffee Break
-              </SelectItem>
-              <SelectItem value="Personal Break" className="text-xs">
-                Personal Break
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </DrawerFormField>
-
-        <div className="grid grid-cols-2 gap-3">
-          <DrawerFormField label="Start Time" required>
-            <Input value={formData.startTime} onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))} className="h-9 text-xs font-mono"/>
-          </DrawerFormField>
-          <DrawerFormField label="End Time" required>
-            <Input value={formData.endTime} onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))} className="h-9 text-xs font-mono"/>
-          </DrawerFormField>
-        </div>
-      </FormDrawer>
     </div>);
 }
