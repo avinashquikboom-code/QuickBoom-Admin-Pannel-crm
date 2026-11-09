@@ -114,7 +114,6 @@ export default function LeadsRoute() {
         toForm={(row) => ({ leadName: personName(row) === '—' ? '' : personName(row), assignedToId: row.employeeId || row.assignedToId || '' })}
         extraHeaderActions={<>
           <Button variant="outline" disabled={!canCapture} onClick={() => setGoogleOpen(true)}>Find leads from Google</Button>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>Bulk import</Button>
         </>}
         stats={(result) => [
           { label: 'Total leads', value: result.metrics?.total },
