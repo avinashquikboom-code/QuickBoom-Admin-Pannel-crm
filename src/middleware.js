@@ -21,7 +21,7 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  if (!pathname.startsWith('/admin')) {
+  if (!pathname.startsWith('/admin') && !pathname.startsWith('/hrm')) {
     return NextResponse.next();
   }
 
@@ -36,5 +36,5 @@ export function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/login'],
+  matcher: ['/admin/:path*', '/hrm/:path*', '/login'],
 };

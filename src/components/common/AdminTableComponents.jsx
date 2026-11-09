@@ -296,16 +296,47 @@ export function AdminMobileRecordCard({
  */
 export const AdminStatusBadge = StatusBadge;
 
+import { AdminRowActions } from '@/components/common/AdminRowActions';
+export { AdminRowActions };
+
 /**
- * 8. AdminTableActions - Standard compact row action icons
+ * 8. AdminTableActions - Standard compact row actions
  */
 export function AdminTableActions({
+    row,
+    record,
+    recordName,
     onView,
     onEdit,
     onDelete,
+    onDuplicate,
+    onToggleStatus,
+    onArchive,
     customActions = [],
     moreActions = [],
+    actions = [],
+    useDropdownOnly = false,
 }) {
+    if (useDropdownOnly || moreActions.length > 0 || actions.length > 0) {
+        return (
+            <div className="flex items-center justify-end">
+                <AdminRowActions
+                    row={row}
+                    record={record}
+                    recordName={recordName}
+                    onView={onView}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onDuplicate={onDuplicate}
+                    onToggleStatus={onToggleStatus}
+                    onArchive={onArchive}
+                    customActions={[...customActions, ...moreActions]}
+                    actions={actions}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="flex items-center justify-end gap-1">
             {onView && (
@@ -314,7 +345,7 @@ export function AdminTableActions({
                     size="icon-sm"
                     onClick={onView}
                     title="View details"
-                    className="h-8 w-8 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                    className="h-8 w-8 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
                 >
                     <FontAwesomeIcon icon={faEye} className="size-3.5" />
                     <span className="sr-only">View</span>
@@ -326,7 +357,7 @@ export function AdminTableActions({
                     size="icon-sm"
                     onClick={onEdit}
                     title="Edit record"
-                    className="h-8 w-8 text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
+                    className="h-8 w-8 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
                 >
                     <FontAwesomeIcon icon={faPen} className="size-3.5" />
                     <span className="sr-only">Edit</span>
@@ -338,48 +369,13 @@ export function AdminTableActions({
                     size="icon-sm"
                     onClick={onDelete}
                     title="Delete record"
-                    className="h-8 w-8 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
+                    className="h-8 w-8 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer"
                 >
                     <FontAwesomeIcon icon={faTrashCan} className="size-3.5" />
                     <span className="sr-only">Delete</span>
                 </Button>
             )}
             {customActions}
-            {moreActions.length > 0 && (
-                <DropdownMenu>
-                    <DropdownMenuTrigger
-                        render={
-                            <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
-                            />
-                        }
-                    >
-                        <FontAwesomeIcon icon={faEllipsis} className="size-3.5" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                        align="end"
-                        className="w-44 bg-white border-slate-200 shadow-md rounded-xl p-1"
-                    >
-                        {moreActions.map((action, i) => (
-                            <DropdownMenuItem
-                                key={i}
-                                onClick={action.onClick}
-                                className="text-xs font-medium cursor-pointer rounded-lg"
-                            >
-                                {action.icon && (
-                                    <FontAwesomeIcon
-                                        icon={action.icon}
-                                        className="size-3 mr-2 text-slate-400"
-                                    />
-                                )}
-                                {action.label}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )}
         </div>
     );
 }
