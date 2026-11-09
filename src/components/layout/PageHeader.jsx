@@ -246,7 +246,7 @@ function PageHeaderBase({
         <section
             aria-label={typeof title === 'string' ? title : 'Page Header'}
             className={cn(
-                'relative overflow-hidden rounded-2xl border border-emerald-100/80 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50/80 p-5 sm:p-6 shadow-xs backdrop-blur-xs transition-all',
+                'relative overflow-hidden rounded-2xl border border-emerald-100/80 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50/80 p-4 sm:p-5 md:p-6 shadow-xs backdrop-blur-xs transition-all w-full',
                 className
             )}
         >
@@ -260,20 +260,20 @@ function PageHeaderBase({
             </div>
 
             {/* Main Header Content */}
-            <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative z-10 flex flex-col gap-3.5 sm:gap-4 lg:flex-row lg:items-center lg:justify-between w-full min-w-0">
                 {/* Left: Icon + Category + Title + Subtitle */}
-                <div className="flex items-start sm:items-center gap-3.5 sm:gap-4.5 min-w-0">
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4.5 min-w-0 flex-1">
                     {resolvedIcon && (
-                        <div className="size-11 sm:size-12 rounded-xl bg-white border border-brand/20 shadow-xs flex items-center justify-center text-brand-dark shrink-0 ring-4 ring-brand/10">
+                        <div className="size-10 sm:size-12 rounded-xl bg-white border border-brand/20 shadow-xs flex items-center justify-center text-brand-dark shrink-0 ring-4 ring-brand/10">
                             {React.isValidElement(resolvedIcon) ? (
                                 resolvedIcon
                             ) : (
-                                <FontAwesomeIcon icon={resolvedIcon} className="size-5 sm:size-5.5 text-brand" />
+                                <FontAwesomeIcon icon={resolvedIcon} className="size-4.5 sm:size-5.5 text-brand" />
                             )}
                         </div>
                     )}
 
-                    <div className="min-w-0 space-y-1">
+                    <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                             {resolvedCategory && (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-brand-light/90 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold tracking-[0.14em] uppercase text-brand-dark border border-brand/20">
@@ -284,12 +284,12 @@ function PageHeaderBase({
                             {renderedBadge}
                         </div>
 
-                        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 leading-tight">
+                        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 leading-tight break-words">
                             {title}
                         </h1>
 
                         {description && (
-                            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
+                            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed break-words">
                                 {description}
                             </p>
                         )}
@@ -298,7 +298,7 @@ function PageHeaderBase({
 
                 {/* Right: Actions & Controls */}
                 {(primaryAction || secondaryAction || actions || rightContent) && (
-                    <div className="flex flex-wrap items-center gap-2.5 sm:self-auto shrink-0 pt-2 lg:pt-0">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-start sm:justify-end shrink-0 pt-1 lg:pt-0">
                         {secondaryAction}
                         {primaryAction}
                         {actions}
