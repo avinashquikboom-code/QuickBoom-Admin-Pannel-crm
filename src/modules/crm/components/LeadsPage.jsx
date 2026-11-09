@@ -163,7 +163,7 @@ export default function LeadsPage() {
       {/* Leads Table */}
       <Card className="border-slate-200/80 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <DataTable data={filteredLeads} columns={[
+          <DataTable hideToolbar data={filteredLeads} columns={[
 { header: 'Lead', cell: (lead) => <>
                       <div>{lead.name}</div>
                       <div className="text-[11px] text-slate-400">{lead.email}</div>

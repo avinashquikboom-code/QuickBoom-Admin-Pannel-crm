@@ -154,7 +154,7 @@ export function AdminPagination({
                 disabled={disabled}
                 className={`min-w-[28px] h-7 px-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
                   isCurrent
-                    ? 'bg-[#23C45E] text-slate-950 shadow-xs'
+                    ? 'bg-[#1FC45B] text-white shadow-2xs font-bold'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 } disabled:opacity-50`}
               >

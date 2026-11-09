@@ -131,7 +131,7 @@ export default function SalarySlipsPage() {
 
       {/* Table */}
       <HrmNotice loading={loading} error={error} />
-      {!loading && !error && <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No salary slips found.</div>}/>}
+      {!loading && !error && <DataTable hideToolbar columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No salary slips found.</div>}/>}
 
       {/* Salary Slip Drawer */}
       <Sheet open={!!activeSlip} onOpenChange={() => setActiveSlip(null)}>

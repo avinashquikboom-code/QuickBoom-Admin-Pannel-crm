@@ -60,10 +60,10 @@ export function AdminDataTable<T>({
   }
 
   return (
-    <div className={`bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden ${className}`}>
       <div className="overflow-x-auto custom-scrollbar">
         <table className={`w-full text-xs text-left ${minWidth}`}>
-          <thead className="bg-slate-50 text-slate-500 font-black uppercase text-[10px] tracking-wider border-b border-slate-100">
+          <thead className="bg-[#F4FAF6] text-[#163A2E] font-semibold text-xs tracking-wider border-b border-emerald-100/90">
             <tr>
               {columns.map((col) => (
                 <th key={col.key} className={`p-4 ${col.headerClassName || ''}`}>
@@ -72,14 +72,14 @@ export function AdminDataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+          <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
             {data.map((item, index) => {
               const rowKey = keyExtractor ? keyExtractor(item, index) : (item as any)?.id || index;
               return (
                 <tr
                   key={rowKey}
                   onClick={() => onRowClick && onRowClick(item)}
-                  className={`hover:bg-slate-50/60 transition-colors ${
+                  className={`hover:bg-[#F9FCFA] transition-colors ${
                     onRowClick ? 'cursor-pointer' : ''
                   } ${rowClassName?.(item) || ''}`}
                 >

@@ -42,7 +42,6 @@ export const masterNavigation = [
     { name: 'Leave Types', href: '/admin/sections/leave-types', icon: faCalendar },
     { name: 'Leave Policies', href: '/admin/sections/leave-policies', icon: faFileLines },
     { name: 'Work Types', href: '/admin/sections/work-types', icon: faListCheck },
-    { name: 'Activity Types', href: '/admin/sections/activity-types', icon: faChartBar },
     { name: 'Task Status', href: '/admin/sections/task-status', icon: faListCheck },
     { name: 'Subscription Plans', href: '/admin/sections/subscription-plans', icon: faLayerGroup },
     { name: 'Expense Categories', href: '/admin/sections/expense-categories', icon: faTags },

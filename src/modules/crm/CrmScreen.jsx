@@ -62,7 +62,30 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
       </div>
       <HrmNotice loading={loading} error={error} empty={!loading && !error && rows.length === 0 ? `No ${title.toLowerCase()} match these filters.` : ''} onRetry={() => setRefresh((value) => value + 1)}>
         {below && <div className="mb-4">{below(rows, payload)}</div>}
-        <div className="overflow-x-auto"><DataTable columns={columns} data={rows} label={title} rowActions={[...(detail ? [{ label: 'View', onSelect: setSelected }] : []), ...(onSave ? [{ label: 'Edit', onSelect: (row) => { setEditing(row.id); setForm({ ...(blank || {}), ...row }); setOpen(true); } }] : []), ...(rowActions ? rowActions(setRefresh) : [])]} /></div>
+        <div className="overflow-x-auto">
+          <DataTable
+            hideToolbar
+            columns={columns}
+            data={rows}
+            label={title}
+            rowActions={[
+              ...(detail ? [{ label: 'View', onSelect: setSelected }] : []),
+              ...(onSave
+                ? [
+                    {
+                      label: 'Edit',
+                      onSelect: (row) => {
+                        setEditing(row.id);
+                        setForm({ ...(blank || {}), ...row });
+                        setOpen(true);
+                      },
+                    },
+                  ]
+                : []),
+              ...(rowActions ? rowActions(setRefresh) : []),
+            ]}
+          />
+        </div>
       </HrmNotice>
       <div className="flex justify-end gap-2"><Button variant="outline" size="sm" disabled={(query.page || 1) <= 1} onClick={() => setQuery({ ...query, page: query.page - 1 })}>Previous</Button><span className="self-center text-xs text-slate-500">Page {payload.pagination?.page || query.page}</span><Button variant="outline" size="sm" disabled={(query.page || 1) >= (payload.pagination?.totalPages || 1)} onClick={() => setQuery({ ...query, page: (query.page || 1) + 1 })}>Next</Button></div>
       <FormDrawer open={open} onOpenChange={setOpen} title={editing ? `Edit ${title}` : actionLabel || `Create ${title}`} description="Fields match the existing API." onSubmit={submit} loading={saving}>
