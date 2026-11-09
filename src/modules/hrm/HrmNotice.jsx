@@ -20,11 +20,11 @@ export function HrmNotice({ error, loading, onRetry, empty, children }) {
 
 export function HrmStats({ items }) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
       {items.map((item) => (
-        <div key={item.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-          <p className="text-xs font-medium text-slate-500">{item.label}</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{item.value ?? '—'}</p>
+        <div key={item.label} className="rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0 flex flex-col justify-between h-full">
+          <p className="truncate text-xs font-medium text-slate-500">{item.label}</p>
+          <p className="truncate mt-1 text-xl sm:text-2xl font-bold text-slate-900">{item.value ?? '—'}</p>
         </div>
       ))}
     </div>
@@ -33,7 +33,7 @@ export function HrmStats({ items }) {
 
 export function HrmGap({ title, detail }) {
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5 text-xs sm:text-sm text-amber-900 break-words">
       <p className="font-semibold">{title}</p>
       <p className="mt-1 leading-relaxed">{detail}</p>
     </div>

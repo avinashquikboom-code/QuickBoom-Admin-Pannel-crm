@@ -58,7 +58,9 @@ export const loadCommissionSettings = () => api.get('/commissions/configs/design
 export const saveCommissionSetting = (values) => api.patch(`/commissions/configs/designations/${values.designationId}`, { designationId: Number(values.designationId), commissionEnabled: values.commissionEnabled === true || values.commissionEnabled === 'true', commissionType: values.commissionType || undefined, commissionRate: Number(values.commissionRate) });
 
 export const DATA_MODULES = ['crm', 'attendance', 'leave', 'remote', 'visits', 'payroll', 'notifications', 'location', 'claims', 'loans', 'works'];
-export const REPORT_TYPES = ['ATTENDANCE', 'PAYROLL', 'LEAVES', 'EMPLOYEES', 'VISITS', 'REVENUE'];
+export const loadReportCatalog = () => api.get('/reports/catalog');
+export const viewReport = (params) => api.get('/reports/view', { params });
+export const downloadReportPdf = (body) => api.post('/reports/export/pdf', body, { responseType: 'blob' });
 
 export const suiteGaps = {
   general: 'There is no general-settings API for application name, logo, language, currency, timezone, or date format.',

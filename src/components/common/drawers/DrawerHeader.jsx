@@ -7,7 +7,7 @@ export function DrawerHeader({ title, description, className, children, ...props
   return (
     <SheetHeader
       className={cn(
-        "shrink-0 border-b border-slate-200/80 bg-white px-6 py-4.5 text-left",
+        "shrink-0 border-b border-slate-200/80 bg-white px-4 py-3.5 sm:px-6 sm:py-4.5 text-left",
         className
       )}
       {...props}

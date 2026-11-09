@@ -352,7 +352,8 @@ function DataTableContent({
                 </div>
             )}
 
-            {/* Standard Table with Responsive Mobile Cards */}
+            {/* Standard Table with Responsive Mobile Cards & Horizontal Scroll */}
+            <div className="relative w-full overflow-x-auto min-w-0">
             <Table className="w-full text-xs text-left max-md:[&_thead]:sr-only max-md:[&_table]:block max-md:[&_tbody]:block max-md:[&_tbody_tr]:mb-3 max-md:[&_tbody_tr]:grid max-md:[&_tbody_tr]:grid-cols-2 max-md:[&_tbody_tr]:gap-x-2 max-md:[&_tbody_tr]:rounded-2xl max-md:[&_tbody_tr]:border max-md:[&_tbody_tr]:border-slate-200 max-md:[&_tbody_tr]:bg-white max-md:[&_tbody_tr]:p-4 max-md:[&_tbody_tr]:shadow-2xs max-md:[&_td]:block max-md:[&_td]:min-w-0 max-md:[&_td]:border-0 max-md:[&_td]:px-1 max-md:[&_td]:py-1.5 max-md:[&_td[colspan]]:col-span-2">
                 <TableCaption className="sr-only">
                     {label}: searchable, sortable and paginated
@@ -460,6 +461,7 @@ function DataTableContent({
                     )}
                 </TableBody>
             </Table>
+            </div>
 
             {/* Standard Pagination Footer */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 p-3.5 text-xs text-slate-500 bg-white">
