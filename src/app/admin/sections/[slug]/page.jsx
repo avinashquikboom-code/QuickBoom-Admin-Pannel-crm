@@ -402,7 +402,7 @@ function SectionPageContent() {
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
             {/* Standardized Reusable PageHeader (NO BREADCRUMBS) */}
             <PageHeader
                 category={config.category}
@@ -410,7 +410,7 @@ function SectionPageContent() {
                 description={config.description}
                 icon={config.icon}
                 actions={
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
                         <Button
                             variant="outline"
                             onClick={handleExport}
@@ -434,7 +434,7 @@ function SectionPageContent() {
             <KpiGrid items={kpis} />
 
             {/* Segmented Status Filter Tabs */}
-            <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 pb-3">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 pb-3 w-full overflow-x-auto">
                 <SegmentedTabs
                     tabs={tabs}
                     value={selectedTab}

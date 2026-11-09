@@ -41,6 +41,7 @@ import {
     faIndustry,
     faGauge,
     faBullhorn,
+    faClockRotateLeft,
 } from '@fortawesome/free-solid-svg-icons';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { Badge } from '@/components/common/Badge';
@@ -114,6 +115,13 @@ function getRouteMetadata(pathname) {
 
     const segments = pathname.split('/').filter(Boolean);
     const lastSegment = segments[segments.length - 1];
+
+    if (pathname.includes('/admin/data-capture/history')) {
+        return { category: 'DATA CAPTURE ENGINE', icon: faClockRotateLeft };
+    }
+    if (pathname.includes('/admin/data-capture/usage')) {
+        return { category: 'DATA CAPTURE ENGINE', icon: faChartBar };
+    }
 
     if (routeRegistry[lastSegment]) {
         const item = routeRegistry[lastSegment];

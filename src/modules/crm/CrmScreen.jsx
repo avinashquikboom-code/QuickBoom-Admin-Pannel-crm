@@ -55,7 +55,7 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
     <div className="mx-auto w-full max-w-7xl min-w-0 space-y-4 sm:space-y-6 overflow-x-hidden">
       <PageHeader title={title} description={description} actions={headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>} />
       {stats && <HrmStats items={stats(payload)} />}
-      {gap && <HrmGap title={gap.title} detail={gap.detail} />}
+      {(() => { const item = typeof gap === 'function' ? gap(rows) : gap; return item ? <HrmGap title={item.title} detail={item.detail} /> : null; })()}
       <div className="grid grid-cols-1 gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4 w-full min-w-0">
         <Input value={query.search} onChange={(event) => setQuery({ ...query, search: event.target.value, page: 1 })} placeholder={`Search ${title.toLowerCase()}`} />
         {filters.map((filter) => filter.type === 'date' ? <Input key={filter.key} type="date" aria-label={filter.label} value={query[filter.key] || ''} onChange={(event) => setQuery({ ...query, [filter.key]: event.target.value, page: 1 })} /> : <select key={filter.key} aria-label={filter.label} className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm" value={query[filter.key] || ''} onChange={(event) => setQuery({ ...query, [filter.key]: event.target.value, page: 1 })}><option value="">{filter.label}</option>{(filter.options || []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>)}
@@ -77,7 +77,7 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
               onSelectionChange?.(rows);
             }}
             pageSize={Math.max(rows.length, 1)}
-            columns={columns}
+            columns={typeof columns === 'function' ? columns({ open: setSelected }) : columns}
             data={rows}
             label={title}
             rowActions={[

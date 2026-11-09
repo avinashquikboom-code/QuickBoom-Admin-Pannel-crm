@@ -9,6 +9,7 @@ import {
     faCartShopping,
     faChartBar,
     faClock,
+    faClockRotateLeft,
     faCreditCard,
     faDatabase,
     faDiagramProject,
@@ -31,8 +32,9 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 export const dataCaptureNavigation = [
-    { name: 'Data Capture', href: '/admin/data-capture', icon: faDatabase },
+    { name: 'Data Capture', href: '/admin/data-capture', icon: faDatabase, matchExact: true },
     { name: 'Usage & Quota', href: '/admin/data-capture/usage', icon: faChartBar },
+    { name: 'Capture History', href: '/admin/data-capture/history', icon: faClockRotateLeft },
 ];
 
 export const masterNavigation = [
