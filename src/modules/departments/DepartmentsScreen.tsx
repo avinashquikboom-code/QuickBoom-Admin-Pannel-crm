@@ -74,7 +74,8 @@ export function DepartmentsScreen() {
   const [refresh, setRefresh] = React.useState(0);
   const [filter, setFilter] = React.useState<Filter>('all');
   const [mobileSort, setMobileSort] = React.useState('name');
-  const [canManage, setCanManage] = React.useState(false);
+  const authUser = useAuthStore((state) => state.user);
+  const [sessionUser, setSessionUser] = React.useState<unknown>(null);
   const [drawer, setDrawer] = React.useState<{ id: number | null; mode: 'create' | 'edit' | 'view' } | null>(null);
   const [confirmation, setConfirmation] = React.useState<Confirmation | null>(null);
   const [mutating, setMutating] = React.useState(false);
@@ -82,8 +83,11 @@ export function DepartmentsScreen() {
   const [actionError, setActionError] = React.useState('');
 
   React.useEffect(() => {
-    const storedUser = useAuthStore.getState().user;
-    setCanManage(isUserAdmin(readSession()?.user) || isUserAdmin(storedUser));
+    setSessionUser(readSession()?.user ?? null);
+  }, [authUser]);
+  const canManage = isUserAdmin(authUser) || isUserAdmin(sessionUser);
+
+  React.useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError('');
