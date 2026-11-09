@@ -87,3 +87,5 @@ export const captureGaps = {
   quota: 'Quota, remaining allowance, captured records, and Google API calls come from GET /data-capture/usage. This screen does not replace those numbers with subscription math.',
   history: 'Usage history is the extraction job list. There is no separate daily usage series.',
 };
+
+export const deleteCaptures = (ids) => api.post('/data-capture/bulk', { action: 'delete', ids });

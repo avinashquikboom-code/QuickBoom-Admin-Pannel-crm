@@ -162,7 +162,7 @@ export default function CaptureHistoryPage() {
           <table className="min-w-[1100px] w-full text-left text-sm">
             <thead className="bg-[#E8F1EC] text-[#163A2E]">
               <tr>
-                {['Capture ID', 'Capture Name', 'Data Source', 'Category', 'Location', 'Total', 'Selected', 'Imported', 'Already Exists', 'Pending', 'Failed', 'Captured By', 'Capture Date', 'Status', ''].map((heading) => (
+                {['Capture ID', 'Capture Name', 'Data Source', 'Category', 'Location', 'Captured By', 'Capture Date', 'Status', ''].map((heading) => (
                   <th key={heading} className="px-3 py-2 font-semibold">{heading}</th>
                 ))}
               </tr>
@@ -175,17 +175,13 @@ export default function CaptureHistoryPage() {
                   <td className="px-3 py-2">{row.source || '—'}</td>
                   <td className="px-3 py-2">{row.category || '—'}</td>
                   <td className="px-3 py-2">{row.location || '—'}</td>
-                  <td className="px-3 py-2">{row.totalRecords ?? 0}</td>
-                  <td className="px-3 py-2">{row.selected ?? 0}</td><td className="px-3 py-2">{row.imported ?? 0}</td><td className="px-3 py-2">{row.duplicate ?? 0}</td>
-                  <td className="px-3 py-2">{row.pending ?? 0}</td>
-                  <td className="px-3 py-2">{row.failed ?? 0}</td>
                   <td className="px-3 py-2">{row.capturedBy || '—'}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{when(row.captureDate)}</td>
                   <td className="px-3 py-2"><Status value={row.status} /></td>
                   <td className="px-3 py-2"><button type="button" className="font-semibold text-[#163A2E]" onClick={() => openSession(row)}>View Details</button></td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan={15} className="px-3 py-8 text-center text-slate-500">No capture sessions match these filters.</td></tr>}
+              {!rows.length && <tr><td colSpan={9} className="px-3 py-8 text-center text-slate-500">No capture sessions match these filters.</td></tr>}
             </tbody>
           </table>
         </div>
