@@ -49,11 +49,6 @@ const StatusTabs = SegmentedTabs as React.ComponentType<{
 type Filter = 'all' | 'active' | 'inactive' | 'archived';
 type Confirmation = { record: Department; action: 'delete' | 'status' | 'archive' };
 
-function initials(name: string) {
-  const letters = name.split(/\s+/).map((part) => part[0]).filter(Boolean).slice(0, 2).join('');
-  return letters || '—';
-}
-
 function Status({ active }: { active: boolean }) {
   return (
     <Badge render={undefined} className={`h-auto gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${active ? 'border-emerald-200/80 bg-[#E8F8EE] text-[#169F4D]' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
@@ -213,21 +208,6 @@ export function DepartmentsScreen() {
       ),
     },
     {
-      accessorKey: 'head',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Head of Department" className="" />,
-      cell: ({ row }) => (
-        <>
-          <MobileLabel>Head of Department</MobileLabel>
-          <div className="flex min-w-0 items-center gap-2">
-            <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-[10px] font-bold text-emerald-800">
-              {row.original.headId ? initials(row.original.head) : '—'}
-            </span>
-            <span className="truncate text-xs font-medium text-slate-700">{row.original.head}</span>
-          </div>
-        </>
-      ),
-    },
-    {
       accessorKey: 'employeesCount',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Employees" className="" />,
       cell: ({ row }) => (
@@ -368,7 +348,7 @@ export function DepartmentsScreen() {
             data={filtered}
             enableRowSelection
             isLoading={loading}
-            searchPlaceholder="Search departments, codes or heads…"
+            searchPlaceholder="Search departments or codes…"
             emptyState={filter === 'archived' ? (
               <div className="py-8">
                 <Icon icon={faBoxArchive} className="mx-auto mb-3 size-7 text-slate-300" />

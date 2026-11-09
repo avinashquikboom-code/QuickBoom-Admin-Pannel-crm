@@ -12,75 +12,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/common/Label';
 import { toast } from '@/hooks/use-toast';
 import { faCheckCircle, faClock, faMagnifyingGlass, faMugHot, faPlus, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
-const mockBreakRecords = [
-    {
-        id: 'BRK-101',
-        employeeId: 'EMP-1001',
-        employeeName: 'Sarah Jenkins',
-        employeeAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-        department: 'Engineering',
-        breakType: 'Lunch Break',
-        startTime: '12:30 PM',
-        endTime: '01:15 PM',
-        duration: '45m',
-        status: 'completed',
-        overstayMinutes: 0,
-    },
-    {
-        id: 'BRK-102',
-        employeeId: 'EMP-1002',
-        employeeName: 'Alexander Vance',
-        employeeAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-        department: 'Engineering',
-        breakType: 'Coffee Break',
-        startTime: '03:15 PM',
-        endTime: '03:40 PM',
-        duration: '25m',
-        status: 'exceeded',
-        overstayMinutes: 10,
-    },
-    {
-        id: 'BRK-103',
-        employeeId: 'EMP-1003',
-        employeeName: 'Priya Sharma',
-        employeeAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
-        department: 'Product & Design',
-        breakType: 'Lunch Break',
-        startTime: '01:00 PM',
-        endTime: null,
-        duration: '35m (ongoing)',
-        status: 'active',
-        overstayMinutes: 0,
-    },
-    {
-        id: 'BRK-104',
-        employeeId: 'EMP-1006',
-        employeeName: 'Liam Chen',
-        employeeAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150',
-        department: 'Sales',
-        breakType: 'Personal Break',
-        startTime: '11:00 AM',
-        endTime: '11:20 AM',
-        duration: '20m',
-        status: 'completed',
-        overstayMinutes: 0,
-    },
-    {
-        id: 'BRK-105',
-        employeeId: 'EMP-1008',
-        employeeName: 'Devon Kowalski',
-        employeeAvatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
-        department: 'Operations',
-        breakType: 'Lunch Break',
-        startTime: '12:00 PM',
-        endTime: '01:10 PM',
-        duration: '70m',
-        status: 'exceeded',
-        overstayMinutes: 10,
-    },
-];
+import { hrmError, loadBreaks, missingHrmApis } from '@/modules/hrm/hrm-api';
+import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function BreakManagementPage() {
-    const [breaks, setBreaks] = React.useState(mockBreakRecords);
+    const [breaks, setBreaks] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    React.useEffect(() => {
+        let active = true;
+        loadBreaks().then((result) => { if (active) setBreaks(result.records); }).catch((err) => { if (active) setError(hrmError(err)); }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, []);
     const [search, setSearch] = React.useState('');
     const [selectedType, setSelectedType] = React.useState('all');
     const [logDialogOpen, setLogDialogOpen] = React.useState(false);
@@ -100,22 +42,7 @@ export default function BreakManagementPage() {
     }, [breaks, search, selectedType]);
     const handleAddBreak = (e) => {
         e.preventDefault();
-        const newBreak = {
-            id: `BRK-${100 + breaks.length + 1}`,
-            employeeId: 'EMP-1001',
-            employeeName: formData.employeeName,
-            employeeAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-            department: 'Engineering',
-            breakType: formData.breakType,
-            startTime: formData.startTime,
-            endTime: formData.endTime,
-            duration: '15m',
-            status: 'completed',
-            overstayMinutes: 0,
-        };
-        setBreaks((prev) => [newBreak, ...prev]);
-        setLogDialogOpen(false);
-        toast.success('Break log recorded successfully');
+        toast.error(missingHrmApis.breakPolicy);
     };
     const columns = [
         {
@@ -260,7 +187,8 @@ export default function BreakManagementPage() {
       </div>
 
       {/* Table */}
-      <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No break logs recorded.</div>}/>
+      <HrmNotice loading={loading} error={error} />
+      {!loading && !error && <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No break logs recorded.</div>}/>}
 
       {/* Manual Break FormDrawer */}
       <FormDrawer

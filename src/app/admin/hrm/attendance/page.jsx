@@ -9,12 +9,22 @@ import { FormDrawer, DrawerFormField } from '@/components/common/drawers/FormDra
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
-import { mockAttendanceRecords } from '@/lib/mock-data';
 import { toast } from '@/hooks/use-toast';
 import { faCircleXmark, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import { faCalendarCheck, faCalendarXmark } from '@fortawesome/free-regular-svg-icons';
+import { hrmError, loadLiveDashboard, missingHrmApis } from '@/modules/hrm/hrm-api';
+import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function AttendancePage() {
-    const [records, setRecords] = React.useState(mockAttendanceRecords);
+    const [records, setRecords] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [refresh, setRefresh] = React.useState(0);
+    React.useEffect(() => {
+        let active = true;
+        setLoading(true);
+        loadLiveDashboard().then((result) => { if (active) setRecords(result.records); }).catch((err) => { if (active) setError(hrmError(err)); }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [refresh]);
     const [search, setSearch] = React.useState('');
     const [selectedDept, setSelectedDept] = React.useState('All Departments');
     const [selectedStatus, setSelectedStatus] = React.useState('all');
@@ -42,20 +52,7 @@ export default function AttendancePage() {
     };
     const handleSaveAdjustment = (e) => {
         e.preventDefault();
-        if (!currentRecord)
-            return;
-        setRecords((prev) => prev.map((r) => r.id === currentRecord.id
-            ? {
-                ...r,
-                punchIn: punchInVal,
-                punchOut: punchOutVal,
-                status: statusVal,
-            }
-            : r));
-        setEditDialogOpen(false);
-        toast.success('Attendance punch updated', {
-            description: `Manual punch adjustment saved for ${currentRecord.employeeName}.`,
-        });
+        toast.error(missingHrmApis.attendanceCorrection);
     };
     const handleExport = () => {
         toast.success('Attendance Report Exported', {
@@ -124,10 +121,11 @@ export default function AttendancePage() {
       </div>
 
       {/* Filter Toolbar */}
-      <AttendanceFilters search={search} onSearchChange={setSearch} selectedDept={selectedDept} onDeptChange={setSelectedDept} selectedStatus={selectedStatus} onStatusChange={setSelectedStatus} onExport={handleExport}/>
+      <AttendanceFilters search={search} onSearchChange={setSearch} selectedDept={selectedDept} onDeptChange={setSelectedDept} selectedStatus={selectedStatus} onStatusChange={setSelectedStatus} onExport={handleExport} departments={['All Departments', ...new Set(records.map((row) => row.department).filter(Boolean))]} />
 
       {/* Attendance Table */}
-      <AttendanceTable records={filtered} onAdjustPunch={handleOpenEdit}/>
+      <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} />
+      {!loading && !error && <AttendanceTable records={filtered} onAdjustPunch={handleOpenEdit}/>}
 
       {/* Manual Adjustment FormDrawer */}
       <FormDrawer

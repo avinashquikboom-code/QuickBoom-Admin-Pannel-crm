@@ -15,66 +15,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { toast } from '@/hooks/use-toast';
 import { faCheck, faHeartPulse, faMagnifyingGlass, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { faCalendarCheck, faCalendarXmark } from '@fortawesome/free-regular-svg-icons';
-const mockLeaves = [
-    {
-        id: 'LEV-501',
-        employeeId: 'EMP-1007',
-        employeeName: 'Chloe Dupont',
-        employeeAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
-        department: 'Marketing',
-        leaveType: 'Maternity / Parental',
-        startDate: '2026-03-20',
-        endDate: '2026-06-20',
-        totalDays: 60,
-        reason: 'Parental leave under company family care program',
-        status: 'approved',
-        appliedOn: '2026-02-15',
-    },
-    {
-        id: 'LEV-502',
-        employeeId: 'EMP-1003',
-        employeeName: 'Priya Sharma',
-        employeeAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
-        department: 'Product & Design',
-        leaveType: 'Annual Leave',
-        startDate: '2026-04-06',
-        endDate: '2026-04-10',
-        totalDays: 5,
-        reason: 'Annual family holiday and recharge',
-        status: 'pending',
-        appliedOn: '2026-03-22',
-    },
-    {
-        id: 'LEV-503',
-        employeeId: 'EMP-1002',
-        employeeName: 'Alexander Vance',
-        employeeAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-        department: 'Engineering',
-        leaveType: 'Sick Leave',
-        startDate: '2026-03-23',
-        endDate: '2026-03-24',
-        totalDays: 2,
-        reason: 'Flu symptoms with doctor consultation prescription',
-        status: 'approved',
-        appliedOn: '2026-03-23',
-    },
-    {
-        id: 'LEV-504',
-        employeeId: 'EMP-1009',
-        employeeName: 'Amara Okafor',
-        employeeAvatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150',
-        department: 'Engineering',
-        leaveType: 'Casual Leave',
-        startDate: '2026-03-27',
-        endDate: '2026-03-27',
-        totalDays: 1,
-        reason: 'Personal family appointment',
-        status: 'pending',
-        appliedOn: '2026-03-24',
-    },
-];
+import { decideLeave, hrmError, loadLeaves, submitLeave } from '@/modules/hrm/hrm-api';
+import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function LeaveManagementPage() {
-    const [leaves, setLeaves] = React.useState(mockLeaves);
+    const [leaves, setLeaves] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [refresh, setRefresh] = React.useState(0);
+    React.useEffect(() => {
+        let active = true;
+        loadLeaves().then((rows) => { if (active) setLeaves(rows); }).catch((err) => { if (active) setError(hrmError(err)); }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [refresh]);
     const [search, setSearch] = React.useState('');
     const [selectedType, setSelectedType] = React.useState('all');
     const [selectedStatus, setSelectedStatus] = React.useState('all');
@@ -132,16 +84,8 @@ export default function LeaveManagementPage() {
         const isApprove = confirmDialog.type === 'approve';
         setSubmitting(true);
         try {
-            await new Promise((resolve) => {
-                setTimeout(resolve, 320);
-            });
-            setLeaves((prev) => prev.map((l) => l.id === item.id
-                ? {
-                    ...l,
-                    status: isApprove ? 'approved' : 'rejected',
-                    reviewNote: note || undefined,
-                }
-                : l));
+            await decideLeave(item.recordId, isApprove, note);
+            setRefresh((value) => value + 1);
             if (isApprove) {
                 toast.success(`Leave Approved for ${item.employeeName}`, {
                     description: `${item.totalDays} day(s) deducted from balance.`,
@@ -155,7 +99,7 @@ export default function LeaveManagementPage() {
         }
         catch (error) {
             if (error?.message !== 'already-processed') {
-                toast.error('Unable to update leave request. Please try again.');
+                toast.error(hrmError(error));
                 throw error;
             }
         }
@@ -163,27 +107,22 @@ export default function LeaveManagementPage() {
             setSubmitting(false);
         }
     };
-    const handleApplyLeave = (e) => {
+    const handleApplyLeave = async (e) => {
         e.preventDefault();
-        const newLeave = {
-            id: `LEV-${500 + leaves.length + 1}`,
-            employeeId: 'EMP-1004',
-            employeeName: formData.employeeName,
-            employeeAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-            department: 'Human Resources',
-            leaveType: formData.leaveType,
-            startDate: formData.startDate,
-            endDate: formData.endDate,
-            totalDays: Number(formData.totalDays) || 1,
-            reason: formData.reason,
-            status: 'pending',
-            appliedOn: new Date().toISOString().split('T')[0],
-        };
-        setLeaves((prev) => [newLeave, ...prev]);
-        setApplyDialogOpen(false);
-        toast.success('Leave Application Submitted', {
-            description: `Leave recorded for ${newLeave.employeeName}.`,
-        });
+        try {
+            await submitLeave({
+                leaveTypeName: formData.leaveType,
+                fromDate: formData.startDate,
+                toDate: formData.endDate,
+                days: Number(formData.totalDays) || 1,
+                reason: formData.reason,
+            });
+            setApplyDialogOpen(false);
+            setRefresh((value) => value + 1);
+            toast.success('Leave application submitted');
+        } catch (err) {
+            toast.error(hrmError(err));
+        }
     };
     const columns = [
         {
@@ -356,7 +295,8 @@ export default function LeaveManagementPage() {
       </div>
 
       {/* Table */}
-      <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No leave applications found.</div>}/>
+      <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} />
+      {!loading && !error && <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No leave applications found.</div>}/>}
 
       <RequestDecisionDialogSwitch
         open={confirmDialog.open}

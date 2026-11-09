@@ -10,12 +10,21 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/common/Drawer';
-import { mockPayrollRecords } from '@/lib/mock-data';
 import { toast } from '@/hooks/use-toast';
 import { faDownload, faMagnifyingGlass, faPrint } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope, faFileLines } from '@fortawesome/free-regular-svg-icons';
+import { downloadSalarySlip, viewSalarySlip } from '../../../../../lib/salary-slip-pdf';
+import { hrmError, loadSalarySlips } from '@/modules/hrm/hrm-api';
+import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function SalarySlipsPage() {
-    const [records] = React.useState(mockPayrollRecords);
+    const [records, setRecords] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    React.useEffect(() => {
+        let active = true;
+        loadSalarySlips().then((rows) => { if (active) setRecords(rows); }).catch((err) => { if (active) setError(hrmError(err)); }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, []);
     const [search, setSearch] = React.useState('');
     const [selectedMonth, setSelectedMonth] = React.useState('all');
     const [activeSlip, setActiveSlip] = React.useState(null);
@@ -83,17 +92,14 @@ export default function SalarySlipsPage() {
             <FontAwesomeIcon icon={faFileLines} className="size-3.5 mr-1 text-slate-400"/>
             View Slip
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => toast.success(`Downloaded payslip for ${r.employeeName}`)} className="h-7.5 px-2 text-slate-600 hover:text-slate-900">
+          <Button size="sm" variant="ghost" onClick={() => downloadSalarySlip(r.recordId)} className="h-7.5 px-2 text-slate-600 hover:text-slate-900">
             <FontAwesomeIcon icon={faDownload} className="size-3.5"/>
           </Button>
         </div>),
         },
     ];
     return (<div className="space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Salary Slips Repository" description="Search, view, download and distribute official monthly compensation slips to personnel." actions={<Button size="sm" onClick={() => toast.success('Sent payslips to all employees via email')} className="bg-brand hover:bg-primary-hover text-primary-foreground font-medium text-xs h-9">
-            <FontAwesomeIcon icon={faEnvelope} className="size-4 mr-1.5"/>
-            Email All Slips
-          </Button>}/>
+      <PageHeader title="Salary Slips Repository" description="Salary slips returned by the payroll API." />
 
       {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
@@ -124,7 +130,8 @@ export default function SalarySlipsPage() {
       </div>
 
       {/* Table */}
-      <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No salary slips found.</div>}/>
+      <HrmNotice loading={loading} error={error} />
+      {!loading && !error && <DataTable columns={columns} data={filtered} pageSize={8} emptyState={<div className="py-8 text-center text-slate-500">No salary slips found.</div>}/>}
 
       {/* Salary Slip Drawer */}
       <Sheet open={!!activeSlip} onOpenChange={() => setActiveSlip(null)}>
@@ -218,14 +225,11 @@ export default function SalarySlipsPage() {
           )}
 
           <div className="shrink-0 flex items-center justify-end gap-2 border-t border-slate-200/80 bg-slate-50/80 px-6 py-4">
-            <Button variant="outline" size="sm" onClick={() => toast.success('Printed slip')} className="h-9 px-4 text-xs border-slate-200">
+            <Button variant="outline" size="sm" onClick={() => activeSlip && viewSalarySlip(activeSlip.recordId)} className="h-9 px-4 text-xs border-slate-200">
               <FontAwesomeIcon icon={faPrint} className="size-3.5 mr-1.5"/>
               Print
             </Button>
-            <Button size="sm" onClick={() => {
-              toast.success('Downloaded PDF slip');
-              setActiveSlip(null);
-            }} className="h-9 px-4 bg-brand hover:bg-primary-hover text-primary-foreground text-xs font-semibold">
+            <Button size="sm" onClick={() => activeSlip && downloadSalarySlip(activeSlip.recordId)} className="h-9 px-4 bg-brand hover:bg-primary-hover text-primary-foreground text-xs font-semibold">
               <FontAwesomeIcon icon={faDownload} className="size-3.5 mr-1.5"/>
               Download
             </Button>
