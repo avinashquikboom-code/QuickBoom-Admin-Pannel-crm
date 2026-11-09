@@ -70,16 +70,16 @@ export const checkLeadDuplicate = (values) => api.post('/leads/check-duplicate',
 });
 
 export const searchGooglePlaces = (values) => api.post('/data-capture/extract', {
-  keyword: values.keyword || undefined,
-  category: values.category || undefined,
+  categories: values.categories,
+  keyword: Array.isArray(values.categories) ? values.categories.join(', ') : values.keyword,
   location: values.location || undefined,
-  city: values.city || undefined,
-  state: values.state || undefined,
-  country: values.country || undefined,
-  radius: values.radius ? Number(values.radius) : undefined,
-  query: values.query || undefined,
+  latitude: values.latitude ?? undefined,
+  longitude: values.longitude ?? undefined,
   maxResults: values.maxResults ? Number(values.maxResults) : 20,
+  strict: true,
 });
+export const suggestGoogleLocations = (input) => api.post('/data-capture/location-suggestions', { input });
+export const resolveGoogleLocation = (placeId) => api.post('/data-capture/location-details', { placeId });
 
 export const importGooglePlaces = (placeIds, jobId) => api.post('/data-capture/import-to-leads', { placeIds, jobId });
 export const loadCapturedPlace = (id) => api.get(`/data-capture/${id}`);
