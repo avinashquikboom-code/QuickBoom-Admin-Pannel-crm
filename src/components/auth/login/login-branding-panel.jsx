@@ -1,23 +1,24 @@
 'use client';
 
-import { BarChart3, Database, Layers, Users } from 'lucide-react';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { icons } from '@/theme/icons';
 
 /** Minimal login brand tokens. */
 export const LOGIN_BRAND = {
-  primary: '#5EC169',
-  darkGreen: '#218B45',
-  light: '#EAF8EC',
-  mint: '#F1FAF4',
-  navy: '#14213D',
-  muted: '#64748B',
-  inputBorder: '#D9E1E9',
+  primary: '#163A2E',
+  darkGreen: '#204C3D',
+  light: '#E8F1EC',
+  mint: '#F3F8F5',
+  navy: '#172B24',
+  muted: '#718078',
+  inputBorder: '#E2E8E5',
 };
 
 const FEATURES = [
-  { label: 'HRM & Team Management', Icon: Users },
-  { label: 'Sales & CRM', Icon: BarChart3 },
-  { label: 'Operations & Projects', Icon: Layers },
-  { label: 'Finance & Reports', Icon: Database },
+  { label: 'HRM & Team Management', icon: icons.users },
+  { label: 'Sales & CRM', icon: icons.chart },
+  { label: 'Operations & Projects', icon: icons.layers },
+  { label: 'Finance & Reports', icon: icons.database },
 ];
 
 export function QbSuiteLogoMark({ size = 'md' }) {
@@ -28,7 +29,7 @@ export function QbSuiteLogoMark({ size = 'md' }) {
       className={`flex shrink-0 items-center justify-center ${box}`}
       style={{ backgroundColor: LOGIN_BRAND.primary }}
     >
-      <Layers className={`${icon} text-white`} strokeWidth={2.25} aria-hidden />
+      <FontAwesomeIcon icon={icons.layers} className={`${icon} text-white`} aria-hidden />
     </div>
   );
 }
@@ -77,13 +78,13 @@ export function LoginBrandingPanel() {
         </div>
 
         <div className="mt-10 grid max-w-lg grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 xl:mt-12">
-          {FEATURES.map(({ label, Icon }) => (
+          {FEATURES.map(({ label, icon }) => (
             <div key={label} className="flex items-center gap-3">
               <div
                 className="flex size-10 shrink-0 items-center justify-center rounded-xl"
                 style={{ backgroundColor: LOGIN_BRAND.light }}
               >
-                <Icon className="size-[18px]" style={{ color: LOGIN_BRAND.darkGreen }} strokeWidth={2} aria-hidden />
+                <FontAwesomeIcon icon={icon} className="size-[18px]" style={{ color: LOGIN_BRAND.darkGreen }} aria-hidden />
               </div>
               <span className="text-sm font-semibold" style={{ color: LOGIN_BRAND.navy }}>
                 {label}

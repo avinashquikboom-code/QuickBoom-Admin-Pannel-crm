@@ -1,6 +1,7 @@
 'use client';
 
-import { Layers } from 'lucide-react';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { icons } from '@/theme/icons';
 import { LOGIN_BRAND } from './login-branding-panel';
 
 const NAV = ['Dashboard', 'HRM', 'CRM', 'Finance', 'Reports'];
@@ -26,7 +27,7 @@ export function LoginDashboardPreview() {
                   className="flex size-[14px] items-center justify-center rounded-[4px]"
                   style={{ backgroundColor: LOGIN_BRAND.primary }}
                 >
-                  <Layers className="size-2 text-white" strokeWidth={2.5} />
+                  <FontAwesomeIcon icon={icons.layers} className="size-2 text-white" />
                 </div>
                 <span className="text-[6px] font-bold leading-none">QB Suite</span>
               </div>

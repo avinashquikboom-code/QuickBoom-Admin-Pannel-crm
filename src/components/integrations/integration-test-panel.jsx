@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { AlertCircle, Info } from 'lucide-react';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { icons } from '@/theme/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,7 +33,7 @@ export function IntegrationTestPanel({ type, onRunTest, testing, lastResult }) {
   return (
     <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
       <div className="flex gap-2 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-[11px] text-amber-900">
-        <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        <FontAwesomeIcon icon={icons.info} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
         <p>{UI_ONLY_NOTICE}</p>
       </div>
 
@@ -115,7 +116,7 @@ export function IntegrationTestPanel({ type, onRunTest, testing, lastResult }) {
           <Separator />
           <div className="space-y-2 text-xs text-slate-700">
             <p className="flex items-center gap-1.5 font-semibold text-slate-900">
-              <AlertCircle className="size-3.5 text-amber-600" aria-hidden />
+              <FontAwesomeIcon icon={icons.warning} className="size-3.5 text-amber-600" aria-hidden />
               Test result
             </p>
             <p>

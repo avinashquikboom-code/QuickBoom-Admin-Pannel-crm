@@ -83,7 +83,7 @@ function NavLink({ item, pathname, collapsed, onNavigate }) {
                 collapsed && 'justify-center px-0',
                 active
                     ? 'bg-brand-light text-brand-dark font-semibold'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-600 hover:bg-brand-light/80'
             )}
         >
             {item.icon && (
@@ -137,10 +137,10 @@ function FlatLink({ group, pathname, collapsed, onNavigate }) {
             className={cn(
                 'flex min-h-11 items-center gap-3 rounded-xl p-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
                 collapsed && 'justify-center px-0',
-                active ? 'bg-brand-light text-brand-dark' : 'text-slate-600 hover:bg-slate-100'
+                active ? 'bg-brand text-primary-foreground' : 'text-slate-600 hover:bg-brand-light/80'
             )}
         >
-            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', active ? 'bg-brand text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
+            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', active ? 'bg-white/15 text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
                 <FontAwesomeIcon icon={group.icon} size={14} />
             </span>
             {!collapsed && (
@@ -176,7 +176,7 @@ function NavGroup({ group, pathname, collapsed, onNavigate }) {
                 onClick={() => setOpen((value) => !value)}
                 aria-expanded={open}
                 aria-controls={contentId}
-                className={cn('flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand', containsActive ? 'text-brand-dark' : 'text-slate-600')}
+                className={cn('flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-brand-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand', containsActive ? 'text-brand-dark' : 'text-slate-600')}
             >
                 <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', containsActive ? 'bg-brand text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
                     <FontAwesomeIcon icon={group.icon} size={14} />
