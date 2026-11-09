@@ -99,7 +99,7 @@ export default function IntegrationsPage() {
 
   const listed = rows.map((row) => ({ ...row, status: statusOf(row, tests[row.provider]) }));
   const visible = listed.filter((row) => {
-    const name = labelOf(row.provider).toLowerCase();
+    const name = labelOf(row).toLowerCase();
     const matches = !query || name.includes(query.trim().toLowerCase()) || String(row.provider).toLowerCase().includes(query.trim().toLowerCase());
     return matches && (filter === 'ALL' || row.status === filter);
   });
@@ -112,11 +112,12 @@ export default function IntegrationsPage() {
 
   const open = (row) => {
     const next = {};
-    fieldsFor(row).forEach(([key, , secret, group]) => {
-      if (secret) return;
-      const source = group === 'config' ? row.config : row.credentials;
-      const value = source?.[key];
-      if (value != null && typeof value !== 'object') next[key] = String(value);
+    fieldsFor(row).forEach((field) => {
+      if (field.secret) return;
+      const source = field.group === 'config' ? row.config : field.group === 'environment' ? { environment: row.environment } : row.credentials;
+      const value = field.group === 'environment' ? row.environment : source?.[field.key];
+      if (typeof value === 'boolean') next[field.key] = value;
+      else if (value != null && typeof value !== 'object') next[field.key] = String(value);
     });
     setForm(next);
     setReveal({});
@@ -125,19 +126,20 @@ export default function IntegrationsPage() {
 
   const save = async (event) => {
     event.preventDefault();
-    const credentials = {};
-    const config = {};
-    fieldsFor(active).forEach(([key, , , group]) => {
-      const value = form[key];
-      if (value == null || String(value).trim() === '') return;
-      if (group === 'config') config[key] = key === 'port' || key === 'otpExpiry' ? Number(value) : String(value).trim();
-      else credentials[key] = String(value).trim();
-    });
+    const payload = collect(active, form);
     try {
-      await saveIntegration(active.provider, { credentials, config, isEnabled: active.isEnabled !== false });
+      const result = await testIntegration(active.provider, payload);
+      const body = result?.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : result;
+      const ok = body?.success !== false && !/fail|error/i.test(String(body?.status || ''));
+      if (!ok) {
+        toast.error(body?.message || 'Connection test failed. The integration was not enabled.');
+        setRefresh((value) => value + 1);
+        return;
+      }
+      await saveIntegration(active.provider, { ...payload, isEnabled: true });
       setActive(null);
       setRefresh((value) => value + 1);
-      toast.success('Integration saved');
+      toast.success('Connection successful. Integration saved and enabled.');
     } catch (err) {
       toast.error(suiteError(err));
     }
@@ -159,13 +161,13 @@ export default function IntegrationsPage() {
           return <article key={row.provider} className="flex min-w-0 flex-col rounded-xl border border-[#E2E8E5] bg-white p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-[#172B24]">{labelOf(row.provider)}</h3>
-                <p className="text-xs text-[#718078]">{categoryOf(row.provider)}</p>
+                <h3 className="text-sm font-semibold text-[#172B24]">{labelOf(row)}</h3>
+                <p className="text-xs text-[#718078]">{categoryOf(row)}</p>
               </div>
               <div className="flex items-center gap-1">
                 <ConnectionBadge status={busy ? 'TESTING' : row.status} />
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="inline-flex size-8 items-center justify-center rounded-md text-[#172B24] hover:bg-[#E8F1EC]" aria-label={`${labelOf(row.provider)} actions`}>
+                  <DropdownMenuTrigger className="inline-flex size-8 items-center justify-center rounded-md text-[#172B24] hover:bg-[#E8F1EC]" aria-label={`${labelOf(row)} actions`}>
                     <FontAwesomeIcon icon={faEllipsisVertical} className="size-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -188,8 +190,8 @@ export default function IntegrationsPage() {
         })}
       </div>
     </HrmNotice>
-    <FormDrawer open={Boolean(active)} onOpenChange={(next) => { if (!next) setActive(null); }} title={active ? labelOf(active.provider) : 'Integration'} description="Blank secret fields keep the saved value. Secrets are not written back into this form." onSubmit={save}>
-      {active && <div className="grid gap-3">{fieldsFor(active).map(([key, label, secret, , options]) => <Label key={key} className="grid gap-1 text-xs">{label}{options ? <select className="h-9 rounded-md border px-2 text-sm" value={form[key] || options[0]} onChange={(event) => setForm({ ...form, [key]: event.target.value })}>{options.map((option) => <option key={option}>{option}</option>)}</select> : <div className="flex gap-2"><Input type={secret && !reveal[key] ? 'password' : 'text'} autoComplete="new-password" value={form[key] || ''} placeholder={secret ? 'Leave blank to keep the saved value' : ''} onChange={(event) => setForm({ ...form, [key]: event.target.value })} />{secret && <Button type="button" variant="outline" onClick={() => setReveal({ ...reveal, [key]: !reveal[key] })}>{reveal[key] ? 'Hide' : 'Show'}</Button>}</div>}</Label>)}{active.provider === 'WHATSAPP' && active.config?.webhookUrl && <p className="text-xs text-slate-500">Webhook URL from the server: {active.config.webhookUrl}</p>}</div>}
+    <FormDrawer open={Boolean(active)} onOpenChange={(next) => { if (!next) setActive(null); }} title={active ? labelOf(active) : 'Integration'} description="Blank secret fields keep the saved value. Save & Enable tests the connection before turning the integration on." submitLabel="Save & Enable" onSubmit={save}>
+      {active && <div className="grid gap-3">{fieldsFor(active).map((field) => <Label key={field.key} className="grid gap-1 text-xs">{field.label}{field.type === 'boolean' ? <input type="checkbox" className="size-4" checked={Boolean(form[field.key])} onChange={(event) => setForm({ ...form, [field.key]: event.target.checked })} /> : field.options ? <select className="h-9 rounded-md border px-2 text-sm" value={form[field.key] || field.options[0]} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <div className="flex gap-2"><Input type={field.secret && !reveal[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'} autoComplete="new-password" value={form[field.key] || ''} placeholder={field.secret ? 'Leave blank to keep the saved value' : field.placeholder || ''} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />{field.secret && <Button type="button" variant="outline" onClick={() => setReveal({ ...reveal, [field.key]: !reveal[field.key] })}>{reveal[field.key] ? 'Hide' : 'Show'}</Button>}</div>}</Label>)}{active.provider === 'WHATSAPP' && active.config?.webhookUrl && <p className="text-xs text-slate-500">Webhook URL from the server: {active.config.webhookUrl}</p>}</div>}
     </FormDrawer>
   </div>;
 
@@ -226,24 +228,42 @@ export default function IntegrationsPage() {
     }
   }
   function disconnect(row) {
-    if (!window.confirm(`Disconnect ${labelOf(row.provider)}? Saved credentials for this provider will be removed.`)) return;
+    if (!window.confirm(`Disconnect ${labelOf(row)}? Saved credentials for this provider will be removed.`)) return;
     run(() => disconnectIntegration(row.provider));
   }
 }
 
 function fieldsFor(row) {
-  if (FIELDS[row.provider]) return FIELDS[row.provider];
-  return Object.keys(row.credentials || {}).filter((key) => !key.startsWith('has') && !key.startsWith('is')).map((key) => [key, key, /secret|password|token|apikey|privatekey/i.test(key)]);
+  if (Array.isArray(row.fields) && row.fields.length) return row.fields;
+  const fallback = FIELDS[row.provider] || Object.keys(row.credentials || {}).filter((key) => !key.startsWith('has') && !key.startsWith('is')).map((key) => [key, key, /secret|password|token|apikey|privatekey/i.test(key)]);
+  return fallback.map((field) => ({ key: field[0], label: field[1], secret: Boolean(field[2]), group: field[3] || 'credentials', options: field[4], type: field[4] ? 'select' : 'text' }));
 }
-function labelOf(provider) { return PRESENTATION[provider]?.[0] || provider; }
-function categoryOf(provider) { return PRESENTATION[provider]?.[1] || '—'; }
+function labelOf(row) { return row?.displayName || PRESENTATION[row?.provider]?.[0] || row?.provider || 'Integration'; }
+function categoryOf(row) { return row?.category || PRESENTATION[row?.provider]?.[1] || '—'; }
+function collect(row, form) {
+  const credentials = {};
+  const config = {};
+  let environment;
+  fieldsFor(row).forEach((field) => {
+    const value = form[field.key];
+    if (typeof value === 'boolean') {
+      if (field.group === 'config') config[field.key] = value;
+      return;
+    }
+    if (value == null || String(value).trim() === '') return;
+    if (field.group === 'environment') environment = String(value).trim();
+    else if (field.group === 'config') config[field.key] = field.type === 'number' ? Number(value) : String(value).trim();
+    else credentials[field.key] = String(value).trim();
+  });
+  return { credentials, config, environment };
+}
 function statusOf(row, test) {
   if (!row.configured || row.source === 'NONE') return 'NOT_CONFIGURED';
+  if (row.isEnabled === false) return 'DISABLED';
   if (test && test.ok === false) return 'ERROR';
   if (test && test.ok === true) return 'CONNECTED';
   if (row.config?.lastTestResult === 'FAILED') return 'ERROR';
   if (row.config?.lastTestResult === 'SUCCESS') return 'CONNECTED';
-  if (row.isEnabled === false) return 'DISABLED';
   return 'NOT_TESTED';
 }
 function formatTested(value) {

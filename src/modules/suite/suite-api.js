@@ -31,9 +31,9 @@ export const loadReportData = (params) => api.get('/reports/data', { params }).t
 export const exportReport = (body) => api.post('/reports/export', body);
 
 export const loadIntegrations = () => api.get('/admin/settings/integrations').then(rowsOf);
-export const setIntegrationEnabled = (provider, isEnabled) => api.put(`/admin/settings/integrations/${provider}`, { isEnabled });
+export const setIntegrationEnabled = (provider, isEnabled) => api.patch(`/admin/settings/integrations/${provider}/toggle`, { isEnabled });
 export const saveIntegration = (provider, body) => api.put(`/admin/settings/integrations/${provider}`, body);
-export const testIntegration = (provider) => api.post(`/admin/settings/integrations/${provider}/test`, {});
+export const testIntegration = (provider, body = {}) => api.post(`/admin/settings/integrations/${provider}/test`, body);
 export const disconnectIntegration = (provider) => api.delete(`/admin/settings/integrations/${provider}`);
 
 export const loadCampaigns = (query = {}) => list('/notifications/admin/campaigns', { page: query.page || 1, limit: 20, search: query.search || undefined, status: query.status && query.status !== 'ALL' ? query.status : undefined });
