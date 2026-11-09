@@ -3,7 +3,8 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Loader2, Lock, LogIn, Mail } from 'lucide-react';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { icons } from '@/theme/icons';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { persistSession } from '@/lib/auth/admin-session';
@@ -78,11 +79,7 @@ export function LoginFormCard({ className }) {
             Email Address
           </label>
           <div className="relative">
-            <Mail
-              className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2"
-              style={{ color: LOGIN_BRAND.muted }}
-              aria-hidden
-            />
+            <FontAwesomeIcon icon={icons.mail} className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2" style={{ color: LOGIN_BRAND.muted }} aria-hidden />
             <input
               id="admin-login-email"
               type="email"
@@ -100,7 +97,7 @@ export function LoginFormCard({ className }) {
                 'bg-white placeholder:text-[#94A3B8]',
                 fieldErrors.email
                   ? 'border-rose-400 ring-2 ring-rose-100'
-                  : 'border-[#D9E1E9] focus:border-[#5EC169] focus:ring-2 focus:ring-[#EAF8EC]',
+                  : 'border-[#E2E8E5] focus:border-[#163A2E] focus:ring-2 focus:ring-[#E8F1EC]',
               )}
               style={{ color: LOGIN_BRAND.navy }}
               aria-invalid={!!fieldErrors.email}
@@ -120,11 +117,7 @@ export function LoginFormCard({ className }) {
             Password
           </label>
           <div className="relative">
-            <Lock
-              className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2"
-              style={{ color: LOGIN_BRAND.muted }}
-              aria-hidden
-            />
+            <FontAwesomeIcon icon={icons.lock} className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2" style={{ color: LOGIN_BRAND.muted }} aria-hidden />
             <input
               id="admin-login-password"
               type={showPassword ? 'text' : 'password'}
@@ -142,7 +135,7 @@ export function LoginFormCard({ className }) {
                 'bg-white placeholder:text-[#94A3B8]',
                 fieldErrors.password
                   ? 'border-rose-400 ring-2 ring-rose-100'
-                  : 'border-[#D9E1E9] focus:border-[#5EC169] focus:ring-2 focus:ring-[#EAF8EC]',
+                  : 'border-[#E2E8E5] focus:border-[#163A2E] focus:ring-2 focus:ring-[#E8F1EC]',
               )}
               style={{ color: LOGIN_BRAND.navy }}
               aria-invalid={!!fieldErrors.password}
@@ -155,7 +148,7 @@ export function LoginFormCard({ className }) {
               className="absolute top-1/2 right-2.5 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#14213D]"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? <EyeOff className="size-[18px]" /> : <Eye className="size-[18px]" />}
+              {showPassword ? <FontAwesomeIcon icon={icons.eyeSlash} className="size-[18px]" /> : <FontAwesomeIcon icon={icons.eye} className="size-[18px]" />}
             </button>
           </div>
           {fieldErrors.password ? (
@@ -171,13 +164,13 @@ export function LoginFormCard({ className }) {
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="size-4 rounded border-[#D9E1E9] text-[#5EC169] focus:ring-[#5EC169]/30"
+              className="size-4 rounded border-[#E2E8E5] text-[#163A2E] focus:ring-[#163A2E]/30"
             />
             Remember me
           </label>
           <Link
             href="/forgot-password"
-            className="text-sm font-semibold text-[#5EC169] hover:text-[#218B45]"
+            className="text-sm font-semibold text-[#163A2E] hover:text-[#204C3D]"
           >
             Forgot Password?
           </Link>
@@ -186,19 +179,19 @@ export function LoginFormCard({ className }) {
         <button
           type="submit"
           disabled={loading}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-white shadow-[0_6px_20px_rgba(94,193,105,0.28)] transition hover:brightness-[1.02] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-white shadow-[0_6px_20px_rgba(22,58,46,0.28)] transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
           style={{
             background: `linear-gradient(90deg, ${LOGIN_BRAND.primary} 0%, ${LOGIN_BRAND.darkGreen} 100%)`,
           }}
         >
           {loading ? (
             <>
-              <Loader2 className="size-[18px] animate-spin" aria-hidden />
+              <FontAwesomeIcon icon={icons.spinner} className="size-[18px] animate-spin" aria-hidden />
               Signing In…
             </>
           ) : (
             <>
-              <LogIn className="size-[18px]" aria-hidden />
+              <FontAwesomeIcon icon={icons.signIn} className="size-[18px]" aria-hidden />
               Sign In
             </>
           )}

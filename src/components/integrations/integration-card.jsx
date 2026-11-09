@@ -1,6 +1,7 @@
 'use client';
 
-import { Settings2, PlugZap } from 'lucide-react';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { icons } from '@/theme/icons';
 import { Card, CardContent, CardHeader } from '@/components/common/Card';
 import { Button } from '@/components/ui/button';
 import { IntegrationStatusBadge } from './integration-status-badge';
@@ -23,7 +24,7 @@ export function IntegrationCard({ provider, icon: Icon, state, onConfigure, onTe
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-xl bg-brand-light text-brand">
-              <Icon className="size-5" strokeWidth={2} aria-hidden />
+              <FontAwesomeIcon icon={Icon} className="size-5" aria-hidden />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">{provider.name}</h3>
@@ -57,7 +58,7 @@ export function IntegrationCard({ provider, icon: Icon, state, onConfigure, onTe
             className="h-8 flex-1 bg-brand text-primary-foreground text-xs hover:bg-primary-hover sm:flex-none"
             onClick={() => onConfigure(provider.id)}
           >
-            <Settings2 className="size-3.5" aria-hidden />
+            <FontAwesomeIcon icon={icons.settings} className="size-3.5" aria-hidden />
             Configure
           </Button>
           <Button
@@ -68,7 +69,7 @@ export function IntegrationCard({ provider, icon: Icon, state, onConfigure, onTe
             disabled={status === INTEGRATION_STATUS.NOT_CONFIGURED || status === INTEGRATION_STATUS.TESTING}
             onClick={() => onTest?.(provider.id)}
           >
-            <PlugZap className="size-3.5" aria-hidden />
+            <FontAwesomeIcon icon={icons.plug} className="size-3.5" aria-hidden />
             Test
           </Button>
         </div>

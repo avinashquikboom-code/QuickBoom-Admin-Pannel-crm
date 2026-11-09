@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { icons } from '@/theme/icons';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -43,7 +44,7 @@ export function PermanentDeleteDialog({
         <AlertDialogHeader>
           <div className="flex items-start gap-3">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-              <AlertTriangle className="size-5" aria-hidden />
+              <FontAwesomeIcon icon={icons.warning} className="size-5" aria-hidden />
             </div>
             <div className="space-y-1 text-left">
               <AlertDialogTitle className="text-base font-semibold text-slate-900">

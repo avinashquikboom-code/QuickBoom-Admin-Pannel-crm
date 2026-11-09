@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
+import { icons } from '@/theme/icons';
 import { FormDrawer } from '@/components/common/drawers';
 import { DrawerFormField } from '@/components/common/drawers/DrawerFormField';
 import { Input } from '@/components/ui/input';
@@ -39,7 +40,7 @@ function SecretInput({ id, value, onChange, placeholder, disabled }) {
         onClick={() => setShow((s) => !s)}
         aria-label={show ? 'Hide value' : 'Show value'}
       >
-        {show ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+        {show ? <FontAwesomeIcon icon={icons.eyeSlash} className="size-3.5" /> : <FontAwesomeIcon icon={icons.eye} className="size-3.5" />}
       </button>
     </div>
   );
@@ -164,7 +165,7 @@ export function IntegrationConfigDrawer({
     >
       <div className="mb-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5">
         <div className="flex size-10 items-center justify-center rounded-lg bg-brand-light text-brand">
-          <Icon className="size-5" aria-hidden />
+          <FontAwesomeIcon icon={Icon} className="size-5" aria-hidden />
         </div>
         <p className="text-[11px] leading-snug text-slate-600">
           Credentials are held in memory for this session only. They are not stored in localStorage or sent to an API yet.
