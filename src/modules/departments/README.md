@@ -4,7 +4,7 @@ Route: `/admin/sections/departments`. The specific route replaces the generic sa
 
 ## Existing backend contract
 
-All paths below are relative to the existing Axios client's configured API base. Requests opt into the current `qb_admin_token` session through `qbAdminSession`; legacy callers retain their existing authentication behavior. The existing admin role helper controls management actions; the backend remains authoritative for authorization and tenant access.
+All paths below are relative to the existing Axios client's configured API base. Requests use that client's current admin session. The existing admin role helper controls management actions; the backend remains authoritative for authorization and tenant access.
 
 | Operation | Existing endpoint | Behavior |
 | --- | --- | --- |
@@ -20,11 +20,11 @@ The global backend response interceptor returns `{ data, meta }`; department cou
 
 ## Unsupported capabilities and limits
 
-- Archive state/operation: the schema only has `isActive`, and there is no archive endpoint. The Archived tab and archive action are disabled with explanatory labels; no invented archive count is shown.
+- Archive state/operation: the schema only has `isActive`, and there is no archive endpoint. The Archived tab count is therefore 0 and its list is empty. Archive Department explains that limitation and does not call the API.
 - Export endpoint: none exists. CSV downloads are generated from the real, fully loaded records in the selected status tab, across all pages. The table's local text search/selection does not narrow this export. Values are escaped and formula-prefixed values neutralized.
 - Aggregate department counts and server sorting: not exposed. Every list page is fetched using the existing pagination contract, then the shared DataTable handles sorting/search/pagination. Very large directories may benefit from a future backend aggregate API.
-- Current login has no refresh token. A 401 is surfaced as an expired-session error; this module does not invoke the legacy session refresh flow.
-- The supplied attachment contained the written specification only. The referenced screenshots and `QB_SUITE_RULES.md` were unavailable; the implementation follows the existing PageHeader, shadcn components and workspace rules.
+- A 401 is surfaced as an expired-session error. Token refresh stays in the shared API client.
+- `QB_SUITE_RULES.md` is not in the repository. The screen follows `DEVELOPMENT_WORK_RULES.md`, the shared PageHeader, and the master-section layout. Status counts and the employee total are calculated from the loaded department records. There is no separate statistics endpoint.
 
 ## Verification boundary
 

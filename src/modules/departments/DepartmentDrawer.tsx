@@ -122,7 +122,7 @@ export function DepartmentDrawer({ id, mode, onClose, onSaved }: {
   const fieldClass = 'h-11 rounded-lg border-slate-200 bg-white text-sm';
   return (
     <Sheet open onOpenChange={(open: boolean) => { if (!open && !savingRef.current) onClose(); }}>
-      <SheetContent side="right" showCloseButton={!saving} className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-[420px]">
+      <SheetContent side="right" showCloseButton={!saving} className="h-full gap-0 overflow-hidden p-0 data-[side=right]:!w-full data-[side=right]:!max-w-none data-[side=right]:sm:!w-[420px] data-[side=right]:sm:!max-w-[420px]">
         <SheetHeader className="border-b border-slate-100 bg-gradient-to-br from-[#E8F8EE] to-white px-6 py-7 pr-10">
           <div className="mb-4 flex size-11 items-center justify-center rounded-xl border border-green-200 bg-white text-[#169F4D]"><FontAwesomeIcon size={undefined} label={undefined} icon={faBuilding} className="size-5" /></div>
           <SheetTitle className="text-xl font-semibold text-[#172033]">{mode === 'create' ? 'Create New Department' : readOnly ? 'Department Details' : 'Edit Department'}</SheetTitle>

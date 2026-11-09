@@ -20,7 +20,8 @@ const employeeSchema = z.object({
 });
 export type DepartmentHead = z.infer<typeof employeeSchema>;
 const metaSchema = z.object({ total: z.number(), page: z.number(), totalPages: z.number() });
-const config = { qbAdminSession: true, timeout: 30000 };
+// Use the shared admin client session. qbAdminSession would ignore the existing login store.
+const config = { timeout: 30000 };
 
 export function apiError(error: unknown): string {
   if (axios.isAxiosError(error)) {
