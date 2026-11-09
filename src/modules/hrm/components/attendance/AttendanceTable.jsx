@@ -4,9 +4,8 @@ import * as React from 'react';
 import { DataTable } from '@/components/common/DataTable';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
-import { Button } from '@/components/common/Button';
-import { faClock, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
-export function AttendanceTable({ records, onAdjustPunch, }) {
+import { faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
+export function AttendanceTable({ records }) {
     const columns = [
         {
             header: 'Employee',
@@ -61,14 +60,6 @@ export function AttendanceTable({ records, onAdjustPunch, }) {
         {
             header: 'Status',
             cell: (rec) => <StatusBadge status={rec.status}/>,
-        },
-        {
-            header: 'Actions',
-            className: 'text-right',
-            cell: (rec) => (<Button size="sm" variant="ghost" onClick={() => onAdjustPunch?.(rec)} className="h-8 text-xs text-slate-600 hover:text-brand-dark hover:bg-brand-light">
-          <FontAwesomeIcon icon={faClock} className="size-3.5 mr-1 text-slate-400"/>
-          Edit Log
-        </Button>),
         },
     ];
     return (<DataTable columns={columns} data={records} pageSize={10} emptyState={<div className="py-8 text-center text-slate-500">

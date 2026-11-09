@@ -1,7 +1,6 @@
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { faCalendar } from '@fortawesome/free-regular-svg-icons';
 import {
-    faArrowRightArrowLeft,
     faBell,
     faBolt,
     faBoxesStacked,
@@ -9,13 +8,11 @@ import {
     faBullhorn,
     faCartShopping,
     faChartBar,
-    faChartLine,
     faClock,
     faCreditCard,
     faDatabase,
     faDiagramProject,
     faEnvelope,
-    faFileInvoiceDollar,
     faFileLines,
     faGear,
     faIdBadge,
@@ -25,20 +22,17 @@ import {
     faListCheck,
     faMessage,
     faMoneyBill,
-    faReceipt,
     faShareNodes,
-    faShieldHalved,
     faStar,
     faTags,
     faTrash,
     faUsers,
     faVideo,
-    faWallet,
 } from '@fortawesome/free-solid-svg-icons';
 
 export const dataCaptureNavigation = [
-    { name: 'Data Capture', href: '/admin/sections/data-capture', icon: faDatabase },
-    { name: 'Usage & Quota', href: '/admin/sections/usage-quota', icon: faChartBar },
+    { name: 'Data Capture', href: '/admin/data-capture', icon: faDatabase },
+    { name: 'Usage & Quota', href: '/admin/data-capture/usage', icon: faChartBar },
 ];
 
 export const masterNavigation = [
@@ -62,16 +56,6 @@ export const operationsNavigation = [
     { name: 'Production', href: '/admin/production/dashboard', icon: faIndustry },
     { name: 'Inventory', href: '/admin/sections/inventory', icon: faBoxesStacked },
     { name: 'Orders', href: '/admin/sections/orders', icon: faCartShopping },
-];
-
-export const financeNavigation = [
-    { name: 'Revenue', href: '/admin/sections/revenue', icon: faChartLine },
-    { name: 'Expenses', href: '/admin/sections/expenses', icon: faReceipt },
-    { name: 'Payments', href: '/admin/sections/payments', icon: faMoneyBill },
-    { name: 'Invoices', href: '/admin/sections/invoices', icon: faFileInvoiceDollar },
-    { name: 'Wallet', href: '/admin/sections/wallet', icon: faWallet },
-    { name: 'Transactions', href: '/admin/sections/transactions', icon: faArrowRightArrowLeft },
-    { name: 'Financial Reports', href: '/admin/sections/financial-reports', icon: faChartBar },
 ];
 
 export const templatesNavigation = [
@@ -101,7 +85,6 @@ export const settingsNavigation = [
     { name: 'General Settings', href: '/admin/settings', icon: faGear, matchExact: true },
     { name: 'Company Settings', href: '/admin/sections/company-settings', icon: faBuilding },
     { name: 'User Management', href: '/admin/sections/user-management', icon: faUsers },
-    { name: 'Roles & Permissions', href: '/admin/sections/permissions', icon: faShieldHalved },
     { name: 'Integrations', href: '/admin/settings/integrations', icon: faBolt },
     { name: 'Notifications', href: '/admin/sections/notification-center', icon: faBell },
     { name: 'Data Management', href: '/admin/settings/data-management', icon: faTrash },
