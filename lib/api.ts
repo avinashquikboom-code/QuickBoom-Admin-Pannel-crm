@@ -1,4 +1,12 @@
 import axios, { AxiosRequestConfig } from 'axios';
+import { readSession } from '../src/lib/auth/admin-session';
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** Opt in to the current QB Suite login without changing legacy callers. */
+    qbAdminSession?: boolean;
+  }
+}
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from './store';
 import { useEmployeeAuthStore } from './employee-store';
@@ -405,6 +413,21 @@ api.interceptors.request.use(
       }
     }
 
+    if (config.qbAdminSession) {
+      const session = readSession();
+      if (!session?.token) throw new Error('Your session has expired. Please sign in again.');
+      config.headers.delete('Authorization');
+      config.headers.delete('x-customer-id');
+      config.headers.delete('x-tenant-id');
+      config.headers.set('Authorization', `Bearer ${session.token}`);
+      const customerId = session.user?.customerId;
+      if (customerId) {
+        config.headers.set('x-customer-id', String(customerId));
+        config.headers.set('x-tenant-id', String(customerId));
+      }
+      return config;
+    }
+
     if (typeof window !== 'undefined') {
       let { token, refreshToken, customerId, user } = getPersistedAuthSession();
 
@@ -552,6 +575,8 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    // Current login has no refresh token; let the screen surface the API error.
+    if (originalRequest?.qbAdminSession) return Promise.reject(error);
     const startTime = (originalRequest as any)?.__startTime;
     const duration = startTime ? Date.now() - startTime : 0;
 
