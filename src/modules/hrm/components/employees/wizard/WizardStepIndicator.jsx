@@ -16,8 +16,8 @@ const STEPS = [
 export function WizardStepIndicator({ currentStep, completedSteps, errors = {} }) {
   return (
     <div className="w-full bg-white border-b border-slate-200">
-      <div className="px-6 py-4">
-        <div className="flex items-center justify-between gap-2 overflow-x-auto pb-2">
+      <div className="overflow-x-auto px-5 py-4 sm:px-6">
+        <div className="flex min-w-max items-center gap-2 pb-1">
           {STEPS.map((step, index) => {
             const isCompleted = completedSteps.includes(step.id);
             const isCurrent = currentStep === step.id;
@@ -57,7 +57,7 @@ export function WizardStepIndicator({ currentStep, completedSteps, errors = {} }
                 {index < STEPS.length - 1 && (
                   <div
                     className={cn(
-                      'flex-1 h-0.5 mb-8 transition-colors',
+                      'h-0.5 w-8 shrink-0 mb-8 transition-colors',
                       isCompleted ? 'bg-brand' : 'bg-slate-200'
                     )}
                   />

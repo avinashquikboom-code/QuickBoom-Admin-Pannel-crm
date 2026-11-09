@@ -55,7 +55,7 @@ export default function EmployeesPage() {
     return (<div className="space-y-6 max-w-7xl mx-auto">
       <PageHeader title="Employee Directory" description="Manage company personnel, designations, salary packages, and employment status." actions={<Button onClick={() => setWizardOpen(true)} className="bg-brand hover:bg-primary-hover text-primary-foreground font-medium text-xs h-9">
             <FontAwesomeIcon icon={faUserPlus} className="size-4 mr-1.5"/>
-            Add New Employee
+            Add Employee
           </Button>}/>
 
       {/* Summary KPI Strip */}
@@ -101,7 +101,7 @@ export default function EmployeesPage() {
       {/* Employee Detail Slide-Out */}
       <EmployeeDetail employee={selectedEmployee} open={detailOpen} onOpenChange={setDetailOpen}/>
 
-      {/* Employee Registration Wizard Modal */}
+      {/* Employee Registration Wizard */}
       <EmployeeRegistrationWizard
         open={wizardOpen}
         onOpenChange={setWizardOpen}
