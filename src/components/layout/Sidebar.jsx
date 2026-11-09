@@ -82,10 +82,10 @@ function NavLink({ item, pathname, collapsed, onNavigate }) {
             aria-current={active ? 'page' : undefined}
             title={collapsed ? item.name : undefined}
             className={cn(
-                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
+                'group flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
                 collapsed && 'justify-center px-0',
                 active
-                    ? 'bg-brand text-primary-foreground shadow-sm'
+                    ? 'bg-brand-light text-brand-dark font-semibold'
                     : 'text-slate-600 hover:bg-slate-100'
             )}
         >
@@ -93,17 +93,17 @@ function NavLink({ item, pathname, collapsed, onNavigate }) {
                 <FontAwesomeIcon
                     icon={item.icon}
                     size={16}
-                    className={cn('shrink-0', active ? 'text-white' : 'text-slate-400')}
+                    className={cn('shrink-0', active ? 'text-brand-dark' : 'text-slate-400 group-hover:text-slate-600')}
                 />
             )}
             {!collapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
             {!collapsed && item.tag && (
-                <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-wide', active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-400')}>
+                <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-wide', active ? 'bg-white/70 text-brand-dark' : 'bg-slate-100 text-slate-400')}>
                     {item.tag}
                 </span>
             )}
             {!collapsed && item.badge && !item.tag && (
-                <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold', active ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-700')}>
+                <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold', active ? 'bg-white/70 text-brand-dark' : 'bg-amber-100 text-amber-700')}>
                     {item.badge}
                 </span>
             )}
@@ -116,7 +116,7 @@ function NavItems({ items, pathname, collapsed, onNavigate }) {
         item.children ? (
             <div key={item.name} className="space-y-0.5">
                 {!collapsed && (
-                    <p className="px-3 pb-1 pt-2 text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                    <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                         {item.name}
                     </p>
                 )}
@@ -138,16 +138,16 @@ function FlatLink({ group, pathname, collapsed, onNavigate }) {
             aria-current={active ? 'page' : undefined}
             title={collapsed ? group.name : undefined}
             className={cn(
-                'flex items-center gap-2.5 rounded-2xl border bg-white p-2 shadow-sm',
+                'flex min-h-11 items-center gap-3 rounded-xl p-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
                 collapsed && 'justify-center px-0',
-                active ? 'border-brand bg-brand-light' : 'border-slate-200'
+                active ? 'bg-brand-light text-brand-dark' : 'text-slate-600 hover:bg-slate-100'
             )}
         >
             <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', active ? 'bg-brand text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
                 <FontAwesomeIcon icon={group.icon} size={14} />
             </span>
             {!collapsed && (
-                <span className="min-w-0 flex-1 truncate text-[12px] font-extrabold uppercase tracking-wide text-slate-800">
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
                     {group.name}
                 </span>
             )}
@@ -157,47 +157,51 @@ function FlatLink({ group, pathname, collapsed, onNavigate }) {
 
 function NavGroup({ group, pathname, collapsed, onNavigate }) {
     const containsActive = group.items.some((item) => itemActive(item, pathname));
-    const [open, setOpen] = React.useState(true);
+    const [open, setOpen] = React.useState(containsActive);
+    const contentId = React.useId();
+
+    React.useEffect(() => {
+        if (containsActive) setOpen(true);
+    }, [pathname, containsActive]);
 
     if (collapsed) {
         return (
-            <div className="space-y-1">
+            <div className="space-y-1 border-t border-slate-100 pt-2">
                 <NavItems items={group.items} pathname={pathname} collapsed onNavigate={onNavigate} />
             </div>
         );
     }
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+        <section className="space-y-1">
             <button
                 type="button"
                 onClick={() => setOpen((value) => !value)}
                 aria-expanded={open}
-                className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left"
+                aria-controls={contentId}
+                className={cn('flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand', containsActive ? 'text-brand-dark' : 'text-slate-600')}
             >
                 <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', containsActive ? 'bg-brand text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
                     <FontAwesomeIcon icon={group.icon} size={14} />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[12px] font-extrabold uppercase tracking-wide text-slate-800">
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
                     {group.name}
                 </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                <span className="min-w-5 rounded-md bg-slate-100 px-1.5 py-0.5 text-center text-[10px] font-medium text-slate-400">
                     {linkCount(group.items)}
                 </span>
                 <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform', open && 'rotate-180')} />
             </button>
-            {open && (
-                <div className="mt-1 space-y-0.5 px-1 pb-1">
-                    <NavItems items={group.items} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
-                </div>
-            )}
+            <div id={contentId} hidden={!open} className="ml-6 space-y-0.5 border-l border-slate-200 py-1 pl-3">
+                <NavItems items={group.items} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
+            </div>
         </section>
     );
 }
 
 export function Sidebar(props) {
     return (
-        <React.Suspense fallback={<aside className={cn('flex h-full shrink-0 flex-col bg-[#F7F9FC] text-slate-800 transition-[width] duration-300 w-72', props.className)} />}>
+        <React.Suspense fallback={<aside className={cn('flex h-full shrink-0 flex-col border-r border-slate-200 bg-white text-slate-800 transition-[width] duration-300 motion-reduce:transition-none w-72', props.className)} />}>
             <SidebarContent {...props} />
         </React.Suspense>
     );
@@ -212,7 +216,7 @@ function SidebarContent({ className = '', onNavigate }) {
     return (
         <aside
             className={cn(
-                'flex h-full shrink-0 flex-col bg-[#F7F9FC] text-slate-800 transition-[width] duration-300',
+                'flex h-full shrink-0 flex-col border-r border-slate-200 bg-white text-slate-800 transition-[width] duration-300 motion-reduce:transition-none',
                 isCollapsed ? 'w-20' : 'w-72',
                 className
             )}
@@ -220,21 +224,28 @@ function SidebarContent({ className = '', onNavigate }) {
             <Link
                 href="/admin/dashboard"
                 onClick={onNavigate}
-                className={cn('flex items-center gap-3 border-b border-slate-200 px-4 py-4', isCollapsed && 'justify-center px-0')}
+                aria-label="QB Suite dashboard"
+                className={cn('flex min-h-20 items-center gap-3 border-b border-slate-100 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand', isCollapsed && 'justify-center px-0')}
             >
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand text-primary-foreground">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand text-primary-foreground shadow-sm">
                     <FontAwesomeIcon icon={faLayerGroup} className="size-5" />
                 </div>
                 {!isCollapsed && (
                     <div className="min-w-0">
-                        <p className="text-base font-bold leading-tight text-slate-900">QB Suite</p>
+                        <p className="text-lg font-bold leading-tight tracking-tight text-slate-900">QB Suite</p>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Admin Panel</p>
                     </div>
                 )}
             </Link>
 
+            {!isCollapsed && (
+                <div className="flex items-center justify-between px-5 pb-2 pt-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Workspace</p>
+                    <span className="rounded-md bg-brand-light px-2 py-1 text-[10px] font-semibold text-brand-dark">Admin</span>
+                </div>
+            )}
             <ScrollArea className="min-h-0 flex-1">
-                <nav aria-label="Main navigation" className={cn('space-y-3 p-3', isCollapsed && 'px-2')}>
+                <nav aria-label="Main navigation" className={cn('space-y-1 p-3', isCollapsed && 'px-2')}>
                     {groups.map((group) =>
                         group.href ? (
                             <FlatLink
@@ -254,8 +265,12 @@ function SidebarContent({ className = '', onNavigate }) {
                             />
                         )
                     )}
+                </nav>
+            </ScrollArea>
+            <div className="shrink-0 border-t border-slate-100 bg-slate-50/70 p-3">
                     <button
                         type="button"
+                        aria-label="Logout"
                         title={isCollapsed ? 'Logout' : undefined}
                         onClick={async () => {
                             await logoutAdmin();
@@ -264,7 +279,7 @@ function SidebarContent({ className = '', onNavigate }) {
                             router.push('/login');
                         }}
                         className={cn(
-                            'flex w-full items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-2 text-left shadow-sm',
+                            'flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400',
                             isCollapsed && 'justify-center px-0'
                         )}
                     >
@@ -272,13 +287,12 @@ function SidebarContent({ className = '', onNavigate }) {
                             <FontAwesomeIcon icon={faRightFromBracket} size={14} />
                         </span>
                         {!isCollapsed && (
-                            <span className="min-w-0 flex-1 truncate text-[12px] font-extrabold uppercase tracking-wide text-rose-600">
+                            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-600">
                                 Logout
                             </span>
                         )}
                     </button>
-                </nav>
-            </ScrollArea>
+            </div>
         </aside>
     );
 }

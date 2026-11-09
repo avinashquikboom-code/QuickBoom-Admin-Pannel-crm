@@ -4,9 +4,7 @@ const nextConfig = {
   // Self-contained server build for Docker — copies only the deps actually
   // used at runtime into .next/standalone instead of shipping node_modules.
   output: 'standalone',
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  agentRules: false,
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -17,15 +15,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'maps.googleapis.com' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
-  },
-  webpack: (config, { dev }) => {
-    if (dev) {
-      // Prevent Webpack PackFileCacheStrategy filesystem corruption (.pack.gz ENOENT) in dev mode
-      config.cache = {
-        type: 'memory',
-      };
-    }
-    return config;
   },
 };
 
