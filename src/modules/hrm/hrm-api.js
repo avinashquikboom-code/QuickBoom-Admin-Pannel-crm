@@ -44,6 +44,13 @@ function personName(record) {
   return record?.name || `${record?.firstName || ''} ${record?.lastName || ''}`.trim() || 'Employee';
 }
 
+function registeredSalaryOf(employee) {
+  const structure = Array.isArray(employee.salaryStructures) ? employee.salaryStructures[0] : employee.salaryStructure;
+  const candidates = [employee.registeredSalary, employee.monthlySalary, employee.salary?.registered, employee.salary?.gross, employee.salary?.basic, structure?.grossSalary, structure?.basicSalary];
+  const found = candidates.find((value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)));
+  return found == null ? null : Number(found);
+}
+
 export async function loadEmployees(params = {}) {
   const payload = await api.get('/employees', { params: { page: 1, limit: 100, ...params } });
   return listFrom(payload).map((employee) => {
@@ -62,7 +69,7 @@ export async function loadEmployees(params = {}) {
       joinDate: employee.joiningDate ? String(employee.joiningDate).slice(0, 10) : '—',
       phone: employee.phone || '—',
       email: employee.email || '—',
-      registeredSalary: employee.registeredSalary ?? employee.salary?.registered ?? employee.salary?.basic ?? null,
+      registeredSalary: registeredSalaryOf(employee),
       salary: employee.salary || null,
     };
   });
@@ -305,35 +312,39 @@ function objectFrom(payload) {
   return payload;
 }
 
-export function sessionCanAction(moduleName, action) {
-  if (typeof window === 'undefined') return false;
-  let user = null;
+function sessionUser() {
+  if (typeof window === 'undefined') return null;
   try {
-    user = JSON.parse(localStorage.getItem('quikboom-next-auth-storage') || '{}')?.state?.user || null;
+    return JSON.parse(localStorage.getItem('quikboom-next-auth-storage') || '{}')?.state?.user || null;
   } catch {
-    user = null;
+    return null;
   }
+}
+
+function isAdminSession(user) {
+  const roles = [user?.role, user?.roleType, user?.accountType, ...(Array.isArray(user?.roles) ? user.roles : [])];
+  return roles.some((role) => ['SUPERADMIN', 'COMPANYADMIN', 'CUSTOMERADMIN', 'TENANTADMIN', 'ADMIN', 'CUSTOMER'].includes(String(role?.type || role?.name || role || '').toUpperCase().replace(/[\s_-]+/g, '')));
+}
+
+export function sessionCanAction(moduleName, action) {
+  const user = sessionUser();
   if (!user) return false;
+  if (isAdminSession(user)) return true;
   const wanted = String(action || '').toUpperCase();
+  const modules = [String(moduleName).toUpperCase(), String(moduleName).toUpperCase().replace(/S$/, ''), 'HRM'];
   const permissions = Array.isArray(user.permissions) ? user.permissions : null;
   if (permissions) {
     return permissions.some((permission) => {
       const code = String(typeof permission === 'string' ? permission : permission?.code || `${permission?.module}:${permission?.action}`).toUpperCase();
       const [module, permissionAction] = code.split(':');
-      return code === '*' || ((module === String(moduleName).toUpperCase() || module === 'HRM') && ['ALL', 'MANAGE', wanted, wanted === 'EDIT' ? 'UPDATE' : 'DEACTIVATE'].includes(permissionAction));
+      return code === '*' || (modules.includes(module) && ['ALL', 'MANAGE', wanted, wanted === 'EDIT' ? 'UPDATE' : wanted === 'DELETE' ? 'DEACTIVATE' : wanted].includes(permissionAction));
     });
   }
   return sessionCan(moduleName);
 }
 
 export function sessionCan(moduleName) {
-  if (typeof window === 'undefined') return false;
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem('quikboom-next-auth-storage') || '{}')?.state?.user || null;
-  } catch {
-    user = null;
-  }
+  const user = sessionUser();
   if (!user) return false;
   const role = String(user.role || user.accountType || '').toUpperCase();
   const employeeOnly = role === 'EMPLOYEE' || String(user.roleType || '').toUpperCase() === 'EMPLOYEE';
