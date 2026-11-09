@@ -1,5 +1,4 @@
 'use client';
-import { CURRENCY_CODE, CURRENCY_SYMBOL } from "@/lib/currency";
 
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import * as React from 'react';
@@ -8,11 +7,22 @@ import { EmployeeTable } from '@/modules/hrm/components/employees/EmployeeTable'
 import { EmployeeDetail } from '@/modules/hrm/components/employees/EmployeeDetail';
 import { EmployeeRegistrationWizard } from '@/modules/hrm/components/employees/wizard';
 import { Button } from '@/components/common/Button';
-import { mockEmployees } from '@/lib/mock-data';
 import { toast } from '@/hooks/use-toast';
 import { faUserPlus } from '@fortawesome/free-solid-svg-icons';
+import { createEmployee, hrmError, loadEmployees } from '@/modules/hrm/hrm-api';
+import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function EmployeesPage() {
-    const [employees, setEmployees] = React.useState(mockEmployees);
+    const [employees, setEmployees] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [refresh, setRefresh] = React.useState(0);
+    React.useEffect(() => {
+        const controller = new AbortController();
+        setLoading(true);
+        setError('');
+        loadEmployees().then(setEmployees).catch((err) => { if (!controller.signal.aborted) setError(hrmError(err)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+        return () => controller.abort();
+    }, [refresh]);
     const [selectedEmployee, setSelectedEmployee] = React.useState(null);
     const [detailOpen, setDetailOpen] = React.useState(false);
     const [wizardOpen, setWizardOpen] = React.useState(false);
@@ -22,43 +32,22 @@ export default function EmployeesPage() {
         setDetailOpen(true);
     };
 
-    const handleWizardSuccess = (wizardData) => {
-        const newEmp = {
-            id: `EMP-${1000 + employees.length + 1}`,
-            firstName: wizardData.personal.firstName,
-            lastName: wizardData.personal.lastName,
-            name: `${wizardData.personal.firstName} ${wizardData.personal.lastName}`,
-            avatar: wizardData.personal.profilePhoto ? undefined : `https://images.unsplash.com/photo-${1534528741775 + employees.length}?w=150`,
-            email: wizardData.personal.corporateEmail,
-            phone: wizardData.personal.phone,
-            department: wizardData.employment.department,
-            designation: wizardData.employment.jobTitle,
-            status: 'active',
-            joinDate: wizardData.employment.dateOfJoining,
-            employmentType: wizardData.employment.employmentType,
-            location: wizardData.employment.workLocation,
-            salary: {
-                basic: Number(wizardData.organization.salary.basic) || 0,
-                allowances: Number(wizardData.organization.salary.allowances) || 0,
-                hourlyRate: (Number(wizardData.organization.salary.basic) || 0) / 160,
-                currency: CURRENCY_CODE,
-            },
-            bankDetails: {
-                accountName: wizardData.organization.bankDetails.accountHolderName,
-                accountNumber: '•••• •••• ' + (wizardData.organization.bankDetails.accountNumber?.slice(-4) || '0000'),
-                bankName: wizardData.organization.bankDetails.bankName,
-                routingNumber: wizardData.organization.bankDetails.ifscCode,
-            },
-            emergencyContact: wizardData.emergency.contacts[0] || {
-                name: 'Contact',
-                relationship: 'Emergency',
-                phone: '+1 (555) 000-0000',
-            },
-        };
-        setEmployees((prev) => [newEmp, ...prev]);
-        toast.success('Employee Registered Successfully', {
-            description: `${newEmp.name} (${newEmp.id}) has been added to the system.`,
-        });
+    const handleWizardSuccess = async (wizardData) => {
+        try {
+            await createEmployee({
+                firstName: wizardData.personal.firstName,
+                lastName: wizardData.personal.lastName,
+                email: wizardData.personal.corporateEmail,
+                phone: wizardData.personal.phone,
+                departmentName: wizardData.employment.department,
+                designationName: wizardData.employment.jobTitle,
+                branch: wizardData.employment.workLocation,
+            });
+            toast.success('Employee registered');
+            setRefresh((value) => value + 1);
+        } catch (err) {
+            toast.error(hrmError(err));
+        }
     };
     const activeCount = employees.filter((e) => e.status === 'active').length;
     const onLeaveCount = employees.filter((e) => e.status === 'on_leave').length;
@@ -106,7 +95,8 @@ export default function EmployeesPage() {
       </div>
 
       {/* Employee Listing Table */}
-      <EmployeeTable employees={employees} onSelectEmployee={handleSelectEmployee}/>
+      <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} empty={!loading && employees.length === 0 ? 'No employees were returned for this company.' : ''} />
+      {!loading && !error && <EmployeeTable employees={employees} onSelectEmployee={handleSelectEmployee}/>}
 
       {/* Employee Detail Slide-Out */}
       <EmployeeDetail employee={selectedEmployee} open={detailOpen} onOpenChange={setDetailOpen}/>

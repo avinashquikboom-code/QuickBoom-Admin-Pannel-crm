@@ -7,68 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Command, CommandInput, CommandList, CommandItem } from '@/components/ui/command';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faChevronDown, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
-import { apiError, departmentFormSchema, getDepartment, listDepartmentHeads, saveDepartment, type Department, type DepartmentFormValues, type DepartmentHead } from './department-api';
-
-function HeadSelector({ value, selectedName, onChange, disabled }: {
-  value: number | null; selectedName?: string; onChange: (id: number | null) => void; disabled: boolean;
-}) {
-  const [open, setOpen] = React.useState(false);
-  const [search, setSearch] = React.useState('');
-  const [page, setPage] = React.useState(1);
-  const [heads, setHeads] = React.useState<DepartmentHead[]>([]);
-  const [selected, setSelected] = React.useState<DepartmentHead | null>(null);
-  const [totalPages, setTotalPages] = React.useState(1);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState('');
-  const [retry, setRetry] = React.useState(0);
-  React.useEffect(() => {
-    if (!open) return;
-    const controller = new AbortController();
-    setLoading(true);
-    setError('');
-    const timer = setTimeout(() => {
-      listDepartmentHeads(search, page, controller.signal)
-        .then((result) => { setHeads(result.data); setTotalPages(result.meta.totalPages); })
-        .catch((err: unknown) => { if (!controller.signal.aborted) { setHeads([]); setError(apiError(err)); } })
-        .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    }, 250);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [open, search, page, retry]);
-  const label = value ? (selected?.id === value ? selected.name : selectedName || `Employee #${value}`) : 'Select department head';
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button id="department-head" type="button" variant="outline" className="h-11 w-full justify-between rounded-xl border-slate-200 bg-white px-3 text-left text-sm font-normal shadow-none" disabled={disabled} />}>
-        <span className={`truncate ${value ? 'text-slate-800' : 'text-slate-400'}`}>{label}</span><FontAwesomeIcon size={undefined} label={undefined} icon={faChevronDown} className="size-3 text-slate-400" />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-[min(370px,calc(100vw-3rem))] p-1">
-        <Command shouldFilter={false} className="h-auto">
-          <CommandInput aria-label="Search employees" placeholder="Search employees…" value={search} onValueChange={(text: string) => { setSearch(text); setPage(1); setHeads([]); }} className="text-sm" />
-          <CommandList className="max-h-64">
-            <CommandItem value="unassigned" onSelect={() => { onChange(null); setSelected(null); setOpen(false); }} className="text-sm">Unassigned</CommandItem>
-            {loading ? <p role="status" className="p-3 text-xs text-slate-500">Loading employees…</p> : error ? (
-              <div role="alert" className="p-3 text-xs text-rose-600">{error}<Button type="button" variant="ghost" className="mt-2" onClick={() => setRetry((v) => v + 1)}>Retry</Button></div>
-            ) : heads.length === 0 ? <p className="p-3 text-xs text-slate-500">No employees found.</p> : heads.map((head) => (
-              <CommandItem key={head.id} value={String(head.id)} onSelect={() => { onChange(head.id); setSelected(head); setOpen(false); }} className="items-start py-2">
-                <div className="min-w-0"><p className="truncate font-medium">{head.name}</p><p className="truncate text-xs text-slate-500">{[head.employeeCode, head.email].filter(Boolean).join(' · ')}</p></div>
-              </CommandItem>
-            ))}
-          </CommandList>
-        </Command>
-        <div className="flex items-center justify-between border-t p-2 text-xs text-slate-500">
-          <Button type="button" variant="ghost" className="text-xs" disabled={loading || page <= 1} onClick={() => setPage((v) => v - 1)}>Previous</Button>
-          <span>Page {page} of {Math.max(1, totalPages)}</span>
-          <Button type="button" variant="ghost" className="text-xs" disabled={loading || !!error || page >= totalPages} onClick={() => setPage((v) => v + 1)}>Next</Button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
+import { apiError, departmentFormSchema, getDepartment, saveDepartment, type Department, type DepartmentFormValues } from './department-api';
 
 export function DepartmentDrawer({ id, mode, onClose, onSaved }: {
   id: number | null; mode: 'create' | 'edit' | 'view'; onClose: () => void; onSaved: () => void;
@@ -141,10 +84,6 @@ export function DepartmentDrawer({ id, mode, onClose, onSaved }: {
                   <Input aria-invalid={!!form.formState.errors.code} aria-describedby="department-code-error" type="text" id="department-code" placeholder="e.g. HR" className={fieldClass} {...form.register('code')} />
                   <p id="department-code-error" role={form.formState.errors.code ? 'alert' : undefined} className="text-xs text-rose-600">{form.formState.errors.code?.message}</p>
                   {!form.formState.errors.code && <p className="text-xs text-slate-400">Leave blank and the department API generates a code.</p>}
-                </Field>
-                <Field className="gap-2">
-                  <FieldLabel htmlFor="department-head" className="text-sm font-medium text-slate-700">Head of Department</FieldLabel>
-                  <HeadSelector value={form.watch('headId')} selectedName={record?.head} onChange={(value) => form.setValue('headId', value, { shouldDirty: true })} disabled={blocked || readOnly} />
                 </Field>
                 <Field className="gap-2">
                   <FieldLabel className="text-sm font-medium text-slate-700">Status</FieldLabel>

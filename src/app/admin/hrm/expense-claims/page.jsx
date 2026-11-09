@@ -9,11 +9,21 @@ import { ExpenseDetail } from '@/modules/hrm/components/expenses/ExpenseDetail';
 import { RequestDecisionDialogSwitch } from '@/components/approval';
 import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
-import { mockExpenseClaims } from '@/lib/mock-data';
 import { toast } from '@/hooks/use-toast';
 import { faCheckCircle, faClock, faIndianRupeeSign, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
+import { decideClaim, hrmError, loadClaims } from '@/modules/hrm/hrm-api';
+import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function ExpenseClaimsPage() {
-    const [claims, setClaims] = React.useState(mockExpenseClaims);
+    const [claims, setClaims] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [refresh, setRefresh] = React.useState(0);
+    React.useEffect(() => {
+        let active = true;
+        setLoading(true);
+        loadClaims().then((rows) => { if (active) setClaims(rows); }).catch((err) => { if (active) setError(hrmError(err)); }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [refresh]);
     const [search, setSearch] = React.useState('');
     const [selectedCategory, setSelectedCategory] = React.useState('all');
     const [selectedStatus, setSelectedStatus] = React.useState('all');
@@ -65,22 +75,8 @@ export default function ExpenseClaimsPage() {
         const isApprove = confirmDialog.type === 'approve';
         setSubmitting(true);
         try {
-            await new Promise((resolve) => {
-                setTimeout(resolve, 320);
-            });
-            const updatedStatus = isApprove ? 'approved' : 'rejected';
-            setClaims((prev) => prev.map((c) => c.id === item.id
-                ? {
-                    ...c,
-                    status: updatedStatus,
-                    reviewedBy: 'Alexander Vance',
-                    reviewDate: new Date().toISOString().split('T')[0],
-                    reviewNote: note ||
-                        (isApprove
-                            ? 'Reimbursement verified and approved'
-                            : 'Claim declined by policy compliance officer'),
-                }
-                : c));
+            await decideClaim(item.recordId, isApprove, note);
+            setRefresh((value) => value + 1);
             if (isApprove) {
                 toast.success(`Expense Approved for ${item.employeeName}`, {
                     description: `${formatCurrency(item.amount)} scheduled for next payroll cycle.`,
@@ -94,7 +90,7 @@ export default function ExpenseClaimsPage() {
         }
         catch (error) {
             if (error?.message !== 'already-processed') {
-                toast.error('Unable to update expense claim. Please try again.');
+                toast.error(hrmError(error));
                 throw error;
             }
         }
@@ -217,10 +213,11 @@ export default function ExpenseClaimsPage() {
       </div>
 
       {/* Expense Table */}
-      <ExpenseTable claims={filtered} onApprove={handleOpenApprove} onReject={handleOpenReject} onViewDetail={(claim) => {
+      <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} />
+      {!loading && !error && <ExpenseTable claims={filtered} onApprove={handleOpenApprove} onReject={handleOpenReject} onViewDetail={(claim) => {
             setSelectedClaim(claim);
             setDetailOpen(true);
-        }}/>
+        }}/>}
 
       {/* Expense Detail Sheet */}
       <ExpenseDetail claim={selectedClaim} open={detailOpen} onOpenChange={setDetailOpen} onApprove={handleOpenApprove} onReject={handleOpenReject}/>

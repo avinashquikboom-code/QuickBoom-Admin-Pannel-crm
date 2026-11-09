@@ -10,36 +10,38 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/common/Drawer';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
-import { mockPayrollRecords } from '@/lib/mock-data';
 import { toast } from '@/hooks/use-toast';
 import { faDownload, faPrint, faWallet } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope } from '@fortawesome/free-regular-svg-icons';
+import { hrmError, loadPayrollItems, payPayrollItem } from '@/modules/hrm/hrm-api';
+import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function PayrollPage() {
-    const [records, setRecords] = React.useState(mockPayrollRecords);
-    const [selectedMonth, setSelectedMonth] = React.useState('March 2026');
+    const [records, setRecords] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState('');
+    const [refresh, setRefresh] = React.useState(0);
+    React.useEffect(() => {
+        let active = true;
+        setLoading(true);
+        loadPayrollItems().then((rows) => { if (active) setRecords(rows); }).catch((err) => { if (active) setError(hrmError(err)); }).finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [refresh]);
+    const [selectedMonth, setSelectedMonth] = React.useState('');
     const [selectedRecord, setSelectedRecord] = React.useState(null);
     const [payslipOpen, setPayslipOpen] = React.useState(false);
     const [runBatchOpen, setRunBatchOpen] = React.useState(false);
     const handleRunPayrollBatch = () => {
-        setRecords((prev) => prev.map((r) => ({
-            ...r,
-            status: 'paid',
-            paymentDate: new Date().toISOString().split('T')[0],
-        })));
+        toast.error('Use Mark as Paid on each payroll item. Bulk disburse is a separate payroll action and is not run from this screen.');
         setRunBatchOpen(false);
-        toast.success('Payroll Batch Executed Successfully', {
-            description: `Disbursed payments to all ${records.length} employees for ${selectedMonth}.`,
-        });
     };
-    const handleMarkPaid = (rec) => {
-        setRecords((prev) => prev.map((r) => r.id === rec.id
-            ? {
-                ...r,
-                status: 'paid',
-                paymentDate: new Date().toISOString().split('T')[0],
-            }
-            : r));
-        toast.success(`Disbursed salary of ${formatCurrency(rec.netPay)} to ${rec.employeeName}`);
+    const handleMarkPaid = async (rec) => {
+        try {
+            await payPayrollItem(rec.recordId);
+            toast.success(`Payroll item ${rec.id} marked paid`);
+            setRefresh((value) => value + 1);
+        } catch (err) {
+            toast.error(hrmError(err));
+        }
     };
     const handleViewPayslip = (rec) => {
         setSelectedRecord(rec);
@@ -76,7 +78,8 @@ export default function PayrollPage() {
           </span>
         </div>
 
-        <PayrollTable records={records} onViewPayslip={handleViewPayslip} onMarkPaid={handleMarkPaid}/>
+        <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} />
+        {!loading && !error && <PayrollTable records={records} onViewPayslip={handleViewPayslip} onMarkPaid={handleMarkPaid}/>}
       </div>
 
       {/* Payslip Drawer */}

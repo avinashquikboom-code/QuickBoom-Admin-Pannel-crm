@@ -28,6 +28,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
 import { getSectionConfig } from '@/config/admin-sections';
+import { hrmError, loadOffices, loadTeams, removeOffice, removeTeam, saveOffice, saveTeam } from '@/modules/hrm/hrm-api';
 
 export default function SectionPage() {
     return (
@@ -85,8 +86,15 @@ function SectionPageContent() {
 
     // Sync records on slug change
     React.useEffect(() => {
-        setRecords(config.initialRecords);
+        let active = true;
+        if (slug === 'office-management' || slug === 'team-management') {
+            const load = slug === 'office-management' ? loadOffices : loadTeams;
+            load().then((rows) => { if (active) setRecords(rows); }).catch((err) => { if (active) toast.error(hrmError(err)); });
+        } else {
+            setRecords(config.initialRecords);
+        }
         setSelectedTab('all');
+        return () => { active = false; };
     }, [slug, config.initialRecords]);
 
     // Segmented tab counts
@@ -147,24 +155,41 @@ function SectionPageContent() {
     }, []);
 
     // Confirm Delete
-    const handleConfirmDelete = () => {
+    const handleConfirmDelete = async () => {
         if (!recordToDelete) return;
-        setRecords((prev) => prev.filter((r) => r.id !== recordToDelete.id));
-        toast.success(`${config.singular} Deleted`, {
-            description: `"${recordToDelete.name}" has been removed from the system.`,
-        });
-        setConfirmDeleteOpen(false);
-        setRecordToDelete(null);
+        try {
+            if (slug === 'office-management') await removeOffice(recordToDelete.id);
+            else if (slug === 'team-management') await removeTeam(recordToDelete.id);
+            setRecords((prev) => prev.filter((r) => r.id !== recordToDelete.id));
+            toast.success(`${config.singular} deleted`);
+            setConfirmDeleteOpen(false);
+            setRecordToDelete(null);
+        } catch (err) {
+            toast.error(hrmError(err));
+        }
     };
 
     // Save Form (Create or Edit)
-    const handleSaveForm = (e) => {
+    const handleSaveForm = async (e) => {
         e.preventDefault();
         if (!formName.trim()) {
             toast.error('Validation error', { description: 'Please provide a valid name.' });
             return;
         }
-
+        const values = { name: formName.trim(), code: formCode.trim(), head: formHead.trim(), description: formDesc.trim(), status: formStatus };
+        if (slug === 'office-management' || slug === 'team-management') {
+            try {
+                const save = slug === 'office-management' ? saveOffice : saveTeam;
+                await save(values, editingRecord?.id);
+                const rows = slug === 'office-management' ? await loadOffices() : await loadTeams();
+                setRecords(rows);
+                toast.success(editingRecord ? `${config.singular} updated` : `${config.singular} created`);
+                setDrawerOpen(false);
+            } catch (err) {
+                toast.error(hrmError(err));
+            }
+            return;
+        }
         if (editingRecord) {
             setRecords((prev) =>
                 prev.map((r) =>

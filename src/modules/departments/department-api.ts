@@ -105,8 +105,8 @@ export function exportDepartments(records: Department[]) {
     return `"${safe.replaceAll('"', '""')}"`;
   };
   const rows = [
-    ['Department Name', 'Department Code', 'Description', 'Head of Department', 'Employees', 'Status'],
-    ...records.map((d) => [d.name, d.code, d.description, d.head, d.employeesCount, d.isActive ? 'Active' : 'Inactive']),
+    ['Department Name', 'Department Code', 'Description', 'Employees', 'Status'],
+    ...records.map((d) => [d.name, d.code, d.description, d.employeesCount, d.isActive ? 'Active' : 'Inactive']),
   ];
   const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map((r) => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8;' }));
   const link = document.createElement('a');

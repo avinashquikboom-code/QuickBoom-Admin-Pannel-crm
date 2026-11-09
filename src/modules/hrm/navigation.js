@@ -1,6 +1,5 @@
 import { faBell, faBuilding, faChartLine, faClock, faIndianRupeeSign, faGauge, faLocationDot, faMugHot, faPeopleGroup, faPercent, faSackDollar, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
 import { faCalendar, faCalendarCheck, faCalendarXmark, faFileLines } from '@fortawesome/free-regular-svg-icons';
-import { mockKpiData } from '@/lib/mock-data';
 export const navigation = [
         {
             name: 'HRM Dashboard',
@@ -12,7 +11,6 @@ export const navigation = [
             name: 'Employees',
             href: '/admin/hrm/employees',
             icon: faUsers,
-            badge: '10',
         },
         {
             name: 'Attendance',
@@ -28,15 +26,11 @@ export const navigation = [
             name: 'Overtime Approvals',
             href: '/admin/hrm/overtime',
             icon: faClock,
-            badge: mockKpiData.pendingOvertime.toString(),
-            badgeVariant: 'warning',
         },
         {
             name: 'Expense Claims',
             href: '/admin/hrm/expense-claims',
             icon: faIndianRupeeSign,
-            badge: mockKpiData.pendingExpenses.toString(),
-            badgeVariant: 'warning',
             tag: 'PAYROLL',
         },
         {
@@ -77,29 +71,29 @@ export const navigation = [
         },
         {
             name: 'Shifts',
-            href: '/admin/sections/shifts',
+            href: '/admin/hrm/shifts',
             icon: faClock,
         },
         {
             name: 'Remote Work',
-            href: '/admin/sections/remote-work',
+            href: '/admin/hrm/remote-work',
             icon: faCalendar,
         },
         {
             name: 'Geo Tracking',
-            href: '/admin/sections/geo-tracking',
+            href: '/admin/hrm/geo-tracking',
             icon: faLocationDot,
             tag: 'GEO_TRACKING',
         },
         {
             name: 'Commissions',
-            href: '/admin/sections/commissions',
+            href: '/admin/hrm/commissions',
             icon: faPercent,
             tag: 'PAYROLL',
         },
         {
             name: 'Loans',
-            href: '/admin/sections/loans',
+            href: '/admin/hrm/loans',
             icon: faSackDollar,
             tag: 'PAYROLL',
         },

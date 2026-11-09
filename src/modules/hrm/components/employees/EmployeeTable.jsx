@@ -7,7 +7,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar'
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
-import { mockDepartments } from '@/lib/mock-data';
 import { faMagnifyingGlass, faPhone } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope, faEye } from '@fortawesome/free-regular-svg-icons';
 export function EmployeeTable({ employees, onSelectEmployee, }) {
@@ -108,7 +107,7 @@ export function EmployeeTable({ employees, onSelectEmployee, }) {
               <SelectValue placeholder="Department"/>
             </SelectTrigger>
             <SelectContent>
-              {mockDepartments.map((dept) => (<SelectItem key={dept} value={dept} className="text-xs">
+              {[...new Set(employees.map((employee) => employee.department).filter(Boolean))].map((dept) => (<SelectItem key={dept} value={dept} className="text-xs">
                   {dept}
                 </SelectItem>))}
             </SelectContent>

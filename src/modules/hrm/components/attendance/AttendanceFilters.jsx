@@ -4,9 +4,8 @@ import * as React from 'react';
 import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
 import { Button } from '@/components/common/Button';
-import { mockDepartments } from '@/lib/mock-data';
 import { faDownload, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
-export function AttendanceFilters({ search, onSearchChange, selectedDept, onDeptChange, selectedStatus, onStatusChange, onExport, }) {
+export function AttendanceFilters({ search, onSearchChange, selectedDept, onDeptChange, selectedStatus, onStatusChange, onExport, departments = ['All Departments'], }) {
     return (<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
       <div className="relative flex-1 sm:max-w-xs">
         <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
@@ -19,7 +18,7 @@ export function AttendanceFilters({ search, onSearchChange, selectedDept, onDept
             <SelectValue placeholder="Department"/>
           </SelectTrigger>
           <SelectContent>
-            {mockDepartments.map((dept) => (<SelectItem key={dept} value={dept} className="text-xs">
+            {departments.map((dept) => (<SelectItem key={dept} value={dept} className="text-xs">
                 {dept}
               </SelectItem>))}
           </SelectContent>
