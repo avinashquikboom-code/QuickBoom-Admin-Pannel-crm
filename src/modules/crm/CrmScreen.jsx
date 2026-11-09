@@ -52,11 +52,11 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="mx-auto w-full max-w-7xl min-w-0 space-y-4 sm:space-y-6 overflow-x-hidden">
       <PageHeader title={title} description={description} actions={headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>} />
       {stats && <HrmStats items={stats(payload)} />}
       {gap && <HrmGap title={gap.title} detail={gap.detail} />}
-      <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4 w-full min-w-0">
         <Input value={query.search} onChange={(event) => setQuery({ ...query, search: event.target.value, page: 1 })} placeholder={`Search ${title.toLowerCase()}`} />
         {filters.map((filter) => filter.type === 'date' ? <Input key={filter.key} type="date" aria-label={filter.label} value={query[filter.key] || ''} onChange={(event) => setQuery({ ...query, [filter.key]: event.target.value, page: 1 })} /> : <select key={filter.key} aria-label={filter.label} className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm" value={query[filter.key] || ''} onChange={(event) => setQuery({ ...query, [filter.key]: event.target.value, page: 1 })}><option value="">{filter.label}</option>{(filter.options || []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>)}
         <Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button>
@@ -64,7 +64,7 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
       <HrmNotice loading={loading} error={error} empty={!loading && !error && rows.length === 0 ? `No ${title.toLowerCase()} match these filters.` : ''} onRetry={() => setRefresh((value) => value + 1)}>
         {below && <div className="mb-4">{below(rows, payload)}</div>}
         {toolbar && <div className="mb-4">{toolbar({ query, selected: selectedRows, reload: () => setRefresh((value) => value + 1), payload })}</div>}
-        <div className="overflow-x-auto">
+        <div className="w-full overflow-x-auto min-w-0">
           <DataTable
             hideToolbar
             enableRowSelection={enableSelection}
@@ -99,7 +99,7 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
           />
         </div>
       </HrmNotice>
-      <div className="flex justify-end gap-2"><Button variant="outline" size="sm" disabled={(query.page || 1) <= 1} onClick={() => setQuery({ ...query, page: query.page - 1 })}>Previous</Button><span className="self-center text-xs text-slate-500">Page {payload.pagination?.page || query.page}</span><Button variant="outline" size="sm" disabled={(query.page || 1) >= (payload.pagination?.totalPages || 1)} onClick={() => setQuery({ ...query, page: (query.page || 1) + 1 })}>Next</Button></div>
+      <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2"><Button variant="outline" size="sm" disabled={(query.page || 1) <= 1} onClick={() => setQuery({ ...query, page: query.page - 1 })}>Previous</Button><span className="self-center text-xs text-slate-500">Page {payload.pagination?.page || query.page}</span><Button variant="outline" size="sm" disabled={(query.page || 1) >= (payload.pagination?.totalPages || 1)} onClick={() => setQuery({ ...query, page: (query.page || 1) + 1 })}>Next</Button></div>
       <FormDrawer open={open} onOpenChange={setOpen} title={editing ? `Edit ${title}` : actionLabel || `Create ${title}`} description="Fields match the existing API." onSubmit={submit} loading={saving}>
         {renderForm && renderForm(form, setForm)}
       </FormDrawer>

@@ -127,7 +127,7 @@ export const customerRelations = async (id) => {
 
 export async function loadDeals(params = {}) {
   const [list, metrics] = await Promise.all([api.get('/deals', { params }), api.get('/deals/metrics')]);
-  return { rows: listFrom(list), metrics: bodyOf(metrics), pagination: pageOf(list) };
+  return { rows: listFrom(list), metrics: bodyOf(metrics), pagination: pageOf(list), stages: list?.meta?.stages || pageOf(list)?.stages || [] };
 }
 
 export function saveDeal(values, id) {

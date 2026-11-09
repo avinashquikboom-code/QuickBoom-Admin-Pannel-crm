@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { faBars, faBell, faBuilding, faCheckDouble, faGear, faMagnifyingGlass, faRightFromBracket, faTableCellsLarge, faUserTie, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faBell, faBuilding, faCheckDouble, faGear, faMagnifyingGlass, faRightFromBracket, faTableCellsLarge, faUserTie, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Input } from '@/components/common/Input';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/common/Drawer';
@@ -21,6 +21,7 @@ export function Header() {
     const toggleCollapsed = useSidebarStore((s) => s.toggleCollapsed);
     const [mobileOpen, setMobileOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
+    const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
     const notifications = [
         {
             id: 1,
@@ -73,49 +74,85 @@ export function Header() {
             });
         }
     };
-    return (<header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-sm sm:px-6">
-      {/* Left: Mobile hamburger & Sidebar toggle */}
-      <div className="flex items-center gap-3">
-        {/* Mobile Sidebar Trigger */}
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 lg:hidden" aria-label="Open Navigation">
-            <FontAwesomeIcon icon={faBars} className="size-5"/>
-          </SheetTrigger>
-          <SheetContent aria-label="Navigation" side="left" className="p-0 w-72 max-w-[80vw]"><SheetTitle className="sr-only">Main navigation</SheetTitle><SheetDescription className="sr-only">Choose a QB Suite module or page.</SheetDescription>
-            <React.Suspense fallback={null}>
-              <Sidebar onNavigate={() => setMobileOpen(false)} className="w-full border-none"/>
-            </React.Suspense>
-          </SheetContent>
-        </Sheet>
-
-        {/* Desktop Sidebar Collapse Toggle */}
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-label="Toggle sidebar"
-          className="hidden lg:inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
-        >
-          <FontAwesomeIcon icon={faBars} className="size-4.5" />
-        </button>
-      </div>
-
-      {/* Right: Search, Notifications & User Avatar */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Quick Search */}
-        <form onSubmit={handleSearchSubmit} className="relative hidden sm:block w-48 md:w-60">
-          <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
-          <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search employee, lead, deal..." className="h-9 pl-8 pr-3 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-brand"/>
+    return (<header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/95 px-3 sm:px-6 backdrop-blur-sm">
+      {/* Mobile full-width search overlay */}
+      {mobileSearchOpen ? (
+        <form onSubmit={handleSearchSubmit} className="flex flex-1 items-center gap-2 sm:hidden">
+          <div className="relative flex-1">
+            <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400"/>
+            <Input
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search employee, lead, deal..."
+              className="h-9 pl-8 pr-3 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-brand w-full"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileSearchOpen(false)}
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100"
+            aria-label="Close search"
+          >
+            <FontAwesomeIcon icon={faXmark} className="size-4" />
+          </button>
         </form>
+      ) : (
+        <>
+          {/* Left: Mobile hamburger & Sidebar toggle */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Mobile Sidebar Trigger */}
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 md:hidden" aria-label="Open Navigation">
+                <FontAwesomeIcon icon={faBars} className="size-5"/>
+              </SheetTrigger>
+              <SheetContent aria-label="Navigation" side="left" className="p-0 w-72 max-w-[85vw]" overlayClassName="bg-black/60 backdrop-blur-xs">
+                <SheetTitle className="sr-only">Main navigation</SheetTitle>
+                <SheetDescription className="sr-only">Choose a QB Suite module or page.</SheetDescription>
+                <React.Suspense fallback={null}>
+                  <Sidebar onNavigate={() => setMobileOpen(false)} className="w-full border-none"/>
+                </React.Suspense>
+              </SheetContent>
+            </Sheet>
 
-        {/* Notifications Popover */}
-        <Popover>
-          <PopoverTrigger className="relative flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
-            <FontAwesomeIcon icon={faBell} className="size-4.5"/>
-            <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-primary-foreground shadow-xs">
-              2
-            </span>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 p-0 bg-white border border-slate-200 shadow-xl rounded-xl">
+            {/* Desktop / Tablet Sidebar Collapse Toggle */}
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label="Toggle sidebar"
+              className="hidden md:inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              <FontAwesomeIcon icon={faBars} className="size-4.5" />
+            </button>
+          </div>
+
+          {/* Right: Search, Notifications & User Avatar */}
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            {/* Mobile Search Icon Button */}
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen(true)}
+              className="flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 sm:hidden"
+              aria-label="Open search"
+            >
+              <FontAwesomeIcon icon={faMagnifyingGlass} className="size-4" />
+            </button>
+
+            {/* Quick Search (Tablet & Desktop) */}
+            <form onSubmit={handleSearchSubmit} className="relative hidden sm:block w-40 md:w-52 lg:w-64">
+              <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
+              <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search employee, lead, deal..." className="h-9 pl-8 pr-3 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-brand"/>
+            </form>
+
+            {/* Notifications Popover */}
+            <Popover>
+              <PopoverTrigger className="relative flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
+                <FontAwesomeIcon icon={faBell} className="size-4.5"/>
+                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-primary-foreground shadow-xs">
+                  2
+                </span>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[min(340px,calc(100vw-2rem))] p-0 bg-white border border-slate-200 shadow-xl rounded-xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-slate-50/50 rounded-t-xl">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-slate-900">
@@ -169,7 +206,7 @@ export function Header() {
             </div>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-56 bg-white border border-slate-200 shadow-xl rounded-xl p-1.5">
+          <DropdownMenuContent align="end" className="w-[min(240px,calc(100vw-2rem))] bg-white border border-slate-200 shadow-xl rounded-xl p-1.5">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="px-2 py-1.5">
                 <div className="flex flex-col">
@@ -204,5 +241,7 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      </>
+      )}
     </header>);
 }

@@ -18,7 +18,7 @@ function SheetPortal({ ...props }) {
     return <SheetPrimitive.Portal data-slot="sheet-portal" {...props}/>;
 }
 function SheetOverlay({ className, ...props }) {
-    return (<SheetPrimitive.Backdrop data-slot="sheet-overlay" className={cn("fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs", className)} {...props}/>);
+    return (<SheetPrimitive.Backdrop data-slot="sheet-overlay" className={cn("fixed inset-0 z-50 bg-black/60 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs", className)} {...props}/>);
 }
 function SheetContent({ className, children, side = "right", showCloseButton = true, overlayClassName = undefined, ...props }) {
     return (<SheetPortal>

@@ -198,7 +198,7 @@ function NavGroup({ group, pathname, collapsed, onNavigate }) {
 
 export function Sidebar(props) {
     return (
-        <React.Suspense fallback={<aside className={cn('flex h-full shrink-0 flex-col border-r border-slate-200 bg-white text-slate-800 transition-[width] duration-300 motion-reduce:transition-none w-72', props.className)} />}>
+        <React.Suspense fallback={<aside className={cn('flex h-full shrink-0 flex-col border-r border-slate-200 bg-white text-slate-800 transition-[width] duration-300 motion-reduce:transition-none w-20 lg:w-72', props.className)} />}>
             <SidebarContent {...props} />
         </React.Suspense>
     );
@@ -207,8 +207,19 @@ export function Sidebar(props) {
 function SidebarContent({ className = '', onNavigate }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { collapsed } = useSidebarStore();
+    const { collapsed, setCollapsed } = useSidebarStore();
     const isCollapsed = collapsed && !onNavigate;
+
+    React.useEffect(() => {
+        if (typeof window !== 'undefined' && !onNavigate) {
+            const checkTablet = () => {
+                if (window.innerWidth >= 768 && window.innerWidth < 1024) {
+                    setCollapsed(true);
+                }
+            };
+            checkTablet();
+        }
+    }, [setCollapsed, onNavigate]);
 
     return (
         <aside
