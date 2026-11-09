@@ -15,7 +15,24 @@ import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faEnvelope, faGlobe, faLocationDot, faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { loadDepartments } from '@/modules/master/master-api';
 
-const STATUSES = ['NEW', 'CONTACTED', 'QUALIFIED', 'FOLLOW_UP', 'NEGOTIATION', 'WON', 'LOST', 'CONVERTED'];
+const LEAD_STAGES = [
+  ['NEW', 'New'],
+  ['CONTACTED', 'Contacted'],
+  ['CALL_BACK', 'Call Back'],
+  ['DETAILS_SENT', 'Details Sent'],
+  ['FOLLOW_UP', 'Follow-Up'],
+  ['VISIT_SCHEDULED', 'Visit Scheduled'],
+  ['VISIT_DONE', 'Visit Done'],
+  ['PROPOSAL_SENT', 'Proposal Sent'],
+  ['NEGOTIATION', 'Negotiation'],
+  ['FINAL_CALL', 'Final Call'],
+  ['WON', 'Won'],
+  ['LOST', 'Lost'],
+];
+function stageLabel(value) {
+  const key = String(value || '').toUpperCase();
+  return LEAD_STAGES.find(([stage]) => stage === key)?.[1] || value || '—';
+}
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 const SOURCE_OPTIONS = ['Manual', 'Google Places', 'Website', 'WhatsApp', 'Facebook', 'Instagram', 'Referral', 'Other'];
 const blank = { leadName: '', companyName: '', phone: '', whatsapp: '', email: '', website: '', address: '', city: '', state: '', country: '', pincode: '', source: 'Manual', category: '', priority: 'MEDIUM', status: 'NEW', assignedToId: '', assignedTeam: '', value: '', notes: '' };
@@ -124,7 +141,7 @@ export default function LeadsRoute() {
           { label: 'Lost', value: result.metrics?.lost },
         ]}
         filters={[
-          { key: 'status', label: 'All statuses', options: STATUSES.map((status) => ({ value: status, label: status })) },
+          { key: 'status', label: 'All stages', options: LEAD_STAGES.map(([value, label]) => ({ value, label })) },
           { key: 'priority', label: 'All priorities', options: PRIORITIES.map((item) => ({ value: item, label: item })) },
           { key: 'source', label: 'All sources', options: sourceOptions.map((item) => ({ value: item, label: item })) },
           { key: 'assignedToId', label: 'All BPO employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
@@ -140,11 +157,11 @@ export default function LeadsRoute() {
           { header: 'Priority', cell: (row) => row.priority || '—' },
           { header: 'Assigned', cell: (row) => personName(row.assignedTo || row.employee) },
           { header: 'Created', cell: (row) => String(row.createdAt || '').slice(0, 10) },
-          { header: 'Status', cell: (row) => <StatusBadge status={String(row.status || 'new').toLowerCase()} /> },
+          { header: 'Stage', cell: (row) => <StatusBadge status={stageLabel(row.stage?.name || row.status)} /> },
         ]}
         renderForm={(form, setForm) => <LeadForm form={form} setForm={setForm} sources={sourceOptions} employees={employees} departments={departments} />}
         onSave={async (form, id) => { await persistLead(form, id); toast.success(id ? 'Lead updated' : 'Lead created'); }}
-        detail={(row) => <div className="space-y-2 text-sm"><p>{personName(row)} · {row.companyName || 'No company'}</p><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Status {row.status} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
+        detail={(row) => <div className="space-y-2 text-sm"><p>{personName(row)} · {row.companyName || 'No company'}</p><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
         toolbar={({ query, selected, reload, payload }) => <BulkBar query={query} selected={selected} total={payload.pagination?.total} reload={reload} employees={employees} departments={departments} canDelete={canDelete} />}
         rowActions={(reload) => allowed ? [
           { label: 'Convert', onSelect: async (row) => { try { await convertLead(row.id, { companyName: row.companyName, dealTitle: row.title || row.companyName }); reload((value) => value + 1); toast.success('Lead conversion requested'); } catch (err) { toast.error(crmError(err)); } } },
@@ -192,7 +209,7 @@ function LeadForm({ form, setForm, sources, employees, departments }) {
     <Field label="Lead source"><select className="h-9 rounded-md border px-2 text-sm" value={form.source || 'Manual'} onChange={set('source')}>{sources.map((source) => <option key={source}>{source}</option>)}</select></Field>
     <Field label="Lead category"><Input value={form.category || ''} onChange={set('category')} /></Field>
     <Field label="Priority"><select className="h-9 rounded-md border px-2 text-sm" value={form.priority || 'MEDIUM'} onChange={set('priority')}>{PRIORITIES.map((item) => <option key={item}>{item}</option>)}</select></Field>
-    <Field label="Lead status"><select className="h-9 rounded-md border px-2 text-sm" value={form.status || 'NEW'} onChange={set('status')}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></Field>
+    <Field label="Lead stage"><select className="h-9 rounded-md border px-2 text-sm" value={form.status || 'NEW'} onChange={set('status')}>{LEAD_STAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
     <Field label="Assigned employee"><select className="h-9 rounded-md border px-2 text-sm" value={form.assignedToId || ''} onChange={set('assignedToId')}><option value="">Unassigned</option>{employees.map((employee) => <option key={employee.recordId} value={employee.recordId}>{employee.name}</option>)}</select></Field>
     <Field label="Estimated deal value"><Input type="number" min="0" value={form.value ?? ''} onChange={set('value')} /></Field>
     <Field label="Notes" className="sm:col-span-2"><Input value={form.notes || ''} onChange={set('notes')} /></Field>
@@ -240,7 +257,7 @@ function BulkBar({ query, selected, total, reload, employees, departments, canDe
         <select aria-label="Assign employee" className="h-8 rounded-md border bg-white px-2 text-xs" value={assignedToId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Employee</option>{employees.map((employee) => <option key={employee.recordId} value={employee.recordId}>{employee.name}</option>)}</select>
         <select aria-label="Assign department" className="h-8 rounded-md border bg-white px-2 text-xs" value={assignedTeam} onChange={(event) => setAssignedTeam(event.target.value)}><option value="">Department</option>{departments.map((department) => <option key={department.id} value={department.name}>{department.name}</option>)}</select>
         <Button size="sm" variant="outline" onClick={() => assignedToId ? run((body) => bulkAssignLeads({ ...body, assignedToId: Number(assignedToId), assignedTeam: assignedTeam || undefined })) : toast.error('Choose an employee.')}>Assign</Button>
-        <select aria-label="Lead status" className="h-8 rounded-md border bg-white px-2 text-xs" value={status} onChange={(event) => setStatus(event.target.value)}>{STATUSES.map((item) => <option key={item}>{item}</option>)}</select>
+        <select aria-label="Lead stage" className="h-8 rounded-md border bg-white px-2 text-xs" value={status} onChange={(event) => setStatus(event.target.value)}>{LEAD_STAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <Button size="sm" variant="outline" onClick={() => run((body) => bulkLeadStatus({ ...body, status }))}>Update status</Button>
         <select aria-label="Lead priority" className="h-8 rounded-md border bg-white px-2 text-xs" value={priority} onChange={(event) => setPriority(event.target.value)}>{PRIORITIES.map((item) => <option key={item}>{item}</option>)}</select>
         <Button size="sm" variant="outline" onClick={() => run((body) => bulkLeadPriority({ ...body, priority }))}>Update priority</Button>

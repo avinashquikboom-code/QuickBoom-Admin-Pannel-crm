@@ -13,14 +13,14 @@ export function MainLayout({ children }) {
        Skip to content
      </a>
      <div className="flex h-dvh overflow-hidden bg-background text-foreground font-sans">
-       <div className="hidden lg:flex shrink-0">
-         <React.Suspense fallback={<div className="w-64 shrink-0 bg-sidebar" />}>
+       <div className="hidden md:flex shrink-0">
+         <React.Suspense fallback={<div className="w-20 lg:w-72 shrink-0 bg-sidebar" />}>
            <Sidebar />
          </React.Suspense>
        </div>
-       <div className="flex min-w-0 flex-1 flex-col">
+       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
          <Header />
-         <main id="main-content" className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+         <main id="main-content" className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 lg:p-6">
            {children}
          </main>
        </div>
