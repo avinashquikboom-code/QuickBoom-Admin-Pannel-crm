@@ -208,14 +208,14 @@ export default function LeaveManagementPage() {
             ),
         },
     ];
-    return (<div className="space-y-6 max-w-7xl mx-auto">
+    return (<div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
       <PageHeader title="Leave Management & Absence Tracking" description="Review vacation requests, sick leaves, parental allowances, and team holiday calendars." actions={<Button size="sm" onClick={() => setApplyDialogOpen(true)} className="bg-brand hover:bg-primary-hover text-primary-foreground font-medium text-xs h-9">
             <FontAwesomeIcon icon={faPlus} className="size-4 mr-1.5"/>
             Apply Leave On Behalf
           </Button>}/>
 
       {/* KPI Balance Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 min-[440px]:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="p-3.5 rounded-xl border border-amber-100 bg-amber-50/50">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-amber-700 uppercase">
@@ -263,15 +263,15 @@ export default function LeaveManagementPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
-        <div className="relative flex-1 sm:max-w-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs w-full min-w-0">
+        <div className="relative flex-1 w-full sm:max-w-xs">
           <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee, reason..." className="h-9 pl-8 pr-3 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white"/>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee, reason..." className="h-9 pl-8 pr-3 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white w-full"/>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col min-[480px]:flex-row flex-wrap items-stretch min-[480px]:items-center gap-2 w-full sm:w-auto">
           <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="h-9 text-xs border-slate-200 w-44 bg-slate-50/50">
+            <SelectTrigger className="h-9 text-xs border-slate-200 w-full min-[480px]:w-44 bg-slate-50/50">
               <SelectValue placeholder="Leave Type"/>
             </SelectTrigger>
             <SelectContent>
@@ -294,7 +294,7 @@ export default function LeaveManagementPage() {
           </Select>
 
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="h-9 text-xs border-slate-200 w-32 bg-slate-50/50">
+            <SelectTrigger className="h-9 text-xs border-slate-200 w-full min-[480px]:w-32 bg-slate-50/50">
               <SelectValue placeholder="Status"/>
             </SelectTrigger>
             <SelectContent>

@@ -199,6 +199,7 @@ export default function IntegrationsPage() {
     action().then(() => setRefresh((value) => value + 1)).catch((err) => toast.error(suiteError(err)));
   }
   async function runTest(row) {
+    if (testing) return;
     if (!row.configured || row.source === 'NONE' || row.status === 'NOT_CONFIGURED') {
       toast.error('Configure this integration before testing.');
       return;

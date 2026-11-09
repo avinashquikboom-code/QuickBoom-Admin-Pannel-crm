@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { GooglePlacesPanel } from '@/modules/data-capture/GooglePlacesPanel';
 import Link from 'next/link';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/common/Button';
@@ -45,6 +46,8 @@ export default function CaptureHistoryPage() {
   const [error, setError] = React.useState('');
   const [refresh, setRefresh] = React.useState(0);
   const [session, setSession] = React.useState(null);
+  const [importRecords, setImportRecords] = React.useState(null);
+  const [importOpen, setImportOpen] = React.useState(false);
   const [busy, setBusy] = React.useState('');
 
   React.useEffect(() => {
@@ -159,7 +162,7 @@ export default function CaptureHistoryPage() {
           <table className="min-w-[1100px] w-full text-left text-sm">
             <thead className="bg-[#E8F1EC] text-[#163A2E]">
               <tr>
-                {['Capture ID', 'Capture Name', 'Data Source', 'Category', 'Location', 'Total', 'Imported', 'Pending', 'Failed', 'Captured By', 'Capture Date', 'Status', ''].map((heading) => (
+                {['Capture ID', 'Capture Name', 'Data Source', 'Category', 'Location', 'Total', 'Selected', 'Imported', 'Already Exists', 'Pending', 'Failed', 'Captured By', 'Capture Date', 'Status', ''].map((heading) => (
                   <th key={heading} className="px-3 py-2 font-semibold">{heading}</th>
                 ))}
               </tr>
@@ -173,7 +176,7 @@ export default function CaptureHistoryPage() {
                   <td className="px-3 py-2">{row.category || '—'}</td>
                   <td className="px-3 py-2">{row.location || '—'}</td>
                   <td className="px-3 py-2">{row.totalRecords ?? 0}</td>
-                  <td className="px-3 py-2">{row.imported ?? 0}</td>
+                  <td className="px-3 py-2">{row.selected ?? 0}</td><td className="px-3 py-2">{row.imported ?? 0}</td><td className="px-3 py-2">{row.duplicate ?? 0}</td>
                   <td className="px-3 py-2">{row.pending ?? 0}</td>
                   <td className="px-3 py-2">{row.failed ?? 0}</td>
                   <td className="px-3 py-2">{row.capturedBy || '—'}</td>
@@ -182,7 +185,7 @@ export default function CaptureHistoryPage() {
                   <td className="px-3 py-2"><button type="button" className="font-semibold text-[#163A2E]" onClick={() => openSession(row)}>View Details</button></td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan={13} className="px-3 py-8 text-center text-slate-500">No capture sessions match these filters.</td></tr>}
+              {!rows.length && <tr><td colSpan={15} className="px-3 py-8 text-center text-slate-500">No capture sessions match these filters.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -219,13 +222,14 @@ export default function CaptureHistoryPage() {
               <p><span className="text-slate-500">Requested / returned</span><br />{detail.requestedCount ?? '—'} / {detail.totalRecords ?? 0}</p>
               <p><span className="text-slate-500">Captured</span><br />{when(detail.captureDate)}</p>
               <p><span className="text-slate-500">Captured by</span><br />{detail.capturedBy}</p>
-              <p><span className="text-slate-500">Imported</span><br />{detail.imported ?? 0}</p>
+              <p><span className="text-slate-500">Selected</span><br />{detail.selected ?? 0}</p><p><span className="text-slate-500">Imported</span><br />{detail.imported ?? 0}</p>
               <p><span className="text-slate-500">Pending</span><br />{detail.pending ?? 0}</p>
               <p><span className="text-slate-500">Failed</span><br />{detail.failed ?? 0}</p>
               <p><span className="text-slate-500">Duplicates</span><br />{detail.duplicate ?? 0}</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Link href="/admin/crm/leads" className="inline-flex h-10 items-center justify-center rounded-lg bg-[#163A2E] px-4 text-sm font-semibold text-white">View Imported Leads</Link>
+              <Link href={`/admin/crm/leads?captureJobId=${encodeURIComponent(detail.id)}`} className="inline-flex h-10 items-center justify-center rounded-lg bg-[#163A2E] px-4 text-sm font-semibold text-white">View Imported Leads</Link>
+              <Button type="button" variant="outline" onClick={() => { setImportRecords(detail.records); setImportOpen(true); }}>Select records to import</Button>
               <Button type="button" variant="outline" disabled={!detail.failed || busy === detail.id} onClick={() => retry(detail.id)}>Retry Failed Imports</Button>
             </div>
             <div className="overflow-x-auto">
@@ -234,7 +238,7 @@ export default function CaptureHistoryPage() {
                 <tbody>
                   {(detail.records || []).map((record) => (
                     <tr key={record.id} className="border-t">
-                      <td className="py-2 pr-3">{record.businessName}<div className="text-xs text-slate-500">{record.address || record.phone || ''}</div></td>
+                      <td className="py-2 pr-3">{record.businessName || 'Google Maps reference'}<div className="text-xs text-slate-500">{record.address || record.phone || ''}</div></td>
                       <td className="py-2 pr-3">{record.category || '—'}</td>
                       <td className="py-2 pr-3 capitalize">{record.outcome}</td>
                       <td className="py-2 pr-3">{record.googlePlaceId || '—'}</td>
@@ -248,6 +252,7 @@ export default function CaptureHistoryPage() {
           </div>
         )}
       </FormDrawer>
+      <GooglePlacesPanel open={importOpen} onOpenChange={setImportOpen} initialPlaces={importRecords} initialJobId={detail?.id} onImported={() => { setRefresh((value) => value + 1); if (detail?.id) loadCaptureSession(detail.id).then((payload) => { const body = payload?.data || payload; setSession(body?.records ? body : body?.data || body); }).catch((error) => toast.error(captureError(error))); }} />
     </div>
   );
 }

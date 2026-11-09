@@ -148,7 +148,7 @@ export default function OvertimePage() {
   ], []);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 overflow-x-hidden">
+    <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 overflow-x-hidden w-full min-w-0">
       <PageHeader
         title="Overtime Approvals"
         description="Review overtime requests, approve payable time, and send approved amounts to payroll."
@@ -160,14 +160,14 @@ export default function OvertimePage() {
         { label: 'Approved', value: summary.approved ?? 0 },
         { label: 'Rejected', value: summary.rejected ?? 0 },
       ]} />
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-6">
-        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search employee or ID" className="h-9 text-xs xl:col-span-2" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 w-full min-w-0">
+        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search employee or ID" className="h-9 text-xs sm:col-span-2 lg:col-span-1 xl:col-span-2 w-full" />
         <Filter value={status} onChange={setStatus} placeholder="Status" options={STATUSES} />
         <Filter value={departmentId} onChange={setDepartmentId} placeholder="Department" options={departments.map((item) => ({ value: String(item.id), label: item.name }))} />
         <Filter value={overtimeType} onChange={setOvertimeType} placeholder="Type" options={TYPES} />
-        <div className="grid grid-cols-2 gap-2">
-          <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="h-9 text-xs" />
-          <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="h-9 text-xs" />
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-2 w-full">
+          <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="h-9 text-xs w-full" />
+          <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="h-9 text-xs w-full" />
         </div>
       </div>
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} empty={!loading && !error && rows.length === 0 ? 'No overtime requests match these filters.' : ''} />

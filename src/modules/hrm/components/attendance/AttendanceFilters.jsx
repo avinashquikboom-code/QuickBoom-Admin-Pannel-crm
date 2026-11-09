@@ -6,15 +6,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { Button } from '@/components/common/Button';
 import { faDownload, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 export function AttendanceFilters({ search, onSearchChange, selectedDept, onDeptChange, selectedStatus, onStatusChange, onExport, departments = ['All Departments'], }) {
-    return (<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
-      <div className="relative flex-1 sm:max-w-xs">
+    return (<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs w-full min-w-0">
+      <div className="relative flex-1 w-full sm:max-w-xs">
         <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
-        <Input value={search} onChange={(e) => onSearchChange(e.target.value)} placeholder="Search by employee name or ID..." className="h-9 pl-8 pr-3 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white focus-visible:ring-brand"/>
+        <Input value={search} onChange={(e) => onSearchChange(e.target.value)} placeholder="Search by employee name or ID..." className="h-9 pl-8 pr-3 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white focus-visible:ring-brand w-full"/>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col min-[480px]:flex-row flex-wrap items-stretch min-[480px]:items-center gap-2 w-full sm:w-auto">
         <Select value={selectedDept} onValueChange={onDeptChange}>
-          <SelectTrigger className="h-9 text-xs border-slate-200 w-44 bg-slate-50/50">
+          <SelectTrigger className="h-9 text-xs border-slate-200 w-full min-[480px]:w-44 bg-slate-50/50">
             <SelectValue placeholder="Department"/>
           </SelectTrigger>
           <SelectContent>
@@ -25,7 +25,7 @@ export function AttendanceFilters({ search, onSearchChange, selectedDept, onDept
         </Select>
 
         <Select value={selectedStatus} onValueChange={onStatusChange}>
-          <SelectTrigger className="h-9 text-xs border-slate-200 w-32 bg-slate-50/50">
+          <SelectTrigger className="h-9 text-xs border-slate-200 w-full min-[480px]:w-32 bg-slate-50/50">
             <SelectValue placeholder="Status"/>
           </SelectTrigger>
           <SelectContent>
@@ -50,7 +50,7 @@ export function AttendanceFilters({ search, onSearchChange, selectedDept, onDept
           </SelectContent>
         </Select>
 
-        <Button variant="outline" size="sm" onClick={onExport} className="h-9 border-slate-200 text-slate-700 hover:text-brand-dark text-xs px-3">
+        <Button variant="outline" size="sm" onClick={onExport} className="h-9 border-slate-200 text-slate-700 hover:text-brand-dark text-xs px-3 w-full min-[480px]:w-auto">
           <FontAwesomeIcon icon={faDownload} className="size-3.5 mr-1 text-slate-400"/>
           Export
         </Button>

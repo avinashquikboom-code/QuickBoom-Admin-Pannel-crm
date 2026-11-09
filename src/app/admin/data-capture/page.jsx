@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
+import { GooglePlacesPanel } from '@/modules/data-capture/GooglePlacesPanel';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { Button } from '@/components/common/Button';
-import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
-import { captureError, captureGaps, createCapture, createLeadFromCapture, extractPlaces, loadCaptureUsage, loadCaptures, rejectCapture, removeCapture, sessionCan, updateCapture, validateCapture } from '@/modules/data-capture/capture-api';
+import { captureError, captureGaps, createCapture, loadCaptureUsage, loadCaptures, rejectCapture, removeCapture, sessionCan, updateCapture, validateCapture } from '@/modules/data-capture/capture-api';
 
 const STATUSES = ['CAPTURED', 'VALIDATED', 'REJECTED', 'DUPLICATE', 'LEAD_CREATED'];
 const blank = { businessName: '', category: '', phone: '', email: '', website: '', address: '', source: 'GOOGLE_PLACES', notes: '' };
@@ -17,20 +17,20 @@ export default function DataCapturePage() {
   const [allowed, setAllowed] = React.useState(false);
   const [usage, setUsage] = React.useState({});
   const [extractOpen, setExtractOpen] = React.useState(false);
-  const [extractForm, setExtractForm] = React.useState({ keyword: '', location: '', category: '', city: '', maxResults: 20 });
+  const [selectedPlaces, setSelectedPlaces] = React.useState(null);
   const [refresh, setRefresh] = React.useState(0);
   React.useEffect(() => setAllowed(sessionCan('DATA_CAPTURE')), []);
   React.useEffect(() => { loadCaptureUsage().then(setUsage).catch(() => setUsage({})); }, [refresh]);
   const load = React.useCallback((query) => loadCaptures({ page: query.page, limit: 20, search: query.search || undefined, status: query.status || undefined, source: query.source || undefined, category: query.category || undefined }), []);
 
   return <>
-    <CrmScreen title="Data Capture" description="Captured business records for this tenant, with validation and lead conversion." actionLabel="Add record" canCreate={allowed} load={load} blank={blank}
+    <CrmScreen title="Data Capture" description="Captured business records for this tenant, with validation and lead conversion." refreshToken={refresh} enableSelection toolbar={({ selected }) => <Button disabled={!allowed || !selected.length} onClick={() => { setSelectedPlaces(selected); setExtractOpen(true); }}>Import Selected ({selected.length})</Button>} actionLabel="Add record" canCreate={allowed} load={load} blank={blank}
       gap={{ title: 'Dates, sources, and export', detail: `${captureGaps.dates} ${captureGaps.sources} ${captureGaps.export}` }}
       stats={() => [{ label: 'Captured records', value: usage.totalLeadsCaptured }, { label: 'Validated', value: usage.validatedCount }, { label: 'Converted to leads', value: usage.convertedCount }, { label: 'Extractions', value: usage.totalExtractions }]}
       filters={[{ key: 'status', label: 'All statuses', options: STATUSES.map((value) => ({ value, label: value })) }, { key: 'source', label: 'All sources', options: [{ value: 'GOOGLE_PLACES', label: 'Google Places' }] }]}
       below={(rows) => <SourceCounts rows={rows} />}
       columns={[
-        { header: 'Business', cell: (row) => row.businessName },
+        { header: 'Business', cell: (row) => row.businessName || `Google Maps reference ${row.googlePlaceId || row.id}` },
         { header: 'Category', cell: (row) => row.category || '—' },
         { header: 'Phone', cell: (row) => row.phone || '—' },
         { header: 'Source', cell: (row) => row.source || row.provider || '—' },
@@ -43,15 +43,13 @@ export default function DataCapturePage() {
       rowActions={(reload) => allowed ? [
         { label: 'Validate', onSelect: async (row) => { try { await validateCapture(row.id); reload((value) => value + 1); } catch (error) { toast.error(captureError(error)); } } },
         { label: 'Reject', onSelect: async (row) => { const reason = window.prompt('Rejection reason'); if (reason === null) return; try { await rejectCapture(row.id, reason); reload((value) => value + 1); } catch (error) { toast.error(captureError(error)); } } },
-        { label: 'Create lead', onSelect: async (row) => { try { await createLeadFromCapture(row.id); reload((value) => value + 1); toast.success('Lead conversion requested'); } catch (error) { toast.error(captureError(error)); } } },
+        { label: 'Import lead', onSelect: (row) => { setSelectedPlaces([row]); setExtractOpen(true); } },
         { label: 'Delete', onSelect: async (row) => { try { await removeCapture(row.id); reload((value) => value + 1); } catch (error) { toast.error(captureError(error)); } } },
       ] : []}
       detail={(row) => <div className="space-y-1 text-sm"><p className="font-medium">{row.businessName}</p><p>{row.category || 'No category'} · {row.source}</p><p>{row.phone || 'No phone'} · {row.email || 'No email'}</p><p>{row.address || 'No address'}</p><p>Website {row.website || '—'} · Lead {row.importedLeadId || 'Not imported'}</p><p>{row.notes || ''}</p></div>}
     />
-    {allowed && <div className="mx-auto mt-4 max-w-7xl"><Button variant="outline" onClick={() => setExtractOpen(true)}>Extract from Google Places</Button></div>}
-    <FormDrawer open={extractOpen} onOpenChange={setExtractOpen} title="Extract places" description="Runs the existing Google Places extraction. Quota enforcement stays on the server." onSubmit={async (event) => { event.preventDefault(); try { await extractPlaces(extractForm); setExtractOpen(false); setRefresh((value) => value + 1); toast.success('Extraction requested'); } catch (error) { toast.error(captureError(error)); } }}>
-      <div className="grid gap-3"><Field label="Keyword"><Input value={extractForm.keyword} onChange={(event) => setExtractForm({ ...extractForm, keyword: event.target.value })} /></Field><Field label="Location"><Input value={extractForm.location} onChange={(event) => setExtractForm({ ...extractForm, location: event.target.value })} /></Field><Field label="City"><Input value={extractForm.city} onChange={(event) => setExtractForm({ ...extractForm, city: event.target.value })} /></Field><Field label="Category"><Input value={extractForm.category} onChange={(event) => setExtractForm({ ...extractForm, category: event.target.value })} /></Field><Field label="Maximum results"><Input type="number" min="1" max="60" value={extractForm.maxResults} onChange={(event) => setExtractForm({ ...extractForm, maxResults: event.target.value })} /></Field></div>
-    </FormDrawer>
+    {allowed && <div className="mx-auto mt-4 max-w-7xl"><Button variant="outline" onClick={() => { setSelectedPlaces(null); setExtractOpen(true); }}>Search Google Maps</Button></div>}
+    <GooglePlacesPanel open={extractOpen} onOpenChange={setExtractOpen} initialPlaces={selectedPlaces} onImported={() => setRefresh((value) => value + 1)} />
   </>;
 }
 

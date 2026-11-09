@@ -112,18 +112,18 @@ export default function SalarySlipsPage() {
             ),
         },
     ];
-    return (<div className="space-y-6 max-w-7xl mx-auto">
+    return (<div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
       <PageHeader title="Salary Slips Repository" description="Salary slips returned by the payroll API." />
 
       {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
-        <div className="relative flex-1 sm:max-w-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs w-full min-w-0">
+        <div className="relative flex-1 w-full sm:max-w-xs">
           <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by slip ID, employee name..." className="h-9 pl-8 pr-3 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white"/>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by slip ID, employee name..." className="h-9 pl-8 pr-3 text-xs border-slate-200 bg-slate-50/50 focus-visible:bg-white w-full"/>
         </div>
 
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="h-9 text-xs border-slate-200 w-44 bg-slate-50/50">
+          <SelectTrigger className="h-9 text-xs border-slate-200 w-full sm:w-44 bg-slate-50/50">
             <SelectValue placeholder="Pay Period"/>
           </SelectTrigger>
           <SelectContent>
