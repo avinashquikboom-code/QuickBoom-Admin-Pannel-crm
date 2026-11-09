@@ -9,7 +9,7 @@ import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { HrmGap, HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { crmError } from './crm-api';
 
-export function CrmScreen({ title, description, actionLabel, canCreate = true, load, columns, stats, filters = [], blank, renderForm, onSave, rowActions, detail, gap, below, headerActions, extraHeaderActions, enableSelection = false, onSelectionChange, toolbar, refreshToken = 0, toForm }) {
+export function CrmScreen({ hideTitleCard = false, title, description, actionLabel, canCreate = true, load, columns, stats, filters = [], blank, renderForm, onSave, rowActions, detail, gap, below, headerActions, extraHeaderActions, enableSelection = false, onSelectionChange, toolbar, refreshToken = 0, toForm }) {
   const [rows, setRows] = React.useState([]);
   const [payload, setPayload] = React.useState({});
   const [loading, setLoading] = React.useState(true);
@@ -21,6 +21,7 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
   const [editing, setEditing] = React.useState(null);
   const [selected, setSelected] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
+  const [selectionResetToken, setSelectionResetToken] = React.useState(0);
   const [selectedRows, setSelectedRows] = React.useState([]);
 
   const loadRef = React.useRef(load);
@@ -28,6 +29,8 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
   React.useEffect(() => {
     let active = true;
     setLoading(true);
+    setSelectedRows([]);
+    setSelectionResetToken((value) => value + 1);
     loadRef.current(query).then((result) => {
       if (!active) return;
       setRows(result.rows || []);
@@ -53,7 +56,7 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
 
   return (
     <div className="mx-auto w-full max-w-7xl min-w-0 space-y-4 sm:space-y-6 overflow-x-hidden">
-      <PageHeader title={title} description={description} actions={headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>} />
+      {hideTitleCard ? <div className="flex flex-wrap justify-end gap-2">{headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>}</div> : <PageHeader title={title} description={description} actions={headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>} />}
       {stats && <HrmStats items={stats(payload)} />}
       {(() => { const item = typeof gap === 'function' ? gap(rows) : gap; return item ? <HrmGap title={item.title} detail={item.detail} /> : null; })()}
       <div className="grid grid-cols-1 gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4 w-full min-w-0">
@@ -63,10 +66,11 @@ export function CrmScreen({ title, description, actionLabel, canCreate = true, l
       </div>
       <HrmNotice loading={loading} error={error} empty={!loading && !error && rows.length === 0 ? `No ${title.toLowerCase()} match these filters.` : ''} onRetry={() => setRefresh((value) => value + 1)}>
         {below && <div className="mb-4">{below(rows, payload)}</div>}
-        {toolbar && <div className="mb-4">{toolbar({ query, selected: selectedRows, reload: () => setRefresh((value) => value + 1), payload })}</div>}
+        {toolbar && <div className="mb-4">{toolbar({ query, selected: selectedRows, clearSelection: () => { setSelectedRows([]); setSelectionResetToken((value) => value + 1); }, reload: () => setRefresh((value) => value + 1), payload })}</div>}
         <div className="w-full overflow-x-auto min-w-0">
           <DataTable
             hideToolbar
+            selectionResetToken={selectionResetToken}
             enableRowSelection={enableSelection}
             onSelectionChange={(rows) => {
               setSelectedRows((current) => {

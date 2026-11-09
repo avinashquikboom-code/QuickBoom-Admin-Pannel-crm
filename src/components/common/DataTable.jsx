@@ -70,6 +70,7 @@ function DataTableContent({
     hideSearch = false,
     toolbarActions,
     onSelectionChange,
+    selectionResetToken = 0,
 }) {
     const [sorting, setSorting] = React.useState(() => initialSorting);
     const [globalFilter, setGlobalFilter] = React.useState('');
@@ -170,6 +171,8 @@ function DataTableContent({
                                 ...rowActions.map((action) => ({
                                     label: action.label,
                                     icon: action.icon,
+                                    confirm: action.confirm,
+                                    disabled: action.disabled,
                                     variant: action.variant || (action.label?.toLowerCase().includes('delete') ? 'destructive' : undefined),
                                     onClick: () => action.onSelect(row.original),
                                 })),
@@ -217,7 +220,7 @@ function DataTableContent({
 
     React.useEffect(() => {
         setRowSelection({});
-    }, [data]);
+    }, [data, selectionResetToken]);
 
     const onSelectionChangeRef = React.useRef(onSelectionChange);
     onSelectionChangeRef.current = onSelectionChange;
