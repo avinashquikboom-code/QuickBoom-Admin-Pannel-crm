@@ -145,12 +145,12 @@ export default function IntegrationsPage() {
     }
   };
 
-  return <div className="mx-auto max-w-7xl space-y-4">
+  return <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
     <PageHeader title="Integrations" description="Manage and configure third-party services connected to QB Suite." actions={<Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button>} />
     <HrmStats items={[{ label: 'Total integrations', value: counts.total }, { label: 'Connected', value: counts.connected }, { label: 'Not configured', value: counts.missing }, { label: 'Connection issues', value: counts.issues }]} />
-    <div className="flex flex-col gap-2 sm:flex-row">
-      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search integrations" className="sm:max-w-xs" />
-      <div className="flex flex-wrap gap-1">{['ALL', 'CONNECTED', 'NOT_CONFIGURED', 'ERROR', 'DISABLED'].map((item) => <Button key={item} size="sm" variant={filter === item ? 'default' : 'outline'} onClick={() => setFilter(item)}>{filterLabel(item)}</Button>)}</div>
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center w-full min-w-0">
+      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search integrations" className="w-full sm:max-w-xs" />
+      <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">{['ALL', 'CONNECTED', 'NOT_CONFIGURED', 'ERROR', 'DISABLED'].map((item) => <Button key={item} size="sm" variant={filter === item ? 'default' : 'outline'} onClick={() => setFilter(item)}>{filterLabel(item)}</Button>)}</div>
     </div>
     <HrmNotice loading={loading} error={error} empty={!loading && !error && visible.length === 0 ? 'No integrations match these filters.' : ''} onRetry={() => setRefresh((value) => value + 1)}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">

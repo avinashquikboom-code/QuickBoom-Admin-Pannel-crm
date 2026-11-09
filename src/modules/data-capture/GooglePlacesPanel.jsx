@@ -145,7 +145,7 @@ export function GooglePlacesPanel({ open, onOpenChange, onImported, initialPlace
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
         <div className="relative">
-          <Label className="mb-1 block text-xs">Category</Label>
+          <Label className="mb-1 block text-xs">Business Category</Label>
           <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-lg border border-[#E2E8E5] bg-white px-2 py-1">
             {categories.map((item) => <button key={item} type="button" className="inline-flex items-center gap-1 rounded-full bg-[#E8F1EC] px-2 py-1 text-xs text-[#163A2E]" onClick={() => setCategories(categories.filter((value) => value !== item))}>{item} <FontAwesomeIcon icon={faXmark} className="size-3" /></button>)}
             <input aria-label="Search business categories" className="h-8 min-w-40 flex-1 bg-transparent text-sm outline-none" placeholder="Search business categories..." value={categoryQuery} onFocus={() => setCategoryOpen(true)} onChange={(event) => { setCategoryQuery(event.target.value); setCategoryOpen(true); }} />
@@ -163,7 +163,7 @@ export function GooglePlacesPanel({ open, onOpenChange, onImported, initialPlace
           {suggestions.length > 0 && <div className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-[#E2E8E5] bg-white shadow-lg">{suggestions.map((item) => <button key={item.placeId} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-[#E8F1EC]" onClick={async () => { try { const resolved = unwrap(await resolveGoogleLocation(item.placeId)); setLocation(resolved); setLocationQuery(''); setSuggestions([]); setError(''); } catch (err) { setError(crmError(err)); } }}>{item.label}</button>)}</div>}
         </div>
         <section className="rounded-xl border border-[#163A2E]/20 bg-[#E8F1EC] p-3">
-          <h3 className="text-sm font-semibold text-[#172B24]">Capture Leads</h3>
+          <h3 className="text-sm font-semibold text-[#172B24]">Number of Results</h3>
           <p className="text-xs text-[#718078]">Fetch and capture top results from Google Maps.</p>
           <div className="mt-2 flex gap-2">{[10, 20, 50].map((count) => <button key={count} type="button" className={`h-9 min-w-14 rounded-lg border text-sm font-medium ${limit === count ? 'border-[#163A2E] bg-[#163A2E] text-white' : 'border-[#E2E8E5] bg-white text-[#172B24]'}`} onClick={() => setLimit(count)}>{count}</button>)}</div>
         </section>
@@ -206,9 +206,9 @@ export function GooglePlacesPanel({ open, onOpenChange, onImported, initialPlace
         </div>
         {detail && <div className="rounded-xl border bg-white p-3 text-sm"><p className="font-medium">Google Maps · {detail.businessName}</p><p>{detail.address || 'Not available'}</p><p>{detail.phone || 'Not available'}</p><p>{detail.email || 'Email not available'}</p><p>{detail.website || 'Not available'}</p>{(detail.rawData?.attributions || []).map((item, index) => <p key={index}><a href={item.providerUri}>{item.provider}</a></p>)}</div>}
       </div>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#E2E8E5] bg-white px-6 py-4">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#E2E8E5] bg-white px-6 py-4">
         <p className="text-sm text-[#172B24]">Selected {selected.length} · Imported {Object.values(outcomes).filter((item) => item.status === 'imported').length} · Already Exists {Object.values(outcomes).filter((item) => item.status === 'duplicate').length} · Failed {Object.values(outcomes).filter((item) => item.status === 'failed').length}</p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link className="text-sm underline" href={`/admin/crm/leads?captureJobId=${encodeURIComponent(jobId)}`}>View Imported Leads</Link><Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           {failedIds.length > 0 && <Button variant="outline" disabled={importing} onClick={() => importSelected(failedIds)}>{importing ? 'Importing…' : `Retry failed (${failedIds.length})`}</Button>}
           <Button className="bg-[#163A2E] hover:bg-[#204C3D]" disabled={!selected.length || importing} onClick={() => importSelected(selected)}>{importing ? 'Importing…' : `Import Selected (${selected.length})`}</Button>

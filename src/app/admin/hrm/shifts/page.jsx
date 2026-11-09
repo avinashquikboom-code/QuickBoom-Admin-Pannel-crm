@@ -114,7 +114,7 @@ export default function ShiftsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
       <PageHeader title="Shifts" description="Company shifts, working hours, break duration, and employee assignment." actions={canManage ? <Button onClick={openCreate}>Add shift</Button> : null} />
       <HrmStats items={[
         { label: 'Total shifts', value: metrics.total },
@@ -122,11 +122,11 @@ export default function ShiftsPage() {
         { label: 'Night shifts', value: metrics.nightShifts },
         { label: 'Assigned employees', value: metrics.assignedEmployees },
       ]} />
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row">
-        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search shift name or code" className="sm:max-w-xs" />
-        <Select value={status} onValueChange={setStatus}><SelectTrigger className="sm:w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">All statuses</SelectItem><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem></SelectContent></Select>
-        <Select value={type} onValueChange={setType}><SelectTrigger className="sm:w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">All types</SelectItem><SelectItem value="NIGHT">Night</SelectItem><SelectItem value="ROTATIONAL">Rotational</SelectItem></SelectContent></Select>
-        <Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button>
+      <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:flex-wrap w-full min-w-0">
+        <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search shift name or code" className="w-full sm:max-w-xs" />
+        <Select value={status} onValueChange={setStatus}><SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">All statuses</SelectItem><SelectItem value="ACTIVE">Active</SelectItem><SelectItem value="INACTIVE">Inactive</SelectItem></SelectContent></Select>
+        <Select value={type} onValueChange={setType}><SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">All types</SelectItem><SelectItem value="NIGHT">Night</SelectItem><SelectItem value="ROTATIONAL">Rotational</SelectItem></SelectContent></Select>
+        <Button variant="outline" onClick={() => setRefresh((value) => value + 1)} className="w-full sm:w-auto">Refresh</Button>
       </div>
       <HrmGap title="Shift history" detail={missingHrmApis.shiftHistory} />
       <HrmNotice loading={loading} error={error} empty={!loading && !error && rows.length === 0 ? 'No shifts match these filters.' : ''} onRetry={() => setRefresh((value) => value + 1)}>
