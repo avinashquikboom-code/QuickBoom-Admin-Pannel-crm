@@ -71,6 +71,7 @@ export const checkLeadDuplicate = (values) => api.post('/leads/check-duplicate',
 
 export const searchGooglePlaces = (values) => api.post('/data-capture/extract', {
   categories: values.categories,
+  searchLocation: values.searchLocation,
   keyword: Array.isArray(values.categories) ? values.categories.join(', ') : values.keyword,
   location: values.location || undefined,
   latitude: values.latitude ?? undefined,
@@ -81,7 +82,7 @@ export const searchGooglePlaces = (values) => api.post('/data-capture/extract', 
 export const suggestGoogleLocations = (input) => api.post('/data-capture/location-suggestions', { input });
 export const resolveGoogleLocation = (placeId) => api.post('/data-capture/location-details', { placeId });
 
-export const importGooglePlaces = (placeIds, jobId) => api.post('/data-capture/import-to-leads', { placeIds, jobId });
+export const importGooglePlaces = (placeIds, jobId, places) => api.post('/data-capture/import-to-leads', { placeIds, jobId, places });
 export const loadCapturedPlace = (id) => api.get(`/data-capture/${id}`);
 export const bulkAssignLeads = (body) => api.post('/leads/bulk/assign', body);
 export const bulkLeadStatus = (body) => api.post('/leads/bulk/status', body);
@@ -89,6 +90,11 @@ export const bulkLeadPriority = (body) => api.post('/leads/bulk/priority', body)
 export const archiveLeads = (ids) => api.post('/leads/bulk-delete', { ids });
 
 export const removeLead = (id) => api.delete(`/leads/${id}`);
+export function uploadLeadImage(id, file) {
+  const body = new FormData();
+  body.append('image', file);
+  return api.post(`/leads/${id}/images`, body);
+}
 export const convertLead = (id, values) => api.post(`/leads/${id}/convert`, values);
 export const loadLeadNotes = async (id) => listFrom(await api.get(`/leads/${id}/notes`));
 export const addLeadNote = (id, content) => api.post(`/leads/${id}/notes`, { content });

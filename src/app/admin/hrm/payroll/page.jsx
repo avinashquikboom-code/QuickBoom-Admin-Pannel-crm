@@ -47,8 +47,8 @@ export default function PayrollPage() {
         setSelectedRecord(rec);
         setPayslipOpen(true);
     };
-    return (<div className="space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Payroll & Compensation Management" description="Calculate monthly salaries, tax withholding, overtime credits, reimbursements, and payslip generation." actions={<div className="flex items-center gap-2">
+    return (<div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
+      <PageHeader title="Payroll & Compensation Management" description="Calculate monthly salaries, tax withholding, overtime credits, reimbursements, and payslip generation." actions={<div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => toast.success('Exported Monthly Payroll to Excel/CSV')} className="border-slate-200 text-slate-700 hover:text-brand-dark text-xs h-9">
               <FontAwesomeIcon icon={faDownload} className="size-3.5 mr-1 text-slate-400"/>
               Export Bank File

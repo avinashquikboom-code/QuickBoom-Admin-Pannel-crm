@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { GooglePlacesPanel } from '@/modules/data-capture/GooglePlacesPanel';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
@@ -10,7 +11,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { AdminBulkActions, AdminBulkSelectionToolbar, AdminSelectCheckbox, AdminSelectionSummary } from '@/components/admin/bulk-selection';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
-import { addLeadNote, archiveLeads, bulkAssignLeads, bulkLeadPriority, bulkLeadStatus, checkLeadDuplicate, convertLead, crmError, importGooglePlaces, listLeadPage, loadCapturedPlace, loadEmployees, loadLeadNotes, loadLeads, personName, removeLead, resolveGoogleLocation, saveLead, searchGooglePlaces, sessionCan, suggestGoogleLocations } from '@/modules/crm/crm-api';
+import { addLeadNote, archiveLeads, bulkAssignLeads, bulkLeadPriority, bulkLeadStatus, checkLeadDuplicate, convertLead, crmError, importGooglePlaces, listLeadPage, loadCapturedPlace, loadEmployees, loadLeadNotes, loadLeads, personName, removeLead, resolveGoogleLocation, saveLead, searchGooglePlaces, sessionCan, suggestGoogleLocations, uploadLeadImage } from '@/modules/crm/crm-api';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faEnvelope, faGlobe, faLocationDot, faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { loadDepartments } from '@/modules/master/master-api';
@@ -34,7 +35,7 @@ function stageLabel(value) {
   return LEAD_STAGES.find(([stage]) => stage === key)?.[1] || value || '—';
 }
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-const SOURCE_OPTIONS = ['Manual', 'Google Places', 'Website', 'WhatsApp', 'Facebook', 'Instagram', 'Referral', 'Other'];
+const SOURCE_OPTIONS = ['Manual', 'Google Maps', 'Google Places', 'Website', 'WhatsApp', 'Facebook', 'Instagram', 'Referral', 'Other'];
 const blank = { leadName: '', companyName: '', phone: '', whatsapp: '', email: '', website: '', address: '', city: '', state: '', country: '', pincode: '', source: 'Manual', category: '', priority: 'MEDIUM', status: 'NEW', assignedToId: '', assignedTeam: '', value: '', notes: '' };
 
 function unwrap(payload) {
@@ -44,6 +45,8 @@ function unwrap(payload) {
 
 function filtersFrom(query) {
   return {
+    leadId: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('leadId') || undefined : undefined,
+    captureJobId: query.captureJobId || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('captureJobId') || undefined : undefined),
     search: query.search || undefined,
     status: query.status || undefined,
     priority: query.priority || undefined,
@@ -128,7 +131,7 @@ export default function LeadsRoute() {
         blank={blank}
         enableSelection
         refreshToken={reloadKey}
-        toForm={(row) => ({ leadName: personName(row) === '—' ? '' : personName(row), assignedToId: row.employeeId || row.assignedToId || '' })}
+        toForm={(row) => ({ leadName: personName(row) === '—' ? '' : personName(row), assignedToId: row.employeeId || row.assignedToId || '', imageUrl: row.imageUrl || '' })}
         extraHeaderActions={<>
           <Button variant="outline" disabled={!canCapture} onClick={() => setGoogleOpen(true)}>Find leads from Google</Button>
         </>}
@@ -149,11 +152,12 @@ export default function LeadsRoute() {
           { key: 'to', label: 'To', type: 'date' },
         ]}
         columns={[
-          { header: 'Lead', cell: (row) => personName(row) },
+          { header: 'Lead', cell: (row) => <span className="inline-flex min-w-0 items-center gap-2"><LeadAvatar lead={row} /><span className="truncate">{personName(row)}</span></span> },
+          { header: 'Category', cell: (row) => row.category || '—' },
           { header: 'Company', cell: (row) => row.companyName || '—' },
           { header: 'Phone', cell: (row) => row.phone || '—' },
           { header: 'Email', cell: (row) => row.email || '—' },
-          { header: 'Source', cell: (row) => row.source || '—' },
+          { header: 'Source', cell: (row) => /google/i.test(row.source || '') ? 'Google Maps' : row.source || '—' },
           { header: 'Priority', cell: (row) => row.priority || '—' },
           { header: 'Assigned', cell: (row) => personName(row.assignedTo || row.employee) },
           { header: 'Created', cell: (row) => String(row.createdAt || '').slice(0, 10) },
@@ -161,7 +165,7 @@ export default function LeadsRoute() {
         ]}
         renderForm={(form, setForm) => <LeadForm form={form} setForm={setForm} sources={sourceOptions} employees={employees} departments={departments} />}
         onSave={async (form, id) => { await persistLead(form, id); toast.success(id ? 'Lead updated' : 'Lead created'); }}
-        detail={(row) => <div className="space-y-2 text-sm"><p>{personName(row)} · {row.companyName || 'No company'}</p><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
+        detail={(row) => <div className="space-y-2 text-sm"><p>{personName(row)} · {row.companyName || 'No company'}</p><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Category {row.category || '—'} · Website {row.website || '—'}</p><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
         toolbar={({ query, selected, reload, payload }) => <BulkBar query={query} selected={selected} total={payload.pagination?.total} reload={reload} employees={employees} departments={departments} canDelete={canDelete} />}
         rowActions={(reload) => allowed ? [
           { label: 'Convert', onSelect: async (row) => { try { await convertLead(row.id, { companyName: row.companyName, dealTitle: row.title || row.companyName }); reload((value) => value + 1); toast.success('Lead conversion requested'); } catch (err) { toast.error(crmError(err)); } } },
@@ -181,13 +185,15 @@ async function persistLead(form, id) {
   if (!validEmail(form.email)) throw new Error('Enter a valid email address.');
   if (!validPhone(form.phone) || !validPhone(form.whatsapp)) throw new Error('Enter a valid phone number.');
   if (form.value !== '' && form.value != null && Number.isNaN(Number(form.value))) throw new Error('Estimated deal value must be a number.');
-  const values = { ...form, ...name, source: form.source === 'Google Places' ? 'GOOGLE_PLACES' : form.source };
+  const { imageFile, imagePreview, ...leadValues } = form;
+  const values = { ...leadValues, ...name, source: form.source === 'Google Places' ? 'GOOGLE_PLACES' : form.source };
   if (!id) {
     const duplicate = unwrap(await checkLeadDuplicate(values));
     if (duplicate.isDuplicate) throw new Error(duplicate.matchReason || 'A matching lead already exists.');
   }
   const saved = unwrap(await saveLead(values, id));
   const leadId = id || saved.id;
+  if (leadId && form.imageFile instanceof File) await uploadLeadImage(leadId, form.imageFile);
   if (leadId && form.notes) await addLeadNote(leadId, form.notes);
   if (leadId && form.whatsapp && form.whatsapp !== form.phone) await addLeadNote(leadId, `WhatsApp: ${form.whatsapp}`);
 }
@@ -195,6 +201,7 @@ async function persistLead(form, id) {
 function LeadForm({ form, setForm, sources, employees, departments }) {
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
   return <div className="grid gap-3 sm:grid-cols-2">
+    <Field label="Business image" className="sm:col-span-2"><div className="flex items-center gap-3"><LeadAvatar lead={{ ...form, imageUrl: form.imagePreview || form.imageUrl }} /><input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { toast.error('Use a JPG, PNG, or WebP image.'); event.target.value = ''; return; } if (file.size > 10 * 1024 * 1024) { toast.error('Image must be 10 MB or smaller.'); event.target.value = ''; return; } setForm({ ...form, imageFile: file, imagePreview: URL.createObjectURL(file) }); }} /></div></Field>
     <Field label="Lead name"><Input required value={form.leadName || ''} onChange={set('leadName')} /></Field>
     <Field label="Company name"><Input value={form.companyName || ''} onChange={set('companyName')} /></Field>
     <Field label="Mobile number"><Input value={form.phone || ''} onChange={set('phone')} /></Field>
@@ -282,197 +289,6 @@ function BulkBar({ query, selected, total, reload, employees, departments, canDe
   </div>;
 }
 
-const PLACE_CATEGORIES = ['Restaurant', 'Cafe', 'Hotel', 'Hospital', 'Pharmacy', 'Clinic', 'School', 'College', 'Gym', 'Salon', 'Grocery store', 'Supermarket', 'Clothing store', 'Electronics store', 'Bank', 'Real estate agency', 'Car repair', 'Dentist', 'Doctor', 'Lawyer', 'Accounting', 'Software company', 'Marketing agency', 'Construction company', 'Bakery', 'Pet store', 'Jewelry store', 'Furniture store', 'Travel agency', 'Insurance agency', 'Logistics', 'Manufacturing', 'IT services'];
-
-function distanceKm(origin, place) {
-  const lat1 = Number(origin?.latitude);
-  const lon1 = Number(origin?.longitude);
-  const lat2 = Number(place?.latitude);
-  const lon2 = Number(place?.longitude);
-  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
-  const toRad = (value) => value * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
-}
-
-function GooglePlacesPanel({ open, onOpenChange, onImported }) {
-  const [categories, setCategories] = React.useState([]);
-  const [categoryQuery, setCategoryQuery] = React.useState('');
-  const [categoryOpen, setCategoryOpen] = React.useState(false);
-  const [locationQuery, setLocationQuery] = React.useState('');
-  const [location, setLocation] = React.useState(null);
-  const [suggestions, setSuggestions] = React.useState([]);
-  const [places, setPlaces] = React.useState([]);
-  const [jobId, setJobId] = React.useState('');
-  const [selected, setSelected] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
-  const [importing, setImporting] = React.useState(false);
-  const [error, setError] = React.useState('');
-  const [searched, setSearched] = React.useState(false);
-  const [detail, setDetail] = React.useState(null);
-  const [outcomes, setOutcomes] = React.useState({});
-  const [limit, setLimit] = React.useState(20);
-  const categorySuggestions = PLACE_CATEGORIES.filter((item) => item.toLowerCase().includes(categoryQuery.trim().toLowerCase()) && !categories.includes(item)).slice(0, 8);
-  React.useEffect(() => {
-    if (!open) return undefined;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = previous; };
-  }, [open]);
-  React.useEffect(() => {
-    if (location || locationQuery.trim().length < 2) { setSuggestions([]); return undefined; }
-    const timer = setTimeout(async () => {
-      try {
-        const result = unwrap(await suggestGoogleLocations(locationQuery.trim()));
-        setSuggestions(result.suggestions || []);
-      } catch (err) {
-        setSuggestions([]);
-        setError(crmError(err));
-      }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [location, locationQuery]);
-  const search = async () => {
-    if (!categories.length) { setError('Select at least one business category.'); return; }
-    if (!location?.address || location.latitude == null || location.longitude == null) { setError('Select a location from the suggestions.'); return; }
-    setLoading(true);
-    setError('');
-    setSearched(true);
-    try {
-      const result = unwrap(await searchGooglePlaces({ categories, location: location.address, latitude: location.latitude, longitude: location.longitude, maxResults: limit }));
-      const rows = result.places || result.records || [];
-      const unique = [];
-      const seen = new Set();
-      rows.forEach((place) => {
-        const id = place.googlePlaceId || place.id;
-        if (!id || seen.has(id)) return;
-        seen.add(id);
-        unique.push(place);
-      });
-      setPlaces(unique.slice(0, limit));
-      setJobId(result.jobId || '');
-      setSelected([]);
-      setOutcomes({});
-      setDetail(null);
-    } catch (err) {
-      setPlaces([]);
-      setError(crmError(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-  const toggle = (place) => {
-    const id = place.googlePlaceId;
-    if (!id) return;
-    setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
-  };
-  const selectable = places.filter((place) => place.googlePlaceId).map((place) => place.googlePlaceId);
-  const allSelected = selectable.length > 0 && selectable.every((id) => selected.includes(id));
-  const importSelected = async (ids) => {
-    const pending = [...new Set(ids)].filter((id) => outcomes[id]?.status !== 'imported' && outcomes[id]?.status !== 'duplicate');
-    if (!pending.length) return;
-    setImporting(true);
-    try {
-      const result = unwrap(await importGooglePlaces(pending, jobId));
-      const records = result.records || [];
-      const next = { ...outcomes };
-      records.forEach((record) => {
-        const id = record.googlePlaceId;
-        if (!id) return;
-        next[id] = record.imported ? { status: 'imported' } : record.duplicate ? { status: 'duplicate', message: 'Already in CRM' } : { status: 'failed', message: record.message || 'Import failed' };
-      });
-      pending.forEach((id) => {
-        if (!next[id] || next[id] === outcomes[id]) next[id] = { status: 'failed', message: 'Import failed' };
-      });
-      setOutcomes(next);
-      const imported = Object.values(next).filter((item) => item.status === 'imported').length;
-      const duplicates = Object.values(next).filter((item) => item.status === 'duplicate').length;
-      const failed = pending.filter((id) => next[id]?.status === 'failed').length;
-      toast.success(`Imported ${result.imported ?? imported}. Already existing ${result.skippedDuplicates ?? duplicates}. Failed ${result.failed ?? failed}.`);
-      if ((result.imported ?? imported) > 0) onImported?.();
-    } catch (err) {
-      const next = { ...outcomes };
-      pending.forEach((id) => { next[id] = { status: 'failed', message: crmError(err) }; });
-      setOutcomes(next);
-      toast.error(crmError(err));
-    } finally {
-      setImporting(false);
-    }
-  };
-  const failedIds = selected.filter((id) => outcomes[id]?.status === 'failed');
-  return <FormDrawer open={open} onOpenChange={onOpenChange} title="Find Leads from Google" description="Discovery results stay out of the CRM until you import them. Data from Google Maps Platform." size="xl" showFooter={false} bodyClassName="!flex !min-h-0 !flex-1 !flex-col !overflow-hidden !space-y-0 !p-0" contentClassName="w-full sm:max-w-[760px]">
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-        <div className="relative">
-          <Label className="mb-1 block text-xs">Category</Label>
-          <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-lg border border-[#E2E8E5] bg-white px-2 py-1">
-            {categories.map((item) => <button key={item} type="button" className="inline-flex items-center gap-1 rounded-full bg-[#E8F1EC] px-2 py-1 text-xs text-[#163A2E]" onClick={() => setCategories(categories.filter((value) => value !== item))}>{item} <FontAwesomeIcon icon={faXmark} className="size-3" /></button>)}
-            <input aria-label="Search business categories" className="h-8 min-w-40 flex-1 bg-transparent text-sm outline-none" placeholder="Search business categories..." value={categoryQuery} onFocus={() => setCategoryOpen(true)} onChange={(event) => { setCategoryQuery(event.target.value); setCategoryOpen(true); }} />
-            {categories.length > 0 && <button type="button" className="text-xs text-[#718078]" onClick={() => setCategories([])}>Clear</button>}
-          </div>
-          {categoryOpen && <div className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-[#E2E8E5] bg-white shadow-lg">{categorySuggestions.map((item) => <button key={item} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-[#E8F1EC]" onClick={() => { setCategories([...categories, item]); setCategoryQuery(''); setCategoryOpen(false); }}>{item}</button>)}{!categorySuggestions.length && <p className="px-3 py-2 text-sm text-[#718078]">No matching categories</p>}</div>}
-        </div>
-        <div className="relative">
-          <Label className="mb-1 block text-xs">Location</Label>
-          <div className="flex items-center gap-2 rounded-lg border border-[#E2E8E5] bg-white px-3">
-            <FontAwesomeIcon icon={faLocationDot} className="text-[#163A2E]" />
-            <input aria-label="Search area, locality or address" className="h-10 w-full bg-transparent text-sm outline-none" placeholder="Search area, locality or address" value={location ? location.address : locationQuery} onChange={(event) => { setLocation(null); setLocationQuery(event.target.value); }} />
-            {(location || locationQuery) && <button type="button" aria-label="Clear location" onClick={() => { setLocation(null); setLocationQuery(''); setSuggestions([]); }}><FontAwesomeIcon icon={faXmark} className="text-[#718078]" /></button>}
-          </div>
-          {suggestions.length > 0 && <div className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-[#E2E8E5] bg-white shadow-lg">{suggestions.map((item) => <button key={item.placeId} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-[#E8F1EC]" onClick={async () => { try { const resolved = unwrap(await resolveGoogleLocation(item.placeId)); setLocation(resolved); setLocationQuery(''); setSuggestions([]); setError(''); } catch (err) { setError(crmError(err)); } }}>{item.label}</button>)}</div>}
-        </div>
-        <section className="rounded-xl border border-[#163A2E]/20 bg-[#E8F1EC] p-3">
-          <h3 className="text-sm font-semibold text-[#172B24]">Capture Leads</h3>
-          <p className="text-xs text-[#718078]">Fetch and capture top results from Google Maps.</p>
-          <div className="mt-2 flex gap-2">{[10, 20, 50].map((count) => <button key={count} type="button" className={`h-9 min-w-14 rounded-lg border text-sm font-medium ${limit === count ? 'border-[#163A2E] bg-[#163A2E] text-white' : 'border-[#E2E8E5] bg-white text-[#172B24]'}`} onClick={() => setLimit(count)}>{count}</button>)}</div>
-        </section>
-        <Button className="bg-[#163A2E] hover:bg-[#204C3D]" onClick={search} disabled={loading}>{loading ? 'Searching…' : 'Search'}</Button>
-        {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-        {searched && !loading && <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-[#172B24]">Found Leads ({places.length})</p>
-          <p className="text-xs text-[#718078]">{places.length} Found Leads | {selected.length} Selected</p>
-        </div>}
-        {searched && !loading && places.length > 0 && <label className="flex items-center gap-2 text-xs"><AdminSelectCheckbox checked={allSelected} onChange={() => setSelected(allSelected ? [] : selectable)} label="Select all businesses" /> {allSelected ? 'Deselect all' : 'Select all'}</label>}
-        {loading && <p className="text-sm text-[#718078]">Searching Google Maps…</p>}
-        {searched && !loading && !places.length && !error && <p className="rounded-xl border border-dashed border-[#E2E8E5] p-6 text-center text-sm text-[#718078]">No businesses found for this category and location.</p>}
-        <div className="grid gap-3">
-          {places.map((place) => {
-            const outcome = outcomes[place.googlePlaceId];
-            const km = distanceKm(location, place);
-            return <article key={place.googlePlaceId || place.id} className={`rounded-xl border bg-white p-3 text-sm shadow-sm ${selected.includes(place.googlePlaceId) ? 'border-[#163A2E]' : 'border-[#E2E8E5]'}`}>
-              <div className="flex items-start gap-3">
-                <AdminSelectCheckbox checked={selected.includes(place.googlePlaceId)} disabled={!place.googlePlaceId} onChange={() => toggle(place)} label={`Select ${place.businessName}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-[#172B24]">{place.businessName}</p>
-                  <p className="text-[#718078]">{place.category || 'Not available'}{km != null ? ` · ${km} km` : ''}</p>
-                  <p className="mt-1 flex items-start gap-2"><FontAwesomeIcon icon={faLocationDot} className="mt-0.5 text-[#163A2E]" /> {place.address && place.address !== 'N/A' ? place.address : 'Not available'}</p>
-                  <p className="flex items-center gap-2"><FontAwesomeIcon icon={faPhone} className="text-[#163A2E]" /> {place.phone || 'Not available'}</p>
-                  {place.email && <p className="flex items-center gap-2"><FontAwesomeIcon icon={faEnvelope} className="text-[#163A2E]" /> {place.email}</p>}
-                  <p className="flex items-center gap-2"><FontAwesomeIcon icon={faGlobe} className="text-[#163A2E]" /> {place.website ? <a className="truncate text-[#163A2E] underline" href={place.website} target="_blank" rel="noreferrer">{place.website}</a> : 'Not available'}</p>
-                  {place.googleMapsUrl && <a className="text-xs text-[#163A2E] underline" href={place.googleMapsUrl} target="_blank" rel="noreferrer">Google Maps profile</a>}
-                  {outcome && <p className={`mt-1 text-xs ${outcome.status === 'failed' ? 'text-red-700' : 'text-[#163A2E]'}`}>{outcome.status === 'imported' ? 'Imported' : outcome.status === 'duplicate' ? 'Already in CRM' : outcome.message}</p>}
-                  <Button className="mt-2" size="sm" variant="outline" onClick={async () => { try { setDetail(unwrap(await loadCapturedPlace(place.id))); } catch (err) { toast.error(crmError(err)); } }}>View Details</Button>
-                </div>
-              </div>
-            </article>;
-          })}
-        </div>
-        {detail && <div className="rounded-xl border bg-white p-3 text-sm"><p className="font-medium">{detail.businessName}</p><p>{detail.address || 'Not available'}</p><p>{detail.phone || 'Not available'}</p><p>{detail.email || 'Email not available'}</p><p>{detail.website || 'Not available'}</p></div>}
-      </div>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#E2E8E5] bg-white px-6 py-4">
-        <p className="text-sm text-[#172B24]">{places.length} leads ready to import</p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          {failedIds.length > 0 && <Button variant="outline" disabled={importing} onClick={() => importSelected(failedIds)}>{importing ? 'Importing…' : `Retry failed (${failedIds.length})`}</Button>}
-          <Button className="bg-[#163A2E] hover:bg-[#204C3D]" disabled={!selected.length || importing} onClick={() => importSelected(selected)}>{importing ? 'Importing…' : `Import Selected (${selected.length})`}</Button>
-        </div>
-      </div>
-    </div>
-  </FormDrawer>;
-}
-
 function CsvImportPanel({ open, onOpenChange, onImported }) {
   const [text, setText] = React.useState('');
   const [summary, setSummary] = React.useState(null);
@@ -536,3 +352,12 @@ function LeadNotes({ id }) {
 }
 
 function Field({ label, children, className = '' }) { return <Label className={`grid gap-1 text-xs ${className}`}>{label}{children}</Label>; }
+
+function LeadAvatar({ lead }) {
+  const [failed, setFailed] = React.useState(false);
+  const remote = /^https?:\/\//i.test(lead?.imageUrl || '') ? lead.imageUrl : '';
+  const src = !failed ? (lead?.imagePreview || remote) : '';
+  const initials = personName(lead).split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'LB';
+  if (!src) return <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#E2E8E5] bg-[#E8F1EC] text-xs font-semibold text-[#163A2E]">{initials}</span>;
+  return <img src={src} alt="" width={40} height={40} className="size-10 shrink-0 rounded-lg border border-[#E2E8E5] object-cover" onError={() => setFailed(true)} />;
+}

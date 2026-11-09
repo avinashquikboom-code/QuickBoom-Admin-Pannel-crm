@@ -26,7 +26,7 @@ export function PayrollSummary({ records }) {
             net: 0,
         });
     }, [records]);
-    return (<div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+    return (<div className="grid grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 w-full">
       <Card className="border border-slate-200 bg-white shadow-2xs">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
