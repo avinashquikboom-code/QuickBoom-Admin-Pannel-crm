@@ -23,14 +23,29 @@ const metaSchema = z.object({ total: z.number(), page: z.number(), totalPages: z
 // Use the shared admin client session. qbAdminSession would ignore the existing login store.
 const config = { timeout: 30000 };
 
+function responseText(body: unknown): string {
+  if (!body || typeof body !== 'object') return '';
+  const message = (body as { message?: unknown; errors?: unknown }).message ?? (body as { errors?: unknown }).errors;
+  if (Array.isArray(message)) return message.map(String).join('. ');
+  if (typeof message === 'string') return message;
+  if (message && typeof message === 'object' && typeof (message as { message?: unknown }).message === 'string') {
+    return (message as { message: string }).message;
+  }
+  return '';
+}
+
 export function apiError(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    if (error.response?.status === 401) return 'Your session has expired. Please sign in again.';
-    if (error.response?.status === 403) return 'You do not have permission to perform this action.';
-    const message = error.response?.data?.message;
-    if (Array.isArray(message)) return message.join('. ');
-    if (typeof message === 'string') return message;
-    return error.response ? 'The request failed. Please try again.' : 'Unable to reach the server. Check your connection and retry.';
+    const status = error.response?.status;
+    const text = responseText(error.response?.data);
+    if (status === 401) return 'Your session has expired. Please sign in again.';
+    if (status === 403) return text || 'You do not have permission to manage departments.';
+    if (status === 404) return text || 'This department could not be found.';
+    if (status === 409) return text || 'A department with these details already exists.';
+    if (status === 400) return text || 'Please check the department details and try again.';
+    if (status && status >= 500) return text || 'The server could not complete this department request. Please try again.';
+    if (!error.response) return 'Unable to reach the server. Check your connection and retry.';
+    return text || 'The request failed. Please try again.';
   }
   if (error instanceof z.ZodError) return 'The server returned an unexpected response. Please refresh or contact support.';
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
