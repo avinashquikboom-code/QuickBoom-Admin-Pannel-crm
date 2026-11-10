@@ -28,6 +28,12 @@ function pageOf(payload, fallback) {
   return payload?.pagination || payload?.meta || fallback;
 }
 
+function envelope(payload) {
+  const nested = payload?.data;
+  if (nested && !Array.isArray(nested) && (Array.isArray(nested.items) || nested.stats || nested.meta || nested.fetched !== undefined)) return nested;
+  return payload || {};
+}
+
 function downloadCsv(name, columns, rows) {
   const header = columns.map((column) => column.label).join(',');
   const body = rows.map((row) => columns.map((column) => `"${String(row[column.key] ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -176,6 +182,9 @@ function MetaTemplates() {
   const [stats, setStats] = React.useState({});
   const [search, setSearch] = React.useState('');
   const [status, setStatus] = React.useState('ALL');
+  const [language, setLanguage] = React.useState('ALL');
+  const [languageChoices, setLanguageChoices] = React.useState(['ALL']);
+  const [category, setCategory] = React.useState('ALL');
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
   const [pages, setPages] = React.useState(1);
@@ -184,15 +193,17 @@ function MetaTemplates() {
   const [error, setError] = React.useState('');
   const [syncing, setSyncing] = React.useState(false);
   const [syncInfo, setSyncInfo] = React.useState(null);
+  const [selected, setSelected] = React.useState(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const payload = await api.get('/templates/meta', { params: { page, limit, search: search || undefined, status: status === 'ALL' ? undefined : status } });
+      const payload = envelope(await api.get('/templates/meta', { params: { page, limit, search: search || undefined, status: status === 'ALL' ? undefined : status, language: language === 'ALL' ? undefined : language, category: category === 'ALL' ? undefined : category } }));
       const list = rowsOf(payload);
       const pagination = pageOf(payload, { page, totalPages: 1, total: list.length });
       setRows(list);
+      if (language === 'ALL') setLanguageChoices(['ALL', ...Array.from(new Set(list.map((row) => row.language).filter(Boolean)))]);
       setPages(Math.max(1, Number(pagination.totalPages) || 1));
       setTotal(Number(pagination.total) || list.length);
       if (payload?.stats) setStats(payload.stats);
@@ -201,20 +212,21 @@ function MetaTemplates() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, search, status]);
+  }, [page, limit, search, status, language, category]);
 
   React.useEffect(() => { load(); }, [load]);
 
   async function sync() {
     setSyncing(true);
     try {
-      const result = await api.post('/templates/meta/sync', {});
+      const result = envelope(await api.post('/templates/meta/sync', {}));
       setSyncInfo(result);
-      toast.success(result?.message || 'Meta templates synchronized');
+      if (result?.success === false) toast.error(result?.message || 'Meta sync failed.');
+      else toast.success(result?.message || 'Meta templates synchronized');
       load();
     } catch (err) {
-      const message = err?.response?.data?.message || 'Meta sync failed.';
-      setSyncInfo({ message });
+      const message = err?.response?.data?.message || err?.message || 'Meta sync failed. Check the WhatsApp access token and WABA ID.';
+      setSyncInfo({ success: false, message });
       toast.error(message);
     } finally {
       setSyncing(false);
@@ -228,22 +240,56 @@ function MetaTemplates() {
         { title: 'Approved', value: stats.approved || 0, icon: faMessage },
         { title: 'Pending', value: stats.pending || 0, icon: faMessage },
         { title: 'Rejected', value: stats.rejected || 0, icon: faMessage },
+        { title: 'Paused', value: stats.paused || 0, icon: faMessage },
+        { title: 'Disabled', value: stats.disabled || 0, icon: faMessage },
       ]} />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Toolbar search={search} setSearch={(value) => { setSearch(value); setPage(1); }} status={status} setStatus={(value) => { setStatus(value); setPage(1); }} statuses={['ALL', 'APPROVED', 'PENDING', 'REJECTED']} onExport={() => downloadCsv('meta-templates.csv', [{ key: 'name', label: 'Name' }, { key: 'language', label: 'Language' }, { key: 'status', label: 'Status' }], rows)} extra={<Button type="button" variant="outline" disabled={syncing} onClick={sync}><FontAwesomeIcon icon={faRotate} className="mr-2" />{syncing ? 'Syncing' : 'Sync from Meta'}</Button>} />
+      <div className="flex flex-wrap items-center gap-2">
+        <Toolbar search={search} setSearch={(value) => { setSearch(value); setPage(1); }} status={status} setStatus={(value) => { setStatus(value); setPage(1); }} statuses={['ALL', 'APPROVED', 'PENDING', 'REJECTED', 'PAUSED', 'DISABLED']} onExport={() => downloadCsv('meta-templates.csv', [{ key: 'name', label: 'Name' }, { key: 'templateName', label: 'Code' }, { key: 'language', label: 'Language' }, { key: 'status', label: 'Status' }], rows)} extra={<Button type="button" variant="outline" disabled={syncing} onClick={sync}><FontAwesomeIcon icon={faRotate} className="mr-2" />{syncing ? 'Syncing' : 'Sync from Meta'}</Button>} />
+        <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }} className="h-10 rounded-md border border-[#E2E8E5] bg-white px-3 text-sm text-[#172B24]">
+          {['ALL', 'UTILITY', 'MARKETING', 'AUTHENTICATION'].map((item) => <option key={item} value={item}>{item === 'ALL' ? 'All categories' : item}</option>)}
+        </select>
+        <select value={language} onChange={(event) => { setLanguage(event.target.value); setPage(1); }} className="h-10 rounded-md border border-[#E2E8E5] bg-white px-3 text-sm text-[#172B24]">
+          {languageChoices.map((item) => <option key={item} value={item}>{item === 'ALL' ? 'All languages' : item}</option>)}
+        </select>
       </div>
-      {syncInfo ? <p className="text-sm text-[#718078]">Last sync: {syncInfo.lastSyncedAt || 'just now'}. Fetched {syncInfo.fetched ?? 0}, updated {syncInfo.updated ?? 0}, created {syncInfo.created ?? 0}. {syncInfo.message}</p> : null}
-      <TemplateTable loading={loading} error={error} rows={rows} empty="No WhatsApp templates match this view." columns={['Name', 'Language', 'Category', 'Approval', 'Actions']} render={(row) => (
+      {syncInfo ? <p className={`text-sm ${syncInfo.success === false ? 'text-red-600' : 'text-[#718078]'}`}>Fetched {syncInfo.fetched ?? 0}, added {syncInfo.created ?? 0}, updated {syncInfo.updated ?? 0}, unchanged {syncInfo.unchanged ?? 0}, failed {syncInfo.failed?.length ?? 0}. {syncInfo.message}</p> : null}
+      <TemplateTable loading={loading} error={error} rows={rows} empty="No WhatsApp templates are stored for this company. Use Sync from Meta after the WhatsApp account is configured." columns={['Name', 'Code', 'Language', 'Category', 'Approval', 'Actions']} render={(row) => (
         <tr key={row.id} className="border-t border-[#E2E8E5]">
           <td className="px-3 py-3">{row.name}</td>
+          <td className="px-3 py-3">{row.templateName || row.key}</td>
           <td className="px-3 py-3">{row.language}</td>
           <td className="px-3 py-3">{row.category}</td>
           <td className="px-3 py-3"><span className="rounded-full bg-[#E8F1EC] px-2 py-1 text-xs font-semibold text-[#163A2E]">{row.status}</span></td>
-          <td className="px-3 py-3"><button type="button" className="text-[#163A2E]" onClick={async () => { await api.patch(`/templates/meta/${row.id}/toggle`, {}); load(); }}>{row.isLocalActive ? 'Deactivate' : 'Activate'}</button></td>
+          <td className="px-3 py-3 whitespace-nowrap">
+            <button type="button" className="mr-3 text-[#163A2E]" onClick={() => setSelected(row)}>View</button>
+            <button type="button" className="text-[#163A2E]" onClick={async () => { await api.patch(`/templates/meta/${row.id}/toggle`, {}); load(); }}>{row.isLocalActive ? 'Deactivate' : 'Activate'}</button>
+          </td>
         </tr>
       )} />
       <Pager page={page} pages={pages} limit={limit} total={total} onPage={setPage} onLimit={(value) => { setLimit(value); setPage(1); }} />
+      <FormDrawer open={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelected(null); }} title={selected?.name || 'WhatsApp template'} loading={false} onSubmit={(event) => { event.preventDefault(); setSelected(null); }}>
+        {selected ? <TemplateDetails template={selected} /> : null}
+      </FormDrawer>
     </Shell>
+  );
+}
+
+function TemplateDetails({ template }) {
+  const buttons = Array.isArray(template.buttons) ? template.buttons : [];
+  const variables = Array.isArray(template.variables) ? template.variables : [];
+  return (
+    <div className="space-y-3 text-sm text-[#172B24]">
+      <p><span className="text-[#718078]">Code:</span> {template.templateName || template.key || '—'}</p>
+      <p><span className="text-[#718078]">Language:</span> {template.language}</p>
+      <p><span className="text-[#718078]">Category:</span> {template.category}</p>
+      <p><span className="text-[#718078]">Approval:</span> {template.status}</p>
+      <p><span className="text-[#718078]">Header:</span> {template.headerContent || template.headerType || 'None'}</p>
+      <p className="whitespace-pre-wrap"><span className="text-[#718078]">Body:</span> {template.body}</p>
+      <p><span className="text-[#718078]">Footer:</span> {template.footer || '—'}</p>
+      <p><span className="text-[#718078]">Buttons:</span> {buttons.length ? buttons.map((button) => button.text || button.type).join(', ') : '—'}</p>
+      <p><span className="text-[#718078]">Variables:</span> {variables.length ? variables.join(', ') : '—'}</p>
+      {template.rejectionReason ? <p className="text-red-600">Rejection reason: {template.rejectionReason}</p> : null}
+    </div>
   );
 }
 
@@ -267,7 +313,7 @@ function StageNotifications() {
       ]);
       setStages(stageRows);
       setEmails(rowsOf(emailPayload));
-      setWhatsapp(rowsOf(metaPayload));
+      setWhatsapp(rowsOf(envelope(metaPayload)));
     } catch (err) {
       setError(err?.response?.data?.message || 'Stage notification settings could not be loaded.');
     } finally {
