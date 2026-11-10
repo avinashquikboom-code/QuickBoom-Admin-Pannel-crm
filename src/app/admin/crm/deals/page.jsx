@@ -42,11 +42,10 @@ function dateLabel(value) {
   return day;
 }
 
-function StageBadge({ name, won, lost }) {
+function StageBadge({ name, color, won, lost }) {
   if (won || name === 'Won') return <StatusBadge status="won" />;
   if (lost || name === 'Lost') return <StatusBadge status="lost" />;
-  if (name === 'Final Call') return <span className="inline-flex rounded-full border border-[#C2410C] bg-[#FFF7ED] px-2.5 py-0.5 text-xs font-medium text-[#C2410C]">Final Call</span>;
-  return <span className="inline-flex rounded-full border border-[#E2E8E5] bg-[#F7F9F8] px-2.5 py-0.5 text-xs font-medium text-[#172B24]">{name || '—'}</span>;
+  return <span className="inline-flex rounded-full border border-[#E2E8E5] bg-[#F7F9F8] px-2.5 py-0.5 text-xs font-medium text-[#172B24]" style={color ? { color, borderColor: color } : undefined}>{name || '—'}</span>;
 }
 
 export default function DealsRoute() {
@@ -85,7 +84,7 @@ export default function DealsRoute() {
       { header: 'Lead Name', cell: (row) => <LeadLink lead={row.lead} onOpen={() => open(row)} /> },
       { header: 'Lead Mobile Number', cell: (row) => row.lead?.phone || row.lead?.mobileNumber || 'Not Linked' },
       { header: 'Lead Email', cell: (row) => row.lead?.email || 'Not Linked' },
-      { header: 'Deal Stage', cell: (row) => <StageBadge name={row.stage?.name} won={row.isWon} lost={row.isLost} /> },
+      { header: 'Deal Stage', cell: (row) => <StageBadge name={row.stage?.name} color={row.stage?.color} won={row.isWon} lost={row.isLost} /> },
       { header: 'Probability', cell: (row) => row.probability == null ? '—' : `${row.probability}%` },
       { header: 'Expected Close Date', cell: (row) => String(row.expectedClosing || '').slice(0, 10) || '—' },
       { header: 'Assigned Employee', cell: (row) => personName(row.assignedTo) },
@@ -118,7 +117,7 @@ function DealDetail({ row, stages = [] }) {
       <p>Lead source: {lead?.source || '—'}</p>
       <p>Lead status: {lead?.stage?.name || lead?.status || '—'}</p>
       <p>Assigned employee: {personName(row.assignedTo || lead?.assignedTo)}</p>
-      <p>Deal stage: <StageBadge name={row.stage?.name} won={row.isWon} lost={row.isLost} /></p>
+      <p>Deal stage: <StageBadge name={row.stage?.name} color={row.stage?.color} won={row.isWon} lost={row.isLost} /></p>
       <p>Deal value: {inr(row.amount)}</p>
       <p>Next follow-up: {dateLabel(row.nextFollowUpDate)}</p>
       <p>Latest outcome: {row.latestFollowUp?.outcome || '—'}</p>

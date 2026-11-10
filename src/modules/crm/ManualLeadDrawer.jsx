@@ -11,23 +11,10 @@ import { faBuilding, faLink } from '@fortawesome/free-solid-svg-icons';
 import { faFacebook, faInstagram, faLinkedin, faPinterest, faTiktok, faWhatsapp, faXTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
 import { loadDepartments } from '@/modules/master/master-api';
 
-const LEAD_STAGES = [
-  ['NEW', 'New'],
-  ['CONTACTED', 'Contacted'],
-  ['CALL_BACK', 'Call Back'],
-  ['DETAILS_SENT', 'Details Sent'],
-  ['FOLLOW_UP', 'Follow-Up'],
-  ['VISIT_SCHEDULED', 'Visit Scheduled'],
-  ['VISIT_DONE', 'Visit Done'],
-  ['PROPOSAL_SENT', 'Proposal Sent'],
-  ['NEGOTIATION', 'Negotiation'],
-  ['FINAL_CALL', 'Final Call'],
-  ['WON', 'Won'],
-  ['LOST', 'Lost'],
-];
-function stageLabel(value) {
+function stageLabel(value, stages = []) {
   const key = String(value || '').toUpperCase();
-  return LEAD_STAGES.find(([stage]) => stage === key)?.[1] || value || '—';
+  const match = stages.find((stage) => String(stage.key || '').toUpperCase() === key || stage.name === value);
+  return match?.name || value || '—';
 }
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 const SOURCE_OPTIONS = ['Manual', 'Google Maps', 'Google Places', 'Website', 'WhatsApp', 'Facebook', 'Instagram', 'Referral', 'Other'];
@@ -85,7 +72,7 @@ async function persistLead(form, id) {
   if (leadId && form.whatsapp && form.whatsapp !== form.phone) await addLeadNote(leadId, `WhatsApp: ${form.whatsapp}`);
 }
 
-function LeadForm({ form, setForm, sources, employees, departments }) {
+function LeadForm({ form, setForm, sources, employees, departments, stages = [] }) {
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
   return <div className="grid gap-3 sm:grid-cols-2">
     <Field label="Business image" className="sm:col-span-2"><div className="flex items-center gap-3"><LeadAvatar lead={{ ...form, imageUrl: form.imagePreview || form.imageUrl }} /><input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { toast.error('Use a JPG, PNG, or WebP image.'); event.target.value = ''; return; } if (file.size > 10 * 1024 * 1024) { toast.error('Image must be 10 MB or smaller.'); event.target.value = ''; return; } setForm({ ...form, imageFile: file, imagePreview: URL.createObjectURL(file) }); }} /></div></Field>
@@ -105,7 +92,7 @@ function LeadForm({ form, setForm, sources, employees, departments }) {
     <Field label="Lead source"><select className="h-9 rounded-md border px-2 text-sm" value={form.source || 'Manual'} onChange={set('source')}>{sources.map((source) => <option key={source}>{source}</option>)}</select></Field>
     <Field label="Lead category"><Input value={form.category || ''} onChange={set('category')} /></Field>
     <Field label="Priority"><select className="h-9 rounded-md border px-2 text-sm" value={form.priority || 'MEDIUM'} onChange={set('priority')}>{PRIORITIES.map((item) => <option key={item}>{item}</option>)}</select></Field>
-    <Field label="Lead stage"><select className="h-9 rounded-md border px-2 text-sm" value={form.status || 'NEW'} onChange={set('status')}>{LEAD_STAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+    <Field label="Lead stage"><select className="h-9 rounded-md border px-2 text-sm" value={form.stageId || form.status || ''} onChange={(event) => { const stage = stages.find((item) => String(item.id) === event.target.value || item.key === event.target.value); setForm({ ...form, status: stage?.key || event.target.value, stageId: stage?.id || '' }); }}>{stages.filter((stage) => stage.isActive !== false || stage.key === form.status || String(stage.id) === String(form.stageId)).map((stage) => <option key={stage.id || stage.key} value={stage.id || stage.key}>{stage.name}{stage.isActive === false ? ' (inactive)' : ''}</option>)}</select></Field>
     <Field label="Assigned employee"><select className="h-9 rounded-md border px-2 text-sm" value={form.assignedToId || ''} onChange={set('assignedToId')}><option value="">Unassigned</option>{employees.map((employee) => <option key={employee.recordId} value={employee.recordId}>{employee.name}</option>)}</select></Field>
     <Field label="Estimated deal value"><Input type="number" min="0" value={form.value ?? ''} onChange={set('value')} /></Field>
     <Field label="Notes" className="sm:col-span-2"><Input value={form.notes || ''} onChange={set('notes')} /></Field>
@@ -126,10 +113,50 @@ function leadInitials(name) {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 }
 
+function mediaUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('blob:') || raw.startsWith('data:image/')) return raw;
+  if (raw.startsWith('/api/') || raw.startsWith('/uploads/')) {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.qbapp.online/api/v1';
+    return `${base.replace(/\/api\/v1\/?$/, '')}${raw}`;
+  }
+  return '';
+}
+
+function leadImageUrls(lead) {
+  const nested = Array.isArray(lead?.images) ? lead.images.map((image) => image?.url || image) : [];
+  return [...new Set([lead?.imagePreview, lead?.imageUrl, ...nested].map(mediaUrl).filter(Boolean))];
+}
+
 function leadImageUrl(lead) {
-  const nested = Array.isArray(lead?.images) ? lead.images.find((image) => /^https?:\/\//i.test(image?.url || ''))?.url : '';
-  const candidates = [lead?.imagePreview, lead?.imageUrl, nested];
-  return candidates.find((value) => typeof value === 'string' && (/^https?:\/\//i.test(value) || value.startsWith('blob:'))) || '';
+  return leadImageUrls(lead)[0] || '';
+}
+
+function LeadPhotos({ lead }) {
+  const urls = leadImageUrls(lead);
+  const credits = [...new Set((Array.isArray(lead?.images) ? lead.images : []).flatMap((image) => Array.isArray(image?.attributions) ? image.attributions : []))];
+  const [preview, setPreview] = React.useState('');
+  const [failed, setFailed] = React.useState({});
+  const visible = urls.filter((url) => !failed[url]);
+  if (!urls.length) return null;
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2 overflow-x-auto">
+        {urls.map((url) => (
+          <button key={url} type="button" className="h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-[#E2E8E5] bg-[#E8F1EC]" onClick={() => setPreview(url)}>
+            {failed[url] ? <span className="text-sm font-semibold text-[#163A2E]">{(leadInitials(personName(lead)) || 'L')[0]}</span> : <img src={url} alt="" className="h-full w-full object-cover" onError={() => setFailed((current) => ({ ...current, [url]: true }))} />}
+          </button>
+        ))}
+      </div>
+      {visible.some((url) => url.includes('/data-capture/photo')) ? <p className="text-xs text-[#718078]">Photos from Google Maps{credits.length ? ` · ${credits.join(', ')}` : ''}</p> : null}
+      {preview ? (
+        <button type="button" className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-6" onClick={() => setPreview('')}>
+          <img src={preview} alt="" className="max-h-[80vh] max-w-full rounded-xl" />
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function safeProfileUrl(value) {
@@ -204,12 +231,12 @@ function LeadAvatar({ lead }) {
   React.useEffect(() => { setFailed(false); }, [lead?.imageUrl, lead?.imagePreview]);
   const frame = 'inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E2E8E5] bg-[#E8F1EC] align-middle';
   if (!src) {
-    return <span className={`${frame} text-xs font-bold leading-none text-[#163A2E]`} aria-hidden="true">{initials || <FontAwesomeIcon icon={faBuilding} className="size-4" />}</span>;
+    return <span className={`${frame} text-xs font-bold leading-none text-[#163A2E]`} aria-hidden="true">{(initials || 'L')[0]}</span>;
   }
   return <img src={src} alt="" width={40} height={40} className={`${frame} object-cover`} onError={() => setFailed(true)} />;
 }
 
-export { LEAD_STAGES, stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar };
+export { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar, LeadPhotos };
 
 export function ManualLeadDrawer({ open, onOpenChange }) {
   const [form, setForm] = React.useState({ ...blank });

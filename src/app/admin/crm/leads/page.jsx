@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { LEAD_STAGES, stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar } from '@/modules/crm/ManualLeadDrawer';
+import { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar, LeadPhotos } from '@/modules/crm/ManualLeadDrawer';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { AdminBulkActions, AdminBulkSelectionToolbar, AdminSelectCheckbox, AdminSelectionSummary } from '@/components/admin/bulk-selection';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
-import { addLeadNote, archiveLeads, bulkAssignLeads, bulkLeadPriority, bulkLeadStatus, checkLeadDuplicate, convertLead, crmError, listLeadPage, loadEmployees, loadLeadNotes, loadLeads, personName, removeLead, saveLead, sessionCan, uploadLeadImage } from '@/modules/crm/crm-api';
+import { addLeadNote, archiveLeads, bulkAssignLeads, bulkLeadPriority, bulkLeadStatus, checkLeadDuplicate, convertLead, crmError, listLeadPage, loadEmployees, loadLeadNotes, loadLeadStages, loadLeads, personName, removeLead, saveLead, sessionCan, uploadLeadImage } from '@/modules/crm/crm-api';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faBuilding, faEnvelope, faGlobe, faLink, faLocationDot, faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { faFacebook, faInstagram, faLinkedin, faPinterest, faTiktok, faWhatsapp, faXTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
@@ -59,6 +59,7 @@ export default function LeadsRoute() {
   const [sources, setSources] = React.useState([]);
   const [employees, setEmployees] = React.useState([]);
   const [departments, setDepartments] = React.useState([]);
+  const [stages, setStages] = React.useState([]);
   const [importOpen, setImportOpen] = React.useState(false);
   const [reloadKey, setReloadKey] = React.useState(0);
   React.useEffect(() => {
@@ -66,6 +67,7 @@ export default function LeadsRoute() {
     setCanDelete(sessionCan('LEADS') || sessionCan('CRM'));
     loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
     loadDepartments().then(setDepartments).catch(() => setDepartments([]));
+    loadLeadStages().then(setStages).catch(() => setStages([]));
   }, []);
   const load = React.useCallback(async (query) => {
     const result = await loadLeads({ page: query.page, limit: 20, ...filtersFrom(query) });
@@ -91,14 +93,10 @@ export default function LeadsRoute() {
         toForm={(row) => ({ leadName: personName(row) === '—' ? '' : personName(row), assignedToId: row.employeeId || row.assignedToId || '', imageUrl: row.imageUrl || '', ...socialFormValues(row) })}
         stats={(result) => [
           { label: 'Total leads', value: result.metrics?.total },
-          { label: 'New', value: result.metrics?.new },
-          { label: 'Contacted', value: result.metrics?.contacted },
-          { label: 'Qualified', value: result.metrics?.qualified },
-          { label: 'Converted', value: result.metrics?.converted },
-          { label: 'Lost', value: result.metrics?.lost },
+          ...stages.filter((stage) => stage.isActive !== false).map((stage) => ({ label: stage.name, value: stage.leadsCount ?? 0 })),
         ]}
         filters={[
-          { key: 'status', label: 'All stages', options: LEAD_STAGES.map(([value, label]) => ({ value, label })) },
+          { key: 'status', label: 'All stages', options: stages.filter((stage) => stage.isActive !== false).map((stage) => ({ value: stage.key, label: stage.name })) },
           { key: 'priority', label: 'All priorities', options: PRIORITIES.map((item) => ({ value: item, label: item })) },
           { key: 'source', label: 'All sources', options: sourceOptions.map((item) => ({ value: item, label: item })) },
           { key: 'assignedToId', label: 'All BPO employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
@@ -116,12 +114,12 @@ export default function LeadsRoute() {
           { header: 'Priority', cell: (row) => row.priority || '—' },
           { header: 'Assigned', cell: (row) => personName(row.assignedTo || row.employee) },
           { header: 'Created', cell: (row) => String(row.createdAt || '').slice(0, 10) },
-          { header: 'Stage', cell: (row) => <StatusBadge status={stageLabel(row.stage?.name || row.status)} /> },
+          { header: 'Stage', cell: (row) => { const match = stages.find((stage) => String(stage.id) === String(row.stageId) || stage.key === row.status || stage.name === row.stage?.name); const name = row.stage?.name || match?.name || stageLabel(row.status, stages); const color = row.stage?.color || match?.color; return <span className="inline-flex rounded-full border border-[#E2E8E5] bg-[#F7F9F8] px-2 py-0.5 text-xs font-medium" style={color ? { color, borderColor: color } : undefined}>{name}</span>; } },
         ]}
-        renderForm={(form, setForm) => <LeadForm form={form} setForm={setForm} sources={sourceOptions} employees={employees} departments={departments} />}
+        renderForm={(form, setForm) => <LeadForm form={form} setForm={setForm} sources={sourceOptions} employees={employees} departments={departments} stages={stages} />}
         onSave={async (form, id) => { await persistLead(form, id); toast.success(id ? 'Lead updated' : 'Lead created'); }}
-        detail={(row) => <div className="space-y-2 text-sm"><p className="flex items-center gap-2"><LeadAvatar lead={row} /><span className="min-w-0">{personName(row)} · {row.companyName || 'No company'}</span></p><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Category {row.category || '—'} · Website {row.website || '—'}</p><div className="flex items-center gap-2">Social media <SocialLinks lead={row} /></div><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
-        toolbar={({ query, selected, reload, payload }) => <BulkBar query={query} selected={selected} total={payload.pagination?.total} reload={reload} employees={employees} departments={departments} canDelete={canDelete} />}
+        detail={(row) => <div className="space-y-2 text-sm"><p className="flex items-center gap-2"><LeadAvatar lead={row} /><span className="min-w-0">{personName(row)} · {row.companyName || 'No company'}</span></p><LeadPhotos lead={row} /><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status, stages)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Category {row.category || '—'} · Website {row.website || '—'}</p><div className="flex items-center gap-2">Social media <SocialLinks lead={row} /></div><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
+        toolbar={({ query, selected, reload, payload }) => <BulkBar query={query} selected={selected} total={payload.pagination?.total} reload={reload} employees={employees} departments={departments} stages={stages} canDelete={canDelete} />}
         rowActions={(reload) => allowed ? [
           { label: 'Convert', onSelect: async (row) => { try { await convertLead(row.id, { companyName: row.companyName, dealTitle: row.title || row.companyName }); reload((value) => value + 1); toast.success('Lead conversion requested'); } catch (err) { toast.error(crmError(err)); } } },
           { label: 'Delete', onSelect: async (row) => { try { await removeLead(row.id); reload((value) => value + 1); toast.success('Lead archived'); } catch (err) { toast.error(crmError(err)); } } },
@@ -133,7 +131,7 @@ export default function LeadsRoute() {
   );
 }
 
-function BulkBar({ query, selected, total, reload, employees, departments, canDelete }) {
+function BulkBar({ query, selected, total, reload, employees, departments, stages = [], canDelete }) {
   const [selectAll, setSelectAll] = React.useState(false);
   const [assignedToId, setAssignedToId] = React.useState('');
   const [assignedTeam, setAssignedTeam] = React.useState('');
@@ -174,7 +172,7 @@ function BulkBar({ query, selected, total, reload, employees, departments, canDe
         <select aria-label="Assign employee" className="h-8 rounded-md border bg-white px-2 text-xs" value={assignedToId} onChange={(event) => setAssignedToId(event.target.value)}><option value="">Employee</option>{employees.map((employee) => <option key={employee.recordId} value={employee.recordId}>{employee.name}</option>)}</select>
         <select aria-label="Assign department" className="h-8 rounded-md border bg-white px-2 text-xs" value={assignedTeam} onChange={(event) => setAssignedTeam(event.target.value)}><option value="">Department</option>{departments.map((department) => <option key={department.id} value={department.name}>{department.name}</option>)}</select>
         <Button size="sm" variant="outline" onClick={() => assignedToId ? run((body) => bulkAssignLeads({ ...body, assignedToId: Number(assignedToId), assignedTeam: assignedTeam || undefined })) : toast.error('Choose an employee.')}>Assign</Button>
-        <select aria-label="Lead stage" className="h-8 rounded-md border bg-white px-2 text-xs" value={status} onChange={(event) => setStatus(event.target.value)}>{LEAD_STAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <select aria-label="Lead stage" className="h-8 rounded-md border bg-white px-2 text-xs" value={status} onChange={(event) => setStatus(event.target.value)}>{stages.filter((stage) => stage.isActive !== false).map((stage) => <option key={stage.id || stage.key} value={stage.key}>{stage.name}</option>)}</select>
         <Button size="sm" variant="outline" onClick={() => run((body) => bulkLeadStatus({ ...body, status }))}>Update status</Button>
         <select aria-label="Lead priority" className="h-8 rounded-md border bg-white px-2 text-xs" value={priority} onChange={(event) => setPriority(event.target.value)}>{PRIORITIES.map((item) => <option key={item}>{item}</option>)}</select>
         <Button size="sm" variant="outline" onClick={() => run((body) => bulkLeadPriority({ ...body, priority }))}>Update priority</Button>

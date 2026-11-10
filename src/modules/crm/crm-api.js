@@ -42,6 +42,7 @@ export function saveLead(values, id) {
     companyName: values.companyName || undefined,
     source: values.source || undefined,
     status: values.status || undefined,
+    stageId: values.stageId ? Number(values.stageId) : undefined,
     priority: values.priority || undefined,
     assignedToId: values.assignedToId ? Number(values.assignedToId) : undefined,
     nextFollowUpDate: values.nextFollowUpDate || undefined,
@@ -158,6 +159,27 @@ export function saveDeal(values, id) {
   };
   return id ? api.patch(`/deals/${id}`, body) : api.post('/deals', body);
 }
+
+export async function loadLeadStages() {
+  const payload = await api.get('/leads/stages', { params: { includeInactive: 'true' } });
+  return listFrom(payload).map((stage) => ({ ...stage, type: 'Lead', order: stage.sortOrder ?? stage.order ?? 0 }));
+}
+
+export function saveLeadStage(values, id) {
+  const body = {
+    ...(values.name != null ? { name: String(values.name).trim() } : {}),
+    ...(values.color ? { color: values.color } : {}),
+    ...(values.bgColor ? { bgColor: values.bgColor } : {}),
+    ...(values.borderColor ? { borderColor: values.borderColor } : {}),
+    ...(values.order === '' || values.order == null ? {} : { sortOrder: Number(values.order) }),
+    ...(values.isActive == null ? {} : { isActive: values.isActive !== false }),
+    ...(values.emailEnabled == null ? {} : { emailEnabled: values.emailEnabled !== false }),
+    ...(values.whatsappEnabled == null ? {} : { whatsappEnabled: values.whatsappEnabled !== false }),
+  };
+  return id ? api.patch(`/leads/stages/${id}`, body) : api.post('/leads/stages', body);
+}
+
+export const removeLeadStage = (id) => api.delete(`/leads/stages/${id}`);
 
 export async function loadDealStages(activeOnly = false) {
   const payload = await api.get('/deals/stages', { params: activeOnly ? { active: 'true' } : {} });
