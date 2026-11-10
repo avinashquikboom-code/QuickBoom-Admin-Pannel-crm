@@ -64,10 +64,6 @@ function itemActive(item, pathname) {
     return isActive(item, pathname);
 }
 
-function linkCount(items) {
-    return items.reduce((count, item) => count + (item.children ? item.children.length : 1), 0);
-}
-
 function NavLink({ item, pathname, collapsed, onNavigate }) {
     const active = isActive(item, pathname);
     return (
@@ -181,9 +177,6 @@ function NavGroup({ group, pathname, collapsed, onNavigate }) {
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
                     {group.name}
-                </span>
-                <span className="min-w-5 rounded-md bg-slate-100 px-1.5 py-0.5 text-center text-[10px] font-medium text-slate-400">
-                    {linkCount(group.items)}
                 </span>
                 <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform', open && 'rotate-180')} />
             </button>

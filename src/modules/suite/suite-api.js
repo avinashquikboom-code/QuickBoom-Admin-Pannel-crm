@@ -23,8 +23,22 @@ export const publishVideo = (id, isPublished) => api.patch(`/admin/marketing/vid
 
 export const loadDataSummary = () => api.get('/admin/data-management/summary');
 export const loadDataHistory = () => api.get('/admin/data-management/history').then(rowsOf);
-export const resetModule = (module, confirmation, reason) => api.post('/admin/data-management/reset/module', { module, confirmation, reason });
-export const resetAllData = (confirmation, reason) => api.post('/admin/data-management/reset/all', { scope: 'transactional', confirmation, reason });
+export const loadDataOverview = () => api.get('/admin/data-management/overview');
+export const loadDataModules = () => api.get('/admin/data-management/modules');
+export const loadDataOperations = () => api.get('/admin/data-management/reset/history');
+export const previewDataReset = (body) => api.post('/admin/data-management/reset/preview', body);
+export const executeDataReset = (body) => api.post('/admin/data-management/reset', body);
+export const createDataBackup = (body) => api.post('/admin/data-management/backups', body);
+export const loadDataBackups = () => api.get('/admin/data-management/backups');
+export const verifyDataBackup = (id) => api.post(`/admin/data-management/backups/${id}/verify`);
+export const previewDataRestore = (id) => api.post(`/admin/data-management/backups/${id}/restore/preview`);
+export const executeDataRestore = (id, body) => api.post(`/admin/data-management/backups/${id}/restore`, body);
+export const downloadDataBackup = (id) => api.get(`/admin/data-management/backups/${id}/download`, { responseType: 'blob' });
+export const previewDataCleanup = (operation) => api.post('/admin/data-management/cleanup/preview', { operation });
+export const executeDataCleanup = (body) => api.post('/admin/data-management/cleanup', body);
+export const exportDataModule = (module, format) => api.get('/admin/data-management/export', { params: { module, format }, responseType: 'blob' });
+export const previewDataImport = (csv) => api.post('/admin/data-management/import/preview', { csv });
+export const executeDataImport = (body) => api.post('/admin/data-management/import', body);
 
 export const loadReportSummary = (params) => api.get('/reports/summary', { params });
 export const loadReportData = (params) => api.get('/reports/data', { params }).then((payload) => ({ rows: rowsOf(payload), pagination: pageOf(payload) || payload?.pagination || payload?.data?.pagination || {} }));
