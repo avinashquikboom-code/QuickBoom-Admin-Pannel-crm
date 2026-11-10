@@ -44,7 +44,7 @@ const groups = [
     { name: 'Master', icon: faDatabase, items: masterNavigation },
     { name: 'HRM', icon: faBriefcase, items: hrm },
     { name: 'Data Capture', icon: faBullseye, items: dataCaptureNavigation },
-    { name: 'Sales & CRM', icon: faUser, items: crm },
+    { name: 'CRM', icon: faUser, items: crm },
     { name: 'Customers', icon: faFileLines, items: customer },
     { name: 'Templates', icon: faClone, items: templatesNavigation },
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
