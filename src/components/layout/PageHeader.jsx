@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
-import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import {
     faLayerGroup,
     faIdBadge,
@@ -218,7 +217,6 @@ function PageHeaderBase({
     title,
     description,
     category,
-    icon,
     badge,
     badgeVariant = 'green',
     primaryAction,
@@ -232,9 +230,6 @@ function PageHeaderBase({
     currentPath = '',
 }) {
     const routeMeta = React.useMemo(() => getRouteMetadata(currentPath), [currentPath]);
-
-    const resolvedCategory = category || routeMeta.category;
-    const resolvedIcon = icon || routeMeta.icon;
 
     const renderedBadge = typeof badge === 'string' ? (
         <Badge
@@ -266,7 +261,7 @@ function PageHeaderBase({
                     <h1 className="break-words text-2xl font-semibold text-[#172B24]">{title || routeMeta.title}</h1>
                     {description && <p className="mt-1 break-words text-sm text-[#718078]">{description}</p>}
                 </div>
-                {(primaryAction || secondaryAction || actions || rightContent || resolvedIcon) && (
+                {(primaryAction || secondaryAction || actions || rightContent) && (
                     <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
                         {secondaryAction}
                         {primaryAction}

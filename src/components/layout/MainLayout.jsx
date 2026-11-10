@@ -20,7 +20,7 @@ export function MainLayout({ children }) {
        </div>
        <div className="flex w-0 min-w-0 max-w-none flex-1 flex-col overflow-hidden">
          <Header />
-         <main id="main-content" className="box-border w-full min-w-0 max-w-none flex-1 overflow-x-hidden overflow-y-auto p-3.5 sm:p-5 lg:p-6">
+         <main id="main-content" className="box-border w-full min-w-0 max-w-none flex-1 overflow-x-hidden overflow-y-auto bg-[#F7F9F8] p-3.5 sm:p-5 lg:p-6">
            {children}
          </main>
        </div>

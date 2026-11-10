@@ -254,7 +254,7 @@ function DataTableContent({
     return (
         <div
             className={cn(
-                'min-w-0 rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden',
+                'min-w-0 overflow-hidden rounded-2xl border border-[#E2E8E5] bg-white shadow-sm',
                 className
             )}
         >

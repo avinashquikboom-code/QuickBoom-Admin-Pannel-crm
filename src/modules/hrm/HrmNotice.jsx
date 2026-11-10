@@ -20,11 +20,11 @@ export function HrmNotice({ error, loading, onRetry, empty, children }) {
 
 export function HrmStats({ items }) {
   return (
-    <div className="grid grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
+    <div className="grid w-full min-w-0 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))]">
       {items.map((item) => (
-        <div key={item.label} className="rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs min-w-0 flex flex-col justify-between h-full">
-          <p className="truncate text-xs font-medium text-slate-500">{item.label}</p>
-          <p className="truncate mt-1 text-xl sm:text-2xl font-bold text-slate-900">{item.value ?? '—'}</p>
+        <div key={item.label} className="flex h-full min-w-0 flex-col justify-between rounded-2xl border border-[#E2E8E5] bg-white p-4 shadow-sm">
+          <p className="truncate text-xs font-semibold uppercase tracking-wide text-[#718078]">{item.label}</p>
+          <p className="mt-2 truncate text-2xl font-bold text-[#163A2E]">{item.value ?? '—'}</p>
         </div>
       ))}
     </div>
