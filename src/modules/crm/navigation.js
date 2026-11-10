@@ -1,7 +1,6 @@
 import {
     faAddressBook,
     faBuilding,
-    faChartBar,
     faChartLine,
     faClock,
     faHandshake,
@@ -17,7 +16,6 @@ export const navigation = [
     { name: 'Customers', href: '/admin/crm/customers', icon: faUserGroup },
     { name: 'Deals', href: '/admin/crm/deals', icon: faHandshake },
     { name: 'Follow-ups', href: '/admin/crm/follow-ups', icon: faClock },
-    { name: 'Sales Reports', href: '/admin/crm/reports', icon: faChartBar },
     { name: 'Lead Limits', href: '/admin/crm/lead-limits', icon: faShieldHalved },
     { name: 'Contacts', href: '/admin/crm/contacts', icon: faAddressBook },
     { name: 'Companies', href: '/admin/crm/companies', icon: faBuilding },
