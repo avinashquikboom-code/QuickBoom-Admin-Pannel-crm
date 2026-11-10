@@ -148,7 +148,7 @@ export default function OvertimePage() {
   ], []);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 overflow-x-hidden w-full min-w-0">
+    <div className="max-w-none space-y-4 sm:space-y-6 overflow-x-hidden w-full min-w-0">
       <PageHeader
         title="Overtime Approvals"
         description="Review overtime requests, approve payable time, and send approved amounts to payroll."

@@ -139,7 +139,7 @@ export default function SalaryTargetsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="Target-Based Salary" description="BPO employees on this policy earn the full registered salary when the monthly target is met, and the lower salary when it is not." actions={permissions.CREATE && <Button onClick={() => openForm()}>Assign Target</Button>} />
       <div className="flex flex-wrap gap-2">
         <Input aria-label="Month" type="number" min="1" max="12" value={month} onChange={(event) => setMonth(Number(event.target.value))} className="h-9 w-24" />

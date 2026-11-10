@@ -104,7 +104,7 @@ export default function AnnouncementsPage() {
   ], []);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 overflow-x-hidden">
+    <div className="max-w-none min-w-0 w-full space-y-6 overflow-x-hidden">
       <PageHeader title="Announcements" description="Create, manage and distribute company announcements." actions={<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><Button type="button" variant="outline" className="h-9 text-xs" onClick={() => setRefresh((value) => value + 1)}><FontAwesomeIcon icon={faRotateRight} className="size-3.5" /> Refresh</Button><Button type="button" variant="outline" className="h-9 text-xs" onClick={() => rows.length ? downloadCsv('announcements.csv', rows.map((row) => ({ title: row.title, category: row.category, audience: row.audience, department: row.departmentName, publishAt: row.publishAt || '', expiresAt: row.expiresAt || '', status: row.status }))) : toast.error('There are no announcements to export')}><FontAwesomeIcon icon={faDownload} className="size-3.5" /> Export CSV</Button><Button type="button" className="h-9 bg-brand text-xs text-primary-foreground" onClick={() => { setEditing(null); setForm(emptyForm); setOpen(true); }}><FontAwesomeIcon icon={faPlus} className="size-3.5" /> Add announcement</Button></div>} />
       <HrmStats items={[{ label: 'Total announcements', value: summary.total ?? 0 }, { label: 'Published', value: summary.published ?? 0 }, { label: 'Scheduled', value: summary.scheduled ?? 0 }, { label: 'Drafts', value: summary.drafts ?? 0 }, { label: 'Archived', value: summary.archived ?? 0 }]} />
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-6">

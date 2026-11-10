@@ -95,7 +95,7 @@ export default function BreakManagementPage() {
             },
         },
     ];
-    return (<div className="space-y-6 max-w-7xl mx-auto">
+    return (<div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="Break & Interval Management" description="Monitor lunch and short break durations in compliance with workplace time policies." />
 
       {/* Break Policy KPI Strip */}

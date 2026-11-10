@@ -75,7 +75,7 @@ export default function AdminDashboardPage() {
   const activity = rowsOf(data?.activity);
   const failedNames = failed.map((item) => item.key).join(', ');
 
-  return <div className="mx-auto w-full max-w-7xl min-w-0 space-y-4 sm:space-y-6">
+  return <div className="max-w-none w-full min-w-0 space-y-4 sm:space-y-6">
     <PageHeader
       title={`${greeting}`}
       description={`${new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Workforce, payroll, and revenue use the selected dates. Lead, customer, deal, and task counts are current totals.`}

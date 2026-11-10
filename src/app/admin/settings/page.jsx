@@ -414,7 +414,7 @@ export default function GeneralSettingsPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 sm:space-y-6 w-full min-w-0 overflow-x-hidden pb-12">
+    <div className="max-w-none space-y-5 sm:space-y-6 w-full min-w-0 overflow-x-hidden pb-12">
       {/* 1. Page Header with SYSTEM GOVERNANCE category badge and Settings Illustration */}
       <PageHeader
         category="SYSTEM GOVERNANCE"

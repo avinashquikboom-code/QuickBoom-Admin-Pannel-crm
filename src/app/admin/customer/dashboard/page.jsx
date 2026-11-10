@@ -32,7 +32,7 @@ export default function CustomerDashboardPage() {
   const subscriptions = data?.subscriptions || {};
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="Customer Dashboard" description="Customer, subscription, invoice, and revenue totals from the existing APIs." />
       <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-4">
         <Input type="date" aria-label="From date" value={filters.dateFrom} onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })} />

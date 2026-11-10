@@ -46,7 +46,7 @@ export default function HrmDashboardPage() {
 
   const value = (number) => (loading ? '—' : number ?? 0);
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader
         title="HRM Operations Dashboard"
         description="People, attendance, leave, claims, and payroll figures returned by the HRM APIs."

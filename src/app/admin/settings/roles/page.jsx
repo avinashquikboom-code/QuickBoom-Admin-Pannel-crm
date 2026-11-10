@@ -32,7 +32,7 @@ export default function RolesPage() {
 
   const grouped = permissions.reduce((groups, item) => { const key = item.module || 'OTHER'; groups[key] = groups[key] || []; groups[key].push(item); return groups; }, {});
 
-  return <div className="mx-auto max-w-7xl space-y-6">
+  return <div className="max-w-none min-w-0 w-full space-y-6">
     <PageHeader title="Roles & Permissions" description="Roles and the permission catalog returned by the auth API." actions={<Button onClick={() => setOpen(true)}>Add role</Button>} />
     <HrmNotice loading={loading} error={error} empty={!loading && !roles.length ? 'No roles returned.' : ''} onRetry={() => setRefresh((value) => value + 1)}>
       <div className="overflow-x-auto"><DataTable label="Roles" data={roles} columns={[

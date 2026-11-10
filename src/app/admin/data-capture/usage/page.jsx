@@ -30,7 +30,7 @@ export default function UsageQuotaPage() {
   const percent = Number.isFinite(limit) && limit > 0 && Number.isFinite(captured) ? Math.min(100, Math.round((captured / limit) * 100)) : null;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="Usage & Quota" description="Extraction usage and remaining quota for the signed-in tenant." actions={<Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button>} />
       <HrmGap title="Quota source" detail={`${captureGaps.quota} ${captureGaps.history}`} />
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)}>

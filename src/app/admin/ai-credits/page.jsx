@@ -32,7 +32,7 @@ export default function AiCreditsPage() {
   const balance = wallet?.balance ?? wallet?.data?.balance;
   const record = wallet?.data?.wallet || wallet?.wallet || wallet?.data;
 
-  return <div className="mx-auto max-w-7xl space-y-6">
+  return <div className="max-w-none min-w-0 w-full space-y-6">
     <PageHeader title="AI Credits Management" description="Customer wallet balances and the credit transaction ledger." />
     <HrmGap title="Balances" detail={socialGaps.credits} />
     <div className="flex flex-wrap items-end gap-2">

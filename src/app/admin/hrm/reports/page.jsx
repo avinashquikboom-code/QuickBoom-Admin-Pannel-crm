@@ -39,7 +39,7 @@ export default function HrmReportsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="HRM Reports" description="Attendance, employee, leave, and payroll reports from the reports API." actions={<Button size="sm" className="h-9 bg-brand text-xs text-primary-foreground" onClick={exportCsv} disabled={!rows.length}>Export CSV</Button>} />
       <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Employees</p><p className="text-xl font-semibold">{summary?.workforce?.total ?? '—'}</p></div>

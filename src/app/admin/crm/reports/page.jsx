@@ -35,7 +35,7 @@ export default function SalesReportsRoute() {
     link.download = 'revenue-report.csv';
     link.click();
   };
-  return <div className="mx-auto max-w-7xl space-y-6">
+  return <div className="max-w-none min-w-0 w-full space-y-6">
     <PageHeader title="Sales Reports" description="Counts and revenue returned by the lead, deal, customer, and report APIs." actions={<Button variant="outline" onClick={exportRows} disabled={!report?.revenueRows?.length}>Export revenue CSV</Button>} />
     <div className="flex flex-col gap-2 sm:flex-row"><Input type="date" value={range.dateFrom} onChange={(event) => setRange({ ...range, dateFrom: event.target.value })} aria-label="From" /><Input type="date" value={range.dateTo} onChange={(event) => setRange({ ...range, dateTo: event.target.value })} aria-label="To" /><Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button></div>
     <HrmGap title="Employee and source performance" detail={crmGaps.salesEmployee} />

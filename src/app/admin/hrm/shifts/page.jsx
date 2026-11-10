@@ -114,7 +114,7 @@ export default function ShiftsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
+    <div className="max-w-none space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
       <PageHeader title="Shifts" description="Company shifts, working hours, break duration, and employee assignment." actions={canManage ? <Button onClick={openCreate}>Add shift</Button> : null} />
       <HrmStats items={[
         { label: 'Total shifts', value: metrics.total },

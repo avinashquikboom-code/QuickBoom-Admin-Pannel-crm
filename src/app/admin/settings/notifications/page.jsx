@@ -74,7 +74,7 @@ export default function NotificationsPage() {
     loadCustomers({ page: 1, limit: 100 }).then((result) => setCustomers(result.rows || [])).catch(() => setCustomers([]));
   };
 
-  return <div className="mx-auto max-w-7xl space-y-4">
+  return <div className="max-w-none min-w-0 w-full space-y-4">
     <PageHeader title="Notifications & Campaigns" description="Create, manage, schedule and deliver campaigns across the channels this notification API supports." actions={<Button onClick={openForm}>Create campaign</Button>} />
     <div className="flex flex-wrap gap-2">{TABS.map(([key, label]) => <Button key={key} size="sm" variant={tab === key ? 'default' : 'outline'} onClick={() => setTab(key)}>{label}</Button>)}</div>
     {tab === 'campaigns' && <Campaigns rows={rows} summary={summary} loading={loading} error={error} query={query} setQuery={setQuery} onRetry={() => setRefresh((value) => value + 1)} onChanged={() => setRefresh((value) => value + 1)} />}

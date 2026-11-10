@@ -12,15 +12,15 @@ export function MainLayout({ children }) {
      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded focus:bg-background focus:p-3">
        Skip to content
      </a>
-     <div className="flex h-dvh overflow-hidden bg-background text-foreground font-sans">
-       <div className="hidden md:flex shrink-0">
-         <React.Suspense fallback={<div className="w-20 lg:w-72 shrink-0 bg-sidebar" />}>
+     <div className="flex h-dvh w-full min-w-0 overflow-hidden bg-background text-foreground font-sans">
+       <div className="hidden shrink-0 md:flex">
+         <React.Suspense fallback={<div className="w-20 shrink-0 bg-sidebar lg:w-72" />}>
            <Sidebar />
          </React.Suspense>
        </div>
-       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+       <div className="flex w-0 min-w-0 max-w-none flex-1 flex-col overflow-hidden">
          <Header />
-         <main id="main-content" className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 lg:p-6">
+         <main id="main-content" className="box-border w-full min-w-0 max-w-none flex-1 overflow-x-hidden overflow-y-auto p-3.5 sm:p-5 lg:p-6">
            {children}
          </main>
        </div>

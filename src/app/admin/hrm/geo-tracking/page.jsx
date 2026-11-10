@@ -77,7 +77,7 @@ export default function GeoTrackingPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="Geo Tracking" description="Live coordinates are shown only when the location API has a recorded GPS point." actions={<Button onClick={() => setFormOpen(true)}>Add geofence</Button>} />
       <HrmStats items={[
         { label: 'Employees returned', value: rows.length },

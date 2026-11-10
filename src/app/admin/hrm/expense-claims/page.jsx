@@ -104,7 +104,7 @@ export default function ExpenseClaimsPage() {
     const approvedAmount = claims
         .filter((c) => c.status === 'approved')
         .reduce((acc, curr) => acc + curr.amount, 0);
-    return (<div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
+    return (<div className="max-w-none space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
       <PageHeader title="Expense Claims & Reimbursements" description="Review corporate travel, equipment allowances, subscriptions, and receipts for payroll reimbursement."/>
 
       {/* KPI Stats Strip */}

@@ -22,7 +22,7 @@ export default function AdminProfilePage() {
   }, []);
   React.useEffect(()=>{ let active=true;setLoading(true);setError('');api.get('/auth/profile').then(payload=>{const record=payload?.data ?? payload;if(!record?.id)throw new Error('Invalid profile response');if(active){setUser(record);updateSessionUser(record);}}).catch(err=>{if(active)setError(profileError(err));}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[retry]);
   const profile=adminProfile(user);
-  return <div className="mx-auto min-w-0 w-full max-w-7xl space-y-5 sm:space-y-6">
+  return <div className="max-w-none min-w-0 w-full space-y-5 sm:space-y-6">
     <div><nav aria-label="Breadcrumb" className="mb-3 flex flex-wrap gap-2 text-xs text-slate-500"><Link href="/admin/dashboard">Home</Link><span aria-hidden>›</span><span>Administration</span><span aria-hidden>›</span><span aria-current="page">Admin Profile</span></nav><h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Admin Profile</h1><p className="mt-2 text-sm text-slate-500">Manage your account information, security and preferences.</p></div>
     {loading ? <div role="status" className="rounded-2xl border bg-white p-8 text-sm text-slate-500">Loading your profile…</div> : error ? <div role="alert" className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><p>{error}</p><Button variant="outline" onClick={()=>setRetry(retry+1)}>Try again</Button></div> : user && <>
       <section aria-label="Profile summary" className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#163A2E] to-[#204C3D] p-5 text-white shadow-sm sm:p-8">

@@ -112,7 +112,7 @@ export default function LoansPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="Loans" description="Employee loan requests, approvals, EMI, and remaining balance." actions={canManage ? <Button onClick={() => { setForm(emptyForm); setFormOpen(true); }}>New loan</Button> : null} />
       <HrmStats items={[
         { label: 'Total loans', value: metrics.totalLoans },
