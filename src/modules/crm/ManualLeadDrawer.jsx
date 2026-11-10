@@ -113,10 +113,50 @@ function leadInitials(name) {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 }
 
+function mediaUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('blob:') || raw.startsWith('data:image/')) return raw;
+  if (raw.startsWith('/api/') || raw.startsWith('/uploads/')) {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.qbapp.online/api/v1';
+    return `${base.replace(/\/api\/v1\/?$/, '')}${raw}`;
+  }
+  return '';
+}
+
+function leadImageUrls(lead) {
+  const nested = Array.isArray(lead?.images) ? lead.images.map((image) => image?.url || image) : [];
+  return [...new Set([lead?.imagePreview, lead?.imageUrl, ...nested].map(mediaUrl).filter(Boolean))];
+}
+
 function leadImageUrl(lead) {
-  const nested = Array.isArray(lead?.images) ? lead.images.find((image) => /^https?:\/\//i.test(image?.url || ''))?.url : '';
-  const candidates = [lead?.imagePreview, lead?.imageUrl, nested];
-  return candidates.find((value) => typeof value === 'string' && (/^https?:\/\//i.test(value) || value.startsWith('blob:'))) || '';
+  return leadImageUrls(lead)[0] || '';
+}
+
+function LeadPhotos({ lead }) {
+  const urls = leadImageUrls(lead);
+  const credits = [...new Set((Array.isArray(lead?.images) ? lead.images : []).flatMap((image) => Array.isArray(image?.attributions) ? image.attributions : []))];
+  const [preview, setPreview] = React.useState('');
+  const [failed, setFailed] = React.useState({});
+  const visible = urls.filter((url) => !failed[url]);
+  if (!urls.length) return null;
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2 overflow-x-auto">
+        {urls.map((url) => (
+          <button key={url} type="button" className="h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-[#E2E8E5] bg-[#E8F1EC]" onClick={() => setPreview(url)}>
+            {failed[url] ? <span className="text-sm font-semibold text-[#163A2E]">{(leadInitials(personName(lead)) || 'L')[0]}</span> : <img src={url} alt="" className="h-full w-full object-cover" onError={() => setFailed((current) => ({ ...current, [url]: true }))} />}
+          </button>
+        ))}
+      </div>
+      {visible.some((url) => url.includes('/data-capture/photo')) ? <p className="text-xs text-[#718078]">Photos from Google Maps{credits.length ? ` · ${credits.join(', ')}` : ''}</p> : null}
+      {preview ? (
+        <button type="button" className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-6" onClick={() => setPreview('')}>
+          <img src={preview} alt="" className="max-h-[80vh] max-w-full rounded-xl" />
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function safeProfileUrl(value) {
@@ -191,12 +231,12 @@ function LeadAvatar({ lead }) {
   React.useEffect(() => { setFailed(false); }, [lead?.imageUrl, lead?.imagePreview]);
   const frame = 'inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E2E8E5] bg-[#E8F1EC] align-middle';
   if (!src) {
-    return <span className={`${frame} text-xs font-bold leading-none text-[#163A2E]`} aria-hidden="true">{initials || <FontAwesomeIcon icon={faBuilding} className="size-4" />}</span>;
+    return <span className={`${frame} text-xs font-bold leading-none text-[#163A2E]`} aria-hidden="true">{(initials || 'L')[0]}</span>;
   }
   return <img src={src} alt="" width={40} height={40} className={`${frame} object-cover`} onError={() => setFailed(true)} />;
 }
 
-export { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar };
+export { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar, LeadPhotos };
 
 export function ManualLeadDrawer({ open, onOpenChange }) {
   const [form, setForm] = React.useState({ ...blank });

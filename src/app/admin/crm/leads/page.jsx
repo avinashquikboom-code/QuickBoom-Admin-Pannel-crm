@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar } from '@/modules/crm/ManualLeadDrawer';
+import { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar, LeadPhotos } from '@/modules/crm/ManualLeadDrawer';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
@@ -118,7 +118,7 @@ export default function LeadsRoute() {
         ]}
         renderForm={(form, setForm) => <LeadForm form={form} setForm={setForm} sources={sourceOptions} employees={employees} departments={departments} stages={stages} />}
         onSave={async (form, id) => { await persistLead(form, id); toast.success(id ? 'Lead updated' : 'Lead created'); }}
-        detail={(row) => <div className="space-y-2 text-sm"><p className="flex items-center gap-2"><LeadAvatar lead={row} /><span className="min-w-0">{personName(row)} · {row.companyName || 'No company'}</span></p><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status, stages)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Category {row.category || '—'} · Website {row.website || '—'}</p><div className="flex items-center gap-2">Social media <SocialLinks lead={row} /></div><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
+        detail={(row) => <div className="space-y-2 text-sm"><p className="flex items-center gap-2"><LeadAvatar lead={row} /><span className="min-w-0">{personName(row)} · {row.companyName || 'No company'}</span></p><LeadPhotos lead={row} /><p>{row.phone || '—'} · {row.email || '—'}</p><p>{[row.address, row.city, row.state, row.country, row.pincode].filter(Boolean).join(', ') || 'No address'}</p><p>Stage {stageLabel(row.stage?.name || row.status, stages)} · Priority {row.priority || '—'} · Source {row.source || '—'} · Value {row.value ?? '—'}</p><p>Category {row.category || '—'} · Website {row.website || '—'}</p><div className="flex items-center gap-2">Social media <SocialLinks lead={row} /></div><p>Department {row.assignedTeam || '—'} · Google Place ID {row.googlePlaceId || '—'}</p><LeadNotes id={row.id} /></div>}
         toolbar={({ query, selected, reload, payload }) => <BulkBar query={query} selected={selected} total={payload.pagination?.total} reload={reload} employees={employees} departments={departments} stages={stages} canDelete={canDelete} />}
         rowActions={(reload) => allowed ? [
           { label: 'Convert', onSelect: async (row) => { try { await convertLead(row.id, { companyName: row.companyName, dealTitle: row.title || row.companyName }); reload((value) => value + 1); toast.success('Lead conversion requested'); } catch (err) { toast.error(crmError(err)); } } },
