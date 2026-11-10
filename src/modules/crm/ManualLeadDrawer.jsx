@@ -225,15 +225,20 @@ function SocialLinks({ lead }) {
 
 function LeadAvatar({ lead }) {
   const [failed, setFailed] = React.useState(false);
+  const [loaded, setLoaded] = React.useState(false);
   const src = failed ? '' : leadImageUrl(lead);
-  const displayName = personName(lead);
+  const displayName = lead?.companyName || lead?.businessName || lead?.name || personName(lead);
   const initials = leadInitials(displayName === '—' ? '' : displayName);
-  React.useEffect(() => { setFailed(false); }, [lead?.imageUrl, lead?.imagePreview]);
-  const frame = 'inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E2E8E5] bg-[#E8F1EC] align-middle';
-  if (!src) {
-    return <span className={`${frame} text-xs font-bold leading-none text-[#163A2E]`} aria-hidden="true">{(initials || 'L')[0]}</span>;
-  }
-  return <img src={src} alt="" width={40} height={40} className={`${frame} object-cover`} onError={() => setFailed(true)} />;
+  React.useEffect(() => { setFailed(false); setLoaded(false); }, [src]);
+  const frame = 'inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E2E8E5] bg-[#E8F1EC] align-middle';
+  const letter = <span className={`${frame} text-xs font-bold leading-none text-[#163A2E]`} aria-hidden="true">{(initials || 'L')[0]}</span>;
+  if (!src) return letter;
+  return (
+    <span className={frame}>
+      {!loaded ? <span className="h-full w-full animate-pulse bg-[#E8F1EC]" /> : null}
+      <img src={src} alt="" width={44} height={44} className={`h-full w-full object-cover ${loaded ? '' : 'hidden'}`} onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
+    </span>
+  );
 }
 
 export { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar, LeadPhotos };
