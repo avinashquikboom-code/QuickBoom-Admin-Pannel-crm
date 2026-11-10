@@ -18,9 +18,73 @@ export function personName(record) {
   return record.name || `${record.firstName || ''} ${record.lastName || ''}`.trim() || record.employeeName || '—';
 }
 
+let capturePhotoIndex = null;
+let capturePhotoIndexAt = 0;
+
+function realCapturePhoto(item) {
+  const url = typeof item === 'string' ? item : item?.url || '';
+  const name = item && typeof item === 'object' ? String(item.name || item.photoReference || '') : '';
+  if (/unsplash|pexels|placeholder|dummy|sample/i.test(`${url} ${name}`)) return '';
+  if (url.startsWith('/api/v1/data-capture/photo')) return url;
+  if (/^places\/[^/]+\/photos\/(?!\d{1,3}$)[^/?&]+$/.test(name)) return `/api/v1/data-capture/photo?ref=${encodeURIComponent(name)}`;
+  if (/^https:\/\/lh3\.googleusercontent\.com\//.test(url)) return `/api/v1/data-capture/photo?ref=${encodeURIComponent(url)}`;
+  return '';
+}
+
+function photosOf(place) {
+  const raw = [...(Array.isArray(place?.googlePhotos) ? place.googlePhotos : []), ...(Array.isArray(place?.photos) ? place.photos : [])];
+  return [...new Set(raw.map(realCapturePhoto).filter(Boolean))];
+}
+
+function hasLeadImage(row) {
+  const images = Array.isArray(row?.images) ? row.images : [];
+  return Boolean(row?.imageUrl || row?.imagePreview || images.some((image) => (typeof image === 'string' ? image : image?.url)));
+}
+
+async function capturePhotosByLead() {
+  if (capturePhotoIndex && Date.now() - capturePhotoIndexAt < 120000) return capturePhotoIndex;
+  const byLead = new Map();
+  const byPlace = new Map();
+  for (let page = 1; page <= 8; page += 1) {
+    const payload = await api.get('/data-capture', { params: { page, limit: 100 } });
+    const rows = listFrom(payload);
+    rows.forEach((place) => {
+      const photos = photosOf(place);
+      if (!photos.length) return;
+      if (place.importedLeadId) byLead.set(Number(place.importedLeadId), photos);
+      if (place.googlePlaceId && !String(place.googlePlaceId).startsWith('custom_')) byPlace.set(place.googlePlaceId, photos);
+    });
+    const totalPages = Number(payload?.pagination?.totalPages || payload?.meta?.totalPages || 1);
+    if (!rows.length || page >= totalPages) break;
+  }
+  capturePhotoIndex = { byLead, byPlace };
+  capturePhotoIndexAt = Date.now();
+  return capturePhotoIndex;
+}
+
+async function withCapturePhotos(rows) {
+  if (!rows.some((row) => !hasLeadImage(row))) return rows;
+  let index;
+  try {
+    index = await capturePhotosByLead();
+  } catch {
+    return rows;
+  }
+  return rows.map((row) => {
+    if (hasLeadImage(row)) return row;
+    const photos = index.byLead.get(Number(row.id)) || (row.googlePlaceId ? index.byPlace.get(row.googlePlaceId) : null);
+    if (!photos?.length) return row;
+    return {
+      ...row,
+      imageUrl: photos[0],
+      images: photos.map((url, position) => ({ url, isPrimary: position === 0, source: 'GOOGLE_PLACES' })),
+    };
+  });
+}
+
 export async function listLeadPage(params = {}) {
   const list = await api.get('/leads', { params });
-  return { rows: listFrom(list), pagination: pageOf(list) };
+  return { rows: await withCapturePhotos(listFrom(list)), pagination: pageOf(list) };
 }
 
 export async function loadLeads(params = {}) {
@@ -29,7 +93,7 @@ export async function loadLeads(params = {}) {
     api.get('/leads/metrics'),
     api.get('/master/lead-sources'),
   ]);
-  return { rows: listFrom(list), metrics: bodyOf(metrics), sources: listFrom(sources), pagination: pageOf(list) };
+  return { rows: await withCapturePhotos(listFrom(list)), metrics: bodyOf(metrics), sources: listFrom(sources), pagination: pageOf(list) };
 }
 
 export function saveLead(values, id) {
