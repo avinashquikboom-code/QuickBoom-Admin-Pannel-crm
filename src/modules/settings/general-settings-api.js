@@ -38,3 +38,4 @@ export const syncSystemSettings = async () => {
   const response = await api.post('/admin/settings/general/sync');
   return response?.data?.data || response?.data || response;
 };
+
