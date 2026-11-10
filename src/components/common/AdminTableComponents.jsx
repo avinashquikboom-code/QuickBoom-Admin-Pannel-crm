@@ -171,7 +171,7 @@ export function AdminTableToolbar({
                 className
             )}
         >
-            <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="flex min-w-0 flex-1 flex-wrap flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                 {onSearchChange && (
                     <div className="relative w-full sm:max-w-xs">
                         <FontAwesomeIcon
@@ -212,7 +212,7 @@ export function AdminTableToolbar({
                 )}
             </div>
 
-            <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            <div className="flex max-w-full flex-wrap items-center gap-2.5 self-end sm:self-auto">
                 {selectedCount > 0 && (
                     <span className="text-xs font-semibold text-[#169F4D] bg-[#E8F8EE] border border-emerald-200/80 px-2.5 py-1 rounded-full whitespace-nowrap">
                         {selectedCount} selected

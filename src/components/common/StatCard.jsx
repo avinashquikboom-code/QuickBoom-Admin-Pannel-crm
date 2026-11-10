@@ -5,12 +5,12 @@ import { cn } from '@/lib/utils';
 export function StatCard({ title, value, change, changeType = 'neutral', icon: Icon, iconColor = 'text-brand', iconBg = 'bg-brand-light', description, badge, className, onClick, }) {
     return (<Card onClick={onClick} className={cn('relative overflow-hidden border border-slate-200/90 bg-white transition-all duration-200 hover:shadow-md hover:border-slate-300', onClick ? 'cursor-pointer hover:-translate-y-0.5' : '', className)}>
       <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 space-y-1 break-words">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
               {title}
             </p>
-            <div className="flex items-baseline gap-2">
+            <div className="flex flex-wrap items-baseline gap-2">
               <span className="text-2xl font-bold tracking-tight text-slate-900">
                 {value}
               </span>
@@ -24,7 +24,7 @@ export function StatCard({ title, value, change, changeType = 'neutral', icon: I
           </div>
         </div>
 
-        {(change || description) && (<div className="mt-3 flex items-center gap-1.5 text-xs">
+        {(change || description) && (<div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
             {change && (<span className={cn('font-semibold', changeType === 'positive'
                     ? 'text-brand'
                     : changeType === 'negative'
@@ -32,7 +32,7 @@ export function StatCard({ title, value, change, changeType = 'neutral', icon: I
                         : 'text-slate-600')}>
                 {change}
               </span>)}
-            {description && (<span className="text-slate-400 truncate">{description}</span>)}
+            {description && (<span className="text-slate-400 break-words">{description}</span>)}
           </div>)}
       </CardContent>
     </Card>);

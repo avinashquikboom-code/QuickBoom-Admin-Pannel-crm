@@ -319,7 +319,7 @@ function PageHeaderBase({
             {stats && (
                 <div className="relative z-10 mt-5 pt-4 border-t border-slate-200/70">
                     {Array.isArray(stats) ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                             {stats.map((s, i) => (
                                 <div key={i} className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-2xs">
                                     <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">

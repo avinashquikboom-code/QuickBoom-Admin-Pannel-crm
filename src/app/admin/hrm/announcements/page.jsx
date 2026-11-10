@@ -112,7 +112,7 @@ export default function AnnouncementsPage() {
         <Choice value={status} onChange={setStatus} placeholder="Status" options={STATUSES} />
         <Choice value={departmentId} onChange={setDepartmentId} placeholder="Department" options={departments.map((item) => ({ value: String(item.id), label: item.name }))} />
         <Choice value={audience} onChange={setAudience} placeholder="Audience" options={AUDIENCES} />
-        <div className="grid grid-cols-2 gap-2"><Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="h-9 text-xs" /><Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="h-9 text-xs" /></div>
+        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-2"><Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="h-9 text-xs" /><Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="h-9 text-xs" /></div>
       </div>
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} empty={!loading && !error && rows.length === 0 ? 'No announcements match these filters.' : ''} />
       <div className="grid gap-3 md:hidden">{rows.map((row) => <article key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4"><p className="font-semibold">{row.title}</p><p className="mt-1 text-xs text-slate-500">{row.category} · {row.audience} · {row.status}</p><p className="mt-1 text-xs text-slate-500">{row.departmentName || 'All departments'} · {dateLabel(row.publishAt)}</p></article>)}</div>

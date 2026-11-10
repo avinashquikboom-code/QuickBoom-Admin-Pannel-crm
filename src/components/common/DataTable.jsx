@@ -238,7 +238,7 @@ function DataTableContent({
                 aria-label={`Loading ${label}`}
                 className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs"
             >
-                <div className="h-9 w-64 bg-slate-100 animate-pulse rounded-xl" />
+                <div className="h-9 w-64 max-w-full bg-slate-100 animate-pulse rounded-xl" />
                 <div className="space-y-2 pt-2">
                     {[1, 2, 3, 4, 5].map((key) => (
                         <Skeleton key={key} className="h-11 w-full rounded-xl" />
@@ -261,7 +261,7 @@ function DataTableContent({
             {/* Standard Listing Toolbar */}
             {!hideToolbar && (
                 <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3 border-b border-slate-100 p-3.5 bg-white">
-                    <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                    <div className="flex min-w-0 flex-1 flex-wrap flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                         {!hideSearch && (
                             <div className="relative w-full sm:max-w-xs">
                                 <FontAwesomeIcon
@@ -300,7 +300,7 @@ function DataTableContent({
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2.5 self-end sm:self-auto">
+                    <div className="flex max-w-full flex-wrap items-center gap-2.5 self-end sm:self-auto">
                         {toolbarActions}
                         <DropdownMenu>
                             <DropdownMenuTrigger
@@ -355,9 +355,9 @@ function DataTableContent({
                 </div>
             )}
 
-            {/* Standard Table with Responsive Mobile Cards & Horizontal Scroll */}
+            {/* Semantic table with contained horizontal scrolling */}
             <div className="relative w-full overflow-x-auto min-w-0">
-            <Table className="w-full text-xs text-left max-md:[&_thead]:sr-only max-md:[&_table]:block max-md:[&_tbody]:block max-md:[&_tbody_tr]:mb-3 max-md:[&_tbody_tr]:grid max-md:[&_tbody_tr]:grid-cols-2 max-md:[&_tbody_tr]:gap-x-2 max-md:[&_tbody_tr]:rounded-2xl max-md:[&_tbody_tr]:border max-md:[&_tbody_tr]:border-slate-200 max-md:[&_tbody_tr]:bg-white max-md:[&_tbody_tr]:p-4 max-md:[&_tbody_tr]:shadow-2xs max-md:[&_td]:block max-md:[&_td]:min-w-0 max-md:[&_td]:border-0 max-md:[&_td]:px-1 max-md:[&_td]:py-1.5 max-md:[&_td[colspan]]:col-span-2">
+            <Table className="w-full text-xs text-left">
                 <TableCaption className="sr-only">
                     {label}: searchable, sortable and paginated
                 </TableCaption>
@@ -467,7 +467,7 @@ function DataTableContent({
             </div>
 
             {/* Standard Pagination Footer */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 p-3.5 text-xs text-slate-500 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-3.5 text-xs text-slate-500 bg-white">
                 <span aria-live="polite" className="font-medium">
                     Showing{' '}
                     <strong className="text-slate-800 font-semibold">

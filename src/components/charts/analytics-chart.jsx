@@ -137,7 +137,7 @@ function AnalyticsChartContent({
                 </div>
 
                 {/* Date and Period Filter Toolbar */}
-                <div className="flex flex-wrap items-end gap-2 pt-1">
+                <div className="grid grid-cols-1 min-[440px]:grid-cols-2 xl:grid-cols-3 items-end gap-2 pt-1">
                     <div className="space-y-1">
                         <Label htmlFor={`${id}-period`} className="text-[11px] font-semibold text-slate-600">
                             Period

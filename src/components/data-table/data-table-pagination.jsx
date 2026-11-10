@@ -19,7 +19,7 @@ export function DataTablePagination({ table }) {
     const pageCount = table.getPageCount();
 
     return (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-2 py-4">
             <div className="flex-1 text-xs text-muted-foreground">
                 {selectedCount > 0 ? (
                     <span>

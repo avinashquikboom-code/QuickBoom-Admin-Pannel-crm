@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }) {
     return (
-        <div data-slot="table-container" className="relative w-full overflow-x-auto">
+        <div data-slot="table-container" tabIndex={0} role="region" aria-label="Scrollable table" className="relative min-w-0 max-w-full w-full overflow-x-auto overscroll-x-contain">
             <table data-slot="table" className={cn("w-full caption-bottom text-xs text-left", className)} {...props}/>
         </div>
     );

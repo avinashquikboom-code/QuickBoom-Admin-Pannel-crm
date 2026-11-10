@@ -54,7 +54,7 @@ export default function HrmDashboardPage() {
         actions={<Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setRefresh((item) => item + 1)}><FontAwesomeIcon icon={faRotate} className="mr-1.5 size-3.5" />Refresh</Button>}
       />
       <HrmNotice loading={false} error={error} onRetry={() => setRefresh((item) => item + 1)} />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard title="Total Workforce" value={value(summary?.totalEmployees ?? reports?.workforce?.total)} icon={faUsers} iconColor="text-brand" iconBg="bg-brand-light" />
         <StatCard title="Present Today" value={value(summary?.present)} icon={faCalendarCheck} iconColor="text-brand" iconBg="bg-brand-light" />
         <StatCard title="Absent Today" value={value(summary?.absent)} icon={faCalendarXmark} iconColor="text-rose-600" iconBg="bg-rose-50" />

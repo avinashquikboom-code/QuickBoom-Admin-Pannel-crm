@@ -371,7 +371,7 @@ export default function LeaveManagementPage() {
           </Select>
         </DrawerFormField>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3">
           <DrawerFormField label="Start Date" required>
             <Input required type="date" value={formData.startDate} onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))} className="h-9 text-xs"/>
           </DrawerFormField>

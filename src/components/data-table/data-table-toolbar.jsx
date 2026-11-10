@@ -20,7 +20,7 @@ export function DataTableToolbar({
 
     return (
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-slate-100">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 {!hideSearch && <div className="relative w-full sm:w-64 lg:w-72">
                     <FontAwesomeIcon
                         icon={faMagnifyingGlass}
@@ -72,7 +72,7 @@ export function DataTableToolbar({
                 )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
                 {actions}
                 <DataTableViewOptions table={table} />
             </div>

@@ -22,7 +22,7 @@ export function Pagination({ page = 1, totalPages = 1, onPageChange, className =
     }, [page, totalPages]);
 
     return (
-        <nav aria-label="Pagination" className={cn('flex items-center gap-1.5', className)}>
+        <nav aria-label="Pagination" className={cn('flex max-w-full flex-wrap items-center gap-1.5', className)}>
             <Button
                 variant="outline"
                 size="sm"
@@ -35,7 +35,7 @@ export function Pagination({ page = 1, totalPages = 1, onPageChange, className =
                 <span className="hidden sm:inline">Prev</span>
             </Button>
 
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
                 {pages.map((p, idx) => {
                     if (p === '...') {
                         return (

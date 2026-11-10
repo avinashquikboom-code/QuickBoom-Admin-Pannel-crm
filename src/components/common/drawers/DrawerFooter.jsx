@@ -20,7 +20,7 @@ export function DrawerFooter({
   return (
     <SheetFooter
       className={cn(
-        "shrink-0 flex-row items-center justify-end gap-2 sm:gap-2.5 border-t border-slate-200/80 bg-slate-50/80 px-4 py-3 sm:px-6 sm:py-4",
+        "shrink-0 flex-wrap flex-row items-center justify-end gap-2 sm:gap-2.5 border-t border-slate-200/80 bg-slate-50/80 px-4 py-3 sm:px-6 sm:py-4",
         className
       )}
       {...props}
