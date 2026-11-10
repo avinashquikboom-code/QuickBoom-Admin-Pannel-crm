@@ -18,7 +18,6 @@ import {
     faLayerGroup,
     faRightFromBracket,
     faStar,
-    faTrash,
     faUser,
     faVideo,
 } from '@fortawesome/free-solid-svg-icons';
@@ -51,7 +50,6 @@ const groups = [
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
     { name: 'Content Management', icon: faVideo, items: contentNavigation },
-    { name: 'Data Management', icon: faTrash, href: '/admin/settings/data-management' },
     { name: 'Reports', icon: faChartBar, href: '/admin/reports' },
     { name: 'Settings', icon: faGear, items: settingsNavigation },
 ];
