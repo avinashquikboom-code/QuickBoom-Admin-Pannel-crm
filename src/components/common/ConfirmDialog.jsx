@@ -37,7 +37,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
       <AlertDialogContent className="sm:max-w-md bg-white border border-slate-200 shadow-xl rounded-xl">
         <div className="flex items-start gap-4">
           {getIcon()}
-          <div className="flex-1 space-y-1">
+          <div className="min-w-0 flex-1 space-y-1">
             <AlertDialogHeader className="p-0 text-left">
               <AlertDialogTitle className="text-base font-semibold text-slate-900">
                 {title}
@@ -56,7 +56,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
           </div>
         </div>
 
-        <AlertDialogFooter className="mt-4 flex flex-row items-center justify-end gap-2 border-t border-slate-100 pt-3">
+        <AlertDialogFooter className="mt-4 flex flex-wrap flex-row items-center justify-end gap-2 border-t border-slate-100 pt-3">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs sm:text-sm">
             {cancelLabel}
           </Button>

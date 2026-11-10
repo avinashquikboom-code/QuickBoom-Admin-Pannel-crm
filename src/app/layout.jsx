@@ -6,6 +6,9 @@ import { themeVariables } from '@/theme/theme';
 
 const inter = Inter({ variable: '--font-inter', subsets: ['latin'], weight: ['400', '500', '600', '700'] });
 
+// Let supporting mobile browsers resize drawer content above the keyboard.
+export const viewport = { interactiveWidget: 'resizes-content' };
+
 export const metadata = {
   title: 'QB Suite Admin',
   description: 'Central administration for CRM, Production and Customer.',

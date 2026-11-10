@@ -180,7 +180,7 @@ export default function CampaignsPage() {
           <Input required placeholder="e.g. Q1 Healthcare Inbound" value={name} onChange={(e) => setName(e.target.value)} className="h-9 text-xs"/>
         </DrawerFormField>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DrawerFormField label="Attribution Channel">
             <Select value={channel} onValueChange={(val) => setChannel(val || 'Email')}>
               <SelectTrigger className="h-9 text-xs w-full">

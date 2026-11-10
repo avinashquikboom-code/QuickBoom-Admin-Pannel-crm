@@ -189,7 +189,7 @@ export default function SalarySlipsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 border border-slate-200/80 p-3.5 rounded-lg bg-white">
+              <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-4 border border-slate-200/80 p-3.5 rounded-lg bg-white">
                 <div className="space-y-1.5">
                   <span className="font-bold uppercase text-[10px] text-slate-400 block pb-1 border-b">
                     Gross Earnings

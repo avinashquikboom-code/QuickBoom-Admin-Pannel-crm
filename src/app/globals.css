@@ -98,3 +98,23 @@
  --text-2xl: var(--type-2xl);
  --text-3xl: var(--type-3xl);
 }
+
+/* Shared containment: grids and form controls may shrink without hiding data. */
+@layer base {
+  input, select, textarea { min-width: 0; max-width: 100%; }
+}
+#main-content { min-height: 0; }
+#main-content > *, .grid > *, [data-slot="card-content"] { min-width: 0; }
+[data-slot="sheet-content"], [data-slot="dialog-content"], [data-slot="alert-dialog-content"] {
+  overflow-wrap: anywhere;
+}
+[data-slot="sheet-content"] { max-height: 100dvh; }
+[data-slot="sheet-header"], [data-slot="dialog-header"] { padding-right: 3rem; }
+[data-slot="sheet-footer"] { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+[data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"] {
+  max-width: calc(100vw - 1rem);
+}
+[data-slot="dialog-content"] { width: min(100% - 2rem, 100%); }
+@media (max-width: 639px) {
+  [data-slot="sheet-content"][data-side="right"] { width: 100%; max-width: 100%; border-radius: 0; }
+}

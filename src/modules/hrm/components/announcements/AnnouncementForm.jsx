@@ -45,7 +45,7 @@ function AnnouncementFormFields({ open, onOpenChange, announcement, onSave, }) {
           <Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Q2 Corporate Summit & Roadmap All-Hands" className="h-9 text-xs"/>
         </DrawerFormField>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DrawerFormField label="Category">
             <Select value={category} onValueChange={(val) => setCategory(val)}>
               <SelectTrigger className="h-9 text-xs w-full">
@@ -111,7 +111,7 @@ function AnnouncementFormFields({ open, onOpenChange, announcement, onSave, }) {
         </DrawerFormField>
 
         {/* Toggles */}
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" checked={isImportant} onChange={(e) => setIsImportant(e.target.checked)} className="rounded border-slate-300 text-brand focus:ring-brand"/>
             <span className="text-xs font-semibold text-slate-800">

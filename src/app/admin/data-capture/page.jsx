@@ -92,7 +92,7 @@ function SourceCounts({ rows }) {
   const counts = rows.reduce((groups, row) => { const key = row.source || 'Unknown'; groups[key] = (groups[key] || 0) + 1; return groups; }, {});
   const entries = Object.entries(counts);
   if (!entries.length) return null;
-  return <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{entries.map(([source, count]) => <div key={source} className="rounded-xl border bg-white p-3"><p className="text-xs text-slate-500">{source}</p><p className="text-lg font-semibold">{count}</p><p className="text-[11px] text-slate-400">On this page</p></div>)}</div>;
+  return <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">{entries.map(([source, count]) => <div key={source} className="rounded-xl border bg-white p-3"><p className="text-xs text-slate-500">{source}</p><p className="text-lg font-semibold">{count}</p><p className="text-[11px] text-slate-400">On this page</p></div>)}</div>;
 }
 
 function importStatus(row) {

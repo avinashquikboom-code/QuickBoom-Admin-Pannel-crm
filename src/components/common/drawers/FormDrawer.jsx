@@ -54,7 +54,7 @@ export function FormDrawer({
   const formBody = (
     <div
       className={cn(
-        "flex-1 overflow-y-auto px-6 py-5 text-xs text-slate-700 space-y-4",
+        "min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-5 text-xs text-slate-700 space-y-4",
         bodyClassName
       )}
     >
@@ -75,7 +75,7 @@ export function FormDrawer({
         {onSubmit ? (
           <form
             onSubmit={handleFormSubmit}
-            className={cn("flex h-full w-full flex-col", className)}
+            className={cn("flex min-h-0 h-full w-full flex-col", className)}
           >
             <DrawerHeader title={title} description={description} />
             {formBody}
@@ -92,7 +92,7 @@ export function FormDrawer({
             )}
           </form>
         ) : (
-          <div className={cn("flex h-full w-full flex-col", className)}>
+          <div className={cn("flex min-h-0 h-full w-full flex-col", className)}>
             <DrawerHeader title={title} description={description} />
             {formBody}
             {showFooter && (

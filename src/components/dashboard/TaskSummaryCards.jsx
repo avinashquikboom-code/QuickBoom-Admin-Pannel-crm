@@ -55,7 +55,7 @@ export function TaskSummaryCards() {
                     Team task status across all projects
                 </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3 p-5 pt-2">
+            <CardContent className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3 p-5 pt-2">
                 {ITEMS.map((item) => (
                     <div
                         key={item.key}

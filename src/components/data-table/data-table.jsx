@@ -77,7 +77,7 @@ export function DataTable({
     });
 
     return (
-        <div className={cn('space-y-4 rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden', className)}>
+        <div className={cn('min-w-0 max-w-full space-y-4 rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden', className)}>
             <DataTableToolbar
                 table={table}
                 searchKey={searchKey}
@@ -88,7 +88,7 @@ export function DataTable({
             />
 
             <div className="relative overflow-x-auto">
-                <Table className="w-full text-xs text-left max-md:[&_thead]:sr-only max-md:[&_table]:block max-md:[&_tbody]:block max-md:[&_tbody_tr]:mb-3 max-md:[&_tbody_tr]:grid max-md:[&_tbody_tr]:grid-cols-2 max-md:[&_tbody_tr]:gap-x-2 max-md:[&_tbody_tr]:rounded-2xl max-md:[&_tbody_tr]:border max-md:[&_tbody_tr]:border-slate-200 max-md:[&_tbody_tr]:bg-white max-md:[&_tbody_tr]:p-4 max-md:[&_tbody_tr]:shadow-2xs max-md:[&_td]:block max-md:[&_td]:min-w-0 max-md:[&_td]:border-0 max-md:[&_td]:px-1 max-md:[&_td]:py-1.5 max-md:[&_td[colspan]]:col-span-2">
+                <Table className="w-full text-xs text-left">
                     {caption && <TableCaption className="sr-only">{caption}</TableCaption>}
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (

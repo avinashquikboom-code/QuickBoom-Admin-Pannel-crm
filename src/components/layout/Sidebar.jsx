@@ -211,14 +211,12 @@ function SidebarContent({ className = '', onNavigate }) {
     const isCollapsed = collapsed && !onNavigate;
 
     React.useEffect(() => {
-        if (typeof window !== 'undefined' && !onNavigate) {
-            const checkTablet = () => {
-                if (window.innerWidth >= 768 && window.innerWidth < 1024) {
-                    setCollapsed(true);
-                }
-            };
-            checkTablet();
-        }
+        if (onNavigate) return;
+        const tablet = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
+        const update = () => { if (tablet.matches) setCollapsed(true); };
+        update();
+        tablet.addEventListener('change', update);
+        return () => tablet.removeEventListener('change', update);
     }, [setCollapsed, onNavigate]);
 
     return (

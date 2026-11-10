@@ -34,7 +34,7 @@ export default function CustomerDashboardPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <PageHeader title="Customer Dashboard" description="Customer, subscription, invoice, and revenue totals from the existing APIs." />
-      <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-4">
         <Input type="date" aria-label="From date" value={filters.dateFrom} onChange={(event) => setFilters({ ...filters, dateFrom: event.target.value })} />
         <Input type="date" aria-label="To date" value={filters.dateTo} onChange={(event) => setFilters({ ...filters, dateTo: event.target.value })} />
         <select aria-label="Customer status" className="h-9 rounded-md border px-2 text-sm" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>

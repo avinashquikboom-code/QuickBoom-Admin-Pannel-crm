@@ -80,7 +80,7 @@ export default function EmployeesPage() {
           </Button>}/>
 
       {/* Summary KPI Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <div className="p-3.5 rounded-xl border border-slate-200 bg-white">
           <p className="text-[11px] font-semibold text-slate-400 uppercase">
             Total Headcount

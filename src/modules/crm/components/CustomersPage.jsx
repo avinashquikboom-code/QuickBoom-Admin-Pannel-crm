@@ -175,7 +175,7 @@ export default function CustomersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-2.5 rounded-lg border border-slate-200">
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">Total Revenue</span>
                   <div className="text-base font-bold text-brand-dark">{currency.format(selectedContact.totalRevenue)}</div>
@@ -206,7 +206,7 @@ export default function CustomersPage() {
         submitLabel="Save Account"
         size="standard"
       >
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DrawerFormField label="Full Name" required>
             <Input required placeholder="e.g. Maria Santos" value={newName} onChange={(e) => setNewName(e.target.value)} className="h-9 text-xs"/>
           </DrawerFormField>
@@ -215,7 +215,7 @@ export default function CustomersPage() {
           </DrawerFormField>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DrawerFormField label="Job Title / Role">
             <Input placeholder="VP Operations" value={newRole} onChange={(e) => setNewRole(e.target.value)} className="h-9 text-xs"/>
           </DrawerFormField>
@@ -224,7 +224,7 @@ export default function CustomersPage() {
           </DrawerFormField>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DrawerFormField label="Phone">
             <Input placeholder="+1 (555) 000-0000" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className="h-9 text-xs"/>
           </DrawerFormField>

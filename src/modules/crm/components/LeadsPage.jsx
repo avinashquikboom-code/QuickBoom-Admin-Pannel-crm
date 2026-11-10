@@ -233,7 +233,7 @@ export default function LeadsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-2.5 rounded-lg border border-slate-200">
                   <span className="text-[10px] text-slate-400 uppercase font-semibold">Deal Value</span>
                   <div className="text-base font-bold text-brand-dark">{currency.format(selectedLead.value)}</div>
@@ -280,7 +280,7 @@ export default function LeadsPage() {
         submitLabel="Save Lead"
         size="standard"
       >
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DrawerFormField label="Contact Name" required>
             <Input required placeholder="e.g. John Miller" value={newName} onChange={(e) => setNewName(e.target.value)} className="h-9 text-xs"/>
           </DrawerFormField>
@@ -289,7 +289,7 @@ export default function LeadsPage() {
           </DrawerFormField>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DrawerFormField label="Email" required>
             <Input type="email" required placeholder="john@company.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="h-9 text-xs"/>
           </DrawerFormField>
@@ -298,7 +298,7 @@ export default function LeadsPage() {
           </DrawerFormField>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DrawerFormField label={`Estimated Value (${CURRENCY_SYMBOL})`}>
             <Input type="number" placeholder="25000" value={newValue} onChange={(e) => setNewValue(e.target.value)} className="h-9 text-xs"/>
           </DrawerFormField>

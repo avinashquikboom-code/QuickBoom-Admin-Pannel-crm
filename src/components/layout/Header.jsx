@@ -20,6 +20,12 @@ export function Header() {
     const router = useRouter();
     const toggleCollapsed = useSidebarStore((s) => s.toggleCollapsed);
     const [mobileOpen, setMobileOpen] = React.useState(false);
+    React.useEffect(() => {
+        const desktop = window.matchMedia('(min-width: 768px)');
+        const update = () => { if (desktop.matches) setMobileOpen(false); };
+        desktop.addEventListener('change', update);
+        return () => desktop.removeEventListener('change', update);
+    }, []);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
     const notifications = [
@@ -74,11 +80,14 @@ export function Header() {
             });
         }
     };
-    return (<header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/95 px-3 sm:px-6 backdrop-blur-sm">
+    return (<header className="sticky top-0 z-40 flex h-16 shrink-0 gap-3 w-full items-center justify-between border-b border-slate-200/80 bg-white/95 px-3 sm:px-6 backdrop-blur-sm">
       {/* Mobile full-width search overlay */}
       {mobileSearchOpen ? (
-        <form onSubmit={handleSearchSubmit} className="flex flex-1 items-center gap-2 sm:hidden">
-          <div className="relative flex-1">
+        <form onSubmit={handleSearchSubmit} className="flex min-w-0 flex-1 items-center gap-2">
+          <button type="button" aria-label="Open Navigation" onClick={() => { setMobileSearchOpen(false); setMobileOpen(true); }} className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-700 md:hidden">
+            <FontAwesomeIcon icon={faBars} className="size-5" />
+          </button>
+          <div className="relative min-w-0 flex-1">
             <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400"/>
             <Input
               autoFocus
@@ -127,7 +136,7 @@ export function Header() {
           </div>
 
           {/* Right: Search, Notifications & User Avatar */}
-          <div className="flex items-center gap-1.5 sm:gap-3">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
             {/* Mobile Search Icon Button */}
             <button
               type="button"
@@ -139,14 +148,14 @@ export function Header() {
             </button>
 
             {/* Quick Search (Tablet & Desktop) */}
-            <form onSubmit={handleSearchSubmit} className="relative hidden sm:block w-40 md:w-52 lg:w-64">
+            <form onSubmit={handleSearchSubmit} className="relative hidden min-w-0 sm:block w-40 md:w-52 lg:w-64">
               <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
               <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search employee, lead, deal..." className="h-9 pl-8 pr-3 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-brand"/>
             </form>
 
             {/* Notifications Popover */}
             <Popover>
-              <PopoverTrigger className="relative flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
+              <PopoverTrigger aria-label="Notifications" className="relative flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
                 <FontAwesomeIcon icon={faBell} className="size-4.5"/>
                 <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-primary-foreground shadow-xs">
                   2
@@ -189,7 +198,7 @@ export function Header() {
 
         {/* Admin Profile Dropdown */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg p-1 hover:bg-slate-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand">
+          <DropdownMenuTrigger aria-label="Admin profile" className="flex items-center gap-2 rounded-lg p-1 hover:bg-slate-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand">
             <Avatar className="size-8 border border-slate-200">
               <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="Alexander Vance"/>
               <AvatarFallback className="bg-brand text-primary-foreground font-semibold text-xs">

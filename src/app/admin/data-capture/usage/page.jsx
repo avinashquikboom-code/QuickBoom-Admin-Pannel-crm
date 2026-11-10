@@ -51,7 +51,7 @@ export default function UsageQuotaPage() {
             {Number(remaining) <= 0 && <p className="mt-2 text-sm text-rose-700">The usage API reports no remaining quota.</p>}
             {Number(remaining) > 0 && percent != null && percent >= 80 && <p className="mt-2 text-sm text-amber-700">More than 80% of the returned quota is used.</p>}
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-1 min-[440px]:grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {(() => {
               const bars = [
                 ['Captured', usage.totalLeadsCaptured],
