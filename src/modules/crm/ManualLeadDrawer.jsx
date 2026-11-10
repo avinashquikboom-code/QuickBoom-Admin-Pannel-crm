@@ -11,23 +11,10 @@ import { faBuilding, faLink } from '@fortawesome/free-solid-svg-icons';
 import { faFacebook, faInstagram, faLinkedin, faPinterest, faTiktok, faWhatsapp, faXTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
 import { loadDepartments } from '@/modules/master/master-api';
 
-const LEAD_STAGES = [
-  ['NEW', 'New'],
-  ['CONTACTED', 'Contacted'],
-  ['CALL_BACK', 'Call Back'],
-  ['DETAILS_SENT', 'Details Sent'],
-  ['FOLLOW_UP', 'Follow-Up'],
-  ['VISIT_SCHEDULED', 'Visit Scheduled'],
-  ['VISIT_DONE', 'Visit Done'],
-  ['PROPOSAL_SENT', 'Proposal Sent'],
-  ['NEGOTIATION', 'Negotiation'],
-  ['FINAL_CALL', 'Final Call'],
-  ['WON', 'Won'],
-  ['LOST', 'Lost'],
-];
-function stageLabel(value) {
+function stageLabel(value, stages = []) {
   const key = String(value || '').toUpperCase();
-  return LEAD_STAGES.find(([stage]) => stage === key)?.[1] || value || '—';
+  const match = stages.find((stage) => String(stage.key || '').toUpperCase() === key || stage.name === value);
+  return match?.name || value || '—';
 }
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 const SOURCE_OPTIONS = ['Manual', 'Google Maps', 'Google Places', 'Website', 'WhatsApp', 'Facebook', 'Instagram', 'Referral', 'Other'];
@@ -85,7 +72,7 @@ async function persistLead(form, id) {
   if (leadId && form.whatsapp && form.whatsapp !== form.phone) await addLeadNote(leadId, `WhatsApp: ${form.whatsapp}`);
 }
 
-function LeadForm({ form, setForm, sources, employees, departments }) {
+function LeadForm({ form, setForm, sources, employees, departments, stages = [] }) {
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
   return <div className="grid gap-3 sm:grid-cols-2">
     <Field label="Business image" className="sm:col-span-2"><div className="flex items-center gap-3"><LeadAvatar lead={{ ...form, imageUrl: form.imagePreview || form.imageUrl }} /><input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { toast.error('Use a JPG, PNG, or WebP image.'); event.target.value = ''; return; } if (file.size > 10 * 1024 * 1024) { toast.error('Image must be 10 MB or smaller.'); event.target.value = ''; return; } setForm({ ...form, imageFile: file, imagePreview: URL.createObjectURL(file) }); }} /></div></Field>
@@ -105,7 +92,7 @@ function LeadForm({ form, setForm, sources, employees, departments }) {
     <Field label="Lead source"><select className="h-9 rounded-md border px-2 text-sm" value={form.source || 'Manual'} onChange={set('source')}>{sources.map((source) => <option key={source}>{source}</option>)}</select></Field>
     <Field label="Lead category"><Input value={form.category || ''} onChange={set('category')} /></Field>
     <Field label="Priority"><select className="h-9 rounded-md border px-2 text-sm" value={form.priority || 'MEDIUM'} onChange={set('priority')}>{PRIORITIES.map((item) => <option key={item}>{item}</option>)}</select></Field>
-    <Field label="Lead stage"><select className="h-9 rounded-md border px-2 text-sm" value={form.status || 'NEW'} onChange={set('status')}>{LEAD_STAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+    <Field label="Lead stage"><select className="h-9 rounded-md border px-2 text-sm" value={form.stageId || form.status || ''} onChange={(event) => { const stage = stages.find((item) => String(item.id) === event.target.value || item.key === event.target.value); setForm({ ...form, status: stage?.key || event.target.value, stageId: stage?.id || '' }); }}>{stages.filter((stage) => stage.isActive !== false || stage.key === form.status || String(stage.id) === String(form.stageId)).map((stage) => <option key={stage.id || stage.key} value={stage.id || stage.key}>{stage.name}{stage.isActive === false ? ' (inactive)' : ''}</option>)}</select></Field>
     <Field label="Assigned employee"><select className="h-9 rounded-md border px-2 text-sm" value={form.assignedToId || ''} onChange={set('assignedToId')}><option value="">Unassigned</option>{employees.map((employee) => <option key={employee.recordId} value={employee.recordId}>{employee.name}</option>)}</select></Field>
     <Field label="Estimated deal value"><Input type="number" min="0" value={form.value ?? ''} onChange={set('value')} /></Field>
     <Field label="Notes" className="sm:col-span-2"><Input value={form.notes || ''} onChange={set('notes')} /></Field>
@@ -209,7 +196,7 @@ function LeadAvatar({ lead }) {
   return <img src={src} alt="" width={40} height={40} className={`${frame} object-cover`} onError={() => setFailed(true)} />;
 }
 
-export { LEAD_STAGES, stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar };
+export { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar };
 
 export function ManualLeadDrawer({ open, onOpenChange }) {
   const [form, setForm] = React.useState({ ...blank });

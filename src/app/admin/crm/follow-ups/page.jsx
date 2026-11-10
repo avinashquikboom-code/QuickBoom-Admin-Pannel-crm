@@ -87,7 +87,7 @@ export default function FollowUpsRoute() {
       { header: 'Follow-up Outcome', cell: (row) => row.latestFollowUp?.outcome || '—' },
       { header: 'Assigned Employee', cell: (row) => personName(row.assignedTo || row.employee) },
       { header: 'Lead Status', cell: (row) => <StatusBadge status={row.lead?.status || row.stage?.name || row.status} /> },
-      { header: 'Deal Stage', cell: (row) => row.deal?.stage ? <span className={`inline-flex rounded-full px-2 py-0.5 text-xs ${row.deal.stage === 'Final Call' ? 'border border-[#C2410C] bg-[#FFF7ED] text-[#C2410C]' : 'border border-[#E2E8E5] bg-white'}`}>{row.deal.stage}</span> : '—' },
+      { header: 'Deal Stage', cell: (row) => row.deal?.stage ? <span className="inline-flex rounded-full border border-[#E2E8E5] bg-white px-2 py-0.5 text-xs">{row.deal.stage}</span> : '—' },
       { header: 'Next Follow-up Date', cell: (row) => <NextDate row={row} /> },
     ]}
     renderForm={(form, setForm) => <FollowUpForm form={form} setForm={setForm} leads={leads} />}
