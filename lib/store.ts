@@ -81,6 +81,10 @@ export const useAuthStore = create<AuthState>()(
             if (refreshToken) {
               localStorage.setItem('refreshToken', refreshToken);
             }
+            if (localStorage.getItem('qb_admin_token') || sessionStorage.getItem('qb_admin_token')) {
+              localStorage.setItem('qb_admin_token', token);
+              sessionStorage.setItem('qb_admin_token', token);
+            }
             const raw = localStorage.getItem('quikboom-next-auth-storage');
             if (raw) {
               const parsed = JSON.parse(raw);
@@ -134,6 +138,11 @@ export const useAuthStore = create<AuthState>()(
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('quikboom-next-auth-storage');
+            localStorage.removeItem('qb_admin_token');
+            localStorage.removeItem('qb_admin_user');
+            localStorage.removeItem('qb_admin_remember');
+            sessionStorage.removeItem('qb_admin_token');
+            sessionStorage.removeItem('qb_admin_user');
           } catch (_) {}
         }
         set({

@@ -10,14 +10,16 @@ function storage(remember) {
 }
 
 export function persistSession({ token, user, remember }) {
-  const store = storage(remember);
-  if (!store || !token) {
+  if (typeof window === 'undefined' || !token) {
     return;
   }
-  store.setItem(TOKEN_KEY, token);
-  if (user) {
-    store.setItem(USER_KEY, JSON.stringify(user));
-  }
+  const encodedUser = user ? JSON.stringify(user) : null;
+  const primary = storage(remember);
+  primary?.setItem(TOKEN_KEY, token);
+  if (encodedUser) primary?.setItem(USER_KEY, encodedUser);
+  // localStorage is shared by new tabs. sessionStorage alone is not.
+  window.localStorage.setItem(TOKEN_KEY, token);
+  if (encodedUser) window.localStorage.setItem(USER_KEY, encodedUser);
   if (remember) {
     window.localStorage.setItem(REMEMBER_KEY, '1');
   } else {
