@@ -24,7 +24,7 @@ export function ProfileEditDrawer({ user, profile, open, onOpenChange, onSaved }
   const [preview, setPreview] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
-  React.useEffect(() => { if (open) { setForm({ firstName: user.firstName || '', lastName: user.lastName || '', phone: user.phone || '' }); setFile(null); setError(''); } }, [open, user]);
+  React.useEffect(() => { if (open) { setForm({ firstName: user.firstName || '', lastName: user.lastName || '', phone: user.phone || '' }); setFile(null); setError(''); } }, [open]);
   React.useEffect(() => { if (!file) { setPreview(''); return; } const url = URL.createObjectURL(file); setPreview(url); return () => URL.revokeObjectURL(url); }, [file]);
   async function save() {
     setBusy(true); setError('');

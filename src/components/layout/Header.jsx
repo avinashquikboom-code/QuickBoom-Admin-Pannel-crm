@@ -11,7 +11,7 @@ import { Input } from '@/components/common/Input';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/common/Drawer';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, } from '@/components/common/Dropdown';
 import { Popover, PopoverContent, PopoverTrigger, } from '@/components/common/Popover';
-import { Avatar, AvatarFallback } from '@/components/common/Avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
 import { Badge } from '@/components/common/Badge';
 import { toast } from '@/hooks/use-toast';
 import { logoutAdmin } from '@/lib/auth/admin-login';
@@ -25,7 +25,8 @@ export function Header() {
         const update = () => setSessionUser(readSession()?.user ?? null);
         update();
         window.addEventListener('storage', update);
-        return () => window.removeEventListener('storage', update);
+        window.addEventListener('qb-admin-profile-updated', update);
+        return () => { window.removeEventListener('storage', update); window.removeEventListener('qb-admin-profile-updated', update); };
     }, []);
     const profile = adminProfile(sessionUser);
     const toggleCollapsed = useSidebarStore((s) => s.toggleCollapsed);
@@ -210,6 +211,7 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger aria-label={`Account menu for ${profile.name}`} className="flex min-w-0 items-center gap-2 rounded-lg p-1 hover:bg-slate-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand">
             <Avatar className="size-8 border border-slate-200">
+              <AvatarImage src={sessionUser?.avatar || undefined} alt={profile.name} />
               <AvatarFallback className="bg-brand text-primary-foreground font-semibold text-xs">
                 {profile.initials}
               </AvatarFallback>

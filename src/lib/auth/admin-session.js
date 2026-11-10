@@ -61,3 +61,12 @@ export function readSession() {
 export function getAuthToken() {
   return readSession()?.token ?? null;
 }
+
+// Update only the active authenticated account; keep credentials and remember mode.
+export function updateSessionUser(user) {
+  const session = readSession();
+  if (!session || !user || (session.user?.id && String(session.user.id) !== String(user.id))) return;
+  const store = storage(session.remember);
+  store.setItem(USER_KEY, JSON.stringify(user));
+  window.dispatchEvent(new Event('qb-admin-profile-updated'));
+}
