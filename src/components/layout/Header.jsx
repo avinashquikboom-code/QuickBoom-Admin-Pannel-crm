@@ -11,13 +11,23 @@ import { Input } from '@/components/common/Input';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/common/Drawer';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, } from '@/components/common/Dropdown';
 import { Popover, PopoverContent, PopoverTrigger, } from '@/components/common/Popover';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
+import { Avatar, AvatarFallback } from '@/components/common/Avatar';
 import { Badge } from '@/components/common/Badge';
 import { toast } from '@/hooks/use-toast';
 import { logoutAdmin } from '@/lib/auth/admin-login';
+import { readSession } from '@/lib/auth/admin-session';
+import { adminProfile } from '@/lib/auth/admin-profile';
 import { useSidebarStore } from '@/hooks/use-sidebar-store';
 export function Header() {
     const router = useRouter();
+    const [sessionUser, setSessionUser] = React.useState(null);
+    React.useEffect(() => {
+        const update = () => setSessionUser(readSession()?.user ?? null);
+        update();
+        window.addEventListener('storage', update);
+        return () => window.removeEventListener('storage', update);
+    }, []);
+    const profile = adminProfile(sessionUser);
     const toggleCollapsed = useSidebarStore((s) => s.toggleCollapsed);
     const [mobileOpen, setMobileOpen] = React.useState(false);
     React.useEffect(() => {
@@ -198,19 +208,18 @@ export function Header() {
 
         {/* Admin Profile Dropdown */}
         <DropdownMenu>
-          <DropdownMenuTrigger aria-label="Admin profile" className="flex items-center gap-2 rounded-lg p-1 hover:bg-slate-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand">
+          <DropdownMenuTrigger aria-label={`Account menu for ${profile.name}`} className="flex min-w-0 items-center gap-2 rounded-lg p-1 hover:bg-slate-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand">
             <Avatar className="size-8 border border-slate-200">
-              <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="Alexander Vance"/>
               <AvatarFallback className="bg-brand text-primary-foreground font-semibold text-xs">
-                AV
+                {profile.initials}
               </AvatarFallback>
             </Avatar>
-            <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-900 leading-tight">
-                Alexander Vance
+            <div className="hidden min-w-0 max-w-36 lg:max-w-48 sm:flex flex-col text-left">
+              <span className="truncate text-xs font-semibold text-slate-900 leading-tight">
+                {profile.name}
               </span>
-              <span className="text-[10px] text-slate-500 font-medium">
-                Super Admin
+              <span className="truncate text-[10px] text-slate-500 font-medium">
+                {profile.role}
               </span>
             </div>
           </DropdownMenuTrigger>
@@ -218,16 +227,16 @@ export function Header() {
           <DropdownMenuContent align="end" className="w-[min(240px,calc(100vw-2rem))] bg-white border border-slate-200 shadow-xl rounded-xl p-1.5">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="px-2 py-1.5">
-                <div className="flex flex-col">
+                <div className="flex min-w-0 flex-col break-words">
                   <span className="text-xs font-semibold text-slate-900">
-                    Alexander Vance
+                    {profile.name}
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    alexander.vance@qbsuite.com
+                    {profile.email}
                   </span>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => router.push('/admin/hrm/employees')} className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+              <DropdownMenuItem onClick={() => router.push('/admin/profile')} className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                 <FontAwesomeIcon icon={faUserTie} className="size-4 text-slate-500"/>
                 <span>Admin Profile</span>
               </DropdownMenuItem>
