@@ -919,7 +919,7 @@ export default function GeneralSettingsPage() {
                     Used for employee attendance weekly summaries, shift scheduling calendars, and weekly sales metrics.
                   </p>
                 </div>
-              </div>
+                  </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
                 <Button
@@ -943,7 +943,7 @@ export default function GeneralSettingsPage() {
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                   Configure default currency symbol, ISO code, decimal precision, and Indian vs. International numbering.
                 </p>
-              </div>
+                  </div>
 
               {/* Live Preview Box */}
               <div className="rounded-xl border border-[#163A2E]/20 bg-[#E8F1EC] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -954,7 +954,7 @@ export default function GeneralSettingsPage() {
                   <p className="text-xl sm:text-2xl font-bold text-[#163A2E] mt-0.5 font-mono">
                     {liveCurrencyPreview}
                   </p>
-                </div>
+                  </div>
                 <div className="text-left sm:text-right">
                   <span className="text-[10px] font-semibold text-slate-500 uppercase">ISO Standard</span>
                   <p className="text-sm font-bold text-slate-800">{settings.currencyCode} ({settings.currencySymbol})</p>
@@ -1032,7 +1032,7 @@ export default function GeneralSettingsPage() {
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
+                  <div className="space-y-1.5">
                   <label className="block text-xs sm:text-sm font-semibold text-slate-800">
                     Currency Display Format
                   </label>

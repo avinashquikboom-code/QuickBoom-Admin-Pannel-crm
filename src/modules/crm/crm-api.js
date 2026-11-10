@@ -239,6 +239,8 @@ export function saveLeadStage(values, id) {
     ...(values.isActive == null ? {} : { isActive: values.isActive !== false }),
     ...(values.emailEnabled == null ? {} : { emailEnabled: values.emailEnabled !== false }),
     ...(values.whatsappEnabled == null ? {} : { whatsappEnabled: values.whatsappEnabled !== false }),
+    ...(values.emailTemplateId !== undefined ? { emailTemplateId: Number(values.emailTemplateId) || 0 } : {}),
+    ...(values.whatsappTemplateId !== undefined ? { whatsappTemplateId: Number(values.whatsappTemplateId) || 0 } : {}),
   };
   return id ? api.patch(`/leads/stages/${id}`, body) : api.post('/leads/stages', body);
 }
