@@ -55,7 +55,7 @@ export function CrmScreen({ hideTitleCard = false, title, description, actionLab
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl min-w-0 space-y-4 sm:space-y-6 overflow-x-hidden">
+    <div className="max-w-none w-full min-w-0 space-y-4 sm:space-y-6 overflow-x-hidden">
       {hideTitleCard ? <div className="flex flex-wrap justify-end gap-2">{headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>}</div> : <PageHeader title={title} description={description} actions={headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>} />}
       {stats && <HrmStats items={stats(payload)} />}
       {(() => { const item = typeof gap === 'function' ? gap(rows) : gap; return item ? <HrmGap title={item.title} detail={item.detail} /> : null; })()}

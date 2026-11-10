@@ -108,7 +108,7 @@ export default function RemoteWorkPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="Remote Work" description="Remote work requests, approvals, and the dates covered by the current result set." actions={canReview ? <Button onClick={() => { setForm(emptyForm); setFormOpen(true); }}>New request</Button> : null} />
       <HrmStats items={[
         { label: 'Total', value: summary.totalRequests },

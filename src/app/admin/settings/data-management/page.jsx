@@ -129,7 +129,7 @@ export default function DataManagementPage() {
   }
 
   return (
-    <div className="mx-auto min-w-0 max-w-7xl space-y-5">
+    <div className="max-w-none w-full min-w-0 space-y-5">
       <PageHeader
         category="SYSTEM MANAGEMENT"
         title="Data Management"

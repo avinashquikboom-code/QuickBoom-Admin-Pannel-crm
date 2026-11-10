@@ -110,7 +110,7 @@ export default function CaptureHistoryPage() {
   const detail = session;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 overflow-x-hidden">
+    <div className="max-w-none min-w-0 w-full space-y-5 overflow-x-hidden">
       <PageHeader
         title="Capture History"
         description="Track captured records, sources, imports and capture activity."

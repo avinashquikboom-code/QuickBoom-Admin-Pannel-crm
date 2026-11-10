@@ -91,13 +91,13 @@ export default function ReportsPage() {
     }
   };
 
-  return <div className="mx-auto max-w-7xl space-y-5">
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-      <div>
+  return <div className="w-full min-w-0 max-w-none space-y-5">
+    <div className="flex w-full min-w-0 flex-col gap-3">
+      <div className="min-w-0">
         <h1 className="text-2xl font-semibold text-[#172B24]">Reports & Analytics</h1>
         <p className="text-sm text-[#718078]">Generate, view and download business reports.</p>
       </div>
-      <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 lg:max-w-3xl">
+      <div className="grid w-full min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
         <div className="relative sm:col-span-1"><FontAwesomeIcon icon={faSearch} className="absolute left-3 top-2.5 text-[#718078]" /><Input className="pl-9" placeholder="Search reports..." value={search} onChange={(event) => setSearch(event.target.value)} /></div>
         <Input type="date" aria-label="Start date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
         <Input type="date" aria-label="End date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
@@ -107,7 +107,7 @@ export default function ReportsPage() {
       {catalog.categories.map((item) => <button key={item.id} type="button" className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm ${category === item.id ? 'border-[#163A2E] bg-[#163A2E] text-white' : 'border-[#E2E8E5] bg-white text-[#172B24]'}`} onClick={() => setCategory(item.id)}><FontAwesomeIcon icon={ICONS[item.icon] || faFolder} />{item.name}</button>)}
     </div>
     {error && !active && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid w-full min-w-0 max-w-none gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))]">
       {reports.map((report) => <article key={report.id} className="flex min-w-0 flex-col rounded-2xl border border-[#E2E8E5] bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2"><span className="inline-flex size-9 items-center justify-center rounded-lg bg-[#E8F1EC] text-[#163A2E]"><FontAwesomeIcon icon={ICONS[catalog.categories.find((item) => item.id === report.category)?.icon] || faFolder} /></span><h2 className="font-semibold text-[#172B24]">{report.name}</h2></div>

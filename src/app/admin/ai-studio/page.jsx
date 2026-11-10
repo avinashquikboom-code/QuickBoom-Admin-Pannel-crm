@@ -35,7 +35,7 @@ export default function AiStudioPage() {
       ]}
       detail={(row) => <div className="space-y-2 text-sm"><p>{row.caption || 'No caption returned'}</p><p>{(row.hashtags || []).join(' ') || 'No hashtags returned'}</p>{row.mediaUrl && <a className="text-brand" href={row.mediaUrl} target="_blank" rel="noreferrer">Open media</a>}{row.errorMessage && <p className="text-rose-700">{row.errorMessage}</p>}</div>}
     />
-    <div className="mx-auto mt-4 max-w-7xl space-y-4">
+    <div className="max-w-none min-w-0 w-full mt-4 space-y-4">
       {allowed && <Button onClick={() => setOpen(true)}>Generate content</Button>}
       <h2 className="text-sm font-semibold">Publishing history</h2>
       <div className="overflow-x-auto"><DataTable label="Published posts" data={publishes} columns={[

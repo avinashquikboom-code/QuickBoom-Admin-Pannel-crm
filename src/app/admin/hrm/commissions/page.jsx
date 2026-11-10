@@ -87,7 +87,7 @@ export default function CommissionsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <div className="max-w-none min-w-0 w-full space-y-6">
       <PageHeader title="Commissions" description="Commission records and rates are read from the commission service. Amounts are not calculated in the browser." actions={canManage ? <Button onClick={() => setConfigOpen(true)}>Employee rate</Button> : null} />
       <HrmStats items={[
         { label: 'Total', value: inr(summary.totalCommission) },

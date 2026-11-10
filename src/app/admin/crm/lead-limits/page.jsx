@@ -26,7 +26,7 @@ export default function LeadLimitsRoute() {
     return () => { active = false; };
   }, [refresh]);
   const visible = rows.filter((row) => `${row.name} ${row.employeeCode} ${row.role}`.toLowerCase().includes(search.toLowerCase()));
-  return <div className="mx-auto max-w-7xl space-y-6">
+  return <div className="max-w-none min-w-0 w-full space-y-6">
     <PageHeader title="Lead Limits" description="Effective daily and monthly lead capacity returned by the lead-generation limit API. Remaining capacity is calculated by the backend." />
     <div className="flex gap-2"><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search employee or role" className="max-w-xs" /><Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button></div>
     {allowed && <form className="grid gap-2 rounded-xl border bg-white p-3 sm:grid-cols-5" onSubmit={async (event) => { event.preventDefault(); try { await saveRoleLimit(role); setRefresh((value) => value + 1); toast.success('Role limit saved'); } catch (err) { toast.error(crmError(err)); } }}><Input placeholder="Role name" value={role.roleName} onChange={(event) => setRole({ ...role, roleName: event.target.value })} required /><Input type="number" placeholder="Daily" value={role.dailyLimit} onChange={(event) => setRole({ ...role, dailyLimit: event.target.value })} required /><Input type="number" placeholder="Monthly" value={role.monthlyLimit} onChange={(event) => setRole({ ...role, monthlyLimit: event.target.value })} required /><Button type="submit">Save role limit</Button></form>}

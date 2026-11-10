@@ -253,60 +253,21 @@ function PageHeaderBase({
     return (
         <section
             aria-label={typeof title === 'string' ? title : 'Page Header'}
-            className={cn(
-                'relative overflow-hidden rounded-2xl border border-emerald-100/80 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50/80 p-4 sm:p-5 md:p-6 shadow-xs backdrop-blur-xs transition-all w-full',
-                className
-            )}
+            className={cn('flex w-full min-w-0 flex-col gap-4', className)}
         >
-            {/* Subtle dashboard-inspired architectural accent graphics in background */}
-            <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 size-52 rounded-full bg-brand/5 blur-2xl" />
-            <div aria-hidden="true" className="pointer-events-none absolute right-16 bottom-0 hidden lg:flex items-end gap-1.5 opacity-25">
-                <span className="w-2 rounded-t-sm bg-brand/40" style={{ height: '1.75rem' }} />
-                <span className="w-2 rounded-t-sm bg-brand/70" style={{ height: '2.5rem' }} />
-                <span className="w-2 rounded-t-sm bg-brand-dark/50" style={{ height: '1.25rem' }} />
-                <span className="w-2 rounded-t-sm bg-brand" style={{ height: '3.25rem' }} />
-            </div>
-
-            {/* Main Header Content */}
-            <div className="relative z-10 flex flex-col gap-3.5 sm:gap-4 lg:flex-row lg:items-center lg:justify-between w-full min-w-0">
-                {/* Left: Icon + Category + Title + Subtitle */}
-                <div className="flex items-start sm:items-center gap-3 sm:gap-4.5 min-w-0 flex-1">
-                    {resolvedIcon && (
-                        <div className="size-10 sm:size-12 rounded-xl bg-white border border-brand/20 shadow-xs flex items-center justify-center text-brand-dark shrink-0 ring-4 ring-brand/10">
-                            {React.isValidElement(resolvedIcon) ? (
-                                resolvedIcon
-                            ) : (
-                                <FontAwesomeIcon icon={resolvedIcon} className="size-4.5 sm:size-5.5 text-brand" />
-                            )}
-                        </div>
-                    )}
-
-                    <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            {resolvedCategory && (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-brand-light/90 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold tracking-[0.14em] uppercase text-brand-dark border border-brand/20">
-                                    <span className="size-1.5 rounded-full bg-brand" />
-                                    {resolvedCategory}
-                                </span>
-                            )}
+            <div className="flex w-full min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                    {(category || renderedBadge) && (
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                            {category && <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#163A2E]">{category}</p>}
                             {renderedBadge}
                         </div>
-
-                        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 leading-tight break-words">
-                            {title}
-                        </h1>
-
-                        {description && (
-                            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed break-words">
-                                {description}
-                            </p>
-                        )}
-                    </div>
+                    )}
+                    <h1 className="break-words text-2xl font-semibold text-[#172B24]">{title || routeMeta.title}</h1>
+                    {description && <p className="mt-1 break-words text-sm text-[#718078]">{description}</p>}
                 </div>
-
-                {/* Right: Actions & Controls */}
-                {(primaryAction || secondaryAction || actions || rightContent) && (
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-start sm:justify-end shrink-0 pt-1 lg:pt-0">
+                {(primaryAction || secondaryAction || actions || rightContent || resolvedIcon) && (
+                    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
                         {secondaryAction}
                         {primaryAction}
                         {actions}
@@ -314,55 +275,19 @@ function PageHeaderBase({
                     </div>
                 )}
             </div>
-
-            {/* Bottom Row: Optional Statistics or Custom Tabs */}
+            {children}
+            {tabs && <div className="min-w-0 overflow-x-auto">{tabs}</div>}
             {stats && (
-                <div className="relative z-10 mt-5 pt-4 border-t border-slate-200/70">
-                    {Array.isArray(stats) ? (
-                        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                            {stats.map((s, i) => (
-                                <div key={i} className="rounded-xl border border-slate-200/80 bg-white/90 p-3 shadow-2xs">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                                        {s.label}
-                                    </span>
-                                    <div className="mt-0.5 flex items-baseline gap-2">
-                                        <span className="text-lg font-bold text-slate-900">
-                                            {s.value}
-                                        </span>
-                                        {s.change && (
-                                            <span
-                                                className={cn(
-                                                    'text-[10px] font-semibold',
-                                                    s.changeType === 'increase'
-                                                        ? 'text-emerald-600'
-                                                        : s.changeType === 'decrease'
-                                                        ? 'text-rose-600'
-                                                        : 'text-slate-500'
-                                                )}
-                                            >
-                                                {s.change}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        stats
-                    )}
-                </div>
-            )}
-
-            {tabs && (
-                <div className="relative z-10 mt-4 pt-3 border-t border-slate-200/70">
-                    {tabs}
-                </div>
-            )}
-
-            {children && (
-                <div className="relative z-10 mt-4 pt-3">
-                    {children}
-                </div>
+                Array.isArray(stats) ? (
+                    <div className="grid w-full min-w-0 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))]">
+                        {stats.map((item, index) => (
+                            <div key={item.label || index} className="rounded-2xl border border-[#E2E8E5] bg-white p-4 shadow-sm">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-[#718078]">{item.label}</p>
+                                <p className="mt-2 text-2xl font-bold text-[#163A2E]">{item.value ?? '—'}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : stats
             )}
         </section>
     );

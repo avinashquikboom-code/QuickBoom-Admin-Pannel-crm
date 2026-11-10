@@ -112,7 +112,7 @@ export default function SalarySlipsPage() {
             ),
         },
     ];
-    return (<div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
+    return (<div className="max-w-none space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
       <PageHeader title="Salary Slips Repository" description="Salary slips returned by the payroll API." />
 
       {/* Filter Bar */}

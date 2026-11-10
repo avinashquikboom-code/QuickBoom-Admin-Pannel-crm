@@ -143,7 +143,7 @@ export default function IntegrationsPage() {
     }
   };
 
-  return <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
+  return <div className="max-w-none space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
     <PageHeader title="Integrations" description="Manage and configure third-party services connected to QB Suite." actions={<Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button>} />
     <HrmStats items={[{ label: 'Total integrations', value: counts.total }, { label: 'Connected', value: counts.connected }, { label: 'Not configured', value: counts.missing }, { label: 'Connection issues', value: counts.issues }]} />
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center w-full min-w-0">
