@@ -27,6 +27,9 @@ export function LoginFormCard({ className }) {
     }
     const errors = validateLoginForm({ email, password });
     setFieldErrors(errors);
+    if (!email.trim() && !password) {
+      toast.error('Please enter your email and password.', { id: 'login-missing-fields' });
+    }
     if (Object.keys(errors).length > 0) {
       return;
     }
@@ -35,14 +38,16 @@ export function LoginFormCard({ className }) {
     const trimmedEmail = email.trim();
     loginAdmin({ email: trimmedEmail, password, remember })
       .then(() => {
-        toast.success('Signed in successfully');
+        toast.success('Login successful. Welcome back!', { id: 'login-success' });
         const next = searchParams.get('next');
         const destination = next && next.startsWith('/') && !next.startsWith('//') ? next : '/admin/dashboard';
         router.push(destination);
         router.refresh();
       })
       .catch((error) => {
-        toast.error(error?.message || 'Unable to sign in');
+        const message = error?.message || 'Something went wrong. Please try again later.';
+        const notify = error?.level === 'warning' ? toast.warning : toast.error;
+        notify(message, { id: `login-${message}` });
       })
       .finally(() => setLoading(false));
   };
@@ -190,7 +195,7 @@ export function LoginFormCard({ className }) {
           {loading ? (
             <>
               <FontAwesomeIcon icon={icons.spinner} className="size-[18px] animate-spin" aria-hidden />
-              Signing In…
+              Signing in...
             </>
           ) : (
             <>

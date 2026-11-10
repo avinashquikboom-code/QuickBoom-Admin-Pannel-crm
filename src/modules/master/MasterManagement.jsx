@@ -17,6 +17,7 @@ import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faDownload, faPlus, faRotateRight } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
 import { getSectionConfig } from '@/config/admin-sections';
+import { StageManagement } from './StageManagement';
 import { loadOffices } from '@/modules/hrm/hrm-api';
 import {
   MASTER_MODULES,
@@ -34,7 +35,7 @@ import {
   saveMasterItem,
 } from './master-api';
 
-const LIVE = ['employee-types', 'designations', 'leave-policies', 'work-types', 'loan-types', 'payment-methods'];
+const LIVE = ['employee-types', 'designations', 'leave-policies', 'work-types', 'loan-types', 'payment-methods', 'stage-management'];
 
 export function isLiveMasterSlug(slug) {
   return LIVE.includes(slug);
@@ -42,6 +43,7 @@ export function isLiveMasterSlug(slug) {
 
 export function MasterManagement({ slug }) {
   const config = getSectionConfig(slug);
+  if (slug === 'stage-management') return <StageManagement />;
   if (!config) return null;
   if (slug === 'designations') return <DesignationsScreen config={config} />;
   if (slug === 'leave-policies') return <LeavePolicyScreen config={config} />;

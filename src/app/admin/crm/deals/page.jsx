@@ -7,10 +7,20 @@ import { Label } from '@/components/common/Label';
 import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
-import { crmError, loadDeals, loadEmployees, moveDealStage, personName, removeDeal, saveDeal, sessionCan } from '@/modules/crm/crm-api';
+import { crmError, loadDealStages, loadDeals, loadEmployees, moveDealStage, personName, removeDeal, saveDeal, sessionCan } from '@/modules/crm/crm-api';
 
-const blank = { title: '', amount: '', leadId: '', contactId: '', companyId: '', assignedToId: '', expectedClosing: '', probability: '', currency: 'INR', description: '', notes: '' };
-const STAGE_ORDER = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Final Call', 'Won', 'Lost'];
+const blank = { title: '', amount: '', leadId: '', contactId: '', companyId: '', assignedToId: '', expectedClosing: '', probability: '', currency: 'INR', description: '', notes: '', stageId: '', pipelineId: '' };
+
+function orderedStages(stages = [], rows = []) {
+  const map = new Map();
+  stages.forEach((stage) => { if (stage?.id) map.set(stage.id, stage); });
+  rows.forEach((row) => { if (row.stage?.id && !map.has(row.stage.id)) map.set(row.stage.id, row.stage); });
+  return [...map.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id);
+}
+
+function assignableStages(stages, currentId) {
+  return stages.filter((stage) => stage.isActive !== false || String(stage.id) === String(currentId));
+}
 const inr = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0);
 
 function leadName(lead) {
@@ -42,9 +52,11 @@ function StageBadge({ name, won, lost }) {
 export default function DealsRoute() {
   const [allowed, setAllowed] = React.useState(false);
   const [employees, setEmployees] = React.useState([]);
+  const [stages, setStages] = React.useState([]);
   React.useEffect(() => {
     setAllowed(sessionCan('DEAL') || sessionCan('CRM'));
     loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
+    loadDealStages(false).then((result) => setStages(result.stages || [])).catch(() => setStages([]));
   }, []);
   const load = React.useCallback((query) => loadDeals({
     page: query.page,
@@ -59,13 +71,13 @@ export default function DealsRoute() {
   return <CrmScreen title="Deals" description="Sales pipeline, including deals waiting on a final customer decision." actionLabel="Add deal" canCreate={allowed} load={load} blank={blank}
     stats={(result) => [{ label: 'Total', value: result.metrics?.total }, { label: 'Open', value: result.metrics?.open }, { label: 'Won value', value: result.metrics?.wonValue == null ? '—' : inr(result.metrics.wonValue) }, { label: 'Pipeline value', value: result.metrics?.pipelineValue == null ? '—' : inr(result.metrics.pipelineValue) }]}
     filters={[
-      { key: 'stage', label: 'All stages', options: STAGE_ORDER.map((value) => ({ value, label: value })) },
+      { key: 'stage', label: 'All stages', options: orderedStages(stages).map((stage) => ({ value: stage.name, label: stage.isActive === false ? `${stage.name} (inactive)` : stage.name })) },
       { key: 'status', label: 'All statuses', options: [{ value: 'FINAL_CALL', label: 'Final Call' }, { value: 'WON', label: 'Won' }, { value: 'LOST', label: 'Lost' }, { value: 'OPEN', label: 'Open' }] },
       { key: 'assignedToId', label: 'All employees', options: employees.filter((employee) => employee.userId).map((employee) => ({ value: String(employee.userId), label: employee.name })) },
       { key: 'closeFrom', label: 'Expected close from', type: 'date' },
       { key: 'closeTo', label: 'Expected close to', type: 'date' },
     ]}
-    below={(rows) => <Pipeline rows={rows} />}
+      below={(rows) => <Pipeline rows={rows} stages={orderedStages(stages, rows)} />}
     columns={({ open }) => [
       { header: 'Deal Name', accessorKey: 'title' },
       { header: 'Deal Value', cell: (row) => inr(row.amount) },
@@ -84,17 +96,17 @@ export default function DealsRoute() {
       const missing = (rows || []).filter((row) => !row.lead?.id);
       return missing.length ? { title: 'Deals without a lead link', detail: `${missing.length} deal${missing.length === 1 ? '' : 's'} on this page have no lead id, converted deal, or converted contact: ${missing.map((row) => row.title).join(', ')}. They are not linked automatically by name.` } : null;
     }}
-    renderForm={(form, setForm) => <div className="grid gap-3 sm:grid-cols-2"><Field label="Title"><Input required value={form.title || ''} onChange={(event) => setForm({ ...form, title: event.target.value })} /></Field><Field label="Amount"><Input required type="number" value={form.amount || ''} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field><Field label="Lead id"><Input value={form.leadId || ''} onChange={(event) => setForm({ ...form, leadId: event.target.value })} /></Field><Field label="Contact id"><Input value={form.contactId || ''} onChange={(event) => setForm({ ...form, contactId: event.target.value })} /></Field><Field label="Company id"><Input value={form.companyId || ''} onChange={(event) => setForm({ ...form, companyId: event.target.value })} /></Field><Field label="Assigned user id"><Input value={form.assignedToId || ''} onChange={(event) => setForm({ ...form, assignedToId: event.target.value })} /></Field><Field label="Expected closing"><Input type="date" value={String(form.expectedClosing || '').slice(0, 10)} onChange={(event) => setForm({ ...form, expectedClosing: event.target.value })} /></Field><Field label="Probability"><Input type="number" value={form.probability || ''} onChange={(event) => setForm({ ...form, probability: event.target.value })} /></Field></div>}
+    renderForm={(form, setForm) => <div className="grid gap-3 sm:grid-cols-2"><Field label="Title"><Input required value={form.title || ''} onChange={(event) => setForm({ ...form, title: event.target.value })} /></Field><Field label="Amount"><Input required type="number" value={form.amount || ''} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field><Field label="Stage"><select className="h-9 rounded-md border px-2 text-sm" value={form.stageId || ''} onChange={(event) => setForm({ ...form, stageId: event.target.value })}><option value="">First active stage</option>{assignableStages(stages, form.stageId).map((stage) => <option key={stage.id} value={stage.id}>{stage.name}{stage.isActive === false ? ' (inactive)' : ''}</option>)}</select></Field><Field label="Lead id"><Input value={form.leadId || ''} onChange={(event) => setForm({ ...form, leadId: event.target.value })} /></Field><Field label="Contact id"><Input value={form.contactId || ''} onChange={(event) => setForm({ ...form, contactId: event.target.value })} /></Field><Field label="Company id"><Input value={form.companyId || ''} onChange={(event) => setForm({ ...form, companyId: event.target.value })} /></Field><Field label="Assigned user id"><Input value={form.assignedToId || ''} onChange={(event) => setForm({ ...form, assignedToId: event.target.value })} /></Field><Field label="Expected closing"><Input type="date" value={String(form.expectedClosing || '').slice(0, 10)} onChange={(event) => setForm({ ...form, expectedClosing: event.target.value })} /></Field><Field label="Probability"><Input type="number" value={form.probability || ''} onChange={(event) => setForm({ ...form, probability: event.target.value })} /></Field></div>}
     onSave={async (form, id) => { await saveDeal(form, id); toast.success(id ? 'Deal updated' : 'Deal created'); }}
-    detail={(row) => <DealDetail row={row} />}
+    detail={(row) => <DealDetail row={row} stages={orderedStages(stages, [row])} />}
     rowActions={(reload) => allowed ? [{ label: 'Delete', onSelect: async (row) => { try { await removeDeal(row.id); reload((value) => value + 1); } catch (error) { toast.error(crmError(error)); } } }] : []}
   />;
 }
 
-function DealDetail({ row }) {
+function DealDetail({ row, stages = [] }) {
   const [stageId, setStageId] = React.useState(String(row.stageId || ''));
   const [saving, setSaving] = React.useState(false);
-  const stages = [...(row.pipeline?.stages || [])].sort((a, b) => a.order - b.order);
+  const choices = assignableStages(stages.length ? stages : [...(row.pipeline?.stages || [])].sort((a, b) => a.order - b.order), row.stageId);
   const lead = row.lead;
   return <div className="space-y-3 text-sm text-[#172B24]">
     <p className="text-base font-semibold">{row.title}</p>
@@ -111,16 +123,16 @@ function DealDetail({ row }) {
       <p>Next follow-up: {dateLabel(row.nextFollowUpDate)}</p>
       <p>Latest outcome: {row.latestFollowUp?.outcome || '—'}</p>
     </div>
-    {stages.length > 0 && <div className="flex flex-wrap items-end gap-2"><Field label="Move stage"><select className="h-9 rounded-md border px-2 text-sm" value={stageId} onChange={(event) => setStageId(event.target.value)}>{stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}</select></Field><Button className="bg-[#163A2E] hover:bg-[#204C3D]" disabled={saving} onClick={async () => { setSaving(true); try { await moveDealStage(row.id, stageId); toast.success('Deal stage updated'); } catch (error) { toast.error(crmError(error)); } finally { setSaving(false); } }}>{saving ? 'Saving' : 'Save stage'}</Button></div>}
+    {choices.length > 0 && <div className="flex flex-wrap items-end gap-2"><Field label="Move stage"><select className="h-9 rounded-md border px-2 text-sm" value={stageId} onChange={(event) => setStageId(event.target.value)}>{choices.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}{stage.isActive === false ? ' (inactive)' : ''}</option>)}</select></Field><Button className="bg-[#163A2E] hover:bg-[#204C3D]" disabled={saving} onClick={async () => { setSaving(true); try { await moveDealStage(row.id, stageId); toast.success('Deal stage updated'); } catch (error) { toast.error(crmError(error)); } finally { setSaving(false); } }}>{saving ? 'Saving' : 'Save stage'}</Button></div>}
   </div>;
 }
 
-function Pipeline({ rows }) {
-  const totals = STAGE_ORDER.map((name) => {
-    const matches = rows.filter((row) => (row.stage?.name || '') === name);
-    return { name, count: matches.length, value: matches.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) };
+function Pipeline({ rows, stages = [] }) {
+  const totals = (stages.length ? stages : orderedStages([], rows)).map((stage) => {
+    const matches = rows.filter((row) => row.stage?.id === stage.id || (row.stage?.name || '') === stage.name);
+    return { ...stage, count: matches.length, value: matches.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) };
   });
-  return <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">{totals.map((stage) => <div key={stage.name} className={`rounded-xl border bg-white p-3 ${stage.name === 'Final Call' ? 'border-[#C2410C]' : 'border-[#E2E8E5]'}`}><p className="text-xs text-[#718078]">{stage.name}</p><p className="text-lg font-semibold text-[#172B24]">{stage.count}</p><p className="truncate text-xs">{inr(stage.value)}</p></div>)}</div>;
+  return <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">{totals.map((stage) => <div key={stage.id || stage.name} className="rounded-xl border bg-white p-3" style={{ borderColor: stage.color || '#E2E8E5' }}><p className="text-xs text-[#718078]">{stage.name}{stage.isActive === false ? ' · Inactive' : ''}</p><p className="text-lg font-semibold text-[#172B24]">{stage.count}</p><p className="truncate text-xs">{inr(stage.value)}</p></div>)}</div>;
 }
 
 function Field({ label, children }) { return <Label className="grid gap-1 text-xs">{label}{children}</Label>; }

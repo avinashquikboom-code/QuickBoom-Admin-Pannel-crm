@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
+import { Toaster } from '@/components/common/Toast';
 import { MainLayout } from './MainLayout';
 
 const STANDALONE_PREFIXES = ['/login', '/forgot-password'];
@@ -11,7 +12,12 @@ function AppShellWithRoute({ children }) {
   const standalone = STANDALONE_PREFIXES.some((prefix) => pathname?.startsWith(prefix));
 
   if (standalone) {
-    return children;
+    return (
+      <>
+        <Toaster position="top-right" closeButton duration={4500} />
+        {children}
+      </>
+    );
   }
 
   return <MainLayout>{children}</MainLayout>;

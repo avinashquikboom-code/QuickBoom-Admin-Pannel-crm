@@ -39,6 +39,7 @@ export const dataCaptureNavigation = [
 
 export const masterNavigation = [
     { name: 'Departments', href: '/admin/sections/departments', icon: faLayerGroup },
+    { name: 'Stage Management', href: '/admin/sections/stage-management', icon: faDiagramProject },
     { name: 'Designations', href: '/admin/sections/designations', icon: faIdBadge },
     { name: 'Employee Types', href: '/admin/sections/employee-types', icon: faUsers },
     { name: 'Leave Types', href: '/admin/sections/leave-types', icon: faCalendar },

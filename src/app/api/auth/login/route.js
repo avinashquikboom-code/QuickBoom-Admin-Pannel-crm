@@ -53,7 +53,7 @@ export async function POST(request) {
 
   let upstream;
   try {
-    upstream = await fetch(`${apiBase}/admin/auth/login/super-admin`, {
+    upstream = await fetch(`${apiBase}/auth/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ email, password }),
