@@ -3,6 +3,7 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
     faBriefcase,
@@ -15,7 +16,6 @@ import {
     faFileLines,
     faGauge,
     faGear,
-    faLayerGroup,
     faRightFromBracket,
     faStar,
     faUser,
@@ -231,9 +231,14 @@ function SidebarContent({ className = '', onNavigate }) {
                 aria-label="QB Suite dashboard"
                 className={cn('flex min-h-20 items-center gap-3 border-b border-slate-100 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand', isCollapsed && 'justify-center px-0')}
             >
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand text-primary-foreground shadow-sm">
-                    <FontAwesomeIcon icon={faLayerGroup} className="size-5" />
-                </div>
+                <Image
+                    src="/app_logo.png"
+                    alt="QB Suite app logo"
+                    width={40}
+                    height={40}
+                    className="size-10 shrink-0 rounded-xl object-contain"
+                    priority
+                />
                 {!isCollapsed && (
                     <div className="min-w-0">
                         <p className="text-lg font-bold leading-tight tracking-tight text-slate-900">QB Suite</p>
