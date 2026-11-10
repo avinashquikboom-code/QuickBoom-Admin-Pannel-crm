@@ -232,6 +232,22 @@ function currentSessionKey(): string {
   return JSON.stringify([isEmployeePortalRoute(), user?.id, token, refreshToken]);
 }
 
+function clearAdminBrowserSession() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('qb_admin_token');
+    localStorage.removeItem('qb_admin_user');
+    localStorage.removeItem('qb_admin_remember');
+    sessionStorage.removeItem('qb_admin_token');
+    sessionStorage.removeItem('qb_admin_user');
+  } catch {
+    // Storage can be unavailable in private-mode or test fixtures.
+  }
+  if (typeof window.fetch === 'function') {
+    window.fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+  }
+}
+
 /**
  * Executes a single-flight token refresh. Concurrent callers share the exact same promise.
  */
@@ -345,7 +361,6 @@ async function refreshCurrentSession(): Promise<string> {
       const status = refreshErr?.response?.status;
       const isAuthFailure =
         status === 401 ||
-        status === 403 ||
         refreshErr?.message === 'No refresh token available' ||
         refreshErr?.message === 'Refresh endpoint did not return an access token';
 
@@ -354,6 +369,7 @@ async function refreshCurrentSession(): Promise<string> {
         const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
         const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
 
+        if (!isEmployeeRoute) clearAdminBrowserSession();
         authStore.logout();
         if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
           toast.error('Your session has expired. Please login again.');
@@ -633,6 +649,7 @@ api.interceptors.response.use(
       const isEmployeeRoute = isEmployeePortalRoute();
       const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
       const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
+      if (!isEmployeeRoute) clearAdminBrowserSession();
       authStore.logout();
       if (window.location.pathname !== loginRoute) {
         toast.error('Your session has expired. Please login again.');

@@ -25,6 +25,7 @@ function fixture() {
     if (name === './employee-store') return { useEmployeeAuthStore: { getState: () => employee, setState: patch => Object.assign(employee, patch) } };
     if (name === 'react-hot-toast') return { toast: { error() {} } };
     if (name === './utils') return { getErrorMessage: error => error.message };
+    if (name === '../src/lib/auth/admin-session') return { readSession: () => null };
     throw new Error(`Unexpected import ${name}`);
   }, window, localStorage: { getItem: key => storage.get(key) || null },
   Buffer, Date, FormData, atob, process: { env: { NODE_ENV: 'production' } }, console });

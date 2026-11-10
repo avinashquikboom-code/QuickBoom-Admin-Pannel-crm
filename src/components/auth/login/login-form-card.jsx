@@ -7,8 +7,7 @@ import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { icons } from '@/theme/icons';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-import { persistSession } from '@/lib/auth/admin-session';
-import { validateLoginForm } from '@/lib/auth/admin-login';
+import { loginAdmin, validateLoginForm } from '@/lib/auth/admin-login';
 import { LOGIN_BRAND, QbSuiteLogoMark } from './login-branding-panel';
 
 export function LoginFormCard({ className }) {
@@ -34,16 +33,18 @@ export function LoginFormCard({ className }) {
 
     setLoading(true);
     const trimmedEmail = email.trim();
-    persistSession({
-      token: 'local-screen-session',
-      user: { email: trimmedEmail },
-      remember,
-    });
-    toast.success('Signed in successfully');
-    const next = searchParams.get('next');
-    router.push(next || '/admin/dashboard');
-    router.refresh();
-    setLoading(false);
+    loginAdmin({ email: trimmedEmail, password, remember })
+      .then(() => {
+        toast.success('Signed in successfully');
+        const next = searchParams.get('next');
+        const destination = next && next.startsWith('/') && !next.startsWith('//') ? next : '/admin/dashboard';
+        router.push(destination);
+        router.refresh();
+      })
+      .catch((error) => {
+        toast.error(error?.message || 'Unable to sign in');
+      })
+      .finally(() => setLoading(false));
   };
 
   return (
@@ -82,8 +83,9 @@ export function LoginFormCard({ className }) {
             <FontAwesomeIcon icon={icons.mail} className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2" style={{ color: LOGIN_BRAND.muted }} aria-hidden />
             <input
               id="admin-login-email"
+              name="email"
               type="email"
-              autoComplete="email"
+              autoComplete="username"
               placeholder="Enter your email"
               value={email}
               onChange={(e) => {
@@ -120,6 +122,7 @@ export function LoginFormCard({ className }) {
             <FontAwesomeIcon icon={icons.lock} className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2" style={{ color: LOGIN_BRAND.muted }} aria-hidden />
             <input
               id="admin-login-password"
+              name="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               placeholder="Enter your password"
