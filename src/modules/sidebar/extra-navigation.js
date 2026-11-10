@@ -85,7 +85,6 @@ export const contentNavigation = [
 export const settingsNavigation = [
     { name: 'General Settings', href: '/admin/settings', icon: faGear, matchExact: true },
     { name: 'Company Settings', href: '/admin/settings/company', icon: faBuilding },
-    { name: 'User Management', href: '/admin/settings/users', icon: faUsers },
     { name: 'Integrations', href: '/admin/settings/integrations', icon: faBolt },
     { name: 'Notifications', href: '/admin/settings/notifications', icon: faBell },
     { name: 'Data Management', href: '/admin/settings/data-management', icon: faTrash },
