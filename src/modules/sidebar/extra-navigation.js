@@ -63,7 +63,6 @@ export const operationsNavigation = [
 export const templatesNavigation = [
     { name: 'Email Templates', href: '/admin/sections/email-templates', icon: faEnvelope },
     { name: 'Meta Templates', href: '/admin/sections/meta-templates', icon: faMessage },
-    { name: 'Stage Notifications', href: '/admin/sections/stage-notifications', icon: faDiagramProject },
 ];
 
 export const aiSocialNavigation = [
