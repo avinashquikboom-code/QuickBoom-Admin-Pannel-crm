@@ -93,14 +93,10 @@ export default function LeadsRoute() {
         toForm={(row) => ({ leadName: personName(row) === '—' ? '' : personName(row), assignedToId: row.employeeId || row.assignedToId || '', imageUrl: row.imageUrl || '', ...socialFormValues(row) })}
         stats={(result) => [
           { label: 'Total leads', value: result.metrics?.total },
-          { label: 'New', value: result.metrics?.new },
-          { label: 'Contacted', value: result.metrics?.contacted },
-          { label: 'Qualified', value: result.metrics?.qualified },
-          { label: 'Converted', value: result.metrics?.converted },
-          { label: 'Lost', value: result.metrics?.lost },
+          ...stages.filter((stage) => stage.isActive !== false).map((stage) => ({ label: stage.name, value: stage.leadsCount ?? 0 })),
         ]}
         filters={[
-          { key: 'status', label: 'All stages', options: stages.map((stage) => ({ value: stage.key, label: stage.isActive === false ? `${stage.name} (inactive)` : stage.name })) },
+          { key: 'status', label: 'All stages', options: stages.filter((stage) => stage.isActive !== false).map((stage) => ({ value: stage.key, label: stage.name })) },
           { key: 'priority', label: 'All priorities', options: PRIORITIES.map((item) => ({ value: item, label: item })) },
           { key: 'source', label: 'All sources', options: sourceOptions.map((item) => ({ value: item, label: item })) },
           { key: 'assignedToId', label: 'All BPO employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
@@ -118,7 +114,7 @@ export default function LeadsRoute() {
           { header: 'Priority', cell: (row) => row.priority || '—' },
           { header: 'Assigned', cell: (row) => personName(row.assignedTo || row.employee) },
           { header: 'Created', cell: (row) => String(row.createdAt || '').slice(0, 10) },
-          { header: 'Stage', cell: (row) => <StatusBadge status={stageLabel(row.stage?.name || row.status, stages)} /> },
+          { header: 'Stage', cell: (row) => { const match = stages.find((stage) => String(stage.id) === String(row.stageId) || stage.key === row.status || stage.name === row.stage?.name); const name = row.stage?.name || match?.name || stageLabel(row.status, stages); const color = row.stage?.color || match?.color; return <span className="inline-flex rounded-full border border-[#E2E8E5] bg-[#F7F9F8] px-2 py-0.5 text-xs font-medium" style={color ? { color, borderColor: color } : undefined}>{name}</span>; } },
         ]}
         renderForm={(form, setForm) => <LeadForm form={form} setForm={setForm} sources={sourceOptions} employees={employees} departments={departments} stages={stages} />}
         onSave={async (form, id) => { await persistLead(form, id); toast.success(id ? 'Lead updated' : 'Lead created'); }}
