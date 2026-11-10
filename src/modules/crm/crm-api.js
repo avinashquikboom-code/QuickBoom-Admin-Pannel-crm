@@ -151,12 +151,35 @@ export function saveDeal(values, id) {
     currency: values.currency || 'INR',
     description: values.description || undefined,
     notes: values.notes || undefined,
+    stageId: values.stageId ? String(values.stageId) : undefined,
+    pipelineId: values.pipelineId ? String(values.pipelineId) : undefined,
     isWon: values.isWon,
     isLost: values.isLost,
   };
   return id ? api.patch(`/deals/${id}`, body) : api.post('/deals', body);
 }
 
+export async function loadDealStages(activeOnly = false) {
+  const payload = await api.get('/deals/stages', { params: activeOnly ? { active: 'true' } : {} });
+  const body = bodyOf(payload);
+  const stages = Array.isArray(body.stages) ? body.stages : Array.isArray(payload?.stages) ? payload.stages : [];
+  return { pipelineId: body.pipelineId || payload?.pipelineId, stages: [...stages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id) };
+}
+
+export function saveDealStage(values, id) {
+  const body = {
+    ...(values.name != null ? { name: String(values.name).trim() } : {}),
+    ...(values.order === '' || values.order == null ? {} : { order: Number(values.order) }),
+    ...(values.probability === '' || values.probability == null ? {} : { probability: Number(values.probability) }),
+    ...(values.description == null ? {} : { description: values.description }),
+    ...(values.color ? { color: values.color } : {}),
+    ...(values.isActive == null ? {} : { isActive: values.isActive !== false }),
+  };
+  return id ? api.patch(`/deals/stages/${id}`, body) : api.post('/deals/stages', body);
+}
+
+export const removeDealStage = (id) => api.delete(`/deals/stages/${id}`);
+export const bulkDealStages = (ids, action) => api.post('/deals/stages/bulk', { ids, action });
 export const moveDealStage = (id, stageId) => api.patch(`/deals/${id}/stage`, { stageId: String(stageId) });
 export const removeDeal = (id) => api.delete(`/deals/${id}`);
 
