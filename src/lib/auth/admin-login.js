@@ -18,26 +18,65 @@ export function validateLoginForm({ email, password }) {
   return errors;
 }
 
+export function loginFailureNotice(status, data) {
+  const rawMessage = Array.isArray(data?.message) ? data.message.join(' ') : data?.message;
+  const safe = typeof rawMessage === 'string' && rawMessage.length <= 180 && !/stack|exception|token|passwordhash/i.test(rawMessage)
+    ? rawMessage.trim()
+    : '';
+  const lower = safe.toLowerCase();
+  if (status === 401 && /inactive|deactivat|suspended/.test(lower)) {
+    return { level: 'warning', message: 'Your account is inactive. Please contact the administrator.' };
+  }
+  if (status === 401) {
+    return { level: 'error', message: 'Invalid email or password.' };
+  }
+  if (status === 403) {
+    return { level: 'error', message: 'You are not authorized to access the Admin Panel.' };
+  }
+  if (/inactive|deactivat|suspended/.test(lower)) {
+    return { level: 'warning', message: 'Your account is inactive. Please contact the administrator.' };
+  }
+  if (status === 429) {
+    return { level: 'warning', message: safe || 'Too many attempts. Please wait and try again.' };
+  }
+  if (status === 400 || status === 422) {
+    return { level: 'error', message: safe || 'Please enter your email and password.' };
+  }
+  if (!status || status === 408 || status === 504) {
+    return { level: 'error', message: 'Unable to connect to the server. Please check your internet connection.' };
+  }
+  if (status >= 500) {
+    return { level: 'error', message: 'Something went wrong. Please try again later.' };
+  }
+  return { level: 'error', message: safe || 'Something went wrong. Please try again later.' };
+}
+
 /**
  * @param {{ email: string, password: string, remember: boolean }} payload
  */
 export async function loginAdmin(payload) {
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify(payload),
-  });
+  let response;
+  try {
+    response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    const failure = loginFailureNotice(0, {});
+    const error = new Error(failure.message);
+    error.level = failure.level;
+    throw error;
+  }
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const message =
-      (Array.isArray(data?.message) ? data.message.join(' ') : data?.message) ||
-      data?.detail ||
-      data?.error ||
-      'Unable to sign in. Check your credentials and try again.';
-    throw new Error(message);
+    const failure = loginFailureNotice(response.status, data);
+    const error = new Error(failure.message);
+    error.level = failure.level;
+    throw error;
   }
 
   if (!data?.token) {

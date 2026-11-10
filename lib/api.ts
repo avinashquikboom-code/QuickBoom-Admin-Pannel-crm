@@ -372,7 +372,7 @@ async function refreshCurrentSession(): Promise<string> {
         if (!isEmployeeRoute) clearAdminBrowserSession();
         authStore.logout();
         if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
-          toast.error('Your session has expired. Please login again.');
+          toast.error('Your session has expired. Please sign in again.', { id: 'session-expired' });
           window.location.href = loginRoute;
         }
       }
@@ -652,7 +652,7 @@ api.interceptors.response.use(
       if (!isEmployeeRoute) clearAdminBrowserSession();
       authStore.logout();
       if (window.location.pathname !== loginRoute) {
-        toast.error('Your session has expired. Please login again.');
+        toast.error('Your session has expired. Please sign in again.', { id: 'session-expired' });
         window.location.href = loginRoute;
       }
       return Promise.reject(error);
