@@ -34,7 +34,6 @@ export function StageManagement() {
   const [confirm, setConfirm] = React.useState(null);
   const [targetStageId, setTargetStageId] = React.useState('');
   const [search, setSearch] = React.useState('');
-  const [type, setType] = React.useState('ALL');
   const [status, setStatus] = React.useState('ALL');
   const [sort, setSort] = React.useState('order');
   const [page, setPage] = React.useState(1);
@@ -61,7 +60,6 @@ export function StageManagement() {
   const filtered = React.useMemo(() => {
     const query = search.trim().toLowerCase();
     const rows = stages.filter((stage) => {
-      if (type !== 'ALL' && stage.type !== type) return false;
       if (status === 'ACTIVE' && stage.isActive === false) return false;
       if (status === 'INACTIVE' && stage.isActive !== false) return false;
       if (!query) return true;
@@ -69,13 +67,12 @@ export function StageManagement() {
     });
     const valueOf = (stage) => {
       if (sort === 'name') return stage.name || '';
-      if (sort === 'type') return stage.type;
       if (sort === 'status') return stage.isActive === false ? 'Inactive' : 'Active';
       if (sort === 'created') return stage.createdAt || '';
       return stage.order ?? stage.sortOrder ?? 0;
     };
     return [...rows].sort((a, b) => String(valueOf(a)).localeCompare(String(valueOf(b)), undefined, { numeric: true }));
-  }, [stages, search, type, status, sort]);
+  }, [stages, search, status, sort]);
 
   const pageSize = 20;
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -209,9 +206,8 @@ export function StageManagement() {
       <div className="overflow-hidden rounded-lg border border-[#E2E8E5] bg-white">
         <div className="flex flex-wrap items-center gap-2 border-b border-[#E2E8E5] px-4 py-3">
           <Input aria-label="Search stages" value={search} placeholder="Search stages" onChange={(event) => { setSearch(event.target.value); setPage(1); }} className="max-w-xs" />
-          <select aria-label="Stage type" className="h-8 rounded-md border border-[#E2E8E5] bg-white px-2 text-sm" value={type} onChange={(event) => { setType(event.target.value); setPage(1); }}><option value="ALL">All types</option><option value="Lead">Lead</option><option value="Deal">Deal</option></select>
           <select aria-label="Stage status" className="h-8 rounded-md border border-[#E2E8E5] bg-white px-2 text-sm" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select>
-          <select aria-label="Sort stages" className="h-8 rounded-md border border-[#E2E8E5] bg-white px-2 text-sm" value={sort} onChange={(event) => setSort(event.target.value)}><option value="order">Display order</option><option value="name">Name</option><option value="type">Type</option><option value="status">Status</option><option value="created">Created date</option></select>
+          <select aria-label="Sort stages" className="h-8 rounded-md border border-[#E2E8E5] bg-white px-2 text-sm" value={sort} onChange={(event) => setSort(event.target.value)}><option value="order">Display order</option><option value="name">Name</option><option value="status">Status</option><option value="created">Created date</option></select>
           {selected.length > 0 && <div className="ml-auto flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setActive(selected, true)}>Activate</Button><Button type="button" variant="outline" onClick={() => setActive(selected, false)}>Deactivate</Button><Button type="button" variant="outline" className="text-rose-700" onClick={() => setConfirm({ ids: selected })}>Delete</Button></div>}
         </div>
         <div className="overflow-x-auto">
@@ -219,7 +215,7 @@ export function StageManagement() {
             <thead className="bg-[#F7F9F8] text-xs uppercase tracking-wide text-[#718078]">
               <tr>
                 <th className="px-4 py-3"><input aria-label="Select visible stages" type="checkbox" checked={allVisibleSelected} onChange={(event) => setSelected(event.target.checked ? [...new Set([...selected, ...visible.map(keyOf)])] : selected.filter((key) => !visible.some((stage) => keyOf(stage) === key)))} /></th>
-                {['Stage Name', 'Type', 'Description', 'Color', 'Probability', 'Order', 'Status', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
+                {['Stage Name', 'Description', 'Color', 'Probability', 'Order', 'Status', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -227,7 +223,6 @@ export function StageManagement() {
                 <tr key={keyOf(stage)} className="border-t border-[#E2E8E5]">
                   <td className="px-4 py-3"><input aria-label={`Select ${stage.name}`} type="checkbox" checked={selected.includes(keyOf(stage))} onChange={(event) => setSelected((current) => event.target.checked ? [...current, keyOf(stage)] : current.filter((key) => key !== keyOf(stage)))} /></td>
                   <td className="px-4 py-3 font-medium text-[#172B24]">{stage.name}</td>
-                  <td className="px-4 py-3">{stage.type}</td>
                   <td className="max-w-[220px] truncate px-4 py-3 text-[#64748B]">{stage.description || '—'}</td>
                   <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><span className="size-3 rounded-full border border-[#E2E8E5]" style={{ background: stage.color || '#163A2E' }} />{stage.color || '—'}</span></td>
                   <td className="px-4 py-3">{stage.type === 'Deal' ? `${stage.probability ?? 0}%` : '—'}</td>
@@ -237,7 +232,7 @@ export function StageManagement() {
                   <td className="px-4 py-3"><div className="flex flex-wrap gap-1"><Button type="button" size="sm" variant="outline" onClick={() => open('view', stage)}>View</Button><Button type="button" size="sm" variant="outline" onClick={() => open('edit', stage)}>Edit</Button><Button type="button" size="sm" variant="outline" onClick={() => setActive([keyOf(stage)], stage.isActive === false)}>{stage.isActive === false ? 'Activate' : 'Deactivate'}</Button><Button type="button" size="sm" variant="outline" className="text-rose-700" onClick={() => { setTargetStageId(''); setConfirm({ ids: [keyOf(stage)], key: keyOf(stage), stageId: stage.id, name: stage.name, used: usageOf(stage), type: stage.type }); }}>Delete</Button></div></td>
                 </tr>
               ))}
-              {!loading && visible.length === 0 && <tr><td colSpan={10} className="px-4 py-10 text-center text-[#718078]">{search || type !== 'ALL' || status !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}
+              {!loading && visible.length === 0 && <tr><td colSpan={9} className="px-4 py-10 text-center text-[#718078]">{search || status !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -246,9 +241,8 @@ export function StageManagement() {
           <div className="flex items-center gap-2"><Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><span>Page {page} of {pageCount}</span><Button type="button" size="sm" variant="outline" disabled={page >= pageCount} onClick={() => setPage(page + 1)}>Next</Button></div>
         </div>
       </div>
-      <FormDrawer open={Boolean(drawer)} onOpenChange={(open) => !open && setDrawer(null)} title={drawer?.mode === 'edit' ? 'Edit Stage' : drawer?.mode === 'view' ? 'Stage Details' : 'Add Stage'} description="Stage name is required. The other fields follow the existing lead or deal stage record." showFooter={!viewing} submitLabel={drawer?.mode === 'edit' ? 'Update Stage' : 'Save Stage'} loading={saving} onSubmit={save}>
+      <FormDrawer open={Boolean(drawer)} onOpenChange={(open) => !open && setDrawer(null)} title={drawer?.mode === 'edit' ? 'Edit Stage' : drawer?.mode === 'view' ? 'Stage Details' : 'Add Stage'} description="Stage name is required." showFooter={!viewing} submitLabel={drawer?.mode === 'edit' ? 'Update Stage' : 'Save Stage'} loading={saving} onSubmit={save}>
         <div className="space-y-4">
-          <div><Label htmlFor="stage-type">Stage Type</Label><select id="stage-type" className="h-9 w-full rounded-md border border-[#E2E8E5] px-2 text-sm" value={form.type} disabled={viewing || drawer?.mode === 'edit'} onChange={(event) => setForm({ ...form, type: event.target.value })}><option value="Lead">Lead</option><option value="Deal">Deal</option></select></div>
           <div><Label htmlFor="stage-name">Stage Name</Label><Input id="stage-name" value={form.name} disabled={viewing} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div><Label htmlFor="stage-order">Display Order</Label><Input id="stage-order" type="number" value={form.order} disabled={viewing} onChange={(event) => setForm({ ...form, order: event.target.value })} /></div>
