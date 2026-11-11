@@ -522,6 +522,15 @@ export async function loadOvertimeRequest(id) {
   return objectFrom(await api.get(`/admin/hrm/overtime/${id}`));
 }
 
+export async function loadOvertimeNotifications() {
+  const body = await api.get('/admin/hrm/overtime/notifications');
+  return Array.isArray(body) ? body : body?.data || [];
+}
+
+export function retryOvertimeNotification(id) {
+  return api.post(`/admin/hrm/overtime/notifications/${id}/retry`);
+}
+
 export function createOvertime(values) {
   return api.post('/admin/hrm/overtime', values);
 }
@@ -561,6 +570,30 @@ export const publishAnnouncement = (id) => api.patch(`/admin/hrm/announcements/$
 export const scheduleAnnouncement = (id, publishAt) => api.patch(`/admin/hrm/announcements/${id}/schedule`, { publishAt });
 export const archiveAnnouncement = (id) => api.patch(`/admin/hrm/announcements/${id}/archive`);
 export const removeAnnouncement = (id) => api.delete(`/admin/hrm/announcements/${id}`);
+
+export async function loadHrmReportDashboard(params = {}) {
+  return objectFrom(await api.get('/admin/hrm/reports/dashboard', { params }));
+}
+
+export function loadHrmReportSettings() {
+  return api.get('/admin/hrm/reports/settings');
+}
+
+export function saveHrmReportSettings(values) {
+  return api.patch('/admin/hrm/reports/settings', values);
+}
+
+export function generateHrmReports(values) {
+  return api.post('/admin/hrm/reports/generate', values);
+}
+
+export function retryHrmDelivery(id) {
+  return api.post(`/admin/hrm/reports/retry/${id}`);
+}
+
+export async function hrmReportDownload(id) {
+  return objectFrom(await api.get(`/admin/hrm/reports/download/${id}`));
+}
 
 export const missingHrmApis = {
   overtime: '',
