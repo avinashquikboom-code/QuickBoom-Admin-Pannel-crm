@@ -146,7 +146,9 @@ export default function OvertimePage() {
     { id: 'window', header: 'Requested window', cell: ({ row }) => `${row.original.startTime || '—'} – ${row.original.endTime || '—'}` },
     { accessorKey: 'requestedHours', header: ({ column }) => <DataTableColumnHeader column={column} title="Requested" />, cell: ({ row }) => hours(row.original.requestedHours) },
     { id: 'actual', header: 'Actual OT', cell: ({ row }) => row.original.actualHours == null ? '—' : `${hours(row.original.actualHours)} · ${row.original.sessionStatus || ''}` },
+    { id: 'payable', header: 'Payable', cell: ({ row }) => row.original.payableHours == null ? '—' : hours(row.original.payableHours) },
     { accessorKey: 'approvedHours', header: ({ column }) => <DataTableColumnHeader column={column} title="Approved" />, cell: ({ row }) => row.original.approvedHours == null ? '—' : hours(row.original.approvedHours) },
+    { id: 'cancellation', header: 'Cancellation', cell: ({ row }) => row.original.cancellationDecision || (row.original.approvalStatus === 'CANCELLATION_REQUESTED' ? 'Requested' : '—') },
     { accessorKey: 'estimatedAmount', header: ({ column }) => <DataTableColumnHeader column={column} title="Amount" />, cell: ({ row }) => inr(row.original.estimatedAmount) },
     { accessorKey: 'approvalStatus', header: ({ column }) => <DataTableColumnHeader column={column} title="Approval" /> },
     { accessorKey: 'payrollStatus', header: ({ column }) => <DataTableColumnHeader column={column} title="Payroll" /> },
@@ -271,6 +273,8 @@ function DetailBody({ detail }) {
     ['Attendance', detail.attendance ? `${detail.attendance.status} · ${detail.attendance.workingHours || 0} h` : '—'],
     ['Requested', hours(detail.requestedHours)],
     ['Approved', detail.approvedHours == null ? '—' : hours(detail.approvedHours)],
+    ['Actual worked', detail.actualHours == null ? '—' : hours(detail.actualHours)],
+    ['Payable', detail.payableHours == null ? '—' : `${hours(detail.payableHours)}${detail.payableAmount == null ? '' : ` · ${inr(detail.payableAmount)}`}`],
     ['Amount', inr(detail.estimatedAmount)],
     ['Rate', detail.compensation ? `${inr(detail.compensation.hourlyRate)} × ${detail.compensation.multiplier}` : '—'],
     ['Reason', detail.reason],
@@ -306,7 +310,7 @@ function Filter({ value, onChange, placeholder, options }) {
 }
 
 function csvRow(row) {
-  return { employee: row.employeeName, employeeId: row.employeeCode, department: row.department, date: String(row.overtimeDate).slice(0, 10), type: row.overtimeType, requestedHours: row.requestedHours, approvedHours: row.approvedHours, amount: row.estimatedAmount, approvalStatus: row.approvalStatus, payrollStatus: row.payrollStatus };
+  return { employee: row.employeeName, employeeId: row.employeeCode, department: row.department, shift: row.shift?.name || '', date: String(row.overtimeDate).slice(0, 10), type: row.overtimeType, requestedHours: row.requestedHours, approvedHours: row.approvedHours, actualHours: row.actualHours, payableHours: row.payableHours, amount: row.payableAmount ?? row.estimatedAmount, approvalStatus: row.approvalStatus, cancellation: row.cancellationDecision || row.approvalStatus, payrollStatus: row.payrollStatus };
 }
 
 function useDebounced(value) {
