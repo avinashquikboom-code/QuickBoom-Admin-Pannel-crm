@@ -8,19 +8,23 @@ import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
 import { faCircleXmark, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import { faCalendarCheck, faCalendarXmark } from '@fortawesome/free-regular-svg-icons';
-import { hrmError, loadLiveDashboard } from '@/modules/hrm/hrm-api';
+import { hrmError, loadLiveDashboard, loadOvertime } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
 export default function AttendancePage() {
     const [records, setRecords] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState('');
     const [refresh, setRefresh] = React.useState(0);
+    const [overtime, setOvertime] = React.useState([]);
+    const [otType, setOtType] = React.useState('');
+    const [otStatus, setOtStatus] = React.useState('');
     React.useEffect(() => {
         let active = true;
         setLoading(true);
         loadLiveDashboard().then((result) => { if (active) setRecords(result.records); }).catch((err) => { if (active) setError(hrmError(err)); }).finally(() => { if (active) setLoading(false); });
+        loadOvertime({ limit: 20, overtimeType: otType || undefined, status: otStatus || undefined }).then((result) => { if (active) setOvertime(result.rows || []); }).catch(() => { if (active) setOvertime([]); });
         return () => { active = false; };
-    }, [refresh]);
+    }, [refresh, otType, otStatus]);
     const [search, setSearch] = React.useState('');
     const [selectedDept, setSelectedDept] = React.useState('All Departments');
     const [selectedStatus, setSelectedStatus] = React.useState('all');
@@ -105,5 +109,33 @@ export default function AttendancePage() {
       {/* Attendance Table */}
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} />
       {!loading && !error && <AttendanceTable records={filtered} />}
+      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-sm font-semibold text-slate-900">Overtime attendance</h2>
+          <div className="flex gap-2">
+            <select className="h-9 rounded-md border border-slate-200 px-2 text-xs" value={otType} onChange={(event) => setOtType(event.target.value)}>
+              <option value="">All types</option>
+              <option value="BEFORE_SHIFT">Before shift</option>
+              <option value="AFTER_SHIFT">After shift</option>
+            </select>
+            <select className="h-9 rounded-md border border-slate-200 px-2 text-xs" value={otStatus} onChange={(event) => setOtStatus(event.target.value)}>
+              <option value="">All statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-xs">
+            <thead className="text-slate-500"><tr><th className="py-2">Employee</th><th>Date</th><th>Type</th><th>Approved window</th><th>Actual</th><th>Status</th></tr></thead>
+            <tbody>
+              {overtime.map((row) => <tr key={row.id} className="border-t border-slate-100"><td className="py-2">{row.employeeName}<div className="text-slate-500">{row.employeeCode}</div></td><td>{String(row.overtimeDate || '').slice(0, 10)}</td><td>{row.overtimeType}</td><td>{row.startTime} – {row.endTime}</td><td>{row.actualHours == null ? '—' : `${row.actualHours} h`}</td><td>{row.sessionStatus || row.approvalStatus}</td></tr>)}
+              {overtime.length === 0 && <tr><td className="py-4 text-slate-500" colSpan={6}>No overtime records for these filters.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>);
 }
