@@ -12,7 +12,7 @@ import { Label } from '@/components/common/Label';
 import { Textarea } from '@/components/common/Textarea';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { bulkDealStages, crmError, loadDealStages, loadLeadStages, reassignDealStage, reassignLeadStage, removeDealStage, removeLeadStage, saveDealStage, saveLeadStage } from '@/modules/crm/crm-api';
+import { bulkDealStages, crmError, loadDealStage, loadDealStages, loadLeadStage, loadLeadStages, reassignDealStage, reassignLeadStage, removeDealStage, removeLeadStage, saveDealStage, saveLeadStage } from '@/modules/crm/crm-api';
 
 const emptyForm = { type: 'Lead', name: '', order: '', probability: '', description: '', color: '#163A2E', bgColor: '#E8F1EC', borderColor: '#E2E8E5', isActive: true, emailEnabled: true, whatsappEnabled: true };
 const keyOf = (stage) => `${stage.type}:${stage.id}`;
@@ -75,9 +75,7 @@ export function StageManagement() {
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
   React.useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
 
-  const open = (mode, stage) => {
-    setDrawer({ mode, stage });
-    setForm(stage ? {
+  const fillForm = (stage) => setForm(stage ? {
       type: stage.type,
       name: stage.name || '',
       order: stage.order ?? stage.sortOrder ?? '',
@@ -90,6 +88,17 @@ export function StageManagement() {
       emailEnabled: stage.emailEnabled !== false,
       whatsappEnabled: stage.whatsappEnabled !== false,
     } : emptyForm);
+
+  const open = async (mode, stage) => {
+    setDrawer({ mode, stage });
+    fillForm(stage);
+    if (!stage?.id) return;
+    try {
+      const detail = stage.type === 'Deal' ? await loadDealStage(stage.id) : await loadLeadStage(stage.id);
+      fillForm({ ...stage, ...detail, type: stage.type });
+    } catch (error) {
+      toast.error(crmError(error));
+    }
   };
 
   const save = async () => {

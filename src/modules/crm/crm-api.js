@@ -245,6 +245,10 @@ export function saveLeadStage(values, id) {
   return id ? api.patch(`/leads/stages/${id}`, body) : api.post('/leads/stages', body);
 }
 
+export async function loadLeadStage(id) {
+  const payload = await api.get(`/leads/stages/${id}`);
+  return payload?.data?.id ? payload.data : payload;
+}
 export const removeLeadStage = (id) => api.delete(`/leads/stages/${id}`);
 export const reassignLeadStage = (id, targetStageId) => api.post(`/leads/stages/${id}/reassign`, { targetStageId: Number(targetStageId) });
 
@@ -267,6 +271,10 @@ export function saveDealStage(values, id) {
   return id ? api.patch(`/deals/stages/${id}`, body) : api.post('/deals/stages', body);
 }
 
+export async function loadDealStage(id) {
+  const payload = await api.get(`/deals/stages/${id}`);
+  return payload?.data?.id ? payload.data : payload;
+}
 export const removeDealStage = (id) => api.delete(`/deals/stages/${id}`);
 export const reassignDealStage = (id, targetStageId) => api.post(`/deals/stages/${id}/reassign`, { targetStageId: Number(targetStageId) });
 export const bulkDealStages = (ids, action) => api.post('/deals/stages/bulk', { ids, action });
