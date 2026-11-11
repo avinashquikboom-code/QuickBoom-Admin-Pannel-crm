@@ -97,7 +97,7 @@ export function PayrollTable({ records, onViewPayslip, onMarkPaid, }) {
                         viewLabel="View Payslip"
                         viewIcon={faFileLines}
                         customActions={
-                            rec.status === 'pending' && onMarkPaid
+                            String(rec.status || '').toLowerCase() !== 'paid' && onMarkPaid
                                 ? [
                                     {
                                         label: 'Mark as Paid',
