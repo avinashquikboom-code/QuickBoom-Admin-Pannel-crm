@@ -538,6 +538,10 @@ export function cancelOvertime(id, values = {}) {
   return api.patch(`/admin/hrm/overtime/${id}/cancel`, values);
 }
 
+export function decideOvertimeCancellation(id, values) {
+  return api.patch(`/admin/hrm/overtime/${id}/cancellation-decision`, values);
+}
+
 export async function previewOvertime(id, approvedMinutes) {
   return objectFrom(await api.get(`/admin/hrm/overtime/${id}/preview`, { params: { approvedMinutes } }));
 }

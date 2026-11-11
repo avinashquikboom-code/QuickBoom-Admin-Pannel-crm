@@ -12,7 +12,7 @@ import { Label } from '@/components/common/Label';
 import { Textarea } from '@/components/common/Textarea';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { bulkDealStages, crmError, loadDealStages, loadLeadStages, removeDealStage, removeLeadStage, saveDealStage, saveLeadStage } from '@/modules/crm/crm-api';
+import { bulkDealStages, crmError, loadDealStages, loadLeadStages, reassignDealStage, reassignLeadStage, removeDealStage, removeLeadStage, saveDealStage, saveLeadStage } from '@/modules/crm/crm-api';
 
 const emptyForm = { type: 'Lead', name: '', order: '', probability: '', description: '', color: '#163A2E', bgColor: '#E8F1EC', borderColor: '#E2E8E5', isActive: true, emailEnabled: true, whatsappEnabled: true };
 const keyOf = (stage) => `${stage.type}:${stage.id}`;
@@ -25,6 +25,7 @@ export function StageManagement() {
   const [form, setForm] = React.useState(emptyForm);
   const [saving, setSaving] = React.useState(false);
   const [confirm, setConfirm] = React.useState(null);
+  const [targetStageId, setTargetStageId] = React.useState('');
   const [search, setSearch] = React.useState('');
   const [type, setType] = React.useState('ALL');
   const [status, setStatus] = React.useState('ALL');
@@ -147,6 +148,26 @@ export function StageManagement() {
     await refresh();
   };
 
+  const reassignAndDelete = async () => {
+    if (!confirm?.stageId || !targetStageId) {
+      toast.error(`Choose another ${confirm?.type === 'Deal' ? 'deal' : 'lead'} stage first.`);
+      return;
+    }
+    try {
+      if (confirm.type === 'Deal') await reassignDealStage(confirm.stageId, targetStageId);
+      else await reassignLeadStage(confirm.stageId, targetStageId);
+      toast.success('Records were moved and the stage was deleted.');
+      setSelected((current) => current.filter((key) => key !== confirm.key));
+      await refresh();
+    } catch (error) {
+      toast.error(crmError(error));
+    }
+  };
+
+  const replacementStages = confirm?.used > 0
+    ? stages.filter((stage) => stage.type === confirm.type && stage.id !== confirm.stageId && stage.isActive !== false)
+    : [];
+
   const viewing = drawer?.mode === 'view';
   const dealForm = form.type === 'Deal';
   const active = stages.filter((stage) => stage.isActive !== false).length;
@@ -188,7 +209,7 @@ export function StageManagement() {
                   <td className="px-4 py-3">{stage.order ?? stage.sortOrder ?? '—'}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${stage.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-[#E8F1EC] text-[#163A2E]'}`}>{stage.isActive === false ? 'Inactive' : 'Active'}</span></td>
                   <td className="px-4 py-3 text-[#64748B]">{stage.createdAt ? new Date(stage.createdAt).toLocaleDateString('en-IN') : '—'}</td>
-                  <td className="px-4 py-3"><div className="flex flex-wrap gap-1"><Button type="button" size="sm" variant="outline" onClick={() => open('view', stage)}>View</Button><Button type="button" size="sm" variant="outline" onClick={() => open('edit', stage)}>Edit</Button><Button type="button" size="sm" variant="outline" onClick={() => setActive([keyOf(stage)], stage.isActive === false)}>{stage.isActive === false ? 'Activate' : 'Deactivate'}</Button><Button type="button" size="sm" variant="outline" className="text-rose-700" onClick={() => setConfirm({ ids: [keyOf(stage)], name: stage.name, used: stage.type === 'Lead' ? Number(stage.leadsCount || 0) : Number(stage._count?.deals || 0), type: stage.type })}>Delete</Button></div></td>
+                  <td className="px-4 py-3"><div className="flex flex-wrap gap-1"><Button type="button" size="sm" variant="outline" onClick={() => open('view', stage)}>View</Button><Button type="button" size="sm" variant="outline" onClick={() => open('edit', stage)}>Edit</Button><Button type="button" size="sm" variant="outline" onClick={() => setActive([keyOf(stage)], stage.isActive === false)}>{stage.isActive === false ? 'Activate' : 'Deactivate'}</Button><Button type="button" size="sm" variant="outline" className="text-rose-700" onClick={() => { setTargetStageId(''); setConfirm({ ids: [keyOf(stage)], key: keyOf(stage), stageId: stage.id, name: stage.name, used: stage.type === 'Lead' ? Number(stage.leadsCount || stage._count?.leads || 0) : Number(stage._count?.deals || 0), type: stage.type }); }}>Delete</Button></div></td>
                 </tr>
               ))}
               {!loading && visible.length === 0 && <tr><td colSpan={10} className="px-4 py-10 text-center text-[#718078]">{search || type !== 'ALL' || status !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}
@@ -219,7 +240,17 @@ export function StageManagement() {
           {!dealForm && <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.whatsappEnabled} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappEnabled: event.target.checked })} />WhatsApp notification</label>}
         </div>
       </FormDrawer>
-      <ConfirmDialog open={Boolean(confirm)} onOpenChange={(open) => !open && setConfirm(null)} variant="destructive" title={confirm?.used > 0 ? 'Stage is in use' : 'Delete stage?'} description={confirm?.used > 0 ? `"${confirm.name}" is already used by ${confirm.used} ${confirm.type === 'Lead' ? 'lead' : 'deal'} record${confirm.used === 1 ? '' : 's'}. Deletion keeps those records intact. Deactivate the stage instead.` : 'Deletion is refused when leads or deals still use the stage. Existing records keep their stage.'} confirmLabel={confirm?.used > 0 ? 'Deactivate' : 'Delete'} onConfirm={() => (confirm?.used > 0 ? setActive(confirm.ids, false) : runDelete(confirm.ids))} />
+      <ConfirmDialog open={Boolean(confirm)} onOpenChange={(open) => !open && setConfirm(null)} variant="destructive" title={confirm?.used > 0 ? 'Stage is in use' : 'Delete stage?'} description={confirm?.used > 0 ? (
+        <span className="block space-y-3">
+          <span className="block">{`"${confirm.name}" is used by ${confirm.used} ${confirm.type === 'Lead' ? 'lead' : 'deal'} record${confirm.used === 1 ? '' : 's'}. Those records are not deleted. Move them to another ${confirm.type === 'Lead' ? 'lead' : 'deal'} stage, or deactivate this stage.`}</span>
+          {replacementStages.length > 0 ? (
+            <select aria-label="Replacement stage" className="h-9 w-full rounded-md border border-[#E2E8E5] bg-white px-2 text-sm text-[#172B24]" value={targetStageId} onChange={(event) => setTargetStageId(event.target.value)}>
+              <option value="">Select a {confirm.type === 'Lead' ? 'lead' : 'deal'} stage</option>
+              {replacementStages.map((stage) => <option key={keyOf(stage)} value={stage.id}>{stage.name}</option>)}
+            </select>
+          ) : <span className="block">No other active {confirm.type === 'Lead' ? 'lead' : 'deal'} stage is available. Deactivate this stage instead.</span>}
+        </span>
+      ) : 'This stage is not used by any records. It will be removed from the list and from mobile filters.'} confirmLabel={confirm?.used > 0 ? (replacementStages.length && targetStageId ? 'Move and delete' : 'Deactivate') : 'Delete'} onConfirm={() => (confirm?.used > 0 ? (replacementStages.length && targetStageId ? reassignAndDelete() : setActive(confirm.ids, false)) : runDelete(confirm.ids))} />
     </div>
   );
 }
