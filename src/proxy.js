@@ -10,7 +10,7 @@ function isPublicPath(pathname) {
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-export function middleware(request) {
+export function proxy(request) {
   const enforce = process.env.ADMIN_AUTH_ENFORCE === 'true';
   if (!enforce) {
     return NextResponse.next();

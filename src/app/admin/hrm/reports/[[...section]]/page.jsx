@@ -11,7 +11,7 @@ const sections = [
   ['dashboard', 'Dashboard'],
   ['automated', 'Automated Reports'],
   ['attendance', 'Attendance Reports'],
-  ['leave', 'Leave Balance Reports'],
+  ['leave-balance', 'Leave Balance Reports'],
   ['salary', 'Salary Reports'],
   ['commission', 'Commission Reports'],
   ['notifications', 'Leave Notifications'],
@@ -24,9 +24,17 @@ function unwrap(payload) {
   return payload?.data && !Array.isArray(payload.data) && payload.totalEmployees === undefined ? payload.data : payload;
 }
 
+function reportSection(params) {
+  const value = params?.section;
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw || raw === 'dashboard') return 'dashboard';
+  if (raw === 'leave' || raw === 'leave-balance') return 'leave-balance';
+  return raw;
+}
+
 export default function HrmReportsPage() {
   const params = useParams();
-  const section = Array.isArray(params?.section) ? params.section[0] : 'dashboard';
+  const section = reportSection(params);
   const [month, setMonth] = React.useState(new Date().getMonth() + 1);
   const [year, setYear] = React.useState(new Date().getFullYear());
   const [data, setData] = React.useState(null);
@@ -48,7 +56,7 @@ export default function HrmReportsPage() {
 
   const generate = async (send) => {
     try {
-      const types = section === 'attendance' ? ['ATTENDANCE'] : section === 'leave' ? ['LEAVE_BALANCE'] : section === 'salary' ? ['SALARY_SUMMARY'] : section === 'commission' ? ['COMMISSION'] : ['ATTENDANCE', 'LEAVE_BALANCE', 'SALARY_SUMMARY', 'COMMISSION'];
+      const types = section === 'attendance' ? ['ATTENDANCE'] : section === 'leave-balance' ? ['LEAVE_BALANCE'] : section === 'salary' ? ['SALARY_SUMMARY'] : section === 'commission' ? ['COMMISSION'] : ['ATTENDANCE', 'LEAVE_BALANCE', 'SALARY_SUMMARY', 'COMMISSION'];
       await generateHrmReports({ month, year, send, types });
       toast.success(send ? 'Report generation and delivery queued.' : 'Report generation queued without sending.');
       setConfirmSend(false);
@@ -128,7 +136,17 @@ export default function HrmReportsPage() {
                     <td className="px-3 py-2">{row.department}</td>
                     <td className="px-3 py-2">{row.attendanceStatus}</td>
                     <td className="px-3 py-2">{row.leaveStatus}</td>
-                    <td className="px-3 py-2">{row.salaryStatus || 'PENDING'}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-xs">{row.salaryStatus || 'PENDING'}</span>
+                        {row.netPayable != null && (
+                          <span className="text-xs font-semibold text-emerald-700">₹{Number(row.netPayable).toLocaleString('en-IN')}</span>
+                        )}
+                        {row.isProvisional && (
+                          <span className="inline-block rounded bg-amber-100 px-1 py-0.2 text-[10px] font-medium text-amber-800 w-max">Provisional</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2">{row.commissionStatus || 'PENDING'}</td>
                     <td className="px-3 py-2">{row.emailStatus}</td>
                     <td className="px-3 py-2">{row.whatsappStatus}</td>
