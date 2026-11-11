@@ -6,7 +6,7 @@ import { Button } from '@/components/common/Button';
 import { Textarea } from '@/components/common/Textarea';
 import { Label } from '@/components/common/Label';
 import { faCheckCircle, faCircleInfo, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
-export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'default', onConfirm, note, }) {
+export function ConfirmDialog({ open, onOpenChange, title, description, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'default', onConfirm, note, details, loading = false, closeOnConfirm = true, }) {
     const getIcon = () => {
         switch (variant) {
             case 'destructive':
@@ -45,6 +45,7 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
               <AlertDialogDescription className="text-sm text-slate-500 pt-1">
                 {description}
               </AlertDialogDescription>
+              {details ? <div className="pt-2 text-sm text-slate-600">{details}</div> : null}
             </AlertDialogHeader>
 
             {note && (<div className="mt-4 space-y-1.5 pt-2">
@@ -57,14 +58,15 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
         </div>
 
         <AlertDialogFooter className="mt-4 flex flex-wrap flex-row items-center justify-end gap-2 border-t border-slate-100 pt-3">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs sm:text-sm">
+          <Button type="button" variant="outline" disabled={loading} onClick={() => { if (!loading) onOpenChange(false); }} className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs sm:text-sm">
             {cancelLabel}
           </Button>
           <Button type="button" onClick={() => {
+            if (loading) return;
             onConfirm();
-            onOpenChange(false);
-        }} disabled={note?.required && !note.value.trim()} className={`${getButtonClass()} text-xs sm:text-sm font-medium`}>
-            {confirmLabel}
+            if (closeOnConfirm) onOpenChange(false);
+        }} disabled={loading || (note?.required && !note.value.trim())} className={`${getButtonClass()} text-xs sm:text-sm font-medium`}>
+            {loading ? 'Deleting…' : confirmLabel}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
