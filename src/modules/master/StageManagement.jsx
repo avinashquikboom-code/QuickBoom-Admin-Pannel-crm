@@ -249,11 +249,7 @@ export function StageManagement() {
             {dealForm && <div><Label htmlFor="stage-probability">Probability (%)</Label><Input id="stage-probability" type="number" min="0" max="100" value={form.probability} disabled={viewing} onChange={(event) => setForm({ ...form, probability: event.target.value })} /></div>}
           </div>
           {dealForm && <div><Label htmlFor="stage-description">Description</Label><Textarea id="stage-description" value={form.description} disabled={viewing} onChange={(event) => setForm({ ...form, description: event.target.value })} /></div>}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div><Label htmlFor="stage-color">Color</Label><Input id="stage-color" type="color" value={form.color} disabled={viewing} onChange={(event) => setForm({ ...form, color: event.target.value })} /></div>
-            {!dealForm && <div><Label htmlFor="stage-bg">Background</Label><Input id="stage-bg" type="color" value={form.bgColor} disabled={viewing} onChange={(event) => setForm({ ...form, bgColor: event.target.value })} /></div>}
-            {!dealForm && <div><Label htmlFor="stage-border">Border</Label><Input id="stage-border" type="color" value={form.borderColor} disabled={viewing} onChange={(event) => setForm({ ...form, borderColor: event.target.value })} /></div>}
-          </div>
+          <div><Label htmlFor="stage-color">Color</Label><Input id="stage-color" type="color" value={form.color} disabled={viewing} onChange={(event) => setForm({ ...form, color: event.target.value })} /></div>
           <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.isActive} disabled={viewing} onChange={(event) => setForm({ ...form, isActive: event.target.checked })} />Active</label>
           {!dealForm && <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.emailEnabled} disabled={viewing} onChange={(event) => setForm({ ...form, emailEnabled: event.target.checked })} />Email notification</label>}
           {!dealForm && <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.whatsappEnabled} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappEnabled: event.target.checked })} />WhatsApp notification</label>}
