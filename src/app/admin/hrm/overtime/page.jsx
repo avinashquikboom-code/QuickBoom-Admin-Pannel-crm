@@ -27,8 +27,8 @@ import {
 } from '@/modules/hrm/hrm-api';
 import { downloadCsv, loadDepartments } from '@/modules/master/master-api';
 
-const TYPES = ['REGULAR', 'WEEKEND', 'HOLIDAY', 'NIGHT_SHIFT'];
-const STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
+const TYPES = ['REGULAR', 'WEEKEND', 'HOLIDAY', 'NIGHT_SHIFT', 'BEFORE_SHIFT', 'AFTER_SHIFT'];
+const STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'];
 const inr = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(value) || 0);
 const hours = (value) => `${Number(value || 0).toFixed(2)} h`;
 
@@ -139,7 +139,9 @@ export default function OvertimePage() {
     { accessorKey: 'overtimeDate', header: ({ column }) => <DataTableColumnHeader column={column} title="Overtime date" />, cell: ({ row }) => String(row.original.overtimeDate).slice(0, 10) },
     { id: 'shift', header: 'Shift', cell: ({ row }) => row.original.shift?.name || '—' },
     { accessorKey: 'overtimeType', header: ({ column }) => <DataTableColumnHeader column={column} title="Type" /> },
+    { id: 'window', header: 'Requested window', cell: ({ row }) => `${row.original.startTime || '—'} – ${row.original.endTime || '—'}` },
     { accessorKey: 'requestedHours', header: ({ column }) => <DataTableColumnHeader column={column} title="Requested" />, cell: ({ row }) => hours(row.original.requestedHours) },
+    { id: 'actual', header: 'Actual OT', cell: ({ row }) => row.original.actualHours == null ? '—' : `${hours(row.original.actualHours)} · ${row.original.sessionStatus || ''}` },
     { accessorKey: 'approvedHours', header: ({ column }) => <DataTableColumnHeader column={column} title="Approved" />, cell: ({ row }) => row.original.approvedHours == null ? '—' : hours(row.original.approvedHours) },
     { accessorKey: 'estimatedAmount', header: ({ column }) => <DataTableColumnHeader column={column} title="Amount" />, cell: ({ row }) => inr(row.original.estimatedAmount) },
     { accessorKey: 'approvalStatus', header: ({ column }) => <DataTableColumnHeader column={column} title="Approval" /> },
