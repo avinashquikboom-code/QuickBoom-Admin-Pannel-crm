@@ -22,9 +22,11 @@ import {
   hrmError,
   loadEmployees,
   loadOvertime,
+  loadOvertimeNotifications,
   loadOvertimeRequest,
   previewOvertime,
   rejectOvertime,
+  retryOvertimeNotification,
 } from '@/modules/hrm/hrm-api';
 import { downloadCsv, loadDepartments } from '@/modules/master/master-api';
 
@@ -54,6 +56,7 @@ export default function OvertimePage() {
   const [decision, setDecision] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
   const [preview, setPreview] = React.useState(null);
+  const [notices, setNotices] = React.useState([]);
   const debouncedSearch = useDebounced(search);
 
   React.useEffect(() => { setPage(1); }, [debouncedSearch, status, departmentId, overtimeType, dateFrom, dateTo]);
@@ -73,14 +76,15 @@ export default function OvertimePage() {
       sortBy: 'overtimeDate',
       sortOrder: 'desc',
     };
-    Promise.all([loadOvertime(params), loadEmployees(), loadDepartments()])
-      .then(([result, people, departmentRows]) => {
+    Promise.all([loadOvertime(params), loadEmployees(), loadDepartments(), loadOvertimeNotifications().catch(() => [])])
+      .then(([result, people, departmentRows, deliveries]) => {
         if (!active) return;
         setRows(result.rows);
         setSummary(result.summary || {});
         setPagination(result.pagination || {});
         setEmployees(people);
         setDepartments(departmentRows);
+        setNotices(deliveries);
         setError('');
       })
       .catch((err) => { if (active) setError(hrmError(err)); })
@@ -158,7 +162,7 @@ export default function OvertimePage() {
   return (
     <div className="max-w-none space-y-4 sm:space-y-6 overflow-x-hidden w-full min-w-0">
       <PageHeader
-        title="Overtime Approvals"
+        title="Overtime Management"
         description="Review overtime requests, approve payable time, and send approved amounts to payroll."
         actions={<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><Button type="button" variant="outline" className="h-9 text-xs" onClick={() => setRefresh((value) => value + 1)}><FontAwesomeIcon icon={faRotateRight} className="size-3.5" /> Refresh</Button><Button type="button" variant="outline" className="h-9 text-xs" onClick={() => rows.length ? downloadCsv('overtime-requests.csv', rows.map(csvRow)) : toast.error('There are no overtime requests to export')}><FontAwesomeIcon icon={faDownload} className="size-3.5" /> Export CSV</Button></div>}
       />
@@ -168,6 +172,17 @@ export default function OvertimePage() {
         { label: 'Approved', value: summary.approved ?? 0 },
         { label: 'Rejected', value: summary.rejected ?? 0 },
       ]} />
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="text-sm font-semibold text-slate-800">Notification delivery</h2>
+        <div className="mt-3 space-y-2">
+          {notices.length === 0 ? <p className="text-xs text-slate-500">No overtime notifications have been recorded.</p> : notices.slice(0, 20).map((item) => (
+            <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span>{item.eventType} · {item.channel} · {item.employee ? `${item.employee.firstName} ${item.employee.lastName}` : 'Recipient'}</span>
+              <span className="flex items-center gap-2">{item.status}{item.status === 'FAILED' ? <Button type="button" variant="outline" className="h-7 text-xs" onClick={async () => { try { await retryOvertimeNotification(item.id); toast.success('Notification retry completed'); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } }}>Retry</Button> : null}</span>
+            </div>
+          ))}
+        </div>
+      </section>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 w-full min-w-0">
         <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search employee or ID" className="h-9 text-xs sm:col-span-2 lg:col-span-1 xl:col-span-2 w-full" />
         <Filter value={status} onChange={setStatus} placeholder="Status" options={STATUSES} />

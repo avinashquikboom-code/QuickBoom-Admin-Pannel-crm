@@ -23,7 +23,7 @@ export const navigation = [
             icon: faMugHot,
         },
         {
-            name: 'Overtime Approvals',
+            name: 'Overtime Management',
             href: '/admin/hrm/overtime',
             icon: faClock,
         },
@@ -37,6 +37,11 @@ export const navigation = [
             name: 'Leave Management',
             href: '/admin/hrm/leaves',
             icon: faCalendarXmark,
+        },
+        {
+            name: 'Reports & Notifications',
+            href: '/admin/hrm/reports',
+            icon: faFileLines,
         },
         {
             name: 'Payroll',
