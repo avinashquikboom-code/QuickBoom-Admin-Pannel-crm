@@ -5,9 +5,12 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { Button } from '@/components/common/Button';
+import { faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
-import { crmError, loadDealStages, loadDeals, loadEmployees, moveDealStage, personName, removeDeal, saveDeal, sessionCan } from '@/modules/crm/crm-api';
+import { crmError, loadDealStages, loadDeals, loadEmployees, moveDealStage, personName, removeDeal, removeDeals, saveDeal, sessionCan } from '@/modules/crm/crm-api';
+import { sessionCanAction } from '@/modules/hrm/hrm-api';
 
 const blank = { title: '', amount: '', leadId: '', contactId: '', companyId: '', assignedToId: '', expectedClosing: '', probability: '', currency: 'INR', description: '', notes: '', stageId: '', pipelineId: '' };
 
@@ -50,10 +53,13 @@ function StageBadge({ name, color, won, lost }) {
 
 export default function DealsRoute() {
   const [allowed, setAllowed] = React.useState(false);
+  const [canDelete, setCanDelete] = React.useState(false);
+  const [pendingDelete, setPendingDelete] = React.useState(null);
   const [employees, setEmployees] = React.useState([]);
   const [stages, setStages] = React.useState([]);
   React.useEffect(() => {
     setAllowed(sessionCan('DEAL') || sessionCan('CRM'));
+    setCanDelete(sessionCanAction('DEALS', 'DELETE') || sessionCanAction('DEAL', 'DELETE') || sessionCanAction('CRM', 'DELETE'));
     loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
     loadDealStages(false).then((result) => setStages(result.stages || [])).catch(() => setStages([]));
   }, []);
@@ -67,7 +73,10 @@ export default function DealsRoute() {
     closeFrom: query.closeFrom || undefined,
     closeTo: query.closeTo || undefined,
   }), []);
-  return <CrmScreen title="Deals" description="Sales pipeline, including deals waiting on a final customer decision." actionLabel="Add deal" canCreate={allowed} load={load} blank={blank}
+  return <>
+    <CrmScreen title="Deals" description="Sales pipeline, including deals waiting on a final customer decision." actionLabel="Add deal" canCreate={allowed} load={load} blank={blank}
+    enableSelection
+    toolbar={({ selected, clearSelection, reload }) => <DealSelectionBar selected={selected} clearSelection={clearSelection} canDelete={canDelete} onDelete={() => setPendingDelete({ rows: selected, single: false, reload })} />}
     stats={(result) => [{ label: 'Total', value: result.metrics?.total }, { label: 'Open', value: result.metrics?.open }, { label: 'Won value', value: result.metrics?.wonValue == null ? '—' : inr(result.metrics.wonValue) }, { label: 'Pipeline value', value: result.metrics?.pipelineValue == null ? '—' : inr(result.metrics.pipelineValue) }]}
     filters={[
       { key: 'stage', label: 'All stages', options: orderedStages(stages).map((stage) => ({ value: stage.name, label: stage.isActive === false ? `${stage.name} (inactive)` : stage.name })) },
@@ -98,7 +107,65 @@ export default function DealsRoute() {
     renderForm={(form, setForm) => <div className="grid gap-3 sm:grid-cols-2"><Field label="Title"><Input required value={form.title || ''} onChange={(event) => setForm({ ...form, title: event.target.value })} /></Field><Field label="Amount"><Input required type="number" value={form.amount || ''} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field><Field label="Stage"><select className="h-9 rounded-md border px-2 text-sm" value={form.stageId || ''} onChange={(event) => setForm({ ...form, stageId: event.target.value })}><option value="">First active stage</option>{assignableStages(stages, form.stageId).map((stage) => <option key={stage.id} value={stage.id}>{stage.name}{stage.isActive === false ? ' (inactive)' : ''}</option>)}</select></Field><Field label="Lead id"><Input value={form.leadId || ''} onChange={(event) => setForm({ ...form, leadId: event.target.value })} /></Field><Field label="Contact id"><Input value={form.contactId || ''} onChange={(event) => setForm({ ...form, contactId: event.target.value })} /></Field><Field label="Company id"><Input value={form.companyId || ''} onChange={(event) => setForm({ ...form, companyId: event.target.value })} /></Field><Field label="Assigned user id"><Input value={form.assignedToId || ''} onChange={(event) => setForm({ ...form, assignedToId: event.target.value })} /></Field><Field label="Expected closing"><Input type="date" value={String(form.expectedClosing || '').slice(0, 10)} onChange={(event) => setForm({ ...form, expectedClosing: event.target.value })} /></Field><Field label="Probability"><Input type="number" value={form.probability || ''} onChange={(event) => setForm({ ...form, probability: event.target.value })} /></Field></div>}
     onSave={async (form, id) => { await saveDeal(form, id); toast.success(id ? 'Deal updated' : 'Deal created'); }}
     detail={(row) => <DealDetail row={row} stages={orderedStages(stages, [row])} />}
-    rowActions={(reload) => allowed ? [{ label: 'Delete', onSelect: async (row) => { try { await removeDeal(row.id); reload((value) => value + 1); } catch (error) { toast.error(crmError(error)); } } }] : []}
+    rowActions={(reload) => canDelete ? [{ label: 'Delete', icon: faTrashCan, confirm: false, onSelect: (row) => setPendingDelete({ rows: [row], single: true, reload }) }] : []}
+    />
+    <DealDeleteDialog pending={pendingDelete} setPending={setPendingDelete} />
+  </>;
+}
+
+function DealSelectionBar({ selected, clearSelection, canDelete, onDelete }) {
+  if (!canDelete || !selected.length) return null;
+  return <div className="flex flex-col gap-3 rounded-xl border border-[#E2E8E5] bg-[#E8F1EC] p-3 md:flex-row md:items-center md:justify-between">
+    <p className="text-sm font-medium text-[#172B24]">Selected: {selected.length} deal{selected.length === 1 ? '' : 's'}</p>
+    <div className="flex flex-wrap gap-2">
+      <Button size="sm" variant="destructive" onClick={onDelete}>Delete Selected</Button>
+      <Button size="sm" variant="outline" onClick={clearSelection}>Clear Selection</Button>
+    </div>
+  </div>;
+}
+
+function DealDeleteDialog({ pending, setPending }) {
+  const [deleting, setDeleting] = React.useState(false);
+  const busy = React.useRef(false);
+  const rows = pending?.rows || [];
+  const run = async () => {
+    if (busy.current || !rows.length) return;
+    busy.current = true;
+    setDeleting(true);
+    try {
+      if (pending.single) {
+        await removeDeal(rows[0].id);
+        toast.success('Deal deleted');
+      } else {
+        const result = await removeDeals(rows.map((row) => row.id));
+        const body = result?.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : result;
+        const success = Number(body?.success ?? 0);
+        const failed = Number(body?.failed ?? body?.failures?.length ?? 0);
+        toast.success(body?.message || `${success} deal${success === 1 ? '' : 's'} deleted${failed ? `, ${failed} failed` : ''}.`);
+        if (failed && body?.failures?.[0]?.message) toast.error(body.failures[0].message);
+      }
+      setPending(null);
+      pending.reload?.((value) => value + 1);
+    } catch (error) {
+      toast.error(crmError(error));
+    } finally {
+      busy.current = false;
+      setDeleting(false);
+    }
+  };
+  const dealFacts = (row) => [inr(row.amount), row.stage?.name || 'No stage', row.company?.name || row.lead?.companyName || 'No company', personName(row.assignedTo)].join(' · ');
+  return <ConfirmDialog
+    open={rows.length > 0}
+    loading={deleting}
+    closeOnConfirm={false}
+    onOpenChange={(open) => { if (!open && !deleting) setPending(null); }}
+    variant="destructive"
+    title={pending?.single ? 'Delete this deal?' : 'Delete selected deals?'}
+    description={pending?.single ? 'Are you sure you want to delete this deal?' : 'Are you sure you want to delete the selected deals?'}
+    confirmLabel={pending?.single ? 'Delete' : 'Delete Selected'}
+    cancelLabel="Cancel"
+    details={!rows.length ? null : pending?.single ? <div className="space-y-1"><p className="font-semibold text-[#172B24]">{rows[0].title || `Deal #${rows[0].id}`}</p><p>{dealFacts(rows[0])}</p><p>Linked leads, customers, and employees stay in place.</p></div> : <div className="space-y-2"><p>{rows.length} deal{rows.length === 1 ? '' : 's'} selected.</p><ul className="max-h-40 overflow-y-auto rounded-md border border-[#E2E8E5] bg-[#F7F9F8] p-2 text-[#172B24]">{rows.map((row) => <li key={row.id} className="truncate">{row.title || `Deal #${row.id}`} · {inr(row.amount)}</li>)}</ul></div>}
+    onConfirm={run}
   />;
 }
 

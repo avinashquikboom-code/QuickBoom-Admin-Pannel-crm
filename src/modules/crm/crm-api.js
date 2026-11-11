@@ -285,6 +285,7 @@ export const reassignDealStage = (id, targetStageId) => api.post(`/deals/stages/
 export const bulkDealStages = (ids, action) => api.post('/deals/stages/bulk', { ids, action });
 export const moveDealStage = (id, stageId) => api.patch(`/deals/${id}/stage`, { stageId: String(stageId) });
 export const removeDeal = (id) => api.delete(`/deals/${id}`);
+export const removeDeals = (ids) => api.post('/deals/bulk-delete', { ids });
 
 export async function loadContacts(params = {}) {
   const [list, metrics] = await Promise.all([api.get('/contacts', { params }), api.get('/contacts/metrics')]);
