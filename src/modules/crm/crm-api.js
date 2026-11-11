@@ -256,7 +256,12 @@ export async function loadDealStages(activeOnly = false) {
   const payload = await api.get('/deals/stages', { params: activeOnly ? { active: 'true' } : {} });
   const body = bodyOf(payload);
   const stages = Array.isArray(body.stages) ? body.stages : Array.isArray(payload?.stages) ? payload.stages : [];
-  return { pipelineId: body.pipelineId || payload?.pipelineId, stages: [...stages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id) };
+  return {
+    pipelineId: body.pipelineId || payload?.pipelineId,
+    stages: [...stages]
+      .map((stage) => ({ ...stage, dealsCount: Number(stage.dealsCount ?? stage._count?.deals ?? 0) }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id - b.id),
+  };
 }
 
 export function saveDealStage(values, id) {
