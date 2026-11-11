@@ -246,6 +246,7 @@ export function saveLeadStage(values, id) {
 }
 
 export const removeLeadStage = (id) => api.delete(`/leads/stages/${id}`);
+export const reassignLeadStage = (id, targetStageId) => api.post(`/leads/stages/${id}/reassign`, { targetStageId: Number(targetStageId) });
 
 export async function loadDealStages(activeOnly = false) {
   const payload = await api.get('/deals/stages', { params: activeOnly ? { active: 'true' } : {} });
@@ -267,6 +268,7 @@ export function saveDealStage(values, id) {
 }
 
 export const removeDealStage = (id) => api.delete(`/deals/stages/${id}`);
+export const reassignDealStage = (id, targetStageId) => api.post(`/deals/stages/${id}/reassign`, { targetStageId: Number(targetStageId) });
 export const bulkDealStages = (ids, action) => api.post('/deals/stages/bulk', { ids, action });
 export const moveDealStage = (id, stageId) => api.patch(`/deals/${id}/stage`, { stageId: String(stageId) });
 export const removeDeal = (id) => api.delete(`/deals/${id}`);

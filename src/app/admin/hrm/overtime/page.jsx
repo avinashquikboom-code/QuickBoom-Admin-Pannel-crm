@@ -17,6 +17,7 @@ import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import {
   approveOvertime,
   cancelOvertime,
+  decideOvertimeCancellation,
   createOvertime,
   hrmError,
   loadEmployees,
@@ -28,7 +29,7 @@ import {
 import { downloadCsv, loadDepartments } from '@/modules/master/master-api';
 
 const TYPES = ['REGULAR', 'WEEKEND', 'HOLIDAY', 'NIGHT_SHIFT', 'BEFORE_SHIFT', 'AFTER_SHIFT'];
-const STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'];
+const STATUSES = ['PENDING', 'APPROVED', 'CANCELLATION_REQUESTED', 'CANCELLED', 'REJECTED', 'COMPLETED'];
 const inr = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(value) || 0);
 const hours = (value) => `${Number(value || 0).toFixed(2)} h`;
 
@@ -118,6 +119,9 @@ export default function OvertimePage() {
         }
         await rejectOvertime(decision.row.id, { rejectionReason: decision.rejectionReason.trim(), managerNotes: decision.managerNotes || undefined });
         toast.success('Overtime rejected');
+      } else if (decision.mode === 'approve-cancellation' || decision.mode === 'reject-cancellation') {
+        await decideOvertimeCancellation(decision.row.id, { decision: decision.mode === 'approve-cancellation' ? 'APPROVE' : 'REJECT', remarks: decision.managerNotes || undefined });
+        toast.success(decision.mode === 'approve-cancellation' ? 'Cancellation approved' : 'Cancellation rejected');
       } else {
         await cancelOvertime(decision.row.id, { managerNotes: decision.managerNotes || undefined });
         toast.success('Overtime cancelled');
@@ -146,7 +150,7 @@ export default function OvertimePage() {
     { accessorKey: 'estimatedAmount', header: ({ column }) => <DataTableColumnHeader column={column} title="Amount" />, cell: ({ row }) => inr(row.original.estimatedAmount) },
     { accessorKey: 'approvalStatus', header: ({ column }) => <DataTableColumnHeader column={column} title="Approval" /> },
     { accessorKey: 'payrollStatus', header: ({ column }) => <DataTableColumnHeader column={column} title="Payroll" /> },
-    { id: 'actions', cell: ({ row }) => <RowActions row={row.original} onView={openDetail} onApprove={openApprove} onReject={(item) => setDecision({ mode: 'reject', row: item, rejectionReason: '', managerNotes: '' })} onCancel={(item) => setDecision({ mode: 'cancel', row: item, managerNotes: '' })} /> },
+    { id: 'actions', cell: ({ row }) => <RowActions row={row.original} onView={openDetail} onApprove={openApprove} onReject={(item) => setDecision({ mode: 'reject', row: item, rejectionReason: '', managerNotes: '' })} onCancel={(item) => setDecision({ mode: 'cancel', row: item, managerNotes: '' })} onApproveCancellation={(item) => setDecision({ mode: 'approve-cancellation', row: item, managerNotes: '' })} onRejectCancellation={(item) => setDecision({ mode: 'reject-cancellation', row: item, managerNotes: '' })} /> },
   ], []);
 
   return (
@@ -173,7 +177,7 @@ export default function OvertimePage() {
         </div>
       </div>
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} empty={!loading && !error && rows.length === 0 ? 'No overtime requests match these filters.' : ''} />
-      {rows.length ? <RequestCards rows={rows} onView={openDetail} onApprove={openApprove} onReject={(item) => setDecision({ mode: 'reject', row: item, rejectionReason: '', managerNotes: '' })} onCancel={(item) => setDecision({ mode: 'cancel', row: item, managerNotes: '' })} /> : null}
+      {rows.length ? <RequestCards rows={rows} onView={openDetail} onApprove={openApprove} onReject={(item) => setDecision({ mode: 'reject', row: item, rejectionReason: '', managerNotes: '' })} onCancel={(item) => setDecision({ mode: 'cancel', row: item, managerNotes: '' })} onApproveCancellation={(item) => setDecision({ mode: 'approve-cancellation', row: item, managerNotes: '' })} onRejectCancellation={(item) => setDecision({ mode: 'reject-cancellation', row: item, managerNotes: '' })} /> : null}
       {rows.length ? <div className="hidden md:block"><DataTable columns={columns} data={rows} hideSearch isLoading={loading} pageSize={20} emptyState="" /></div> : null}
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
         <span>{summary.totalApprovedHours ?? 0} approved hours · {inr(summary.compensationAmount)} compensation · {inr(summary.payrollPendingAmount)} waiting for payroll</span>
@@ -194,10 +198,12 @@ export default function OvertimePage() {
       <FormDrawer open={Boolean(detail)} onOpenChange={(open) => { if (!open) setDetail(null); }} showFooter={false} title={detail?.employeeName || 'Overtime request'} description={detail?.employeeCode || ''}>
         {detail ? <DetailBody detail={detail} /> : null}
       </FormDrawer>
-      <FormDrawer open={decision?.mode === 'approve' || decision?.mode === 'reject'} onOpenChange={(open) => { if (!open) { setDecision(null); setPreview(null); } }} title={decision?.mode === 'approve' ? 'Approve overtime' : 'Reject overtime'} description={decision?.row?.employeeName || ''} submitLabel={decision?.mode === 'approve' ? 'Confirm approval' : 'Confirm rejection'} loading={saving} onSubmit={(event) => { event.preventDefault(); confirmDecision(); }}>
+      <FormDrawer open={['approve', 'reject', 'approve-cancellation', 'reject-cancellation'].includes(decision?.mode)} onOpenChange={(open) => { if (!open) { setDecision(null); setPreview(null); } }} title={decision?.mode === 'approve' ? 'Approve overtime' : decision?.mode === 'reject' ? 'Reject overtime' : decision?.mode === 'approve-cancellation' ? 'Approve cancellation' : 'Reject cancellation'} description={decision?.row?.employeeName || ''} submitLabel={decision?.mode === 'approve-cancellation' ? 'Approve cancellation' : decision?.mode === 'reject-cancellation' ? 'Reject cancellation' : decision?.mode === 'approve' ? 'Confirm approval' : 'Confirm rejection'} loading={saving} onSubmit={(event) => { event.preventDefault(); confirmDecision(); }}>
         {decision?.row ? <div className="space-y-3 text-xs">
           <p>{decision.row.employeeName} · {String(decision.row.overtimeDate).slice(0, 10)} · requested {hours(decision.row.requestedHours)}</p>
-          {decision.mode === 'approve' ? <div className="space-y-1.5"><Label>Approved minutes</Label><Input type="number" min="1" max={decision.row.totalMinutes} value={decision.approvedMinutes} onChange={(event) => changeApprovedMinutes(event.target.value)} className="h-9" /><p className="text-slate-500">Preview {inr(preview?.amount)} at {preview?.multiplier || decision.row.compensation?.multiplier}x · {inr(preview?.hourlyRate)} / hour</p></div> : <div className="space-y-1.5"><Label>Rejection reason</Label><Textarea value={decision.rejectionReason || ''} onChange={(event) => setDecision({ ...decision, rejectionReason: event.target.value })} required /></div>}
+          {decision.mode === 'approve' ? <div className="space-y-1.5"><Label>Approved minutes</Label><Input type="number" min="1" max={decision.row.totalMinutes} value={decision.approvedMinutes} onChange={(event) => changeApprovedMinutes(event.target.value)} className="h-9" /><p className="text-slate-500">Preview {inr(preview?.amount)} at {preview?.multiplier || decision.row.compensation?.multiplier}x · {inr(preview?.hourlyRate)} / hour</p></div> : null}
+          {decision.mode === 'reject' ? <div className="space-y-1.5"><Label>Rejection reason</Label><Textarea value={decision.rejectionReason || ''} onChange={(event) => setDecision({ ...decision, rejectionReason: event.target.value })} required /></div> : null}
+          {String(decision.mode).includes('cancellation') ? <div className="space-y-1 text-slate-600"><p>Date {String(decision.row.overtimeDate).slice(0, 10)} · {decision.row.overtimeType}</p><p>Approved window {decision.row.startTime} – {decision.row.endTime} · {decision.row.approvedHours == null ? '—' : hours(decision.row.approvedHours)}</p><p>Employee reason: {decision.row.cancellationReason || '—'}</p><p>Requested {decision.row.cancellationRequestedAt ? new Date(decision.row.cancellationRequestedAt).toLocaleString('en-IN') : '—'}</p><p>Original approval {decision.row.approvedByName || '—'} · {decision.row.approvedAt ? new Date(decision.row.approvedAt).toLocaleString('en-IN') : '—'}</p></div> : null}
           <div className="space-y-1.5"><Label>Manager notes</Label><Textarea value={decision.managerNotes || ''} onChange={(event) => setDecision({ ...decision, managerNotes: event.target.value })} /></div>
         </div> : null}
       </FormDrawer>
@@ -206,8 +212,9 @@ export default function OvertimePage() {
   );
 }
 
-function RowActions({ row, onView, onApprove, onReject, onCancel }) {
+function RowActions({ row, onView, onApprove, onReject, onCancel, onApproveCancellation, onRejectCancellation }) {
   const pending = row.approvalStatus === 'PENDING';
+  const cancellation = row.approvalStatus === 'CANCELLATION_REQUESTED';
   const cancellable = ['PENDING', 'APPROVED'].includes(row.approvalStatus) && !['PROCESSED', 'PAID'].includes(row.payrollStatus);
 
   const actions = [];
@@ -223,6 +230,10 @@ function RowActions({ row, onView, onApprove, onReject, onCancel }) {
       variant: 'destructive',
       onClick: () => onReject(row),
     });
+  }
+  if (cancellation) {
+    actions.push({ label: 'Approve Cancellation', icon: faCheck, onClick: () => onApproveCancellation(row) });
+    actions.push({ label: 'Reject Cancellation', icon: faXmark, variant: 'destructive', onClick: () => onRejectCancellation(row) });
   }
   if (cancellable) {
     actions.push({
@@ -246,8 +257,8 @@ function RowActions({ row, onView, onApprove, onReject, onCancel }) {
   );
 }
 
-function RequestCards({ rows, onView, onApprove, onReject, onCancel }) {
-  return <div className="grid gap-3 md:hidden">{rows.map((row) => <article key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{row.employeeName}</p><p className="text-xs text-slate-500">{row.employeeCode} · {row.department || 'No department'}</p></div><span className="text-xs font-semibold text-brand-dark">{row.approvalStatus}</span></div><p className="mt-2 text-xs text-slate-600">{String(row.overtimeDate).slice(0, 10)} · {row.overtimeType} · {hours(row.requestedHours)} · {inr(row.estimatedAmount)}</p><p className="mt-1 text-xs text-slate-500">Payroll {row.payrollStatus}</p><div className="mt-3"><RowActions row={row} onView={onView} onApprove={onApprove} onReject={onReject} onCancel={onCancel} /></div></article>)}</div>;
+function RequestCards({ rows, onView, onApprove, onReject, onCancel, onApproveCancellation, onRejectCancellation }) {
+  return <div className="grid gap-3 md:hidden">{rows.map((row) => <article key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{row.employeeName}</p><p className="text-xs text-slate-500">{row.employeeCode} · {row.department || 'No department'}</p></div><span className="text-xs font-semibold text-brand-dark">{row.approvalStatus}</span></div><p className="mt-2 text-xs text-slate-600">{String(row.overtimeDate).slice(0, 10)} · {row.overtimeType} · {hours(row.requestedHours)} · {inr(row.estimatedAmount)}</p>{row.cancellationReason ? <p className="mt-1 text-xs text-slate-500">Cancellation: {row.cancellationReason}</p> : null}<p className="mt-1 text-xs text-slate-500">Payroll {row.payrollStatus}</p><div className="mt-3"><RowActions row={row} onView={onView} onApprove={onApprove} onReject={onReject} onCancel={onCancel} onApproveCancellation={onApproveCancellation} onRejectCancellation={onRejectCancellation} /></div></article>)}</div>;
 }
 
 function DetailBody({ detail }) {
@@ -263,6 +274,11 @@ function DetailBody({ detail }) {
     ['Amount', inr(detail.estimatedAmount)],
     ['Rate', detail.compensation ? `${inr(detail.compensation.hourlyRate)} × ${detail.compensation.multiplier}` : '—'],
     ['Reason', detail.reason],
+    ['Cancellation reason', detail.cancellationReason || '—'],
+    ['Cancellation remarks', detail.cancellationRemarks || '—'],
+    ['Cancellation requested', detail.cancellationRequestedAt ? new Date(detail.cancellationRequestedAt).toLocaleString('en-IN') : '—'],
+    ['Cancellation decision', detail.cancellationDecision ? `${detail.cancellationDecision}${detail.cancellationDecisionNotes ? ` · ${detail.cancellationDecisionNotes}` : ''}` : '—'],
+    ['Original approval', detail.approvedByName ? `${detail.approvedByName}${detail.approvedAt ? ` · ${new Date(detail.approvedAt).toLocaleString('en-IN')}` : ''}` : '—'],
     ['Employee notes', detail.employeeNotes || '—'],
     ['Manager notes', detail.managerNotes || '—'],
     ['Payroll', `${detail.payrollStatus}${detail.payroll ? ` · ${detail.payroll.month}/${detail.payroll.year} ${detail.payroll.status}` : ''}`],
