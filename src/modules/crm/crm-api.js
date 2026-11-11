@@ -441,3 +441,63 @@ export const crmGaps = {
   salesEmployee: 'There is no sales-employee performance or lead-source report endpoint. Source and employee charts are not shown unless those aggregates are returned.',
   dealHistory: 'Deal records include stage, value, and status. There is no separate deal-history endpoint.',
 };
+
+// ==========================================
+// SEND DETAILS API
+// ==========================================
+
+export async function loadSendDetailsDocuments() {
+  const res = await api.get('/admin/send-details/documents');
+  return res.data || res;
+}
+
+export async function createSendDetailsDocument(payload) {
+  const res = await api.post('/admin/send-details/documents', payload);
+  return res.data || res;
+}
+
+export async function updateSendDetailsDocument(id, payload) {
+  const res = await api.patch(`/admin/send-details/documents/${id}`, payload);
+  return res.data || res;
+}
+
+export async function deleteSendDetailsDocument(id) {
+  const res = await api.delete(`/admin/send-details/documents/${id}`);
+  return res.data || res;
+}
+
+export async function uploadSendDetailsFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post('/admin/send-details/documents/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data || res;
+}
+
+export async function loadSendDetailsConfig() {
+  const res = await api.get('/admin/send-details/config');
+  return res.data || res;
+}
+
+export async function updateSendDetailsConfig(payload) {
+  const res = await api.patch('/admin/send-details/config', payload);
+  return res.data || res;
+}
+
+export async function loadSendDetailsHistory(leadId) {
+  const url = leadId ? `/admin/send-details/leads/${leadId}/history` : '/admin/send-details/history';
+  const res = await api.get(url);
+  return res.data || res;
+}
+
+export async function manualSendDetails(leadId, payload) {
+  const res = await api.post(`/admin/send-details/leads/${leadId}/send`, payload);
+  return res.data || res;
+}
+
+export async function retrySendDetails(deliveryId, payload = { channel: 'ALL' }) {
+  const res = await api.post(`/admin/send-details/deliveries/${deliveryId}/retry`, payload);
+  return res.data || res;
+}
+
