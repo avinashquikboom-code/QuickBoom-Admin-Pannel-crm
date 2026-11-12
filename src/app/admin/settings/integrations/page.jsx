@@ -6,6 +6,7 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
+import { GoogleMapsIntegrationModal } from '@/components/integrations/GoogleMapsIntegrationModal';
 import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { disconnectIntegration, loadIntegrations, saveIntegration, setIntegrationEnabled, suiteError, testIntegration } from '@/modules/suite/suite-api';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
@@ -84,6 +85,8 @@ export default function IntegrationsPage() {
   const [form, setForm] = React.useState({});
   const [reveal, setReveal] = React.useState({});
   const [refresh, setRefresh] = React.useState(0);
+  const [saving, setSaving] = React.useState(false);
+  const [mapsApiKey, setMapsApiKey] = React.useState('');
 
   React.useEffect(() => {
     let alive = true;
@@ -109,6 +112,11 @@ export default function IntegrationsPage() {
   };
 
   const open = (row) => {
+    if (row.provider === 'GOOGLE_MAPS') {
+      setMapsApiKey('');
+      setActive(row);
+      return;
+    }
     const next = {};
     fieldsFor(row).forEach((field) => {
       if (field.secret) return;
@@ -123,10 +131,29 @@ export default function IntegrationsPage() {
   };
 
   const save = async (event) => {
-    event.preventDefault();
+    event?.preventDefault?.();
     const payload = collect(active, form);
+    await runSaveAndEnable(active, payload);
+  };
+
+  const saveGoogleMaps = async () => {
+    if (!active || active.provider !== 'GOOGLE_MAPS') return;
+    const trimmed = mapsApiKey.trim();
+    const hasSavedKey = googleMapsHasSavedKey(active);
+    if (!trimmed && !hasSavedKey) {
+      toast.error('Enter a Google Maps API key to enable this integration.');
+      return;
+    }
+    const credentials = {};
+    if (trimmed) credentials.apiKey = trimmed;
+    await runSaveAndEnable(active, { credentials, config: {} });
+  };
+
+  async function runSaveAndEnable(row, payload) {
+    if (saving) return;
+    setSaving(true);
     try {
-      const result = await testIntegration(active.provider, payload);
+      const result = await testIntegration(row.provider, payload);
       const body = result?.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : result;
       const ok = body?.success !== false && !/fail|error/i.test(String(body?.status || ''));
       if (!ok) {
@@ -134,14 +161,17 @@ export default function IntegrationsPage() {
         setRefresh((value) => value + 1);
         return;
       }
-      await saveIntegration(active.provider, { ...payload, isEnabled: true });
+      await saveIntegration(row.provider, { ...payload, isEnabled: true });
       setActive(null);
+      setMapsApiKey('');
       setRefresh((value) => value + 1);
       toast.success('Connection successful. Integration saved and enabled.');
     } catch (err) {
       toast.error(suiteError(err));
+    } finally {
+      setSaving(false);
     }
-  };
+  }
 
   return <div className="max-w-none space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
     <PageHeader title="Integrations" description="Manage and configure third-party services connected to QB Suite." actions={<Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button>} />
@@ -184,8 +214,31 @@ export default function IntegrationsPage() {
         })}
       </div>
     </HrmNotice>
-    <FormDrawer open={Boolean(active)} onOpenChange={(next) => { if (!next) setActive(null); }} title={active ? labelOf(active) : 'Integration'} description="Blank secret fields keep the saved value. Save & Enable tests the connection before turning the integration on." submitLabel="Save & Enable" onSubmit={save}>
-      {active && <div className="grid gap-3">{fieldsFor(active).map((field) => <Label key={field.key} className="grid gap-1 text-xs">{field.label}{field.type === 'boolean' ? <input type="checkbox" className="size-4" checked={Boolean(form[field.key])} onChange={(event) => setForm({ ...form, [field.key]: event.target.checked })} /> : field.options ? <select className="h-9 rounded-md border px-2 text-sm" value={form[field.key] || field.options[0]} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <div className="flex gap-2"><Input type={field.secret && !reveal[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'} autoComplete="new-password" value={form[field.key] || ''} placeholder={field.secret ? 'Leave blank to keep the saved value' : field.placeholder || ''} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />{field.secret && <Button type="button" variant="outline" onClick={() => setReveal({ ...reveal, [field.key]: !reveal[field.key] })}>{reveal[field.key] ? 'Hide' : 'Show'}</Button>}</div>}</Label>)}{active.provider === 'WHATSAPP' && active.config?.webhookUrl && <p className="text-xs text-slate-500">Webhook URL from the server: {active.config.webhookUrl}</p>}</div>}
+    <GoogleMapsIntegrationModal
+      open={Boolean(active?.provider === 'GOOGLE_MAPS')}
+      onOpenChange={(next) => {
+        if (!next && !saving) {
+          setActive(null);
+          setMapsApiKey('');
+        }
+      }}
+      apiKey={mapsApiKey}
+      onApiKeyChange={setMapsApiKey}
+      onSave={saveGoogleMaps}
+      saving={saving}
+      hasSavedKey={active?.provider === 'GOOGLE_MAPS' ? googleMapsHasSavedKey(active) : false}
+    />
+    <FormDrawer
+      open={Boolean(active && active.provider !== 'GOOGLE_MAPS')}
+      onOpenChange={(next) => { if (!next && !saving) setActive(null); }}
+      title={active ? labelOf(active) : 'Integration'}
+      description="Blank secret fields keep the saved value. Save & Enable tests the connection before turning the integration on."
+      submitLabel="Save & Enable"
+      loading={saving}
+      disabled={saving}
+      onSubmit={save}
+    >
+      {active && active.provider !== 'GOOGLE_MAPS' && <div className="grid gap-3">{fieldsFor(active).map((field) => <Label key={field.key} className="grid gap-1 text-xs">{field.label}{field.type === 'boolean' ? <input type="checkbox" className="size-4" checked={Boolean(form[field.key])} onChange={(event) => setForm({ ...form, [field.key]: event.target.checked })} /> : field.options ? <select className="h-9 rounded-md border px-2 text-sm" value={form[field.key] || field.options[0]} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <div className="flex gap-2"><Input type={field.secret && !reveal[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'} autoComplete="new-password" value={form[field.key] || ''} placeholder={field.secret ? 'Leave blank to keep the saved value' : field.placeholder || ''} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />{field.secret && <Button type="button" variant="outline" onClick={() => setReveal({ ...reveal, [field.key]: !reveal[field.key] })}>{reveal[field.key] ? 'Hide' : 'Show'}</Button>}</div>}</Label>)}{active.provider === 'WHATSAPP' && active.config?.webhookUrl && <p className="text-xs text-slate-500">Webhook URL from the server: {active.config.webhookUrl}</p>}</div>}
     </FormDrawer>
   </div>;
 
@@ -280,4 +333,8 @@ function ConnectionBadge({ status }) {
 }
 function filterLabel(status) {
   return { ALL: 'All', CONNECTED: 'Connected', NOT_CONFIGURED: 'Not configured', ERROR: 'Error', DISABLED: 'Disabled' }[status];
+}
+function googleMapsHasSavedKey(row) {
+  if (!row) return false;
+  return Boolean(row.configured || row.source === 'DATABASE' || row.credentials?.apiKey);
 }
