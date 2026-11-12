@@ -135,7 +135,8 @@ export function saveLead(values, id) {
   };
   const request = id ? api.patch(`/leads/${id}`, body) : api.post('/leads', body);
   return request.then((response) => {
-    if (String(values.status || '').toUpperCase() === 'WON') notifyCustomersChanged();
+    const stage = String(values.status || '').toUpperCase();
+    if (stage === 'WON' || stage === 'FINAL_CALL') notifyCustomersChanged();
     return response;
   });
 }
@@ -165,7 +166,8 @@ export const importGooglePlaces = (placeIds, jobId, places) => api.post('/data-c
 export const loadCapturedPlace = (id) => api.get(`/data-capture/${id}`);
 export const bulkAssignLeads = (body) => api.post('/leads/bulk/assign', body);
 export const bulkLeadStatus = (body) => api.post('/leads/bulk/status', body).then((response) => {
-  if (String(body?.status || '').toUpperCase() === 'WON') notifyCustomersChanged();
+  const stage = String(body?.status || '').toUpperCase();
+  if (stage === 'WON' || stage === 'FINAL_CALL') notifyCustomersChanged();
   return response;
 });
 export const bulkLeadPriority = (body) => api.post('/leads/bulk/priority', body);
@@ -186,8 +188,13 @@ export const addLeadNote = (id, content) => api.post(`/leads/${id}/notes`, { con
 export const logFollowUp = (id, values) => api.post(`/leads/${id}/follow-ups`, values);
 
 export async function loadCustomers(params = {}) {
-  const [list, metrics] = await Promise.all([api.get('/customers', { params }), api.get('/customers/metrics')]);
-  return { rows: listFrom(list), metrics: bodyOf(metrics), pagination: pageOf(list) };
+  const normalized = { ...params };
+  if (normalized.status === 'ALL' || normalized.status === '') {
+    delete normalized.status;
+  }
+  const [list, metrics] = await Promise.all([api.get('/customers', { params: normalized }), api.get('/customers/metrics')]);
+  const counts = list?.meta?.counts || list?.data?.meta?.counts || {};
+  return { rows: listFrom(list), metrics: bodyOf(metrics), pagination: pageOf(list), counts };
 }
 
 export function saveCustomer(values, id) {
