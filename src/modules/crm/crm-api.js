@@ -96,6 +96,15 @@ export async function loadLeads(params = {}) {
   return { rows: await withCapturePhotos(listFrom(list)), metrics: bodyOf(metrics), sources: listFrom(sources), pagination: pageOf(list) };
 }
 
+const customerRefreshListeners = new Set();
+export function subscribeCustomerRefresh(listener) {
+  customerRefreshListeners.add(listener);
+  return () => customerRefreshListeners.delete(listener);
+}
+export function notifyCustomersChanged() {
+  customerRefreshListeners.forEach((listener) => listener());
+}
+
 export function saveLead(values, id) {
   const body = {
     firstName: values.firstName,
@@ -124,7 +133,11 @@ export function saveLead(values, id) {
     value: values.value === '' || values.value == null ? undefined : Number(values.value),
     socialMedia: values.socialMedia,
   };
-  return id ? api.patch(`/leads/${id}`, body) : api.post('/leads', body);
+  const request = id ? api.patch(`/leads/${id}`, body) : api.post('/leads', body);
+  return request.then((response) => {
+    if (String(values.status || '').toUpperCase() === 'WON') notifyCustomersChanged();
+    return response;
+  });
 }
 
 export const checkLeadDuplicate = (values) => api.post('/leads/check-duplicate', {
@@ -151,7 +164,10 @@ export const resolveGoogleLocation = (placeId) => api.post('/data-capture/locati
 export const importGooglePlaces = (placeIds, jobId, places) => api.post('/data-capture/import-to-leads', { placeIds, jobId, places });
 export const loadCapturedPlace = (id) => api.get(`/data-capture/${id}`);
 export const bulkAssignLeads = (body) => api.post('/leads/bulk/assign', body);
-export const bulkLeadStatus = (body) => api.post('/leads/bulk/status', body);
+export const bulkLeadStatus = (body) => api.post('/leads/bulk/status', body).then((response) => {
+  if (String(body?.status || '').toUpperCase() === 'WON') notifyCustomersChanged();
+  return response;
+});
 export const bulkLeadPriority = (body) => api.post('/leads/bulk/priority', body);
 export const archiveLeads = (ids) => api.post('/leads/bulk-delete', { ids });
 
@@ -161,7 +177,10 @@ export function uploadLeadImage(id, file) {
   body.append('image', file);
   return api.post(`/leads/${id}/images`, body);
 }
-export const convertLead = (id, values) => api.post(`/leads/${id}/convert`, values);
+export const convertLead = (id, values) => api.post(`/leads/${id}/convert`, values).then((response) => {
+  notifyCustomersChanged();
+  return response;
+});
 export const loadLeadNotes = async (id) => listFrom(await api.get(`/leads/${id}/notes`));
 export const addLeadNote = (id, content) => api.post(`/leads/${id}/notes`, { content });
 export const logFollowUp = (id, values) => api.post(`/leads/${id}/follow-ups`, values);

@@ -6,16 +6,18 @@ import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
-import { crmError, customerRelations, loadCustomers, loadEmployees, personName, saveCustomer, sessionCan } from '@/modules/crm/crm-api';
+import { crmError, customerRelations, loadCustomers, loadEmployees, personName, saveCustomer, sessionCan, subscribeCustomerRefresh } from '@/modules/crm/crm-api';
 
 const blank = { name: '', companyName: '', email: '', phone: '', customerType: '', industry: '', status: 'ACTIVE', assignedEmployeeId: '', city: '', address: '', notes: '' };
 
 export default function CustomersRoute() {
   const [allowed, setAllowed] = React.useState(false);
   const [employees, setEmployees] = React.useState([]);
+  const [customerRefresh, setCustomerRefresh] = React.useState(0);
   React.useEffect(() => { setAllowed(sessionCan('CUSTOMER') || sessionCan('CRM')); loadEmployees().then(setEmployees).catch(() => setEmployees([])); }, []);
+  React.useEffect(() => subscribeCustomerRefresh(() => setCustomerRefresh((value) => value + 1)), []);
   const load = React.useCallback((query) => loadCustomers({ page: query.page, limit: 20, search: query.search || undefined, status: query.status || undefined }), []);
-  return <CrmScreen title="Customers" description="Tenant customers, assignment, and related deals, visits, and activities." actionLabel="Add customer" canCreate={allowed} load={load} blank={blank}
+  return <CrmScreen title="Customers" description="Tenant customers, assignment, and related deals, visits, and activities." actionLabel="Add customer" canCreate={allowed} load={load} blank={blank} refreshToken={customerRefresh}
     stats={(result) => [{ label: 'Total', value: result.metrics?.totalCustomers }, { label: 'Active', value: result.metrics?.activeCustomers }, { label: 'Inactive', value: result.metrics?.inactiveCustomers }, { label: 'Open deals', value: result.metrics?.customersWithOpenDeals }]}
     filters={[{ key: 'status', label: 'All statuses', options: ['ACTIVE', 'INACTIVE'].map((value) => ({ value, label: value })) }]}
     columns={[{ header: 'Customer', cell: (row) => row.name || row.companyName }, { header: 'Company', cell: (row) => row.companyName || '—' }, { header: 'Phone', cell: (row) => row.phone || '—' }, { header: 'Email', cell: (row) => row.email || '—' }, { header: 'Type', cell: (row) => row.customerType || '—' }, { header: 'Assigned', cell: (row) => personName(row.assignedEmployee) || row.assignedEmployee || '—' }, { header: 'Status', cell: (row) => <StatusBadge status={String(row.status || (row.isActive === false ? 'inactive' : 'active')).toLowerCase()} /> }]}

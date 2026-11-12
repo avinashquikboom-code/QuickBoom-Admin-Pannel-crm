@@ -26,9 +26,11 @@ export function CrmScreen({ hideTitleCard = false, title, description, actionLab
 
   const loadRef = React.useRef(load);
   loadRef.current = load;
+  const rowsRef = React.useRef(rows);
+  rowsRef.current = rows;
   React.useEffect(() => {
     let active = true;
-    setLoading(true);
+    if (rowsRef.current.length === 0) setLoading(true);
     setSelectedRows([]);
     setSelectionResetToken((value) => value + 1);
     loadRef.current(query).then((result) => {
