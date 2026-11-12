@@ -22,6 +22,7 @@ const LIST_TABS = [
 
 export function MetaTemplatesAll() {
   const [rows, setRows] = React.useState([]);
+  const [campaignRows, setCampaignRows] = React.useState([]);
   const [stats, setStats] = React.useState({});
   const [listTab, setListTab] = React.useState('ALL');
   const [search, setSearch] = React.useState('');
@@ -51,34 +52,52 @@ export function MetaTemplatesAll() {
     setLoading(true);
     setError('');
     try {
-      const payload = envelope(
-        await api.get('/templates/meta', {
-          params: {
-            page,
-            limit,
-            search: search || undefined,
-            status: status === 'ALL' ? undefined : status,
-            language: language === 'ALL' ? undefined : language,
-            category: category === 'ALL' ? undefined : category,
-            source: sourceFilter,
-          },
-        }),
-      );
-      const list = rowsOf(payload);
-      const pagination = pageOf(payload, { page, totalPages: 1, total: list.length });
-      setRows(list);
-      if (language === 'ALL') {
-        setLanguageChoices(['ALL', ...Array.from(new Set(list.map((row) => row.language).filter(Boolean)))]);
+      if (listTab === 'CAMPAIGN') {
+        const payload = envelope(
+          await api.get('/templates/meta/campaigns', {
+            params: { page, limit, search: search || undefined, status: status === 'ALL' ? undefined : status },
+          }),
+        );
+        const list = rowsOf(payload);
+        const pagination = pageOf(payload, { page, totalPages: 1, total: list.length });
+        setCampaignRows(list);
+        setRows([]);
+        setPages(Math.max(1, Number(pagination.totalPages) || 1));
+        setTotal(Number(pagination.total) || list.length);
+      } else {
+        const payload = envelope(
+          await api.get('/templates/meta', {
+            params: {
+              page,
+              limit,
+              search: search || undefined,
+              status: status === 'ALL' ? undefined : status,
+              language: language === 'ALL' ? undefined : language,
+              category: category === 'ALL' ? undefined : category,
+              source: sourceFilter,
+            },
+          }),
+        );
+        const list = rowsOf(payload);
+        const pagination = pageOf(payload, { page, totalPages: 1, total: list.length });
+        setRows(list);
+        setCampaignRows([]);
+        if (language === 'ALL') {
+          setLanguageChoices(['ALL', ...Array.from(new Set(list.map((row) => row.language).filter(Boolean)))]);
+        }
+        setPages(Math.max(1, Number(pagination.totalPages) || 1));
+        setTotal(Number(pagination.total) || list.length);
+        if (payload?.stats) setStats(payload.stats);
       }
-      setPages(Math.max(1, Number(pagination.totalPages) || 1));
-      setTotal(Number(pagination.total) || list.length);
-      if (payload?.stats) setStats(payload.stats);
+      const statsPayload = envelope(await api.get('/templates/meta/stats'));
+      if (statsPayload?.total !== undefined) setStats(statsPayload);
+      else if (statsPayload?.data) setStats(statsPayload.data);
     } catch (err) {
       setError(err?.response?.data?.message || 'Meta templates could not be loaded.');
     } finally {
       setLoading(false);
     }
-  }, [page, limit, search, status, language, category, sourceFilter]);
+  }, [page, limit, search, status, language, category, sourceFilter, listTab]);
 
   React.useEffect(() => {
     load();
@@ -176,7 +195,13 @@ export function MetaTemplatesAll() {
           type="button"
           variant="outline"
           className="w-full lg:w-auto"
-          onClick={() => downloadCsv('meta-templates.csv', [{ key: 'name', label: 'Name' }, { key: 'templateName', label: 'Code' }, { key: 'language', label: 'Language' }, { key: 'status', label: 'Status' }], rows)}
+          onClick={() => downloadCsv(
+            listTab === 'CAMPAIGN' ? 'whatsapp-campaigns.csv' : 'meta-templates.csv',
+            listTab === 'CAMPAIGN'
+              ? [{ key: 'name', label: 'Campaign' }, { key: 'status', label: 'Status' }, { key: 'recipientCount', label: 'Recipients' }, { key: 'sentCount', label: 'Sent' }]
+              : [{ key: 'name', label: 'Name' }, { key: 'templateName', label: 'Code' }, { key: 'language', label: 'Language' }, { key: 'status', label: 'Status' }],
+            listTab === 'CAMPAIGN' ? campaignRows : rows,
+          )}
         >
           <FontAwesomeIcon icon={faDownload} className="mr-2" />
           Export CSV
@@ -190,6 +215,25 @@ export function MetaTemplatesAll() {
       ) : null}
 
       <div className="hidden md:block">
+        {listTab === 'CAMPAIGN' ? (
+          <TemplateTable
+            loading={loading}
+            error={error}
+            rows={campaignRows}
+            empty="No campaign records yet. Create a campaign from the actions above."
+            columns={['Campaign', 'Template', 'Recipients', 'Status', 'Sent', 'Scheduled']}
+            render={(row) => (
+              <tr key={row.id} className="border-t border-[#E2E8E5]">
+                <td className="px-3 py-3 font-medium">{row.name}</td>
+                <td className="px-3 py-3">{row.metaTemplate?.name || row.metaTemplate?.templateName || '—'}</td>
+                <td className="px-3 py-3">{row.recipientCount ?? 0}</td>
+                <td className="px-3 py-3"><span className="rounded-full bg-[#E8F1EC] px-2 py-1 text-xs font-semibold">{row.status}</span></td>
+                <td className="px-3 py-3">{row.sentCount ?? 0}</td>
+                <td className="px-3 py-3">{row.scheduledAt ? new Date(row.scheduledAt).toLocaleString() : '—'}</td>
+              </tr>
+            )}
+          />
+        ) : (
         <TemplateTable
           loading={loading}
           error={error}
@@ -221,10 +265,16 @@ export function MetaTemplatesAll() {
             </tr>
           )}
         />
+        )}
       </div>
 
       <div className="space-y-3 md:hidden">
-        {loading ? <p className="rounded-xl border p-5 text-sm">Loading templates…</p> : error ? <p className="rounded-xl border border-red-200 p-4 text-sm text-red-700">{error}</p> : rows.length ? rows.map((row) => (
+        {loading ? <p className="rounded-xl border p-5 text-sm">Loading templates…</p> : error ? <p className="rounded-xl border border-red-200 p-4 text-sm text-red-700">{error}</p> : listTab === 'CAMPAIGN' ? (campaignRows.length ? campaignRows.map((row) => (
+          <article key={row.id} className="rounded-xl border bg-white p-4">
+            <h3 className="font-semibold">{row.name}</h3>
+            <p className="text-xs text-[#718078]">{row.metaTemplate?.name} · {row.recipientCount} recipients · {row.status}</p>
+          </article>
+        )) : <p className="rounded-xl border p-5 text-sm text-[#718078]">No campaigns found.</p>) : rows.length ? rows.map((row) => (
           <article key={row.id} className="space-y-2 rounded-xl border border-[#E2E8E5] bg-white p-4">
             <div className="flex items-start justify-between gap-3">
               <h3 className="min-w-0 break-words font-semibold">{row.name}</h3>
