@@ -57,10 +57,6 @@ export const INTEGRATION_PROVIDERS = [
     displayKeys: [],
     fields: [
       { key: 'apiKey', label: 'Google Maps API Key', type: 'password', required: true, secret: true },
-      { key: 'mapsJs', label: 'Maps JavaScript API', type: 'switch', defaultValue: true },
-      { key: 'places', label: 'Places API', type: 'switch', defaultValue: true },
-      { key: 'geocoding', label: 'Geocoding API', type: 'switch', defaultValue: true },
-      { key: 'directions', label: 'Directions API', type: 'switch', defaultValue: false },
     ],
     actions: ['save', 'testConnection', 'disconnect'],
   },
