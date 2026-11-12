@@ -60,6 +60,7 @@ export default function SendDetailsPage() {
   const [savingConfig, setSavingConfig] = React.useState(false);
   const [uploadingDocId, setUploadingDocId] = React.useState(null);
   const [retryingId, setRetryingId] = React.useState(null);
+  const [detailId, setDetailId] = React.useState(null);
   const [editingDoc, setEditingDoc] = React.useState(null);
 
   const fileInputRef = React.useRef(null);
@@ -165,8 +166,10 @@ export default function SendDetailsPage() {
   const handleRetry = async (deliveryId) => {
     try {
       setRetryingId(deliveryId);
-      await retrySendDetails(deliveryId, { channel: 'ALL' });
-      toast.success('Retry dispatched successfully');
+      const result = await retrySendDetails(deliveryId, { channel: 'ALL' });
+      const status = result?.overallStatus || result?.data?.overallStatus;
+      if (status === 'FAILED') toast.error(result?.whatsappError || result?.emailError || result?.data?.whatsappError || result?.data?.emailError || 'Delivery is still failed');
+      else toast.success(status === 'COMPLETED' || status === 'SENT' ? 'Delivery completed' : 'Retry finished');
       loadData();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Retry failed');
@@ -431,7 +434,8 @@ export default function SendDetailsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {history.map((record) => (
-                    <tr key={record.id} className="hover:bg-slate-50/50">
+                    <React.Fragment key={record.id}>
+                    <tr className="hover:bg-slate-50/50">
                       <td className="px-4 py-3 font-medium text-slate-900">
                         <div>Lead #{record.leadId}</div>
                         <div className="text-xs text-slate-500 font-mono">
@@ -487,10 +491,12 @@ export default function SendDetailsPage() {
                       <td className="px-4 py-3">
                         <Badge
                           className={`text-xs ${
-                            record.overallStatus === 'SENT'
+                            record.overallStatus === 'SENT' || record.overallStatus === 'COMPLETED'
                               ? 'bg-emerald-600 text-white'
-                              : record.overallStatus === 'PARTIAL'
+                              : record.overallStatus === 'PARTIAL' || record.overallStatus === 'PARTIALLY_COMPLETED'
                               ? 'bg-amber-500 text-white'
+                              : record.overallStatus === 'PENDING' || record.overallStatus === 'PROCESSING'
+                              ? 'bg-slate-500 text-white'
                               : 'bg-rose-600 text-white'
                           }`}
                         >
@@ -504,7 +510,8 @@ export default function SendDetailsPage() {
                         {new Date(record.createdAt).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {(record.whatsappStatus === 'FAILED' || record.emailStatus === 'FAILED') && (
+                        <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={() => setDetailId(detailId === record.id ? null : record.id)}>Details</Button>
+                        {(record.whatsappStatus === 'FAILED' || record.emailStatus === 'FAILED' || ((record.whatsappStatus === 'SKIPPED' || record.emailStatus === 'SKIPPED') && (record.whatsappError || record.emailError))) && (
                           <Button
                             onClick={() => handleRetry(record.id)}
                             disabled={retryingId === record.id}
@@ -518,6 +525,16 @@ export default function SendDetailsPage() {
                         )}
                       </td>
                     </tr>
+                    {detailId === record.id && (
+                      <tr className="bg-slate-50">
+                        <td colSpan={8} className="px-4 py-3 text-xs text-slate-700 space-y-1">
+                          <p>WhatsApp: {record.whatsappStatus}{record.whatsappError ? ` — ${record.whatsappError}` : ''}{record.whatsappMessageId ? ` · Message ${record.whatsappMessageId}` : ''} · Retries {record.whatsappRetryCount || 0}</p>
+                          <p>Email: {record.emailStatus}{record.emailError ? ` — ${record.emailError}` : ''}{record.emailMessageId ? ` · Message ${record.emailMessageId}` : ''} · Retries {record.emailRetryCount || 0}</p>
+                          <p>Attempted {new Date(record.updatedAt || record.createdAt).toLocaleString()}</p>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
