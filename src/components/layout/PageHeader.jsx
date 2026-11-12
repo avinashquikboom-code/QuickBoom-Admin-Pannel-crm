@@ -124,6 +124,16 @@ function getRouteMetadata(pathname) {
         return { category: 'DATA CAPTURE ENGINE', icon: faChartBar };
     }
 
+    if (pathname.includes('/admin/sections/meta-templates/create')) {
+        return { category: 'TEMPLATES & ASSETS', icon: faMessage };
+    }
+    if (pathname.includes('/admin/sections/meta-templates/campaigns')) {
+        return { category: 'TEMPLATES & ASSETS', icon: faBullhorn };
+    }
+    if (pathname.includes('/admin/sections/meta-templates')) {
+        return { category: 'TEMPLATES & ASSETS', icon: faMessage };
+    }
+
     if (routeRegistry[lastSegment]) {
         const item = routeRegistry[lastSegment];
         return {

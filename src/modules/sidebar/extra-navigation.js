@@ -23,6 +23,7 @@ import {
     faListCheck,
     faMessage,
     faMoneyBill,
+    faPlus,
     faShareNodes,
     faStar,
     faTags,
@@ -62,7 +63,16 @@ export const operationsNavigation = [
 
 export const templatesNavigation = [
     { name: 'Email Templates', href: '/admin/sections/email-templates', icon: faEnvelope },
-    { name: 'Meta Templates', href: '/admin/sections/meta-templates', icon: faMessage },
+    {
+        name: 'Meta Templates',
+        href: '/admin/sections/meta-templates',
+        icon: faMessage,
+        children: [
+            { name: 'All Templates', href: '/admin/sections/meta-templates', icon: faLayerGroup },
+            { name: 'Add Single Template', href: '/admin/sections/meta-templates/create', icon: faPlus },
+            { name: 'Campaigns', href: '/admin/sections/meta-templates/campaigns', icon: faBullhorn },
+        ],
+    },
 ];
 
 export const aiSocialNavigation = [
