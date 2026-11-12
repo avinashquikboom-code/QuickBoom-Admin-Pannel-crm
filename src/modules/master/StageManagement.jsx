@@ -12,9 +12,53 @@ import { Label } from '@/components/common/Label';
 import { Textarea } from '@/components/common/Textarea';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
+import api from '../../../lib/api';
 import { bulkDealStages, crmError, loadDealStage, loadDealStages, loadLeadStage, loadLeadStages, reassignDealStage, reassignLeadStage, removeDealStage, removeLeadStage, saveDealStage, saveLeadStage } from '@/modules/crm/crm-api';
+import { envelope, rowsOf } from '@/modules/templates/template-shared';
 
-const emptyForm = { type: 'Lead', name: '', order: '', probability: '', description: '', color: '#163A2E', bgColor: '#E8F1EC', borderColor: '#E2E8E5', isActive: true, emailEnabled: true, whatsappEnabled: true };
+const STAGE_EMAIL_SAMPLE_VARS = {
+  customerName: 'Sample Lead',
+  leadName: 'Sample Lead',
+  companyName: 'Sample Company Pvt Ltd',
+  customerEmail: 'lead@example.com',
+  leadPhone: '919876543210',
+  oldStage: 'New',
+  newStage: 'Current stage',
+  salesOwner: 'CRM Executive',
+  currentDate: new Date().toLocaleDateString('en-IN'),
+  currentTime: new Date().toLocaleTimeString('en-IN'),
+};
+
+const STAGE_WHATSAPP_SAMPLE_VARS = {
+  leadName: 'Sample Lead',
+  name: 'Sample Lead',
+  customerName: 'Sample Lead',
+  companyName: 'Sample Company Pvt Ltd',
+  businessName: 'Sample Company Pvt Ltd',
+  phone: '919876543210',
+  userName: 'CRM Executive',
+  stage: 'Current stage',
+};
+
+const emptyForm = {
+  type: 'Lead',
+  name: '',
+  order: '',
+  probability: '',
+  description: '',
+  color: '#163A2E',
+  bgColor: '#E8F1EC',
+  borderColor: '#E2E8E5',
+  isActive: true,
+  emailEnabled: true,
+  emailTemplateId: '',
+  emailVariableMappingJson: '',
+  emailTestAddress: '',
+  whatsappEnabled: true,
+  whatsappTemplateId: '',
+  whatsappVariableMappingJson: '',
+  whatsappTestPhone: '',
+};
 const keyOf = (stage) => `${stage.type}:${stage.id}`;
 const usageOf = (stage) => (stage?.type === 'Lead'
   ? Number(stage.leadsCount || stage._count?.leads || 0)
@@ -37,6 +81,14 @@ export function StageManagement() {
   const [status, setStatus] = React.useState('ALL');
   const [sort, setSort] = React.useState('order');
   const [page, setPage] = React.useState(1);
+  const [emailTemplates, setEmailTemplates] = React.useState([]);
+  const [metaTemplates, setMetaTemplates] = React.useState([]);
+  const [emailPreview, setEmailPreview] = React.useState(null);
+  const [emailPreviewLoading, setEmailPreviewLoading] = React.useState(false);
+  const [emailTestSending, setEmailTestSending] = React.useState(false);
+  const [waPreview, setWaPreview] = React.useState(null);
+  const [waPreviewLoading, setWaPreviewLoading] = React.useState(false);
+  const [waTestSending, setWaTestSending] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
     setLoading(true);
@@ -90,12 +142,172 @@ export function StageManagement() {
       borderColor: stage.borderColor || '#E2E8E5',
       isActive: stage.isActive !== false,
       emailEnabled: stage.emailEnabled !== false,
+      emailTemplateId: stage.emailTemplateId || stage.emailTemplate?.id || '',
+      emailVariableMappingJson: stage.emailVariableMapping ? JSON.stringify(stage.emailVariableMapping, null, 2) : '',
+      emailTestAddress: '',
       whatsappEnabled: stage.whatsappEnabled !== false,
+      whatsappTemplateId: stage.whatsappTemplateId || stage.whatsappTemplate?.id || '',
+      whatsappVariableMappingJson: stage.whatsappVariableMapping ? JSON.stringify(stage.whatsappVariableMapping, null, 2) : '',
+      whatsappTestPhone: '',
     } : emptyForm);
+
+  const stageEmailVariables = React.useCallback(() => {
+    const vars = {
+      ...STAGE_EMAIL_SAMPLE_VARS,
+      newStage: form.name || STAGE_EMAIL_SAMPLE_VARS.newStage,
+      stage: form.name || STAGE_EMAIL_SAMPLE_VARS.newStage,
+    };
+    if (!form.emailVariableMappingJson?.trim()) return vars;
+    try {
+      const mapping = JSON.parse(form.emailVariableMappingJson);
+      Object.entries(mapping).forEach(([key, source]) => {
+        const src = String(source || '').trim();
+        vars[key] = vars[src] ?? src;
+      });
+    } catch {
+      /* ignore */
+    }
+    return vars;
+  }, [form.name, form.emailVariableMappingJson]);
+
+  const selectedEmailTemplate = React.useMemo(
+    () => emailTemplates.find((item) => String(item.id) === String(form.emailTemplateId)),
+    [emailTemplates, form.emailTemplateId],
+  );
+
+  const runEmailPreview = async () => {
+    if (!form.emailTemplateId) {
+      toast.error('Select an active email template first.');
+      return;
+    }
+    setEmailPreviewLoading(true);
+    try {
+      const tpl = selectedEmailTemplate;
+      const payload = await api.post('/email/templates/preview', {
+        subject: tpl?.subject || 'Stage update',
+        body: tpl?.body || '',
+        variables: stageEmailVariables(),
+      });
+      const body = payload?.data || payload;
+      setEmailPreview(body);
+      toast.success('Email preview generated.');
+    } catch (error) {
+      toast.error(crmError(error));
+    } finally {
+      setEmailPreviewLoading(false);
+    }
+  };
+
+  const runEmailTestSend = async () => {
+    if (!form.emailTemplateId) {
+      toast.error('Select an active email template first.');
+      return;
+    }
+    const to = String(form.emailTestAddress || '').trim();
+    if (!to) {
+      toast.error('Enter a test email address.');
+      return;
+    }
+    setEmailTestSending(true);
+    try {
+      await api.post('/email/templates/test-send', {
+        templateId: Number(form.emailTemplateId),
+        to,
+        variables: stageEmailVariables(),
+      });
+      toast.success('Test email sent.');
+    } catch (error) {
+      toast.error(crmError(error));
+    } finally {
+      setEmailTestSending(false);
+    }
+  };
+
+  const stageWhatsAppVariables = React.useCallback(() => {
+    const vars = { ...STAGE_WHATSAPP_SAMPLE_VARS, stage: form.name || STAGE_WHATSAPP_SAMPLE_VARS.stage };
+    if (!form.whatsappVariableMappingJson?.trim()) return vars;
+    try {
+      const mapping = JSON.parse(form.whatsappVariableMappingJson);
+      Object.entries(mapping).forEach(([key, source]) => {
+        const src = String(source || '').trim();
+        vars[key] = vars[src] ?? src;
+      });
+    } catch {
+      /* ignore until save validates JSON */
+    }
+    return vars;
+  }, [form.name, form.whatsappVariableMappingJson]);
+
+  const selectedMetaTemplate = React.useMemo(
+    () => metaTemplates.find((item) => String(item.id) === String(form.whatsappTemplateId)),
+    [metaTemplates, form.whatsappTemplateId],
+  );
+
+  const runWhatsappPreview = async () => {
+    if (!form.whatsappTemplateId) {
+      toast.error('Select an approved Meta template first.');
+      return;
+    }
+    setWaPreviewLoading(true);
+    try {
+      const payload = envelope(await api.post('/templates/meta/preview', {
+        templateId: Number(form.whatsappTemplateId),
+        body: selectedMetaTemplate?.body,
+        headerContent: selectedMetaTemplate?.headerContent,
+        variables: stageWhatsAppVariables(),
+      }));
+      setWaPreview(payload?.preview || payload?.body || payload);
+      toast.success('Preview generated.');
+    } catch (error) {
+      toast.error(crmError(error));
+    } finally {
+      setWaPreviewLoading(false);
+    }
+  };
+
+  const runWhatsappTestSend = async () => {
+    if (!form.whatsappTemplateId) {
+      toast.error('Select an approved Meta template first.');
+      return;
+    }
+    const phone = String(form.whatsappTestPhone || '').trim();
+    if (!phone) {
+      toast.error('Enter a test mobile number.');
+      return;
+    }
+    setWaTestSending(true);
+    try {
+      await api.post('/templates/meta/test-send', {
+        templateId: Number(form.whatsappTemplateId),
+        templateName: selectedMetaTemplate?.templateName,
+        language: selectedMetaTemplate?.language || 'en_US',
+        to: phone,
+        variables: stageWhatsAppVariables(),
+      });
+      toast.success('Test WhatsApp sent.');
+    } catch (error) {
+      toast.error(crmError(error));
+    } finally {
+      setWaTestSending(false);
+    }
+  };
 
   const open = async (mode, stage) => {
     setDrawer({ mode, stage });
     fillForm(stage);
+    if (stage?.type === 'Lead') {
+      try {
+        const [emailPayload, metaPayload] = await Promise.all([
+          api.get('/email/templates', { params: { page: 1, limit: 100, status: 'ACTIVE' } }),
+          api.get('/templates/meta', { params: { page: 1, limit: 100, status: 'APPROVED' } }),
+        ]);
+        setEmailTemplates(rowsOf(emailPayload).filter((row) => row.isActive !== false));
+        setMetaTemplates(rowsOf(envelope(metaPayload)).filter((row) => row.status === 'APPROVED' && row.isLocalActive !== false));
+      } catch {
+        setEmailTemplates([]);
+        setMetaTemplates([]);
+      }
+    }
     if (!stage?.id) return;
     try {
       const detail = stage.type === 'Deal' ? await loadDealStage(stage.id) : await loadLeadStage(stage.id);
@@ -114,7 +326,35 @@ export function StageManagement() {
     try {
       const id = drawer?.mode === 'edit' ? drawer.stage.id : undefined;
       if (form.type === 'Deal') await saveDealStage(form, id);
-      else await saveLeadStage(form, id);
+      else {
+        let emailVariableMapping;
+        let whatsappVariableMapping;
+        if (form.emailVariableMappingJson?.trim()) {
+          try {
+            emailVariableMapping = JSON.parse(form.emailVariableMappingJson);
+          } catch {
+            toast.error('Email variable mapping must be valid JSON.');
+            setSaving(false);
+            return;
+          }
+        }
+        if (form.whatsappVariableMappingJson?.trim()) {
+          try {
+            whatsappVariableMapping = JSON.parse(form.whatsappVariableMappingJson);
+          } catch {
+            toast.error('WhatsApp variable mapping must be valid JSON.');
+            setSaving(false);
+            return;
+          }
+        }
+        await saveLeadStage({
+          ...form,
+          emailTemplateId: form.emailTemplateId ? Number(form.emailTemplateId) : null,
+          emailVariableMapping,
+          whatsappTemplateId: form.whatsappTemplateId ? Number(form.whatsappTemplateId) : null,
+          whatsappVariableMapping,
+        }, id);
+      }
       toast.success(id ? 'Stage updated.' : 'Stage created.');
       setDrawer(null);
       await refresh();
@@ -251,8 +491,89 @@ export function StageManagement() {
           {dealForm && <div><Label htmlFor="stage-description">Description</Label><Textarea id="stage-description" value={form.description} disabled={viewing} onChange={(event) => setForm({ ...form, description: event.target.value })} /></div>}
           <div><Label htmlFor="stage-color">Color</Label><Input id="stage-color" type="color" value={form.color} disabled={viewing} onChange={(event) => setForm({ ...form, color: event.target.value })} /></div>
           <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.isActive} disabled={viewing} onChange={(event) => setForm({ ...form, isActive: event.target.checked })} />Active</label>
-          {!dealForm && <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.emailEnabled} disabled={viewing} onChange={(event) => setForm({ ...form, emailEnabled: event.target.checked })} />Email notification</label>}
-          {!dealForm && <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.whatsappEnabled} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappEnabled: event.target.checked })} />WhatsApp notification</label>}
+          {!dealForm ? (
+            <h3 className="mt-2 border-t border-[#E2E8E5] pt-4 text-sm font-bold text-[#172B24]">Email stage automation</h3>
+          ) : null}
+          {!dealForm && <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.emailEnabled} disabled={viewing} onChange={(event) => setForm({ ...form, emailEnabled: event.target.checked })} />Enable automatic email on stage entry</label>}
+          {!dealForm && (
+            <>
+              <Label>Email template</Label>
+              <select value={form.emailTemplateId || ''} disabled={viewing} onChange={(event) => setForm({ ...form, emailTemplateId: event.target.value })} className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm">
+                <option value="">No template</option>
+                {emailTemplates.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}{item.key ? ` · ${item.key}` : ''}</option>
+                ))}
+              </select>
+              <Label>Variable mapping (JSON)</Label>
+              <Textarea value={form.emailVariableMappingJson} disabled={viewing} onChange={(event) => setForm({ ...form, emailVariableMappingJson: event.target.value })} placeholder='{"customerName":"leadName","companyName":"companyName"}' rows={4} className="font-mono text-xs" />
+              {!viewing && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button type="button" size="sm" variant="outline" disabled={emailPreviewLoading} onClick={runEmailPreview}>
+                    {emailPreviewLoading ? 'Preview…' : 'Preview email'}
+                  </Button>
+                </div>
+              )}
+              {emailPreview ? (
+                <div className="rounded-md border border-[#E2E8E5] bg-[#F7F9F8] p-3 text-sm text-[#172B24] space-y-2">
+                  {emailPreview.subject ? <p className="font-semibold">Subject: {emailPreview.subject}</p> : null}
+                  <div className="whitespace-pre-wrap">{emailPreview.body || JSON.stringify(emailPreview, null, 2)}</div>
+                </div>
+              ) : null}
+              {!viewing && (
+                <>
+                  <Label htmlFor="stage-email-test">Test email address</Label>
+                  <Input id="stage-email-test" value={form.emailTestAddress} onChange={(event) => setForm({ ...form, emailTestAddress: event.target.value })} placeholder="you@company.com" />
+                  <Button type="button" size="sm" variant="outline" disabled={emailTestSending} onClick={runEmailTestSend}>
+                    {emailTestSending ? 'Sending…' : 'Send test email'}
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+          {!dealForm ? (
+            <h3 className="mt-2 border-t border-[#E2E8E5] pt-4 text-sm font-bold text-[#172B24]">WhatsApp stage automation</h3>
+          ) : null}
+          {!dealForm && <label className="flex items-center gap-2 text-sm text-[#172B24]"><input type="checkbox" checked={form.whatsappEnabled} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappEnabled: event.target.checked })} />Enable automatic WhatsApp on stage entry</label>}
+          {!dealForm && (
+            <>
+              <Label>Approved Meta template</Label>
+              <select value={form.whatsappTemplateId || ''} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappTemplateId: event.target.value })} className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm">
+                <option value="">No template</option>
+                {metaTemplates.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name} ({item.language}) · {item.templateName || item.key}</option>
+                ))}
+              </select>
+              <Label>Variable mapping (JSON)</Label>
+              <Textarea value={form.whatsappVariableMappingJson} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappVariableMappingJson: event.target.value })} placeholder='{"leadName":"{{leadName}}","companyName":"{{companyName}}"}' rows={4} className="font-mono text-xs" />
+              <p className="text-xs text-[#718078]">When a lead enters this stage, the approved template is sent with mapped lead fields. Details Send also triggers the Send Details package when configured.</p>
+              {!viewing && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button type="button" size="sm" variant="outline" disabled={waPreviewLoading} onClick={runWhatsappPreview}>
+                    {waPreviewLoading ? 'Preview…' : 'Preview message'}
+                  </Button>
+                </div>
+              )}
+              {waPreview ? (
+                <div className="rounded-md border border-[#E2E8E5] bg-[#F7F9F8] p-3 text-sm text-[#172B24] whitespace-pre-wrap">
+                  {typeof waPreview === 'string' ? waPreview : (waPreview.body || JSON.stringify(waPreview, null, 2))}
+                </div>
+              ) : null}
+              {!viewing && (
+                <>
+                  <Label htmlFor="stage-wa-test-phone">Test mobile number</Label>
+                  <Input
+                    id="stage-wa-test-phone"
+                    value={form.whatsappTestPhone}
+                    onChange={(event) => setForm({ ...form, whatsappTestPhone: event.target.value })}
+                    placeholder="e.g. 919876543210"
+                  />
+                  <Button type="button" size="sm" variant="outline" disabled={waTestSending} onClick={runWhatsappTestSend}>
+                    {waTestSending ? 'Sending…' : 'Send test WhatsApp'}
+                  </Button>
+                </>
+              )}
+            </>
+          )}
         </div>
       </FormDrawer>
       <ConfirmDialog open={Boolean(confirm)} onOpenChange={(open) => !open && setConfirm(null)} variant="destructive" title={confirm?.used > 0 ? 'Stage is in use' : 'Delete stage?'} description={confirm?.used > 0 ? (

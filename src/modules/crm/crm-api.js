@@ -265,8 +265,10 @@ export function saveLeadStage(values, id) {
     ...(values.isActive == null ? {} : { isActive: values.isActive !== false }),
     ...(values.emailEnabled == null ? {} : { emailEnabled: values.emailEnabled !== false }),
     ...(values.whatsappEnabled == null ? {} : { whatsappEnabled: values.whatsappEnabled !== false }),
-    ...(values.emailTemplateId !== undefined ? { emailTemplateId: Number(values.emailTemplateId) || 0 } : {}),
-    ...(values.whatsappTemplateId !== undefined ? { whatsappTemplateId: Number(values.whatsappTemplateId) || 0 } : {}),
+    ...(values.emailTemplateId !== undefined ? { emailTemplateId: values.emailTemplateId ? Number(values.emailTemplateId) : null } : {}),
+    ...(values.emailVariableMapping !== undefined ? { emailVariableMapping: values.emailVariableMapping } : {}),
+    ...(values.whatsappTemplateId !== undefined ? { whatsappTemplateId: values.whatsappTemplateId ? Number(values.whatsappTemplateId) : null } : {}),
+    ...(values.whatsappVariableMapping !== undefined ? { whatsappVariableMapping: values.whatsappVariableMapping } : {}),
   };
   return id ? api.patch(`/leads/stages/${id}`, body) : api.post('/leads/stages', body);
 }
