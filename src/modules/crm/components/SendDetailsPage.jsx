@@ -17,6 +17,7 @@ import {
   faEnvelope,
   faCheck,
   faPenToSquare,
+  faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -36,6 +37,11 @@ import {
   retrySendDetails,
   manualSendDetails,
 } from '../crm-api';
+
+const isDocUploaded = (doc) =>
+  doc?.isUploaded === true ||
+  doc?.uploadStatus === 'UPLOADED' ||
+  (String(doc?.fileUrl || '').trim() && !/storage\.qbapp\.online\/documents\//i.test(String(doc.fileUrl)));
 
 const CATEGORY_LABELS = {
   COMPANY_PROFILE: 'Company Profile (PDF)',
@@ -128,15 +134,16 @@ export default function SendDetailsPage() {
       toast.info(`Uploading ${file.name}...`);
       const uploadResult = await uploadSendDetailsFile(file);
 
-      const updated = await updateSendDetailsDocument(activeUploadDocId, {
+      await updateSendDetailsDocument(activeUploadDocId, {
         fileUrl: uploadResult.fileUrl,
         fileName: uploadResult.fileName,
         fileSize: uploadResult.fileSize,
         fileType: uploadResult.fileType,
       });
 
-      setDocuments((prev) => prev.map((d) => (d.id === activeUploadDocId ? updated : d)));
-      toast.success(`Updated attachment for ${updated.title}`);
+      const refreshed = await loadSendDetailsDocuments();
+      if (Array.isArray(refreshed)) setDocuments(refreshed);
+      toast.success('Company document uploaded successfully');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Document upload failed');
     } finally {
@@ -163,6 +170,28 @@ export default function SendDetailsPage() {
     }
   };
 
+  const handlePreview = (doc) => {
+    const url = doc?.previewUrl;
+    if (!isDocUploaded(doc) || !url) {
+      toast.error('Upload a PDF first to enable preview.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleRemoveFile = async (doc) => {
+    if (!isDocUploaded(doc)) return;
+    if (!window.confirm(`Remove the uploaded PDF for "${doc.title}"?`)) return;
+    try {
+      await updateSendDetailsDocument(doc.id, { fileUrl: '', fileName: '', fileSize: 0, fileType: 'application/pdf' });
+      const refreshed = await loadSendDetailsDocuments();
+      if (Array.isArray(refreshed)) setDocuments(refreshed);
+      toast.success('Document file removed');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to remove document file');
+    }
+  };
+
   const handleRetry = async (deliveryId) => {
     try {
       setRetryingId(deliveryId);
@@ -185,7 +214,7 @@ export default function SendDetailsPage() {
         ref={fileInputRef}
         onChange={handleFileSelected}
         className="hidden"
-        accept=".pdf,.doc,.docx,image/*"
+        accept="application/pdf,.pdf"
       />
 
       <PageHeader
@@ -306,22 +335,32 @@ export default function SendDetailsPage() {
         </CardContent>
       </Card>
 
-      {/* SECTION 2: THE 5 CONFIGURED DOCUMENTS */}
+      {/* SECTION 2: COMPANY DOCUMENTS */}
       <div>
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Standard Send Details Package (5 Documents)</h3>
+            <h3 className="text-lg font-bold text-slate-900">Company Documents</h3>
             <p className="text-sm text-slate-500">
-              Upload company PDFs or approved URLs. Active documents are dispatched when Details Sent stage is triggered.
+              Upload each PDF once per tenant. Selected documents are attached to Email and WhatsApp when Send Details is triggered.
             </p>
           </div>
-          <Badge variant="outline" className="text-xs">
-            {documents.filter((d) => d.isActive).length} of {documents.length} Active
-          </Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant="outline" className="text-xs">
+              {documents.filter((d) => d.isActive).length} of {documents.length} Active
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-xs ${documents.filter((d) => isDocUploaded(d)).length === documents.length ? 'border-emerald-300 text-emerald-700' : 'border-amber-300 text-amber-700'}`}
+            >
+              {documents.filter((d) => isDocUploaded(d)).length} of {documents.length} Uploaded
+            </Badge>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {documents.map((doc, idx) => (
+          {documents.map((doc, idx) => {
+            const uploaded = isDocUploaded(doc);
+            return (
             <Card key={doc.id || idx} className={`transition-all ${!doc.isActive ? 'opacity-60 bg-slate-50' : ''}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
@@ -342,10 +381,24 @@ export default function SendDetailsPage() {
                 <CardDescription className="text-xs line-clamp-2">{doc.description || 'No description provided'}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-0">
+                <div className="flex items-center justify-between">
+                  <Badge
+                    className={`text-[10px] uppercase tracking-wide ${uploaded ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}
+                  >
+                    {uploaded ? 'Uploaded' : 'Missing PDF'}
+                  </Badge>
+                  {doc.uploadedAt && (
+                    <span className="text-[10px] text-slate-500">
+                      {new Date(doc.uploadedAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
                 <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">File:</span>
-                    <span className="font-semibold text-slate-800 truncate max-w-[180px]">{doc.fileName || 'document.pdf'}</span>
+                    <span className="font-semibold text-slate-800 truncate max-w-[180px]">
+                      {uploaded ? doc.fileName || 'document.pdf' : 'Not uploaded'}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Version:</span>
@@ -368,18 +421,20 @@ export default function SendDetailsPage() {
                     className="flex-1 text-xs gap-1.5"
                   >
                     <FontAwesomeIcon icon={faUpload} />
-                    {uploadingDocId === doc.id ? 'Uploading...' : 'Replace PDF'}
+                    {uploadingDocId === doc.id ? 'Uploading...' : uploaded ? 'Replace PDF' : 'Upload PDF'}
                   </Button>
 
-                  <a
-                    href={doc.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 gap-1.5"
+                  <Button
+                    type="button"
+                    onClick={() => handlePreview(doc)}
+                    disabled={!uploaded}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs gap-1.5"
                   >
                     <FontAwesomeIcon icon={faEye} />
                     Preview
-                  </a>
+                  </Button>
 
                   <Button
                     onClick={() => setEditingDoc({ ...doc })}
@@ -389,10 +444,23 @@ export default function SendDetailsPage() {
                   >
                     <FontAwesomeIcon icon={faPenToSquare} />
                   </Button>
+
+                  {uploaded && (
+                    <Button
+                      onClick={() => handleRemoveFile(doc)}
+                      variant="ghost"
+                      size="sm"
+                      className="px-2 text-red-600 hover:text-red-700"
+                      title="Remove uploaded PDF"
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
       </div>
 
@@ -463,7 +531,7 @@ export default function SendDetailsPage() {
                           <FontAwesomeIcon icon={faWhatsapp} className="size-3" />
                           {record.whatsappStatus}
                         </span>
-                        {record.whatsappError && (
+                        {record.whatsappStatus !== 'SENT' && record.whatsappError && (
                           <div className="text-[11px] text-rose-600 max-w-[140px] truncate" title={record.whatsappError}>
                             {record.whatsappError}
                           </div>
@@ -482,7 +550,7 @@ export default function SendDetailsPage() {
                           <FontAwesomeIcon icon={faEnvelope} className="size-3" />
                           {record.emailStatus}
                         </span>
-                        {record.emailError && (
+                        {record.emailStatus !== 'SENT' && record.emailError && (
                           <div className="text-[11px] text-rose-600 max-w-[140px] truncate" title={record.emailError}>
                             {record.emailError}
                           </div>
@@ -528,8 +596,8 @@ export default function SendDetailsPage() {
                     {detailId === record.id && (
                       <tr className="bg-slate-50">
                         <td colSpan={8} className="px-4 py-3 text-xs text-slate-700 space-y-1">
-                          <p>WhatsApp: {record.whatsappStatus}{record.whatsappError ? ` — ${record.whatsappError}` : ''}{record.whatsappMessageId ? ` · Message ${record.whatsappMessageId}` : ''} · Retries {record.whatsappRetryCount || 0}</p>
-                          <p>Email: {record.emailStatus}{record.emailError ? ` — ${record.emailError}` : ''}{record.emailMessageId ? ` · Message ${record.emailMessageId}` : ''} · Retries {record.emailRetryCount || 0}</p>
+                          <p>WhatsApp: {record.whatsappStatus}{record.whatsappStatus !== 'SENT' && record.whatsappError ? ` — ${record.whatsappError}` : ''}{record.whatsappMessageId ? ` · Message ${record.whatsappMessageId}` : ''} · Retries {record.whatsappRetryCount || 0}</p>
+                          <p>Email: {record.emailStatus}{record.emailStatus !== 'SENT' && record.emailError ? ` — ${record.emailError}` : ''}{record.emailMessageId ? ` · Message ${record.emailMessageId}` : ''} · Retries {record.emailRetryCount || 0}</p>
                           <p>Attempted {new Date(record.updatedAt || record.createdAt).toLocaleString()}</p>
                         </td>
                       </tr>
