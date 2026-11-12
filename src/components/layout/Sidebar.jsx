@@ -102,19 +102,58 @@ function NavLink({ item, pathname, collapsed, onNavigate }) {
     );
 }
 
+function NavExpandableItem({ item, pathname, collapsed, onNavigate }) {
+    const childActive = item.children.some((child) => isActive(child, pathname));
+    const parentActive = item.href ? isActive(item, pathname) : childActive;
+    const [open, setOpen] = React.useState(parentActive || childActive);
+    const contentId = React.useId();
+
+    React.useEffect(() => {
+        if (childActive || parentActive) setOpen(true);
+    }, [pathname, childActive, parentActive]);
+
+    if (collapsed) {
+        return (
+            <NavLink
+                item={{ ...item, href: item.href || item.children[0]?.href }}
+                pathname={pathname}
+                collapsed
+                onNavigate={onNavigate}
+            />
+        );
+    }
+
+    return (
+        <div className="space-y-0.5">
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                aria-expanded={open}
+                aria-controls={contentId}
+                className={cn(
+                    'flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    parentActive ? 'bg-brand-light/70 text-brand-dark' : 'text-slate-600 hover:bg-brand-light/80',
+                )}
+            >
+                {item.icon ? (
+                    <FontAwesomeIcon icon={item.icon} size={16} className={cn('shrink-0', parentActive ? 'text-brand-dark' : 'text-slate-400')} />
+                ) : null}
+                <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform', open && 'rotate-180')} />
+            </button>
+            <div id={contentId} hidden={!open} className="ml-3 space-y-0.5 border-l border-slate-200 pl-2">
+                {item.children.map((child) => (
+                    <NavLink key={child.href} item={child} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function NavItems({ items, pathname, collapsed, onNavigate }) {
     return items.map((item) =>
         item.children ? (
-            <div key={item.name} className="space-y-0.5">
-                {!collapsed && (
-                    <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                        {item.name}
-                    </p>
-                )}
-                {item.children.map((child) => (
-                    <NavLink key={child.href} item={child} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
-                ))}
-            </div>
+            <NavExpandableItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
         ) : (
             <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
         )

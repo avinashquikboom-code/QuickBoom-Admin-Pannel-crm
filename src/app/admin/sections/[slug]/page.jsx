@@ -45,7 +45,7 @@ function SectionRoute() {
     const raw = Array.isArray(params.slug) ? params.slug[0] : params.slug;
     const slug = String(raw || 'departments').toLowerCase();
     if (isLiveMasterSlug(slug)) return <MasterManagement slug={slug} />;
-    if (['email-templates', 'meta-templates', 'stage-notifications'].includes(slug)) return <TemplateManagement slug={slug} />;
+    if (['email-templates', 'stage-notifications'].includes(slug)) return <TemplateManagement slug={slug} />;
     return <SectionPageContent />;
 }
 
