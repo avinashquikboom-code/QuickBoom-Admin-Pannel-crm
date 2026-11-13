@@ -98,6 +98,12 @@ export const navigation = [
             tag: 'PAYROLL',
         },
         {
+            name: 'Commission Wallet',
+            href: '/admin/hrm/commission-wallet',
+            icon: faWallet,
+            tag: 'PAYROLL',
+        },
+        {
             name: 'Loans',
             href: '/admin/hrm/loans',
             icon: faSackDollar,
