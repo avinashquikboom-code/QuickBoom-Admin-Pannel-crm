@@ -9,6 +9,7 @@ import { AdminButton, AdminCard, AdminConfirmDialog, AdminPageHeader, AdminSelec
 import { LeadStage, leadsApi } from '@/lib/leads-api';
 import { getErrorMessage } from '@/lib/utils';
 import { LeadDetailsDrawer } from '@/components/admin/drawers/LeadDetailsDrawer';
+import { showStageDeliveryNotice } from '@/lib/stage-delivery-notice';
 
 export default function LeadDetailsPage() {
   const router = useRouter();
@@ -42,6 +43,7 @@ export default function LeadDetailsPage() {
       client.setQueryData(['lead', id], updated);
       client.invalidateQueries({ queryKey: ['leads'] });
       toast.success(`Pipeline stage updated to "${updated.stage?.name || updated.status}"`);
+      showStageDeliveryNotice(updated);
     },
     onError: (error) => {
       setSelectedStageKey(currentStage.key || '');

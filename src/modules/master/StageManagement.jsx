@@ -302,7 +302,10 @@ export function StageManagement() {
           api.get('/templates/meta', { params: { page: 1, limit: 100, status: 'APPROVED' } }),
         ]);
         setEmailTemplates(rowsOf(emailPayload).filter((row) => row.isActive !== false));
-        setMetaTemplates(rowsOf(envelope(metaPayload)).filter((row) => row.status === 'APPROVED' && row.isLocalActive !== false));
+        setMetaTemplates(rowsOf(envelope(metaPayload)).filter((row) => {
+          const metaId = String(row.metaTemplateId || '');
+          return row.status === 'APPROVED' && row.isLocalActive !== false && metaId && !metaId.startsWith('seed_');
+        }));
       } catch {
         setEmailTemplates([]);
         setMetaTemplates([]);
@@ -538,9 +541,9 @@ export function StageManagement() {
             <>
               <Label>Approved Meta template</Label>
               <select value={form.whatsappTemplateId || ''} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappTemplateId: event.target.value })} className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm">
-                <option value="">No template</option>
+                <option value="">WhatsApp: Not configured</option>
                 {metaTemplates.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name} ({item.language}) · {item.templateName || item.key}</option>
+                  <option key={item.id} value={item.id}>{item.name} · {item.templateName} · {item.language}</option>
                 ))}
               </select>
               <Label>Variable mapping (JSON)</Label>
