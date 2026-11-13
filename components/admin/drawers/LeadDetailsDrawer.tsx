@@ -11,6 +11,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { isUserAdmin } from '@/lib/access-control';
 import { emptyLeadForm, LeadFormFields } from './LeadFormFields';
+import { showStageDeliveryNotice } from '@/lib/stage-delivery-notice';
 
 export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   id: number; onClose: () => void; initialAction?: 'view' | 'edit' | 'stage';
@@ -178,7 +179,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
   };
   const changeStage = useMutation({
     mutationFn: (target: LeadStage) => leadsApi.updateStage(id, { status: target.key, stageId: target.id }),
-    onSuccess: async updated => { await saved(updated); toast.success(`Pipeline stage updated to ${updated.stage?.name || updated.status}`); },
+    onSuccess: async updated => { await saved(updated); toast.success(`Pipeline stage updated to ${updated.stage?.name || updated.status}`); showStageDeliveryNotice(updated); },
     onError: error => {
       setSelectedStageKey(stage?.key || '');
       toast.error(getErrorMessage(error));

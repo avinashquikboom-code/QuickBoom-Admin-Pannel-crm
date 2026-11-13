@@ -35,6 +35,7 @@ import api from '@/lib/api';
 import { useEmployeeAuthStore } from '@/lib/employee-store';
 import { isAuthenticatedUser } from '@/lib/access-control';
 import { toast } from 'react-hot-toast';
+import { showStageDeliveryNotice } from '@/lib/stage-delivery-notice';
 import EmployeeSideSheet from '@/components/EmployeeSideSheet';
 
 // ── Social Media URL Helper ───────────────────────────────────────────────────
@@ -419,7 +420,7 @@ export default function EmployeeLeadsPage() {
   const handleUpdateLeadStage = async (leadId: number, newStageId: string, newStatusName: string) => {
     if (!token) return;
     try {
-      await api.patch(
+      const updated = await api.patch(
         `/leads/${leadId}/status`,
         {
           stageId: !isNaN(Number(newStageId)) ? Number(newStageId) : undefined,
@@ -428,6 +429,7 @@ export default function EmployeeLeadsPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success(`Stage updated to ${newStatusName}`);
+      showStageDeliveryNotice(updated?.data?.data || updated?.data || updated);
       if (leadDetailDrawer) {
         setLeadDetailDrawer((prev: any) => ({
           ...prev,
