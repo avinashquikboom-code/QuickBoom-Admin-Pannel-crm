@@ -595,6 +595,30 @@ export async function hrmReportDownload(id) {
   return objectFrom(await api.get(`/admin/hrm/reports/download/${id}`));
 }
 
+export async function loadCommissionWallet() {
+  const [dashboard, employees, withdrawals, rules] = await Promise.all([
+    api.get('/commissions/admin/wallet/dashboard'),
+    api.get('/commissions/admin/wallet/employees'),
+    api.get('/commissions/admin/wallet/withdrawals'),
+    api.get('/commissions/admin/wallet/rules'),
+  ]);
+  const unwrap = (payload) => payload?.data ?? payload ?? {};
+  return {
+    dashboard: unwrap(dashboard),
+    employees: listFrom(employees),
+    withdrawals: listFrom(withdrawals),
+    rules: listFrom(rules),
+  };
+}
+
+export function decideWithdrawal(id, action, body = {}) {
+  return api.patch(`/commissions/admin/wallet/withdrawals/${id}/${action}`, body);
+}
+
+export function saveCommissionSlab(values) {
+  return api.post('/commissions/admin/wallet/rules', values);
+}
+
 export const missingHrmApis = {
   overtime: '',
   announcements: '',
