@@ -31,6 +31,7 @@ import { getSectionConfig } from '@/config/admin-sections';
 import { hrmError, loadOffices, loadTeams, removeOffice, removeTeam, saveOffice, saveTeam } from '@/modules/hrm/hrm-api';
 import { isLiveMasterSlug, MasterManagement } from '@/modules/master/MasterManagement';
 import { TemplateManagement } from '@/modules/templates/TemplateManagement';
+import { SubscriptionPlans } from '@/modules/subscription/SubscriptionPlans';
 
 export default function SectionPage() {
     return (
@@ -44,6 +45,7 @@ function SectionRoute() {
     const params = useParams();
     const raw = Array.isArray(params.slug) ? params.slug[0] : params.slug;
     const slug = String(raw || 'departments').toLowerCase();
+    if (slug === 'subscription-plans') return <SubscriptionPlans />;
     if (isLiveMasterSlug(slug)) return <MasterManagement slug={slug} />;
     if (['email-templates', 'stage-notifications'].includes(slug)) return <TemplateManagement slug={slug} />;
     return <SectionPageContent />;
