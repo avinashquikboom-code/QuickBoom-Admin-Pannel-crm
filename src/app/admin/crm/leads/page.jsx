@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { stageLabel, PRIORITIES, SOURCE_OPTIONS, blank, unwrap, persistLead, LeadForm, Field, socialFormValues, SocialLinks, LeadAvatar, LeadPhotos } from '@/modules/crm/ManualLeadDrawer';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
@@ -81,6 +82,7 @@ export default function LeadsRoute() {
 
   return (
     <>
+      <div className="mb-4"><Link href="/admin/crm/proposals" className="text-sm font-medium text-green-700 underline">View proposal history</Link></div>
       <CrmScreen
         title="Leads"
         description="Create leads manually and manage existing CRM leads individually or in bulk."

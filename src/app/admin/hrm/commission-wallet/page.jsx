@@ -17,6 +17,9 @@ export default function CommissionWalletPage() {
   const [rules, setRules] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [canManage, setCanManage] = React.useState(false);
+  const [paymentRow, setPaymentRow] = React.useState(null);
+  const [paymentReference, setPaymentReference] = React.useState('');
+  const [paymentBusy, setPaymentBusy] = React.useState(false);
   const [slab, setSlab] = React.useState({ name: '', minAmount: '', maxAmount: '', ratePercent: '' });
 
   const load = React.useCallback(async () => {
@@ -40,9 +43,18 @@ export default function CommissionWalletPage() {
     load();
   }, [load]);
 
-  async function act(row, action) {
+  async function act(row, action, body = {}) {
+    if (action === 'paid' && !body.processingConfirmed) {
+      if (row.status !== 'APPROVED') {
+        toast.error('Approve the withdrawal before recording payment.');
+        return;
+      }
+      setPaymentReference('');
+      setPaymentRow(row);
+      return;
+    }
     try {
-      await decideWithdrawal(row.id, action, {});
+      await decideWithdrawal(row.id, action, body);
       toast.success(`Withdrawal ${action}.`);
       load();
     } catch (error) {
@@ -117,6 +129,32 @@ export default function CommissionWalletPage() {
           { label: 'Mark paid', onSelect: (row) => act(row, 'paid') },
         ] : []}
       />
+      {paymentRow ? (
+        <section className="rounded-xl border bg-white p-4" aria-label="Confirm withdrawal payment">
+          <h2 className="font-semibold">Confirm withdrawal payment</h2>
+          <p className="mt-2 text-sm text-slate-600">Record the payment reference only after payment has been processed for {inr(paymentRow.amount)}.</p>
+          <form className="mt-3 flex flex-wrap gap-2" onSubmit={async (event) => {
+            event.preventDefault();
+            const reference = paymentReference.trim();
+            if (!reference || paymentBusy) return;
+            setPaymentBusy(true);
+            try {
+              await decideWithdrawal(paymentRow.id, 'paid', { paymentReference: reference, processingConfirmed: true });
+              toast.success('Withdrawal payment recorded.');
+              setPaymentRow(null);
+              await load();
+            } catch (error) {
+              toast.error(hrmError(error));
+            } finally {
+              setPaymentBusy(false);
+            }
+          }}>
+            <Input aria-label="Payment reference" placeholder="Payment reference" value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} required />
+            <Button type="submit" disabled={paymentBusy || !paymentReference.trim()}>Confirm payment</Button>
+            <Button type="button" disabled={paymentBusy} onClick={() => setPaymentRow(null)}>Cancel</Button>
+          </form>
+        </section>
+      ) : null}
       <section className="rounded-xl border bg-white p-4">
         <h2 className="text-sm font-semibold">Commission slabs</h2>
         <ul className="mt-3 space-y-1 text-sm">
