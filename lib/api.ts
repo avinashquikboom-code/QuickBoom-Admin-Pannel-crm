@@ -232,7 +232,7 @@ function currentSessionKey(): string {
   return JSON.stringify([isEmployeePortalRoute(), user?.id, token, refreshToken]);
 }
 
-function clearAdminBrowserSession() {
+async function clearAdminBrowserSession() {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem('qb_admin_token');
@@ -244,7 +244,7 @@ function clearAdminBrowserSession() {
     // Storage can be unavailable in private-mode or test fixtures.
   }
   if (typeof window.fetch === 'function') {
-    window.fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    await window.fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
   }
 }
 
@@ -280,14 +280,11 @@ async function refreshCurrentSession(): Promise<string> {
     try {
       const isEmployeeRoute = isEmployeePortalRoute();
       const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
-      const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
       const { refreshToken } = getPersistedAuthSession();
 
       if (!refreshToken) {
-        authStore.logout();
-        if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
-          window.location.href = loginRoute;
-        }
+        // Keep the session intact until the failure handler verifies ownership
+        // and clears both browser credentials and the server session cookie.
         throw new Error('No refresh token available');
       }
 
@@ -369,7 +366,8 @@ async function refreshCurrentSession(): Promise<string> {
         const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
         const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
 
-        if (!isEmployeeRoute) clearAdminBrowserSession();
+        if (!isEmployeeRoute) await clearAdminBrowserSession();
+        if (currentSessionKey() !== sessionKey) throw refreshErr;
         authStore.logout();
         if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
           toast.error('Your session has expired. Please sign in again.', { id: 'session-expired' });
@@ -649,7 +647,7 @@ api.interceptors.response.use(
       const isEmployeeRoute = isEmployeePortalRoute();
       const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
       const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
-      if (!isEmployeeRoute) clearAdminBrowserSession();
+      if (!isEmployeeRoute) await clearAdminBrowserSession();
       authStore.logout();
       if (window.location.pathname !== loginRoute) {
         toast.error('Your session has expired. Please sign in again.', { id: 'session-expired' });

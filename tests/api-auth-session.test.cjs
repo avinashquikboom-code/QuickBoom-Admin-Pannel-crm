@@ -27,7 +27,8 @@ function fixture() {
     if (name === './utils') return { getErrorMessage: error => error.message };
     if (name === '../src/lib/auth/admin-session') return { readSession: () => null };
     throw new Error(`Unexpected import ${name}`);
-  }, window, localStorage: { getItem: key => storage.get(key) || null },
+  }, window, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
+  sessionStorage: { getItem: () => null, removeItem() {} },
   Buffer, Date, FormData, atob, process: { env: { NODE_ENV: 'production' } }, console });
   return { exports, storage, window, state, employee, hooks, axios };
 }
@@ -274,4 +275,44 @@ test('freshly refreshed token is not downgraded by stale persisted storage durin
   assert.equal(request.headers.get('Authorization'), `Bearer ${nextFresh}`);
   assert.equal(f.state.token, nextFresh);
   assert.equal(f.exports.getPersistedAuthSession().token, nextFresh);
+});
+
+
+test('commission rules missing refresh clears browser cookie before redirecting to login', async () => {
+  const f = fixture();
+  f.window.location.pathname = '/admin/settings/commissions';
+  f.state.refreshToken = null;
+  f.storage.set('qb_admin_token', f.state.token);
+  f.storage.set('qb_admin_user', JSON.stringify(f.state.user));
+  let finishLogout;
+  f.window.fetch = async (url, options) => {
+    assert.equal(url, '/api/auth/logout');
+    assert.equal(options.method, 'POST');
+    return new Promise(resolve => { finishLogout = resolve; });
+  };
+  const request = await f.hooks.request({ ...config(), url: '/commissions/configs/rules' });
+  const failure = { config: request, response: { status: 401 } };
+  const pending = f.hooks.error(failure);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.storage.has('qb_admin_token'), false);
+  assert.equal(f.window.location.href, '');
+  assert.equal(typeof finishLogout, 'function');
+  finishLogout({ ok: true });
+  await assert.rejects(pending);
+  assert.equal(f.state.token, null);
+  assert.equal(f.window.location.href, '/login');
+});
+
+test('commission rules 401 refreshes once and retries with the current tenant', async () => {
+  const f = fixture();
+  f.window.location.pathname = '/admin/settings/commissions';
+  let calls = 0;
+  const next = token(1, 4500000000);
+  f.axios.post = async () => { calls++; return { data: { accessToken: next, refreshToken: 'rotated' } }; };
+  const request = await f.hooks.request({ ...config(), url: '/commissions/configs/rules' });
+  const retry = await f.hooks.error({ config: request, response: { status: 401 } });
+  assert.equal(calls, 1);
+  assert.equal(retry.url, '/commissions/configs/rules');
+  assert.equal(retry.headers.get('Authorization'), `Bearer ${next}`);
+  assert.equal(retry.headers.get('x-customer-id'), '5');
 });
