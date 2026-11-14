@@ -480,6 +480,47 @@ export function saveEmployeeCommission(values) {
   });
 }
 
+export async function loadDeductions(params = {}) {
+  const payload = await api.get('/admin/payroll/deductions', { params });
+  const body = payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
+  const rows = (Array.isArray(payload?.data) ? payload.data : listFrom(payload)).map((row) => ({
+    ...row,
+    recordId: row.id,
+    employeeName: row.employeeName || personName(row.employee),
+    employeeId: String(row.employeeCode || row.employee?.employeeCode || row.employeeId || ''),
+    department: row.department || row.employee?.department?.name || 'General',
+    designation: row.designation || row.employee?.designation?.name || 'Staff',
+    amount: Number(row.amount || 0),
+    payrollMonthLabel: row.payrollMonthName ? `${row.payrollMonthName} ${row.payrollYear || ''}`.trim() : `${row.payrollMonth}/${row.payrollYear}`,
+    createdOn: row.createdAt ? String(row.createdAt).slice(0, 10) : '—',
+  }));
+  return {
+    rows,
+    summary: body?.summary || payload?.summary || {},
+    pagination: payload?.pagination || payload?.meta || {},
+  };
+}
+
+export function createDeduction(values) {
+  return api.post('/admin/payroll/deductions', values);
+}
+
+export function approveDeduction(id) {
+  return api.patch(`/admin/payroll/deductions/${id}/approve`, {});
+}
+
+export function rejectDeduction(id, reason) {
+  return api.patch(`/admin/payroll/deductions/${id}/reject`, { reason });
+}
+
+export function reverseDeduction(id, reason) {
+  return api.patch(`/admin/payroll/deductions/${id}/reverse`, { reason });
+}
+
+export function removeDeduction(id) {
+  return api.delete(`/admin/payroll/deductions/${id}`);
+}
+
 export async function loadLoans(params = {}) {
   const [list, metrics, types] = await Promise.all([
     api.get('/admin/loans', { params }),
