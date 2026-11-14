@@ -1,12 +1,13 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { toast } from '@/hooks/use-toast';
-import { decideWithdrawal, hrmError, loadCommissionWallet, saveCommissionSlab, sessionCan } from '@/modules/hrm/hrm-api';
+import { decideWithdrawal, hrmError, loadCommissionWallet, sessionCan } from '@/modules/hrm/hrm-api';
 
 const inr = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0);
 
@@ -20,7 +21,6 @@ export default function CommissionWalletPage() {
   const [paymentRow, setPaymentRow] = React.useState(null);
   const [paymentReference, setPaymentReference] = React.useState('');
   const [paymentBusy, setPaymentBusy] = React.useState(false);
-  const [slab, setSlab] = React.useState({ name: '', minAmount: '', maxAmount: '', ratePercent: '' });
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -56,23 +56,6 @@ export default function CommissionWalletPage() {
     try {
       await decideWithdrawal(row.id, action, body);
       toast.success(`Withdrawal ${action}.`);
-      load();
-    } catch (error) {
-      toast.error(hrmError(error));
-    }
-  }
-
-  async function addSlab(event) {
-    event.preventDefault();
-    try {
-      await saveCommissionSlab({
-        name: slab.name,
-        minAmount: Number(slab.minAmount),
-        maxAmount: slab.maxAmount === '' ? null : Number(slab.maxAmount),
-        ratePercent: Number(slab.ratePercent),
-      });
-      setSlab({ name: '', minAmount: '', maxAmount: '', ratePercent: '' });
-      toast.success('Commission slab saved');
       load();
     } catch (error) {
       toast.error(hrmError(error));
@@ -155,24 +138,7 @@ export default function CommissionWalletPage() {
           </form>
         </section>
       ) : null}
-      <section className="rounded-xl border bg-white p-4">
-        <h2 className="text-sm font-semibold">Commission slabs</h2>
-        <ul className="mt-3 space-y-1 text-sm">
-          {rules.map((rule) => (
-            <li key={rule.id}>{rule.name}: ₹{rule.minAmount} – {rule.maxAmount ?? 'above'} at {rule.ratePercent}%</li>
-          ))}
-          {!rules.length ? <li className="text-slate-500">No slabs yet. Existing designation and employee commission rates still apply.</li> : null}
-        </ul>
-        {canManage ? (
-          <form className="mt-4 grid gap-2 md:grid-cols-5" onSubmit={addSlab}>
-            <Input placeholder="Name" value={slab.name} onChange={(event) => setSlab({ ...slab, name: event.target.value })} required />
-            <Input placeholder="Min" value={slab.minAmount} onChange={(event) => setSlab({ ...slab, minAmount: event.target.value })} required />
-            <Input placeholder="Max" value={slab.maxAmount} onChange={(event) => setSlab({ ...slab, maxAmount: event.target.value })} />
-            <Input placeholder="Rate %" value={slab.ratePercent} onChange={(event) => setSlab({ ...slab, ratePercent: event.target.value })} required />
-            <Button type="submit">Add slab</Button>
-          </form>
-        ) : null}
-      </section>
+      <section className="rounded-xl border bg-white p-4"><h2 className="font-semibold">Commission configurations</h2><p className="mt-2 text-sm text-slate-500">Manage role-specific slabs, effective dates and calculation previews in Commission Settings. Legacy slabs without a role configuration are not eligible for new calculations.</p><Link className="mt-3 inline-block font-semibold text-brand" href="/admin/settings/commissions">Manage commission configurations →</Link></section>
     </div>
   );
 }
