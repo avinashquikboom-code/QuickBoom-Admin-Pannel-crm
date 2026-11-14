@@ -435,6 +435,37 @@ export function StageManagement() {
 
   const viewing = drawer?.mode === 'view';
   const dealForm = form.type === 'Deal';
+
+  const waTemplateUnusable = (tpl) =>
+    !tpl || tpl.sendable === false || tpl.isPlaceholder === true ||
+    String(tpl.metaTemplateId || '').trim().startsWith('seed_') ||
+    String(tpl.status || tpl.metaStatus || '').toUpperCase() !== 'APPROVED';
+
+  const waStatusOf = (stage) => {
+    if (stage.type === 'Deal') return null;
+    if (stage.whatsappEnabled === false) return { label: 'Disabled', cls: 'bg-slate-100 text-slate-600' };
+    const tplId = stage.whatsappTemplateId || stage.whatsappTemplate?.id;
+    if (tplId) {
+      const tpl = (stage.whatsappTemplate && String(stage.whatsappTemplate.id) === String(tplId))
+        ? stage.whatsappTemplate
+        : metaTemplates.find((item) => String(item.id) === String(tplId));
+      if (!tpl) return { label: 'Invalid configuration', cls: 'bg-rose-100 text-rose-700' };
+      const status = String(tpl.status || tpl.metaStatus || '').toUpperCase();
+      if (status && status !== 'APPROVED') return { label: `Template ${status.toLowerCase()}`, cls: 'bg-amber-100 text-amber-800' };
+      if (waTemplateUnusable(tpl)) return { label: 'Not approved on Meta', cls: 'bg-rose-100 text-rose-700' };
+      return { label: 'Configured', cls: 'bg-[#E8F1EC] text-[#163A2E]' };
+    }
+    const stageKey = String(stage.key || stage.name || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+    const auto = metaTemplates.find((item) => !waTemplateUnusable(item) && (
+      String(item.key || '').toUpperCase() === stageKey ||
+      String(item.templateName || '').toLowerCase() === stageKey.toLowerCase() ||
+      String(item.templateName || '').toLowerCase() === `lead_stage_${stageKey.toLowerCase()}`
+    ));
+    return auto
+      ? { label: `Configured (auto: ${auto.templateName})`, cls: 'bg-[#E8F1EC] text-[#163A2E]' }
+      : { label: 'Missing template', cls: 'bg-amber-100 text-amber-800' };
+  };
+
   const active = stages.filter((stage) => stage.isActive !== false).length;
   const allVisibleSelected = visible.length > 0 && visible.every((stage) => selected.includes(keyOf(stage)));
 
@@ -458,7 +489,7 @@ export function StageManagement() {
             <thead className="bg-[#F7F9F8] text-xs uppercase tracking-wide text-[#718078]">
               <tr>
                 <th className="px-4 py-3"><input aria-label="Select visible stages" type="checkbox" checked={allVisibleSelected} onChange={(event) => setSelected(event.target.checked ? [...new Set([...selected, ...visible.map(keyOf)])] : selected.filter((key) => !visible.some((stage) => keyOf(stage) === key)))} /></th>
-                {['Stage Name', 'Description', 'Color', 'Probability', 'Order', 'Status', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
+                {['Stage Name', 'Description', 'Color', 'Probability', 'Order', 'Status', 'WhatsApp', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -471,11 +502,12 @@ export function StageManagement() {
                   <td className="px-4 py-3">{stage.type === 'Deal' ? `${stage.probability ?? 0}%` : '—'}</td>
                   <td className="px-4 py-3">{stage.order ?? stage.sortOrder ?? '—'}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${stage.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-[#E8F1EC] text-[#163A2E]'}`}>{stage.isActive === false ? 'Inactive' : 'Active'}</span></td>
+                  <td className="px-4 py-3">{waStatusOf(stage) ? <span className={`rounded-full px-2 py-1 text-xs font-semibold ${waStatusOf(stage).cls}`} title={waStatusOf(stage).label}>{waStatusOf(stage).label}</span> : '—'}</td>
                   <td className="px-4 py-3 text-[#64748B]">{stage.createdAt ? new Date(stage.createdAt).toLocaleDateString('en-IN') : '—'}</td>
                   <td className="px-4 py-3"><div className="flex flex-wrap gap-1"><Button type="button" size="sm" variant="outline" onClick={() => open('view', stage)}>View</Button><Button type="button" size="sm" variant="outline" onClick={() => open('edit', stage)}>Edit</Button><Button type="button" size="sm" variant="outline" onClick={() => setActive([keyOf(stage)], stage.isActive === false)}>{stage.isActive === false ? 'Activate' : 'Deactivate'}</Button><Button type="button" size="sm" variant="outline" className="text-rose-700" onClick={() => { setTargetStageId(''); setConfirm({ ids: [keyOf(stage)], key: keyOf(stage), stageId: stage.id, name: stage.name, used: usageOf(stage), type: stage.type }); }}>Delete</Button></div></td>
                 </tr>
               ))}
-              {!loading && visible.length === 0 && <tr><td colSpan={9} className="px-4 py-10 text-center text-[#718078]">{search || status !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}
+              {!loading && visible.length === 0 && <tr><td colSpan={10} className="px-4 py-10 text-center text-[#718078]">{search || status !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -543,9 +575,12 @@ export function StageManagement() {
               <select value={form.whatsappTemplateId || ''} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappTemplateId: event.target.value })} className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm">
                 <option value="">WhatsApp: Not configured</option>
                 {metaTemplates.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name} · {item.templateName} · {item.language}</option>
+                  <option key={item.id} value={item.id} disabled={waTemplateUnusable(item)}>{item.name} · {item.templateName} · {item.language}{waTemplateUnusable(item) ? ' (not approved on Meta)' : ''}</option>
                 ))}
               </select>
+              {form.whatsappTemplateId && waTemplateUnusable(selectedMetaTemplate) ? (
+                <p className="text-xs text-rose-600">The mapped template is not approved on Meta (local placeholder or unapproved). Select a Meta-synced APPROVED template and save, or run Meta Templates → Sync.</p>
+              ) : null}
               <Label>Variable mapping (JSON)</Label>
               <Textarea value={form.whatsappVariableMappingJson} disabled={viewing} onChange={(event) => setForm({ ...form, whatsappVariableMappingJson: event.target.value })} placeholder='{"leadName":"{{leadName}}","companyName":"{{companyName}}"}' rows={4} className="font-mono text-xs" />
               <p className="text-xs text-[#718078]">When a lead enters this stage, the approved template is sent with mapped lead fields. Details Send also triggers the Send Details package when configured.</p>
