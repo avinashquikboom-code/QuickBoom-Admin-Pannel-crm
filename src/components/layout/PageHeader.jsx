@@ -152,6 +152,7 @@ function getRouteMetadata(pathname) {
             'overtime': { title: 'Overtime Approvals', icon: faClock },
             'payroll': { title: 'Payroll', icon: faWallet },
             'salary-slips': { title: 'Salary Slips', icon: faFileLines },
+            'deductions': { title: 'Employee Penalty & Deductions', icon: faIndianRupeeSign },
             'expense-claims': { title: 'Expense Claims', icon: faIndianRupeeSign },
             'announcements': { title: 'Announcements', icon: faBell },
             'reports': { title: 'HRM Reports', icon: faChartBar },

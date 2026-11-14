@@ -48,17 +48,30 @@ export const navigation = [
             href: '/admin/hrm/payroll',
             icon: faWallet,
             tag: 'PAYROLL',
+            children: [
+                {
+                    name: 'Salary Management',
+                    href: '/admin/hrm/payroll',
+                    icon: faWallet,
+                    matchExact: true,
+                },
+                {
+                    name: 'Salary Slips',
+                    href: '/admin/hrm/salary-slips',
+                    icon: faFileLines,
+                },
+                {
+                    name: 'Employee Penalty & Deductions',
+                    href: '/admin/hrm/deductions',
+                    icon: faIndianRupeeSign,
+                },
+            ],
         },
         {
             name: 'Target Salary',
             href: '/admin/hrm/salary-targets',
             icon: faBullseye,
             tag: 'PAYROLL',
-        },
-        {
-            name: 'Salary Slips',
-            href: '/admin/hrm/salary-slips',
-            icon: faFileLines,
         },
         {
             name: 'Office Management',
