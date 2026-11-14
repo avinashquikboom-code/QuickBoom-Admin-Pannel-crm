@@ -309,7 +309,6 @@ export function AdminTableActions({
     onView,
     onEdit,
     onDelete,
-    onDuplicate,
     onToggleStatus,
     onArchive,
     customActions = [],
@@ -327,7 +326,6 @@ export function AdminTableActions({
                     onView={onView}
                     onEdit={onEdit}
                     onDelete={onDelete}
-                    onDuplicate={onDuplicate}
                     onToggleStatus={onToggleStatus}
                     onArchive={onArchive}
                     customActions={[...customActions, ...moreActions]}

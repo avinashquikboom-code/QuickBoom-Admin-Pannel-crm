@@ -497,7 +497,7 @@ export default function SendDetailsPage() {
                     <th className="px-4 py-3">Overall Status</th>
                     <th className="px-4 py-3">Documents</th>
                     <th className="px-4 py-3">Date / Time</th>
-                    <th className="px-4 py-3 text-right">Action</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

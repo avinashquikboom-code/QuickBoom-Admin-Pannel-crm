@@ -301,7 +301,7 @@ export default function DataManagementPage() {
             </div>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="text-xs uppercase text-[#718078]"><tr><th className="py-2">Name</th><th>Status</th><th>Size</th><th>Created</th><th>By</th><th></th></tr></thead>
+                <thead className="text-xs uppercase text-[#718078]"><tr><th className="py-2">Name</th><th>Status</th><th>Size</th><th>Created</th><th>By</th><th className="text-right">Actions</th></tr></thead>
                 <tbody>
                   {backups.map((item) => (
                     <tr key={item.id} className="border-t border-[#E2E8E5]">

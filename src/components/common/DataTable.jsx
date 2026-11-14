@@ -14,8 +14,6 @@ import {
     faArrowUp,
     faArrowsUpDown,
     faColumns,
-    faCopy,
-    faEllipsis,
     faMagnifyingGlass,
     faInbox,
 } from '@fortawesome/free-solid-svg-icons';
@@ -46,11 +44,9 @@ import {
     DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuCheckboxItem,
-    DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { Pagination } from './Pagination';
 import { legacyValue, searchableText } from '@/lib/table-utils';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const EMPTY = [];
@@ -91,7 +87,7 @@ function DataTableContent({
         const result = columns.map((column, index) => ({
             id: column.id || column.accessorKey || `column-${index}`,
             accessorFn: (row) => legacyValue(row, column),
-            header: column.header,
+            header: column.id === 'actions' || (typeof column.header === 'string' && /^actions$/i.test(column.header.trim())) ? 'Actions' : column.header,
             enableSorting:
                 column.enableSorting ??
                 (typeof column.header === 'string' &&
@@ -136,17 +132,11 @@ function DataTableContent({
             });
         }
 
-        const hasExistingActions = columns.some(
-            (c) =>
-                c.id === 'actions' ||
-                c.id === '__menu' ||
-                (typeof c.header === 'string' && /actions?/i.test(c.header))
-        );
-
-        if (!hasExistingActions || rowActions.length > 0) {
+        if (rowActions.length > 0) {
             result.push({
                 id: '__menu',
-                header: () => <span className="sr-only">Actions</span>,
+                header: 'Actions',
+                meta: { headClassName: 'text-right', className: 'text-right' },
                 enableSorting: false,
                 enableHiding: false,
                 cell: ({ row }) => (
@@ -154,20 +144,6 @@ function DataTableContent({
                         <AdminRowActions
                             row={row}
                             actions={[
-                                {
-                                    label: 'Copy record ID',
-                                    icon: faCopy,
-                                    onClick: async () => {
-                                        try {
-                                            await navigator.clipboard.writeText(
-                                                String(row.original.id ?? row.id)
-                                            );
-                                            toast.success('Record ID copied');
-                                        } catch {
-                                            toast.error('Unable to access the clipboard');
-                                        }
-                                    },
-                                },
                                 ...rowActions.map((action) => ({
                                     label: action.label,
                                     icon: action.icon,
@@ -376,6 +352,7 @@ function DataTableContent({
                                     }
                                     className={cn(
                                         'py-3 px-4 text-xs font-semibold text-[#163A2E] tracking-wider',
+                                        (header.column.id === 'actions' || header.column.id === '__menu' || header.column.columnDef.header === 'Actions') && 'text-right',
                                         header.column.columnDef.meta?.headClassName
                                     )}
                                 >
