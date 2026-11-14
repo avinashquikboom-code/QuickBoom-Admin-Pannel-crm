@@ -7,7 +7,7 @@ import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { toast } from '@/hooks/use-toast';
 import { addLeadNote, checkLeadDuplicate, crmError, loadEmployees, loadLeads, personName, saveLead, uploadLeadImage } from '@/modules/crm/crm-api';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faBuilding, faLink } from '@fortawesome/free-solid-svg-icons';
+import { faBuilding, faGlobe, faLink } from '@fortawesome/free-solid-svg-icons';
 import { faFacebook, faInstagram, faLinkedin, faPinterest, faTiktok, faWhatsapp, faXTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
 import { loadDepartments } from '@/modules/master/master-api';
 
@@ -214,13 +214,18 @@ function socialPayload(form) {
 }
 
 function SocialLinks({ lead }) {
-  const social = lead?.socialMedia && typeof lead.socialMedia === 'object' ? lead.socialMedia : {};
-  const links = SOCIAL_FIELDS.flatMap(([key, label, icon, color]) => {
-    const href = safeProfileUrl(social[key]);
-    return href ? [{ key, label: label.replace(' URL', ''), href, icon, color }] : [];
+  const social = lead?.socialMedia && typeof lead.socialMedia === 'object' && !Array.isArray(lead.socialMedia)
+    ? Object.fromEntries(Object.entries(lead.socialMedia).map(([key, value]) => [key.trim().toLowerCase(), value])) : {};
+  const links = [...SOCIAL_FIELDS, ['website', 'Website', faGlobe, '#163A2E']].flatMap(([key, label, icon, color]) => {
+    const value = key === 'website' ? lead?.website : key === 'twitter' ? (social.twitter || social.x || social.twitter_x) : social[key];
+    const href = safeProfileUrl(value);
+    if (!href) return [];
+    const url = new URL(href);
+    const handle = url.pathname.split('/').filter(Boolean).pop() || url.hostname;
+    return [{ key, label: label.replace(' URL', ''), href, icon, color, handle }];
   });
-  if (!links.length) return <span className="text-[#718078]">Not Available</span>;
-  return <div className="flex max-w-[168px] items-center gap-1 overflow-x-auto">{links.map((link) => <a key={link.key} href={link.href} target="_blank" rel="noopener noreferrer" title={link.label} aria-label={link.label} className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-[#E2E8E5] bg-white" style={{ color: link.color }}><FontAwesomeIcon icon={link.icon} className="size-3.5" /></a>)}</div>;
+  if (!links.length) return null;
+  return <div className="flex min-w-0 flex-wrap gap-1">{links.map((link) => <a key={link.key} href={link.href} target="_blank" rel="noopener noreferrer" title={`${link.label}: ${link.handle}`} aria-label={`${link.label}: ${link.handle}`} className="inline-flex max-w-[160px] min-w-0 items-center gap-1 rounded-md px-2 py-1 text-xs" style={{ color: link.color, backgroundColor: `${link.color}1a` }}><FontAwesomeIcon icon={link.icon} className="size-3.5" /><span className="truncate">{link.handle}</span></a>)}</div>;
 }
 
 function LeadAvatar({ lead }) {
