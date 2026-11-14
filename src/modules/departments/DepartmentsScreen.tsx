@@ -232,7 +232,7 @@ export function DepartmentsScreen() {
     {
       id: 'actions',
       enableHiding: false,
-      header: () => <span className="sr-only">Actions</span>,
+      header: 'Actions',
       cell: ({ row }) => (
         <AdminRowActions
           row={row}

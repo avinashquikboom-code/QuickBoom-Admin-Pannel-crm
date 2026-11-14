@@ -10,7 +10,6 @@ import {
     faCheck,
     faCheckDouble,
     faCircleInfo,
-    faCopy,
     faDownload,
     faEye,
     faPenToSquare,
@@ -34,7 +33,6 @@ function resolveActionIcon(icon, label = '') {
     if (l.includes('approve')) return faCheck;
     if (l.includes('pay')) return faCheckDouble;
     if (l.includes('cancel') || l.includes('reject')) return faBan;
-    if (l.includes('copy')) return faCopy;
     if (l.includes('archive')) return faBoxArchive;
     if (l.includes('restore')) return faRotateLeft;
     if (l.includes('status') || l.includes('toggle') || l.includes('activate') || l.includes('deactivate')) return faToggleOn;
@@ -67,9 +65,6 @@ export function AdminRowActions({
     onEdit,
     editLabel = 'Edit',
     editIcon,
-    onDuplicate,
-    duplicateLabel = 'Duplicate',
-    duplicateIcon,
     onToggleStatus,
     statusLabel,
     onArchive,
@@ -186,15 +181,6 @@ export function AdminRowActions({
         });
     }
 
-    if (onDuplicate) {
-        standardActions.push({
-            id: 'duplicate',
-            label: duplicateLabel,
-            icon: resolveActionIcon(duplicateIcon, duplicateLabel),
-            onClick: () => onDuplicate(item),
-        });
-    }
-
     if (onToggleStatus) {
         standardActions.push({
             id: 'status',
@@ -303,7 +289,7 @@ export function AdminRowActions({
 
     return (
         <>
-            <div className={cn('flex items-center justify-end gap-1', className)}>
+            <div className={cn('flex flex-nowrap items-center justify-end gap-1', className)}>
                 {visibleActions.map((act) => {
                     const tone = act.isDestructive
                         ? 'text-[#DC2626] hover:bg-rose-50'

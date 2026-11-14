@@ -99,12 +99,15 @@ export function DataTable({
                                         colSpan={header.colSpan}
                                         className={cn(
                                             'py-3.5 px-4 text-xs font-semibold text-[#163A2E] tracking-wider',
+                                            header.column.id === 'actions' && 'text-right',
                                             header.column.columnDef.meta?.headClassName
                                         )}
                                     >
                                         {header.isPlaceholder
                                             ? null
-                                            : flexRender(
+                                            : header.column.id === 'actions'
+                                              ? 'Actions'
+                                              : flexRender(
                                                   header.column.columnDef.header,
                                                   header.getContext()
                                               )}
