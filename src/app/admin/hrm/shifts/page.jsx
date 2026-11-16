@@ -14,7 +14,7 @@ import { HrmGap, HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { assignShift, hrmError, loadEmployees, loadShift, loadShifts, missingHrmApis, removeShift, saveShift, sessionCan } from '@/modules/hrm/hrm-api';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const emptyForm = { name: '', code: '', startTime: '09:30 AM', endTime: '06:30 PM', durationHours: 9, breakDurationMinutes: 60, gracePeriodMinutes: 15, status: 'ACTIVE', isNightShift: false, isRotational: false, workingDays: DAYS.slice(0, 6), notes: '' };
+const emptyForm = { name: '', code: '', startTime: '09:30 AM', endTime: '06:30 PM', durationHours: 9, breakDurationMinutes: 60, gracePeriodMinutes: 0, status: 'ACTIVE', isNightShift: false, isRotational: false, workingDays: DAYS.slice(0, 6), notes: '' };
 
 export default function ShiftsPage() {
   const [rows, setRows] = React.useState([]);
