@@ -66,9 +66,15 @@ export function PayrollTable({ records, onViewPayslip, onMarkPaid, }) {
           <span className="font-semibold">
             -{formatCurrency(rec.totalDeductions)}
           </span>
-          <span className="text-[10px] text-slate-400">
-            Tax: {formatCurrency(rec.deductions.tax)}
-          </span>
+          {rec.lateDeduction > 0 ? (
+            <span className="text-[10px] text-amber-700 font-medium">
+              Late ({rec.totalLateMinutes || 0}m): -{formatCurrency(rec.lateDeduction)}
+            </span>
+          ) : (
+            <span className="text-[10px] text-slate-400">
+              Tax: {formatCurrency(rec.deductions?.tax || 0)}
+            </span>
+          )}
         </div>),
         },
         {
