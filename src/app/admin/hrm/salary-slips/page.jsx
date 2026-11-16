@@ -11,7 +11,7 @@ import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/common/Drawer';
 import { toast } from '@/hooks/use-toast';
-import { faDownload, faMagnifyingGlass, faPrint } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faMagnifyingGlass, faPrint, faClock } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope, faFileLines } from '@fortawesome/free-regular-svg-icons';
 import { downloadSalarySlip, viewSalarySlip } from '../../../../../lib/salary-slip-pdf';
 import { hrmError, loadSalarySlips } from '@/modules/hrm/hrm-api';
@@ -220,15 +220,65 @@ export default function SalarySlipsPage() {
                     <span>Income Tax:</span>
                     <span className="text-rose-600">-{formatCurrency(activeSlip.deductions.tax)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Social Security:</span>
-                    <span className="text-rose-600">-{formatCurrency(activeSlip.deductions.insurance)}</span>
-                  </div>
+                  {activeSlip.deductions.insurance > 0 && (
+                    <div className="flex justify-between">
+                      <span>Social Security:</span>
+                      <span className="text-rose-600">-{formatCurrency(activeSlip.deductions.insurance)}</span>
+                    </div>
+                  )}
+                  {activeSlip.lateDeduction > 0 && (
+                    <div className="flex justify-between text-amber-900 font-medium bg-amber-50/60 px-1.5 py-0.5 rounded border border-amber-200/50">
+                      <span>Late Mark ({activeSlip.totalLateMinutes || 0}m @ ₹{activeSlip.lateRatePerMinute || 1.0}/m):</span>
+                      <span className="font-semibold text-rose-600">-{formatCurrency(activeSlip.lateDeduction)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold pt-1 border-t text-rose-700">
                     <span>Total Deductions:</span>
                     <span>-{formatCurrency(activeSlip.totalDeductions)}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Attendance & Late Mark Summary Card */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <FontAwesomeIcon icon={faClock} className="size-3.5 text-emerald-700" />
+                    <span className="font-bold text-slate-900 text-xs uppercase tracking-wide">
+                      Attendance & Late Mark Details
+                    </span>
+                  </div>
+                  {activeSlip.lateDeduction > 0 ? (
+                    <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-300">
+                      {activeSlip.lateMarks || 0} Late Days • {activeSlip.totalLateMinutes || 0} mins
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">
+                      No Late Deductions
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/70">
+                    <span className="text-slate-400 block text-[10px]">Working Days</span>
+                    <span className="font-bold text-slate-800 text-xs">{activeSlip.workingDays ?? '—'}</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/70">
+                    <span className="text-slate-400 block text-[10px]">Present Days</span>
+                    <span className="font-bold text-emerald-700 text-xs">{activeSlip.presentDays ?? '—'}</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/70">
+                    <span className="text-slate-400 block text-[10px]">Late Days</span>
+                    <span className="font-bold text-amber-700 text-xs">{activeSlip.lateMarks ?? 0}</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/70">
+                    <span className="text-slate-400 block text-[10px]">Late Deduction</span>
+                    <span className="font-bold text-rose-600 text-xs">-{formatCurrency(activeSlip.lateDeduction ?? 0)}</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500 pt-0.5">
+                  Calculation: ₹{activeSlip.lateRatePerMinute ?? 1.0}/minute deduction applied exclusively on scheduled shift workdays (grace period applied, holidays & approved leaves excluded).
+                </p>
               </div>
 
               <div className="flex justify-between items-center p-3.5 bg-brand-light rounded-xl border border-brand-light">

@@ -195,7 +195,15 @@ export async function loadPayrollItems() {
       reimbursements: Number(item.reimbursement || 0),
       grossPay: Number(item.grossSalary || 0),
       totalDeductions: Number(item.totalDeductions || 0),
-      deductions: { tax: 0 },
+      deductions: { tax: 0, late: Number(item.lateDeduction || 0) },
+      lateMarks: Number(item.lateMarks || 0),
+      lateDeduction: Number(item.lateDeduction || 0),
+      totalLateMinutes: Number(item.totalLateMinutes || 0),
+      lateRatePerMinute: Number(item.lateRatePerMinute || 1.0),
+      lateMarkBreakdown: item.lateMarkBreakdown || [],
+      workingDays: item.workingDays || 0,
+      presentDays: item.presentDays || 0,
+      absentDays: item.absentDays || 0,
       netPay: Number(item.netSalary || 0),
       status: String(item.status || batch.status || '').toLowerCase(),
       month,
@@ -237,6 +245,8 @@ export async function loadSalarySlips() {
       employeeName: personName(employee),
       employeeId: String(employee.employeeCode || slip.employeeId || ''),
       department: employee.department?.name || 'General',
+      designation: employee.designation?.name || 'Employee',
+      bankAccount: slip.bankAccount || employee.bankDetails?.accountNumber || '—',
       month: slip.payPeriod || '',
       grossPay: Number(slip.grossSalary || 0),
       totalDeductions: Number(slip.totalDeductions || 0),
@@ -245,9 +255,34 @@ export async function loadSalarySlips() {
       registeredSalary: Number(slip.registeredSalary || slip.basicSalary || 0),
       basicSalary: Number(slip.basicSalary || 0),
       allowances: Number(slip.allowances || 0),
-      deductions: { tax: 0 },
+      deductions: {
+        tax: Number(slip.tds || 0),
+        insurance: Number(slip.esi || 0),
+        pf: Number(slip.pf || 0),
+        loan: Number(slip.loanDeduction || 0),
+        lop: Number(slip.unpaidLeaveDeduction || 0),
+        late: Number(slip.lateDeduction || 0),
+      },
+      lateMarks: Number(slip.lateMarks || 0),
+      lateDeduction: Number(slip.lateDeduction || 0),
+      totalLateMinutes: Number(slip.totalLateMinutes || 0),
+      lateRatePerMinute: Number(slip.lateRatePerMinute || 1.0),
+      lateMarkBreakdown: slip.lateMarkBreakdown || [],
+      workingDays: slip.workingDays || 0,
+      presentDays: slip.presentDays || 0,
+      absentDays: slip.absentDays || 0,
     };
   });
+}
+
+export async function loadLateMarkPolicy() {
+  const payload = await api.get('/admin/payroll/late-mark-policy');
+  return payload?.data || payload || {};
+}
+
+export async function saveLateMarkPolicy(data) {
+  const payload = await api.post('/admin/payroll/late-mark-policy', data);
+  return payload?.data || payload || {};
 }
 
 export async function loadReportSummary() {

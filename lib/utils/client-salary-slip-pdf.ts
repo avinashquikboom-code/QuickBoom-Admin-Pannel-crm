@@ -129,6 +129,14 @@ export async function generateClientSalarySlipPdfBlob(slip: any): Promise<Blob> 
       'Overtime',
       String(att.overtimeLabel || slip.overtimeHours || '0h 00m'),
     ],
+    [
+      'Late Days',
+      String(slip.lateMarks ?? pi.lateMarks ?? 0),
+      'Total Late Minutes',
+      `${slip.totalLateMinutes ?? pi.totalLateMinutes ?? 0} mins`,
+      'Late Deduction Rate',
+      `₹${slip.lateRatePerMinute ?? pi.lateRatePerMinute ?? 1.0}/min`,
+    ],
   ];
 
   autoTable(doc, {
@@ -154,8 +162,11 @@ export async function generateClientSalarySlipPdfBlob(slip: any): Promise<Blob> 
   const tds = Number(slip.tds ?? pi.tds ?? 0);
   const loan = Number(slip.loanDeduction ?? pi.loanDeduction ?? 0);
   const lop = Number(slip.unpaidLeaveDeduction ?? pi.unpaidLeaveDeduction ?? pi.lopDeduction ?? 0);
+  const lateDeduction = Number(slip.lateDeduction ?? pi.lateDeduction ?? 0);
+  const totalLateMins = Number(slip.totalLateMinutes ?? pi.totalLateMinutes ?? 0);
+  const lateRate = Number(slip.lateRatePerMinute ?? pi.lateRatePerMinute ?? 1.0);
   const otherDed = Number(slip.otherDeductions ?? pi.otherDeductions ?? 0);
-  const totalDed = Number(slip.totalDeductions ?? (pf + esi + tds + loan + lop + otherDed));
+  const totalDed = Number(slip.totalDeductions ?? (pf + esi + tds + loan + lop + lateDeduction + otherDed));
   const net = Number(slip.netSalary ?? Math.max(0, gross - totalDed));
 
   const earningsList: [string, number][] = [
@@ -174,6 +185,7 @@ export async function generateClientSalarySlipPdfBlob(slip: any): Promise<Blob> 
   ];
   if (loan > 0) deductionsList.push(['Loan EMI Deduction', loan]);
   if (lop > 0) deductionsList.push(['Loss of Pay (LOP)', lop]);
+  if (lateDeduction > 0) deductionsList.push([`Late Mark Deduction (${totalLateMins}m @ ₹${lateRate}/m)`, lateDeduction]);
   if (otherDed > 0) deductionsList.push(['Other Deductions', otherDed]);
 
   const maxRows = Math.max(earningsList.length, deductionsList.length);
