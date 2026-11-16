@@ -61,7 +61,7 @@ export default function PayrollPage() {
                             isEnabled: data.isEnabled !== false,
                             deductionRatePerMin: data.deductionRatePerMin ?? 1.0,
                             currency: data.currency || 'INR',
-                            gracePeriodMinutes: data.gracePeriodMinutes ?? 0,
+                            gracePeriodMinutes: 0,
                             calculationMethod: data.calculationMethod || 'PER_MINUTE',
                             applyTo: data.applyTo || 'ALL',
                             maxDailyDeduction: data.maxDailyDeduction != null ? String(data.maxDailyDeduction) : '',
@@ -82,7 +82,7 @@ export default function PayrollPage() {
             await saveLateMarkPolicy({
                 ...latePolicy,
                 deductionRatePerMin: Math.max(0, Number(latePolicy.deductionRatePerMin) || 1.0),
-                gracePeriodMinutes: Math.max(0, Number(latePolicy.gracePeriodMinutes) || 0),
+                gracePeriodMinutes: 0,
                 maxDailyDeduction: latePolicy.maxDailyDeduction !== '' && !isNaN(Number(latePolicy.maxDailyDeduction)) ? Number(latePolicy.maxDailyDeduction) : null,
                 maxMonthlyDeduction: latePolicy.maxMonthlyDeduction !== '' && !isNaN(Number(latePolicy.maxMonthlyDeduction)) ? Number(latePolicy.maxMonthlyDeduction) : null,
             });
@@ -335,7 +335,7 @@ export default function PayrollPage() {
                 </div>
                 <LateMarkBreakdown rows={selectedRecord.lateMarkBreakdown} />
                 <p className="text-[11px] text-slate-500 pt-0.5">
-                  Calculation: ₹{selectedRecord.lateRatePerMinute ?? 1.0}/minute deduction applied exclusively on scheduled shift workdays (grace period applied, holidays & approved leaves excluded).
+                  Calculation: ₹{selectedRecord.lateRatePerMinute ?? 1.0}/minute deduction applied exclusively on scheduled shift workdays (zero grace; holidays & approved leaves excluded).
                 </p>
               </div>
 
@@ -437,17 +437,8 @@ export default function PayrollPage() {
                   <span className="text-[10px] text-slate-400">Default: ₹1.00 per minute</span>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Grace Period (Minutes)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={latePolicy.gracePeriodMinutes}
-                    onChange={(e) => setLatePolicy((p) => ({ ...p, gracePeriodMinutes: e.target.value }))}
-                    placeholder="0"
-                    className="h-9 text-xs"
-                  />
-                  <span className="text-[10px] text-slate-400">Threshold before lateness counts</span>
+                  <Label className="text-xs font-semibold text-slate-700">Grace Period</Label>
+                  <p className="text-xs text-slate-500">0 minutes — lateness starts at shift start.</p>
                 </div>
               </div>
 
@@ -509,7 +500,7 @@ export default function PayrollPage() {
               <div className="p-3 bg-emerald-50/70 border border-emerald-200/60 rounded-xl space-y-1 text-[11px] text-emerald-950">
                 <span className="font-bold block">Business Rule & Shift Enforcement:</span>
                 <p className="text-emerald-800 leading-relaxed">
-                  Formula: <code className="bg-emerald-100/70 px-1 py-0.5 rounded text-[10px]">Late Minutes = Actual Check-in Time - Scheduled Shift Start Time - Grace Period</code>
+                  Formula: <code className="bg-emerald-100/70 px-1 py-0.5 rounded text-[10px]">Late Minutes = Actual Check-in Time - Scheduled Shift Start Time</code>
                   <br />
                   Calculation: <code className="bg-emerald-100/70 px-1 py-0.5 rounded text-[10px]">Late Deduction = Eligible Late Minutes × ₹{latePolicy.deductionRatePerMin || 1}/min</code>
                 </p>

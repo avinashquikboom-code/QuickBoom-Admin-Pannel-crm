@@ -279,7 +279,7 @@ export default function SalarySlipsPage() {
                 </div>
                 <LateMarkBreakdown rows={activeSlip.lateMarkBreakdown} />
                 <p className="text-[11px] text-slate-500 pt-0.5">
-                  Calculation: ₹{activeSlip.lateRatePerMinute ?? 1.0}/minute deduction applied exclusively on scheduled shift workdays (grace period applied, holidays & approved leaves excluded).
+                  Calculation: ₹{activeSlip.lateRatePerMinute ?? 1.0}/minute deduction applied exclusively on scheduled shift workdays (zero grace; holidays & approved leaves excluded).
                 </p>
               </div>
 
