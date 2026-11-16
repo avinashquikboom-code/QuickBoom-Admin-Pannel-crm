@@ -35,6 +35,7 @@ import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { toast } from '@/hooks/use-toast';
 import { downloadCsv, envelope, pageOf, Pager, rowsOf } from '../template-shared';
 import { MetaTemplateDetails, WhatsAppPreview } from './meta-shared';
+import { MetaTemplateEdit } from './MetaTemplateEdit';
 
 const LIST_TABS = [
   { label: 'All Templates', value: 'ALL' },
@@ -110,6 +111,7 @@ export function MetaTemplatesAll() {
   const [syncing, setSyncing] = React.useState(false);
   const [syncInfo, setSyncInfo] = React.useState(null);
   const [selected, setSelected] = React.useState(null);
+  const [editing, setEditing] = React.useState(null);
   const [drawerTab, setDrawerTab] = React.useState('preview'); // 'preview' | 'test' | 'details'
   const [copiedCode, setCopiedCode] = React.useState(null);
 
@@ -311,14 +313,16 @@ export function MetaTemplatesAll() {
     },
   ];
 
+  if (editing) return <MetaTemplateEdit template={editing.row} duplicate={editing.duplicate} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />;
+
   return (
     <div className="min-w-0 w-full max-w-full space-y-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
       {/* ── Page Header ────────────────────────────────────────────── */}
       <PageHeader
         category="TEMPLATES & ASSETS"
-        title="WhatsApp Meta Templates"
-        icon={faWhatsapp}
-        description="Synchronize, manage, and test WhatsApp message templates approved by Meta for CRM workflows and broadcast campaigns."
+        title="WhatsApp Templates"
+        icon={faMessage}
+        description="Manage WhatsApp templates used by lead stage notifications and campaigns."
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <Button
@@ -329,7 +333,7 @@ export function MetaTemplatesAll() {
               className="w-full sm:w-auto border-slate-200 hover:bg-slate-50 transition-all font-medium text-slate-700"
             >
               <FontAwesomeIcon icon={faRotate} className={`mr-2 ${syncing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
-              {syncing ? 'Syncing with Meta…' : 'Sync from Meta'}
+              {syncing ? 'Syncing with Meta…' : 'Sync with Meta'}
             </Button>
             <Button
               asChild
@@ -337,7 +341,7 @@ export function MetaTemplatesAll() {
             >
               <Link href="/admin/sections/meta-templates/create">
                 <FontAwesomeIcon icon={faPlus} className="mr-2" />
-                Add Single Template
+                New WhatsApp Template
               </Link>
             </Button>
             <Button
@@ -364,92 +368,6 @@ export function MetaTemplatesAll() {
           </div>
         }
       />
-
-      {/* ── WhatsApp Themed Hero Banner ────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F3E2E] via-[#14532D] to-[#166534] p-5 sm:p-6 text-white shadow-md">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-emerald-400/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-8 right-32 h-36 w-36 rounded-full bg-green-500/10 blur-xl" />
-
-        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200 backdrop-blur-sm border border-emerald-400/30">
-              <FontAwesomeIcon icon={faWhatsapp} className="text-emerald-400 text-sm" />
-              Meta Cloud API • Business Templates
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-              Official WhatsApp Template Management
-            </h2>
-            <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-              Create Meta-compliant messaging templates for transactional updates, marketing broadcasts, and one-time passwords. Preview exactly how your message appears on user devices before sending.
-            </p>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2.5 self-start md:self-center">
-            <Button
-              type="button"
-              onClick={sync}
-              disabled={syncing}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-sm border-0 transition-all text-xs sm:text-sm"
-            >
-              <FontAwesomeIcon icon={faRotate} className={`mr-2 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing...' : 'Sync Meta Templates'}
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm text-xs sm:text-sm"
-            >
-              <Link href="/admin/sections/meta-templates/create">
-                <FontAwesomeIcon icon={faPlus} className="mr-2" />
-                New Template
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── KPI Cards Grid ────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
-        {kpis.map((kpi) => {
-          const isSelected = status === kpi.statusKey;
-          return (
-            <button
-              key={kpi.title}
-              type="button"
-              onClick={() => {
-                setStatus(isSelected && kpi.statusKey !== 'ALL' ? 'ALL' : kpi.statusKey);
-                setPage(1);
-              }}
-              className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 text-left shadow-xs transition-all hover:shadow-md cursor-pointer ${
-                isSelected
-                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20'
-                  : 'border-slate-200/80 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">
-                  {kpi.title}
-                </span>
-                <span
-                  className={`inline-flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg border text-xs sm:text-sm ${kpi.color}`}
-                >
-                  <FontAwesomeIcon icon={kpi.icon} />
-                </span>
-              </div>
-              <div className="mt-2.5 flex items-baseline justify-between">
-                <span className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                  {loading ? '—' : kpi.value}
-                </span>
-                {kpi.statusKey !== 'ALL' && (
-                  <span className="text-[10px] text-slate-400 group-hover:text-emerald-600 transition-colors">
-                    {isSelected ? 'Active filter' : 'Filter by'}
-                  </span>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
 
       {/* ── Sync Feedback Banner (Dismissible) ────────────────────── */}
       {syncInfo && (
@@ -511,6 +429,11 @@ export function MetaTemplatesAll() {
 
       {/* ── Navigation Tabs & Filter Toolbar ──────────────────────── */}
       <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+        <nav aria-label="Template sections" className="flex flex-wrap gap-2 border-b border-[#E2E8E5] pb-3 text-sm font-medium">
+          <Link href="/admin/sections/email-templates" className="rounded-md px-3 py-2 text-[#718078] hover:bg-slate-50">Email Templates</Link>
+          <span aria-current="page" className="rounded-md bg-[#163A2E] px-3 py-2 text-white">WhatsApp Templates</span>
+          <Link href="/admin/settings/notifications" className="rounded-md px-3 py-2 text-[#718078] hover:bg-slate-50">Notification Settings</Link>
+        </nav>
         {/* Navigation Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-sm no-scrollbar">
           {LIST_TABS.map((tab) => {
@@ -566,7 +489,7 @@ export function MetaTemplatesAll() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search template name, code or keyword..."
+              placeholder="Search WhatsApp templates..."
               className="h-10 pl-8 pr-8 text-xs sm:text-sm border-slate-200 rounded-lg focus-visible:ring-emerald-500"
             />
             {search && (
@@ -585,6 +508,7 @@ export function MetaTemplatesAll() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" className="h-10" onClick={() => { setPage(1); load(); }}><FontAwesomeIcon icon={faSearch} className="mr-2" />Search</Button>
             {/* Status Dropdown */}
             <select
               value={status}
@@ -701,8 +625,8 @@ export function MetaTemplatesAll() {
       </div>
 
       {/* ── Desktop & Tablet Table (>= 768px) ──────────────────────── */}
-      <div className="hidden md:block">
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+      <div className="hidden lg:block">
+        <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-xs">
           {listTab === 'CAMPAIGN' ? (
             <table className="min-w-full text-left text-sm text-slate-800">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -796,31 +720,33 @@ export function MetaTemplatesAll() {
               <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3.5">Template Name</th>
-                  <th className="px-4 py-3.5">Code / Key</th>
+                  <th className="px-4 py-3.5">Meta Template Name</th>
                   <th className="px-4 py-3.5">Language</th>
                   <th className="px-4 py-3.5">Category</th>
-                  <th className="px-4 py-3.5">Meta Status</th>
+                  <th className="px-4 py-3.5">Approval Status</th>
+                  <th className="px-4 py-3.5">Header / PDF</th>
+                  <th className="px-4 py-3.5">Last Updated</th>
                   <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                    <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
                       <FontAwesomeIcon icon={faRotate} className="mr-2 animate-spin text-emerald-600" />
                       Loading WhatsApp templates…
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-rose-600">
+                    <td colSpan={8} className="px-4 py-8 text-center text-rose-600">
                       <FontAwesomeIcon icon={faCircleExclamation} className="mr-2" />
                       {error}
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <div className="mx-auto max-w-sm space-y-3">
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                           <FontAwesomeIcon icon={faMessage} className="text-xl" />
@@ -846,7 +772,7 @@ export function MetaTemplatesAll() {
                   </tr>
                 ) : (
                   rows.map((row) => {
-                    const statusInfo = STATUS_CONFIG[row.status] || {
+                    const statusInfo = (!row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_')) ? { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Not synced' } : STATUS_CONFIG[row.status] || {
                       bg: 'bg-slate-100 text-slate-700 border-slate-200',
                       dot: 'bg-slate-400',
                       label: row.status,
@@ -873,7 +799,7 @@ export function MetaTemplatesAll() {
                                 {row.name}
                               </p>
                               <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                                <span>Source: {row.source ? row.source.replace('QB_', 'QB ') : 'Meta'}</span>
+                                <span className="break-all font-mono">{row.key || '—'}</span>
                                 {row.headerType && row.headerType !== 'NONE' && (
                                   <>
                                     <span>•</span>
@@ -926,6 +852,8 @@ export function MetaTemplatesAll() {
                           </span>
                         </td>
 
+                        <td className="px-4 py-3.5 text-xs text-slate-600">{row.headerType === 'DOCUMENT' ? 'Document / PDF' : row.headerType || 'None'}</td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-xs text-slate-600">{row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : '—'}</td>
                         {/* Actions Column */}
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
@@ -951,6 +879,8 @@ export function MetaTemplatesAll() {
                               <FontAwesomeIcon icon={faPaperPlane} className="mr-1 text-emerald-500" />
                               Test
                             </Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing({ row, duplicate: false })} className="h-8 px-2 text-xs text-[#163A2E]">Edit</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing({ row, duplicate: true })} className="h-8 px-2 text-xs text-[#163A2E]">Duplicate</Button>
                             <Button
                               type="button"
                               variant="ghost"
@@ -977,7 +907,7 @@ export function MetaTemplatesAll() {
       </div>
 
       {/* ── Responsive Mobile Card List (< 768px) ──────────────────── */}
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3 lg:hidden">
         {loading ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
             <FontAwesomeIcon icon={faRotate} className="mr-2 animate-spin text-emerald-600" />
@@ -1017,7 +947,7 @@ export function MetaTemplatesAll() {
           </div>
         ) : (
           rows.map((row) => {
-            const statusInfo = STATUS_CONFIG[row.status] || {
+            const statusInfo = (!row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_')) ? { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Not synced' } : STATUS_CONFIG[row.status] || {
               bg: 'bg-slate-100 text-slate-700 border-slate-200',
               dot: 'bg-slate-400',
               label: row.status,
@@ -1053,6 +983,7 @@ export function MetaTemplatesAll() {
                   </span>
                 </div>
 
+                <p className="break-all text-xs text-slate-500">Key: {row.key || '—'} · Header: {row.headerType === 'DOCUMENT' ? 'Document / PDF' : row.headerType || 'None'} · Updated: {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : '—'}</p>
                 <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 border border-slate-100">
                   <span className="font-mono text-xs text-slate-600 truncate">
                     {row.templateName || row.key}
@@ -1066,7 +997,7 @@ export function MetaTemplatesAll() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
                   <Button
                     type="button"
                     variant="outline"
@@ -1087,6 +1018,8 @@ export function MetaTemplatesAll() {
                     <FontAwesomeIcon icon={faPaperPlane} className="mr-1 text-emerald-600" />
                     Test Send
                   </Button>
+                  <Button type="button" variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setEditing({ row, duplicate: false })}>Edit</Button>
+                  <Button type="button" variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setEditing({ row, duplicate: true })}>Duplicate</Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -1146,7 +1079,7 @@ export function MetaTemplatesAll() {
                     }`}
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[selected.status]?.dot || 'bg-slate-400'}`} />
-                    {selected.status}
+                    {!selected.metaTemplateId || String(selected.metaTemplateId).startsWith('seed_') ? 'Not synced' : selected.status}
                   </span>
                 </div>
                 <h2 id="template-preview-title" className="text-lg font-bold text-slate-900 break-words">
