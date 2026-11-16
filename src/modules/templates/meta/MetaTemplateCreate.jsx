@@ -9,12 +9,59 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faArrowLeft, faMessage } from '@fortawesome/free-solid-svg-icons';
+import {
+  faArrowLeft,
+  faMessage,
+  faCheck,
+  faChevronRight,
+  faChevronLeft,
+  faFileLines,
+  faEye,
+  faPaperPlane,
+  faFloppyDisk,
+  faCircleExclamation,
+  faInfoCircle,
+  faMobileScreen,
+  faDesktop,
+  faPlus,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons';
+import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { toast } from '@/hooks/use-toast';
 import { envelope, Field } from '../template-shared';
 import { WhatsAppPreview } from './meta-shared';
 
-const STEPS = ['Template details', 'Message content', 'Preview', 'Review & submit'];
+const WIZARD_STEPS = [
+  { id: 'details', label: 'Template Details', short: 'Details', step: 1, icon: faFileLines },
+  { id: 'content', label: 'Message Content', short: 'Content', step: 2, icon: faMessage },
+  { id: 'preview', label: 'Preview', short: 'Preview', step: 3, icon: faEye },
+  { id: 'review', label: 'Review & Submit', short: 'Submit', step: 4, icon: faPaperPlane },
+];
+
+const CATEGORIES = [
+  { value: 'UTILITY', label: 'Utility', desc: 'Account updates, order tracking, alerts' },
+  { value: 'MARKETING', label: 'Marketing', desc: 'Promotions, product offers, announcements' },
+  { value: 'AUTHENTICATION', label: 'Authentication', desc: 'One-time passwords, login codes' },
+];
+
+const LANGUAGES = [
+  { value: 'en_US', label: 'English (US)' },
+  { value: 'en_GB', label: 'English (UK)' },
+  { value: 'en', label: 'English' },
+  { value: 'hi', label: 'Hindi' },
+  { value: 'mr', label: 'Marathi' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'pt_BR', label: 'Portuguese (BR)' },
+  { value: 'ar', label: 'Arabic' },
+];
+
+const HEADER_TYPES = [
+  { value: 'NONE', label: 'None' },
+  { value: 'TEXT', label: 'Text' },
+  { value: 'IMAGE', label: 'Image' },
+  { value: 'VIDEO', label: 'Video' },
+  { value: 'DOCUMENT', label: 'Document (PDF)' },
+];
 
 function slugTemplateName(name) {
   return String(name || '')
@@ -34,6 +81,10 @@ export function MetaTemplateCreate() {
   const router = useRouter();
   const [step, setStep] = React.useState(0);
   const [submitting, setSubmitting] = React.useState(false);
+  const [savingDraft, setSavingDraft] = React.useState(false);
+  const [showMobilePreview, setShowMobilePreview] = React.useState(false);
+
+  // Form state
   const [form, setForm] = React.useState({
     name: '',
     templateName: '',
@@ -47,13 +98,50 @@ export function MetaTemplateCreate() {
     buttonsJson: '',
   });
 
-  const variables = extractVariables(form.body);
-  const previewBody = form.body.replace(/\{\{(\w+)\}\}/g, (_, key) => `[${key}]`);
+  // Dynamic variable sample map for realistic preview
+  const [sampleVariables, setSampleVariables] = React.useState({});
+
+  const variables = React.useMemo(() => extractVariables(form.body), [form.body]);
+
+  // Keep sample variables populated
+  React.useEffect(() => {
+    setSampleVariables((prev) => {
+      const next = { ...prev };
+      variables.forEach((v) => {
+        if (!next[v]) {
+          next[v] = `[${v}]`;
+        }
+      });
+      return next;
+    });
+  }, [variables]);
+
+  // Interpolated body for the WhatsApp Preview
+  const previewBody = React.useMemo(() => {
+    if (!form.body) return '';
+    return form.body.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+      const val = sampleVariables[key];
+      return val && val !== `[${key}]` ? `*${val}*` : `[${key}]`;
+    });
+  }, [form.body, sampleVariables]);
+
+  // Parse buttons safely
+  const parsedButtons = React.useMemo(() => {
+    if (!form.buttonsJson.trim()) return [];
+    try {
+      const parsed = JSON.parse(form.buttonsJson);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [form.buttonsJson]);
 
   function patch(field, value) {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
-      if (field === 'name' && !prev.templateName) next.templateName = slugTemplateName(value);
+      if (field === 'name' && !prev.templateName) {
+        next.templateName = slugTemplateName(value);
+      }
       return next;
     });
   }
@@ -61,45 +149,62 @@ export function MetaTemplateCreate() {
   function validateStep(index) {
     if (index === 0) {
       if (!form.name.trim()) return 'Template name is required.';
-      if (!form.templateName.trim()) return 'Template code is required.';
+      if (form.name.trim().length > 100) return 'Template name cannot exceed 100 characters.';
+      if (!form.templateName.trim()) return 'Template code (Meta name) is required.';
+      if (!/^[a-z0-9_]+$/.test(form.templateName.trim())) {
+        return 'Template code must contain only lowercase letters, numbers, and underscores.';
+      }
+      if (!form.language.trim()) return 'Language is required.';
     }
     if (index === 1) {
       if (!form.body.trim()) return 'Message body is required.';
-      if (form.headerType === 'TEXT' && !form.headerContent.trim()) return 'Header text is required for TEXT headers.';
+      if (form.body.trim().length > 1024) return 'Message body cannot exceed 1024 characters.';
+      if (form.headerType === 'TEXT') {
+        if (!form.headerContent.trim()) return 'Header text is required when header type is TEXT.';
+        if (form.headerContent.trim().length > 60) return 'Header text cannot exceed 60 characters.';
+      }
+      if (form.footer.trim().length > 60) return 'Footer text cannot exceed 60 characters.';
+      if (form.buttonsJson.trim()) {
+        try {
+          const parsed = JSON.parse(form.buttonsJson);
+          if (!Array.isArray(parsed)) return 'Buttons must be a JSON array of objects.';
+        } catch {
+          return 'Buttons JSON contains invalid syntax.';
+        }
+      }
     }
     return '';
   }
 
-  function next() {
-    const message = validateStep(step);
-    if (message) {
-      toast.error(message);
+  function handleNext() {
+    const errorMsg = validateStep(step);
+    if (errorMsg) {
+      toast.error(errorMsg);
       return;
     }
-    setStep((value) => Math.min(STEPS.length - 1, value + 1));
+    setStep((prev) => Math.min(WIZARD_STEPS.length - 1, prev + 1));
   }
 
-  async function submit() {
-    for (let index = 0; index < STEPS.length - 1; index += 1) {
-      const message = validateStep(index);
-      if (message) {
-        toast.error(message);
-        setStep(index);
-        return;
-      }
-    }
-    let buttons;
-    if (form.buttonsJson.trim()) {
-      try {
-        buttons = JSON.parse(form.buttonsJson);
-        if (!Array.isArray(buttons)) throw new Error('Buttons must be a JSON array.');
-      } catch (err) {
-        toast.error(err?.message || 'Invalid buttons JSON.');
+  function handleBack() {
+    setStep((prev) => Math.max(0, prev - 1));
+  }
+
+  async function handleSave(submitToMeta = true) {
+    for (let i = 0; i <= 1; i += 1) {
+      const msg = validateStep(i);
+      if (msg) {
+        toast.error(msg);
+        setStep(i);
         return;
       }
     }
 
-    setSubmitting(true);
+    if (submitToMeta) {
+      setSubmitting(true);
+    } else {
+      setSavingDraft(true);
+    }
+
     try {
       const payload = {
         name: form.name.trim(),
@@ -111,176 +216,507 @@ export function MetaTemplateCreate() {
         body: form.body.trim(),
         footer: form.footer.trim() || undefined,
         variables,
-        buttons,
-        submitToMeta: true,
+        buttons: parsedButtons.length ? parsedButtons : undefined,
+        submitToMeta: Boolean(submitToMeta),
         isLocalActive: true,
       };
+
       const result = envelope(await api.post('/templates/meta', payload));
-      const status = result?.status || result?.metaStatus || 'PENDING';
-      toast.success(`Template submitted to Meta. Current status: ${status}`);
+      const status = result?.status || result?.metaStatus || (submitToMeta ? 'PENDING' : 'DRAFT');
+
+      toast.success(
+        submitToMeta
+          ? `Template submitted to Meta successfully! Status: ${status}`
+          : 'Template saved locally as draft.',
+      );
       router.push('/admin/sections/meta-templates');
     } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Could not create Meta template.';
+      const message = err?.response?.data?.message || err?.message || 'Could not save Meta template.';
       toast.error(Array.isArray(message) ? message.join(', ') : message);
     } finally {
       setSubmitting(false);
+      setSavingDraft(false);
     }
   }
 
   return (
-    <div className="min-w-0 w-full max-w-full space-y-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="min-w-0 w-full max-w-full space-y-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
+      {/* ── Page Header ────────────────────────────────────────────── */}
       <PageHeader
         category="TEMPLATES & ASSETS"
         title="Add Single Template"
         icon={faMessage}
         description="Create a WhatsApp Business template and submit it to Meta for approval."
         actions={
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/admin/sections/meta-templates">
-              <FontAwesomeIcon icon={faArrowLeft} className="mr-2" />
-              Back to All Templates
-            </Link>
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button asChild variant="outline" className="w-full sm:w-auto border-slate-200">
+              <Link href="/admin/sections/meta-templates">
+                <FontAwesomeIcon icon={faArrowLeft} className="mr-2" />
+                Back to All Templates
+              </Link>
+            </Button>
+          </div>
         }
       />
 
-      <ol className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide text-[#718078]">
-        {STEPS.map((label, index) => (
-          <li
-            key={label}
-            className={`rounded-full px-3 py-1 ${index === step ? 'bg-[#163A2E] text-white' : index < step ? 'bg-[#E8F1EC] text-[#163A2E]' : 'border border-[#E2E8E5]'}`}
-          >
-            {index + 1}. {label}
-          </li>
-        ))}
-      </ol>
+      {/* ── Top Wizard Stepper ─────────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+          {WIZARD_STEPS.map((s, idx) => {
+            const isCurrent = idx === step;
+            const isDone = idx < step;
 
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
-        <div className="min-w-0 space-y-4 rounded-2xl border border-[#E2E8E5] bg-white p-4 sm:p-6">
-          {step === 0 ? (
-            <>
-              <Field label="Template name" required>
-                <Input value={form.name} onChange={(e) => patch('name', e.target.value)} placeholder="Lead contacted notice" />
+            return (
+              <div key={s.id} className="flex items-center shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (idx < step) setStep(idx);
+                  }}
+                  disabled={idx > step || submitting || savingDraft}
+                  className={`group flex items-center gap-2 rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold transition-all ${
+                    isCurrent
+                      ? 'bg-[#16A34A] text-white shadow-sm'
+                      : isDone
+                      ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                      : 'text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span
+                    className={`flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-xs font-bold ${
+                      isCurrent
+                        ? 'bg-white text-emerald-700'
+                        : isDone
+                        ? 'bg-emerald-200 text-emerald-800'
+                        : 'bg-slate-200 text-slate-500'
+                    }`}
+                  >
+                    {isDone ? <FontAwesomeIcon icon={faCheck} className="text-[10px]" /> : s.step}
+                  </span>
+                  <span className="hidden sm:inline">{s.label}</span>
+                  <span className="sm:hidden">{s.short}</span>
+                </button>
+                {idx < WIZARD_STEPS.length - 1 && (
+                  <div
+                    className={`mx-2 sm:mx-3 h-0.5 w-6 sm:w-12 shrink-0 ${
+                      idx < step ? 'bg-emerald-400' : 'bg-slate-200'
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Mobile Live Preview Toggle Pill ─────────────────────────── */}
+      <div className="flex items-center justify-between lg:hidden rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+        <div className="flex items-center gap-2">
+          <FontAwesomeIcon icon={faWhatsapp} className="text-emerald-600 text-base" />
+          <span className="text-xs font-semibold text-emerald-950">
+            {showMobilePreview ? 'Showing Live WhatsApp Preview' : 'Preview message content'}
+          </span>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setShowMobilePreview((v) => !v)}
+          className="text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+        >
+          {showMobilePreview ? 'Hide Preview' : 'Show Preview'}
+        </Button>
+      </div>
+
+      {/* Mobile Collapsible Preview Container */}
+      {showMobilePreview && (
+        <div className="lg:hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm animate-in fade-in duration-200">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Live WhatsApp Preview</p>
+          <WhatsAppPreview
+            headerType={form.headerType}
+            header={form.headerContent}
+            body={previewBody || 'Start typing your template message body...'}
+            footer={form.footer}
+            buttons={parsedButtons}
+          />
+        </div>
+      )}
+
+      {/* ── Main Two-Column Layout ─────────────────────────────────── */}
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+        {/* Form Container */}
+        <div className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-7 shadow-sm space-y-6">
+          {/* STEP 1: Template Details */}
+          {step === 0 && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3.5 text-xs text-emerald-800">
+                <p className="font-semibold text-emerald-900">Template Meta Information</p>
+                <p className="mt-0.5 text-emerald-700">
+                  Meta requires template names to be lowercase with underscores. This name cannot be changed once submitted.
+                </p>
+              </div>
+
+              <Field label="Template Display Name" required hint="e.g. Lead Follow Up Alert">
+                <Input
+                  value={form.name}
+                  onChange={(e) => patch('name', e.target.value)}
+                  placeholder="e.g. Lead Follow Up Alert"
+                  className="border-slate-300 focus-visible:ring-emerald-500"
+                />
               </Field>
-              <Field label="Template code (Meta name)" required hint="Lowercase with underscores">
-                <Input value={form.templateName} onChange={(e) => patch('templateName', slugTemplateName(e.target.value))} />
+
+              <Field
+                label="Template Code (Meta Name)"
+                required
+                hint="Lowercase letters, numbers and underscores only (max 64 chars)"
+              >
+                <Input
+                  value={form.templateName}
+                  onChange={(e) => patch('templateName', slugTemplateName(e.target.value))}
+                  placeholder="lead_follow_up_alert"
+                  className="font-mono text-xs sm:text-sm border-slate-300 focus-visible:ring-emerald-500"
+                />
               </Field>
+
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Category">
-                  <select value={form.category} onChange={(e) => patch('category', e.target.value)} className="h-10 w-full rounded-md border px-3 text-sm">
-                    {['UTILITY', 'MARKETING', 'AUTHENTICATION'].map((item) => (
-                      <option key={item} value={item}>{item}</option>
+                <Field label="Category" required>
+                  <select
+                    value={form.category}
+                    onChange={(e) => patch('category', e.target.value)}
+                    className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.label} ({cat.desc})
+                      </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Language">
-                  <Input value={form.language} onChange={(e) => patch('language', e.target.value)} placeholder="en_US" />
+
+                <Field label="Language" required>
+                  <select
+                    value={form.language}
+                    onChange={(e) => patch('language', e.target.value)}
+                    className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    {LANGUAGES.map((lang) => (
+                      <option key={lang.value} value={lang.value}>
+                        {lang.label} [{lang.value}]
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               </div>
-              <Field label="Description (internal)">
-                <textarea value={form.description} onChange={(e) => patch('description', e.target.value)} rows={3} className="w-full rounded-md border px-3 py-2 text-sm" />
-              </Field>
-            </>
-          ) : null}
 
-          {step === 1 ? (
-            <>
+              <Field label="Internal Description (Optional)" hint="For team reference only; not sent to Meta">
+                <textarea
+                  value={form.description}
+                  onChange={(e) => patch('description', e.target.value)}
+                  rows={3}
+                  placeholder="Explain when and by whom this template should be used..."
+                  className="w-full rounded-md border border-slate-300 p-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </Field>
+            </div>
+          )}
+
+          {/* STEP 2: Message Content */}
+          {step === 1 && (
+            <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Header type">
-                  <select value={form.headerType} onChange={(e) => patch('headerType', e.target.value)} className="h-10 w-full rounded-md border px-3 text-sm">
-                    {['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'].map((item) => (
-                      <option key={item} value={item}>{item}</option>
+                <Field label="Header Type">
+                  <select
+                    value={form.headerType}
+                    onChange={(e) => patch('headerType', e.target.value)}
+                    className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:border-emerald-500"
+                  >
+                    {HEADER_TYPES.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
                     ))}
                   </select>
                 </Field>
-                {form.headerType !== 'NONE' ? (
-                  <Field label="Header content / media URL">
-                    <Input value={form.headerContent} onChange={(e) => patch('headerContent', e.target.value)} />
+
+                {form.headerType !== 'NONE' && (
+                  <Field
+                    label={
+                      form.headerType === 'TEXT'
+                        ? 'Header Text'
+                        : `${form.headerType} Sample / Media URL`
+                    }
+                    required={form.headerType === 'TEXT'}
+                    hint={form.headerType === 'TEXT' ? 'Max 60 characters' : 'Public HTTPS link'}
+                  >
+                    <Input
+                      value={form.headerContent}
+                      onChange={(e) => patch('headerContent', e.target.value)}
+                      placeholder={
+                        form.headerType === 'TEXT'
+                          ? 'Important Update'
+                          : 'https://example.com/sample.pdf'
+                      }
+                      maxLength={form.headerType === 'TEXT' ? 60 : undefined}
+                      className="border-slate-300 focus-visible:ring-emerald-500"
+                    />
                   </Field>
-                ) : null}
+                )}
               </div>
-              <Field label="Message body" required hint="Use {{variableName}} for dynamic fields">
-                <textarea value={form.body} onChange={(e) => patch('body', e.target.value)} rows={8} className="w-full rounded-md border px-3 py-2 text-sm font-mono" placeholder="Hi {{leadName}}, thanks for connecting with {{companyName}}." />
-              </Field>
-              {variables.length ? (
-                <p className="text-sm text-[#718078]">Detected variables: {variables.map((item) => `{{${item}}}`).join(', ')}</p>
-              ) : null}
-              <Field label="Footer (optional)">
-                <Input value={form.footer} onChange={(e) => patch('footer', e.target.value)} maxLength={60} />
-              </Field>
-              <Field label="Buttons JSON (optional)" hint='Example: [{"type":"URL","text":"Visit","url":"https://example.com"}]'>
-                <textarea value={form.buttonsJson} onChange={(e) => patch('buttonsJson', e.target.value)} rows={4} className="w-full rounded-md border px-3 py-2 font-mono text-xs" />
-              </Field>
-            </>
-          ) : null}
 
-          {step === 2 ? (
-            <div className="space-y-3">
-              <p className="text-sm text-[#718078]">Mobile and desktop previews use sample placeholder values for variables.</p>
-              <div className="grid gap-6 md:grid-cols-2">
-                <motionPreview label="Mobile">
-                  <WhatsAppPreview compact header={form.headerType === 'TEXT' ? form.headerContent : form.headerType !== 'NONE' ? `[${form.headerType} header]` : ''} body={previewBody} footer={form.footer} />
-                </motionPreview>
-                <motionPreview label="Desktop">
-                  <WhatsAppPreview header={form.headerType === 'TEXT' ? form.headerContent : form.headerType !== 'NONE' ? `[${form.headerType} header]` : ''} body={previewBody} footer={form.footer} />
-                </motionPreview>
+              <Field
+                label="Message Body"
+                required
+                hint="Use {{variableName}} or {{1}} for dynamic fields. Max 1024 characters."
+              >
+                <div className="relative">
+                  <textarea
+                    value={form.body}
+                    onChange={(e) => patch('body', e.target.value)}
+                    rows={7}
+                    maxLength={1024}
+                    placeholder="Hello {{customerName}}, thank you for contacting {{companyName}}. Your appointment is confirmed for {{appointmentTime}}."
+                    className="w-full rounded-md border border-slate-300 p-3 font-mono text-xs sm:text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  <span className="absolute bottom-2.5 right-3 text-[11px] text-slate-400">
+                    {form.body.length}/1024
+                  </span>
+                </div>
+              </Field>
+
+              {variables.length > 0 && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 text-xs text-emerald-900">
+                  <p className="font-semibold">Detected Variables ({variables.length}):</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {variables.map((item) => (
+                      <span
+                        key={item}
+                        className="rounded-md bg-white border border-emerald-200 px-2 py-0.5 font-mono text-emerald-800 font-bold"
+                      >
+                        {`{{${item}}}`}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <Field label="Footer Text (Optional)" hint="Small muted text at the bottom. Max 60 characters.">
+                <Input
+                  value={form.footer}
+                  onChange={(e) => patch('footer', e.target.value)}
+                  maxLength={60}
+                  placeholder="e.g. Reply STOP to unsubscribe"
+                  className="border-slate-300 focus-visible:ring-emerald-500"
+                />
+              </Field>
+
+              <Field
+                label="Buttons / Call-to-Actions (Optional JSON)"
+                hint='Example: [{"type":"URL","text":"Visit Website","url":"https://quikboom.com"}] or [{"type":"QUICK_REPLY","text":"Call Us"}]'
+              >
+                <textarea
+                  value={form.buttonsJson}
+                  onChange={(e) => patch('buttonsJson', e.target.value)}
+                  rows={3}
+                  placeholder='[{"type":"URL","text":"Visit","url":"https://example.com"}]'
+                  className="w-full rounded-md border border-slate-300 p-2.5 font-mono text-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </Field>
+            </div>
+          )}
+
+          {/* STEP 3: Preview */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 text-xs text-blue-900">
+                <p className="font-semibold text-blue-950">Realistic WhatsApp Message Simulation</p>
+                <p className="mt-0.5 text-blue-700">
+                  Test sample replacement values for dynamic variables to ensure formatting and line wraps look natural before submitting to Meta.
+                </p>
+              </div>
+
+              {variables.length > 0 && (
+                <div className="space-y-2 border-b border-slate-100 pb-4">
+                  <Label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Sample Replacement Values:
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {variables.map((key) => (
+                      <div key={key} className="flex items-center gap-2">
+                        <span className="w-24 shrink-0 font-mono text-xs text-slate-600 truncate">{`{{${key}}}`}:</span>
+                        <Input
+                          value={sampleVariables[key] === `[${key}]` ? '' : sampleVariables[key] || ''}
+                          onChange={(e) =>
+                            setSampleVariables((prev) => ({
+                              ...prev,
+                              [key]: e.target.value || `[${key}]`,
+                            }))
+                          }
+                          placeholder={`Value for ${key}`}
+                          className="h-8 text-xs border-slate-300"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Responsive comparison previews */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-slate-700 block">WhatsApp Client Preview:</span>
+                <WhatsAppPreview
+                  headerType={form.headerType}
+                  header={form.headerContent}
+                  body={previewBody || 'No message body provided'}
+                  footer={form.footer}
+                  buttons={parsedButtons}
+                />
               </div>
             </div>
-          ) : null}
+          )}
 
-          {step === 3 ? (
-            <dl className="grid gap-3 text-sm">
-              <Row label="Name" value={form.name} />
-              <Row label="Code" value={form.templateName} />
-              <Row label="Category" value={form.category} />
-              <Row label="Language" value={form.language} />
-              <Row label="Header" value={form.headerType === 'NONE' ? 'None' : `${form.headerType}: ${form.headerContent || '—'}`} />
-              <Row label="Body" value={form.body} multiline />
-              <Row label="Footer" value={form.footer || '—'} />
-              <Row label="Variables" value={variables.join(', ') || '—'} />
-              <Row label="Meta submission" value="Will submit to WhatsApp Cloud API (approval typically PENDING)" />
-            </dl>
-          ) : null}
+          {/* STEP 4: Review & Submit */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
+                <h3 className="font-bold text-slate-900 text-sm mb-3">Review Template Payload</h3>
 
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-between">
-            <Button type="button" variant="outline" disabled={step === 0 || submitting} onClick={() => setStep((value) => Math.max(0, value - 1))}>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                  <div>
+                    <dt className="text-slate-500 font-medium uppercase">Template Name</dt>
+                    <dd className="font-semibold text-slate-900 mt-0.5">{form.name}</dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-slate-500 font-medium uppercase">Meta Template Code</dt>
+                    <dd className="font-mono font-semibold text-emerald-800 mt-0.5">{form.templateName}</dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-slate-500 font-medium uppercase">Category</dt>
+                    <dd className="font-semibold text-slate-900 mt-0.5">{form.category}</dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-slate-500 font-medium uppercase">Language</dt>
+                    <dd className="font-semibold text-slate-900 mt-0.5">{form.language}</dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-slate-500 font-medium uppercase">Header</dt>
+                    <dd className="font-semibold text-slate-900 mt-0.5">
+                      {form.headerType === 'NONE' ? 'None' : `${form.headerType}: ${form.headerContent || '—'}`}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-slate-500 font-medium uppercase">Footer</dt>
+                    <dd className="font-semibold text-slate-900 mt-0.5">{form.footer || '—'}</dd>
+                  </div>
+
+                  <div className="col-span-1 sm:col-span-2">
+                    <dt className="text-slate-500 font-medium uppercase">Variables</dt>
+                    <dd className="font-mono text-emerald-700 mt-0.5">
+                      {variables.length ? variables.map((v) => `{{${v}}}`).join(', ') : 'None'}
+                    </dd>
+                  </div>
+
+                  <div className="col-span-1 sm:col-span-2 border-t border-emerald-200/60 pt-2.5">
+                    <dt className="text-slate-500 font-medium uppercase">Body Content</dt>
+                    <dd className="whitespace-pre-wrap break-words font-mono text-xs text-slate-800 mt-1 bg-white p-2.5 rounded-lg border border-emerald-100">
+                      {form.body}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs text-slate-600 space-y-1">
+                <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                  <FontAwesomeIcon icon={faInfoCircle} className="text-emerald-600" />
+                  Meta Cloud API Submission Policy:
+                </p>
+                <p>
+                  Upon submission, your template is instantly synced to Meta&apos;s WhatsApp Cloud API. Approval status typically enters <strong>PENDING</strong> and resolves to <strong>APPROVED</strong> or <strong>REJECTED</strong> within minutes.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Wizard Footer Controls */}
+          <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-2.5 pt-4 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={step === 0 || submitting || savingDraft}
+              onClick={handleBack}
+              className="w-full sm:w-auto border-slate-300 text-slate-700"
+            >
+              <FontAwesomeIcon icon={faChevronLeft} className="mr-2 text-xs" />
               Back
             </Button>
-            {step < STEPS.length - 1 ? (
-              <Button type="button" onClick={next}>Continue</Button>
-            ) : (
-              <Button type="button" disabled={submitting} onClick={submit}>
-                {submitting ? 'Submitting to Meta…' : 'Submit to Meta'}
-              </Button>
-            )}
+
+            <div className="flex w-full sm:w-auto flex-col sm:flex-row items-center gap-2">
+              {step === 3 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={submitting || savingDraft}
+                  onClick={() => handleSave(false)}
+                  className="w-full sm:w-auto border-slate-300 text-slate-700"
+                >
+                  <FontAwesomeIcon icon={faFloppyDisk} className="mr-2 text-xs" />
+                  {savingDraft ? 'Saving Draft…' : 'Save Local Draft'}
+                </Button>
+              )}
+
+              {step < WIZARD_STEPS.length - 1 ? (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white font-semibold shadow-sm"
+                >
+                  Continue
+                  <FontAwesomeIcon icon={faChevronRight} className="ml-2 text-xs" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  disabled={submitting || savingDraft}
+                  onClick={() => handleSave(true)}
+                  className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white font-semibold shadow-md"
+                >
+                  <FontAwesomeIcon icon={faPaperPlane} className="mr-2 text-xs" />
+                  {submitting ? 'Submitting to Meta…' : 'Submit to Meta'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
+        {/* Desktop Sticky Live Preview Column */}
         <aside className="hidden lg:block">
-          <div className="sticky top-4 space-y-2 rounded-2xl border bg-white p-4">
-            <Label className="text-xs uppercase text-[#718078]">Live preview</Label>
-            <WhatsAppPreview header={form.headerType === 'TEXT' ? form.headerContent : ''} body={previewBody || 'Start typing your message…'} footer={form.footer} />
+          <div className="sticky top-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Live WhatsApp Preview</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                <FontAwesomeIcon icon={faWhatsapp} className="text-emerald-600" />
+                Auto-Updating
+              </span>
+            </div>
+
+            <WhatsAppPreview
+              headerType={form.headerType}
+              header={form.headerContent}
+              body={previewBody || 'Start typing your template message body...'}
+              footer={form.footer}
+              buttons={parsedButtons}
+            />
+
+            <div className="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500 leading-relaxed border border-slate-100">
+              💡 <strong>Tip:</strong> Variables wrapped in <code>{'{{variableName}}'}</code> will show as bold test values in this preview.
+            </div>
           </div>
         </aside>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value, multiline }) {
-  return (
-    <div className="border-b border-[#E2E8E5] pb-2">
-      <dt className="text-xs font-semibold uppercase text-[#718078]">{label}</dt>
-      <dd className={`mt-1 text-[#172B24] ${multiline ? 'whitespace-pre-wrap break-words' : ''}`}>{value}</dd>
-    </div>
-  );
-}
-
-function motionPreview({ label, children }) {
-  return (
-    <div>
-      <p className="mb-2 text-center text-xs font-semibold uppercase text-[#718078]">{label}</p>
-      {children}
     </div>
   );
 }
