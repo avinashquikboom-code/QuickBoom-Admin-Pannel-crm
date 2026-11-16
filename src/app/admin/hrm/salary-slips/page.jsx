@@ -16,6 +16,7 @@ import { faEnvelope, faFileLines } from '@fortawesome/free-regular-svg-icons';
 import { downloadSalarySlip, viewSalarySlip } from '../../../../../lib/salary-slip-pdf';
 import { hrmError, loadSalarySlips } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
+import { LateMarkBreakdown } from '@/modules/hrm/components/payroll/LateMarkBreakdown';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
 export default function SalarySlipsPage() {
     const [records, setRecords] = React.useState([]);
@@ -248,7 +249,7 @@ export default function SalarySlipsPage() {
                       Attendance & Late Mark Details
                     </span>
                   </div>
-                  {activeSlip.lateDeduction > 0 ? (
+                  {activeSlip.lateMarks > 0 || activeSlip.totalLateMinutes > 0 || activeSlip.lateDeduction > 0 ? (
                     <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-300">
                       {activeSlip.lateMarks || 0} Late Days • {activeSlip.totalLateMinutes || 0} mins
                     </span>
@@ -276,6 +277,7 @@ export default function SalarySlipsPage() {
                     <span className="font-bold text-rose-600 text-xs">-{formatCurrency(activeSlip.lateDeduction ?? 0)}</span>
                   </div>
                 </div>
+                <LateMarkBreakdown rows={activeSlip.lateMarkBreakdown} />
                 <p className="text-[11px] text-slate-500 pt-0.5">
                   Calculation: ₹{activeSlip.lateRatePerMinute ?? 1.0}/minute deduction applied exclusively on scheduled shift workdays (grace period applied, holidays & approved leaves excluded).
                 </p>
