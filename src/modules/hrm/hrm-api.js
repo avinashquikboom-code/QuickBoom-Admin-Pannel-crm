@@ -695,6 +695,30 @@ export function saveCommissionSlab(values) {
   return api.post('/commissions/admin/wallet/rules', values);
 }
 
+export function loadLateReport(kind, params = {}) {
+  return api.get(`/admin/late-mark-reports/${kind}`, { params });
+}
+
+export function loadLateReportSettings() {
+  return api.get('/admin/late-mark-reports/email-settings');
+}
+
+export function saveLateReportSettings(values) {
+  return api.patch('/admin/late-mark-reports/email-settings', values);
+}
+
+export function loadLateReportHistory() {
+  return api.get('/admin/late-mark-reports/email-history');
+}
+
+export function retryLateReport(id) {
+  return api.post(`/admin/late-mark-reports/email-history/${id}/retry`);
+}
+
+export function exportLateReport(params) {
+  return api.get('/admin/late-mark-reports/export', { params });
+}
+
 export const missingHrmApis = {
   overtime: '',
   announcements: '',

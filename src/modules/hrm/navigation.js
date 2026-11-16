@@ -18,6 +18,11 @@ export const navigation = [
             icon: faCalendarCheck,
         },
         {
+            name: 'Late Mark Reports',
+            href: '/admin/hrm/late-mark-reports',
+            icon: faClock,
+        },
+        {
             name: 'Break Management',
             href: '/admin/hrm/break-management',
             icon: faMugHot,
