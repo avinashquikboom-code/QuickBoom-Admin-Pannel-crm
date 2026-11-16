@@ -6,6 +6,7 @@ import * as React from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PayrollSummary } from '@/modules/hrm/components/payroll/PayrollSummary';
 import { PayrollTable } from '@/modules/hrm/components/payroll/PayrollTable';
+import { LateMarkBreakdown } from '@/modules/hrm/components/payroll/LateMarkBreakdown';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/common/Drawer';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
@@ -304,7 +305,7 @@ export default function PayrollPage() {
                       Attendance & Late Mark Details
                     </span>
                   </div>
-                  {selectedRecord.lateDeduction > 0 ? (
+                  {selectedRecord.lateMarks > 0 || selectedRecord.totalLateMinutes > 0 || selectedRecord.lateDeduction > 0 ? (
                     <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px]">
                       {selectedRecord.lateMarks || 0} Late Days • {selectedRecord.totalLateMinutes || 0} mins
                     </Badge>
@@ -332,6 +333,7 @@ export default function PayrollPage() {
                     <span className="font-bold text-rose-600 text-xs">-{formatCurrency(selectedRecord.lateDeduction ?? 0)}</span>
                   </div>
                 </div>
+                <LateMarkBreakdown rows={selectedRecord.lateMarkBreakdown} />
                 <p className="text-[11px] text-slate-500 pt-0.5">
                   Calculation: ₹{selectedRecord.lateRatePerMinute ?? 1.0}/minute deduction applied exclusively on scheduled shift workdays (grace period applied, holidays & approved leaves excluded).
                 </p>
