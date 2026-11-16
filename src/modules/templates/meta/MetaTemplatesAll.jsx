@@ -4,21 +4,91 @@ import * as React from 'react';
 import Link from 'next/link';
 import api from '../../../../lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { KpiGrid } from '@/components/common/KpiCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faBullhorn, faDownload, faMessage, faPlus, faRotate } from '@fortawesome/free-solid-svg-icons';
+import {
+  faBullhorn,
+  faPlus,
+  faRotate,
+  faSearch,
+  faDownload,
+  faMessage,
+  faClock,
+  faCircleCheck,
+  faCircleXmark,
+  faBan,
+  faPause,
+  faEye,
+  faPaperPlane,
+  faCopy,
+  faCheck,
+  faXmark,
+  faGlobe,
+  faSliders,
+  faMobileScreen,
+  faCircleExclamation,
+  faCheckDouble,
+  faCode,
+} from '@fortawesome/free-solid-svg-icons';
+import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { toast } from '@/hooks/use-toast';
-import { downloadCsv, envelope, pageOf, Pager, rowsOf, TemplateTable } from '../template-shared';
-import { MetaTemplateDetails } from './meta-shared';
+import { downloadCsv, envelope, pageOf, Pager, rowsOf } from '../template-shared';
+import { MetaTemplateDetails, WhatsAppPreview } from './meta-shared';
 
 const LIST_TABS = [
   { label: 'All Templates', value: 'ALL' },
   { label: 'Single Templates', value: 'SINGLE' },
   { label: 'Campaigns', value: 'CAMPAIGN' },
 ];
+
+const STATUS_CONFIG = {
+  APPROVED: {
+    bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    dot: 'bg-emerald-500',
+    label: 'Approved',
+    icon: faCircleCheck,
+  },
+  PENDING: {
+    bg: 'bg-amber-50 text-amber-700 border-amber-200',
+    dot: 'bg-amber-500 animate-pulse',
+    label: 'In Review',
+    icon: faClock,
+  },
+  REJECTED: {
+    bg: 'bg-rose-50 text-rose-700 border-rose-200',
+    dot: 'bg-rose-500',
+    label: 'Rejected',
+    icon: faCircleXmark,
+  },
+  PAUSED: {
+    bg: 'bg-blue-50 text-blue-700 border-blue-200',
+    dot: 'bg-blue-500',
+    label: 'Paused',
+    icon: faPause,
+  },
+  DISABLED: {
+    bg: 'bg-slate-100 text-slate-700 border-slate-200',
+    dot: 'bg-slate-400',
+    label: 'Disabled',
+    icon: faBan,
+  },
+};
+
+const CATEGORY_CONFIG = {
+  MARKETING: {
+    bg: 'bg-purple-50 text-purple-700 border-purple-200',
+    label: 'Marketing',
+  },
+  UTILITY: {
+    bg: 'bg-sky-50 text-sky-700 border-sky-200',
+    label: 'Utility',
+  },
+  AUTHENTICATION: {
+    bg: 'bg-amber-50 text-amber-700 border-amber-200',
+    label: 'Auth',
+  },
+};
 
 export function MetaTemplatesAll() {
   const [rows, setRows] = React.useState([]);
@@ -40,13 +110,24 @@ export function MetaTemplatesAll() {
   const [syncing, setSyncing] = React.useState(false);
   const [syncInfo, setSyncInfo] = React.useState(null);
   const [selected, setSelected] = React.useState(null);
+  const [drawerTab, setDrawerTab] = React.useState('preview'); // 'preview' | 'test' | 'details'
+  const [copiedCode, setCopiedCode] = React.useState(null);
+
+  // Test Send state
   const [testPhone, setTestPhone] = React.useState('');
   const [testCountry, setTestCountry] = React.useState('+91');
   const [testVariables, setTestVariables] = React.useState({});
   const [testSending, setTestSending] = React.useState(false);
   const [testResult, setTestResult] = React.useState(null);
 
-  const sourceFilter = listTab === 'SINGLE' ? 'SINGLE' : listTab === 'CAMPAIGN' ? 'CAMPAIGN' : templateType !== 'ALL' ? templateType : undefined;
+  const sourceFilter =
+    listTab === 'SINGLE'
+      ? 'SINGLE'
+      : listTab === 'CAMPAIGN'
+      ? 'CAMPAIGN'
+      : templateType !== 'ALL'
+      ? templateType
+      : undefined;
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -55,7 +136,12 @@ export function MetaTemplatesAll() {
       if (listTab === 'CAMPAIGN') {
         const payload = envelope(
           await api.get('/templates/meta/campaigns', {
-            params: { page, limit, search: search || undefined, status: status === 'ALL' ? undefined : status },
+            params: {
+              page,
+              limit,
+              search: search || undefined,
+              status: status === 'ALL' ? undefined : status,
+            },
           }),
         );
         const list = rowsOf(payload);
@@ -83,12 +169,16 @@ export function MetaTemplatesAll() {
         setRows(list);
         setCampaignRows([]);
         if (language === 'ALL') {
-          setLanguageChoices(['ALL', ...Array.from(new Set(list.map((row) => row.language).filter(Boolean)))]);
+          setLanguageChoices([
+            'ALL',
+            ...Array.from(new Set(list.map((row) => row.language).filter(Boolean))),
+          ]);
         }
         setPages(Math.max(1, Number(pagination.totalPages) || 1));
         setTotal(Number(pagination.total) || list.length);
         if (payload?.stats) setStats(payload.stats);
       }
+
       const statsPayload = envelope(await api.get('/templates/meta/stats'));
       if (statsPayload?.total !== undefined) setStats(statsPayload);
       else if (statsPayload?.data) setStats(statsPayload.data);
@@ -108,8 +198,11 @@ export function MetaTemplatesAll() {
     try {
       const result = envelope(await api.post('/templates/meta/sync', {}));
       setSyncInfo(result);
-      if (result?.success === false) toast.error(result?.message || 'Meta sync failed.');
-      else toast.success(result?.message || 'Meta templates synchronized');
+      if (result?.success === false) {
+        toast.error(result?.message || 'Meta sync failed.');
+      } else {
+        toast.success(result?.message || 'Meta templates synchronized successfully');
+      }
       load();
     } catch (err) {
       const message = err?.response?.data?.message || err?.message || 'Meta sync failed.';
@@ -120,228 +213,1144 @@ export function MetaTemplatesAll() {
     }
   }
 
+  async function toggleTemplate(template) {
+    try {
+      await api.patch(`/templates/meta/${template.id}/toggle`, {});
+      toast.success(
+        template.isLocalActive
+          ? `Deactivated "${template.name}"`
+          : `Activated "${template.name}"`,
+      );
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to toggle template status.');
+    }
+  }
+
+  function copyCode(code) {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    toast.success('Template code copied to clipboard');
+    setTimeout(() => {
+      setCopiedCode((curr) => (curr === code ? null : curr));
+    }, 2000);
+  }
+
+  function openPreview(template, defaultTab = 'preview') {
+    setSelected(template);
+    setDrawerTab(defaultTab);
+    setTestVariables({});
+    setTestResult(null);
+  }
+
+  const hasActiveFilters =
+    search.trim() !== '' ||
+    status !== 'ALL' ||
+    category !== 'ALL' ||
+    language !== 'ALL' ||
+    templateType !== 'ALL';
+
+  function clearAllFilters() {
+    setSearch('');
+    setStatus('ALL');
+    setCategory('ALL');
+    setLanguage('ALL');
+    setTemplateType('ALL');
+    setPage(1);
+  }
+
+  const kpis = [
+    {
+      title: 'All Templates',
+      value: stats.total || 0,
+      icon: faMessage,
+      statusKey: 'ALL',
+      color: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+      description: 'Total synced from Meta & CRM',
+    },
+    {
+      title: 'Approved',
+      value: stats.approved || 0,
+      icon: faCircleCheck,
+      statusKey: 'APPROVED',
+      color: 'text-teal-700 bg-teal-50 border-teal-200',
+      description: 'Ready to send immediately',
+    },
+    {
+      title: 'In Review',
+      value: stats.pending || 0,
+      icon: faClock,
+      statusKey: 'PENDING',
+      color: 'text-amber-700 bg-amber-50 border-amber-200',
+      description: 'Awaiting Meta verification',
+    },
+    {
+      title: 'Rejected',
+      value: stats.rejected || 0,
+      icon: faCircleXmark,
+      statusKey: 'REJECTED',
+      color: 'text-rose-700 bg-rose-50 border-rose-200',
+      description: 'Needs revision & resubmission',
+    },
+    {
+      title: 'Paused',
+      value: stats.paused || 0,
+      icon: faPause,
+      statusKey: 'PAUSED',
+      color: 'text-blue-700 bg-blue-50 border-blue-200',
+      description: 'Temporarily on hold',
+    },
+    {
+      title: 'Disabled',
+      value: stats.disabled || 0,
+      icon: faBan,
+      statusKey: 'DISABLED',
+      color: 'text-slate-700 bg-slate-100 border-slate-200',
+      description: 'Inactive / archived in CRM',
+    },
+  ];
+
   return (
-    <div className="min-w-0 w-full max-w-full space-y-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="min-w-0 w-full max-w-full space-y-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
+      {/* ── Page Header ────────────────────────────────────────────── */}
       <PageHeader
+        category="TEMPLATES & ASSETS"
         title="WhatsApp Meta Templates"
-        icon={faMessage}
-        description="Manage your WhatsApp Business templates, create new templates and run campaigns."
+        icon={faWhatsapp}
+        description="Synchronize, manage, and test WhatsApp message templates approved by Meta for CRM workflows and broadcast campaigns."
         actions={
-          <div className="flex min-w-0 w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button type="button" variant="outline" disabled={syncing} onClick={sync} className="w-full sm:w-auto">
-              <FontAwesomeIcon icon={faRotate} className="mr-2" />
-              {syncing ? 'Syncing…' : 'Sync from Meta'}
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={syncing}
+              onClick={sync}
+              className="w-full sm:w-auto border-slate-200 hover:bg-slate-50 transition-all font-medium text-slate-700"
+            >
+              <FontAwesomeIcon icon={faRotate} className={`mr-2 ${syncing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
+              {syncing ? 'Syncing with Meta…' : 'Sync from Meta'}
             </Button>
-            <Button asChild className="w-full sm:w-auto">
+            <Button
+              asChild
+              className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white shadow-sm transition-all font-semibold"
+            >
               <Link href="/admin/sections/meta-templates/create">
                 <FontAwesomeIcon icon={faPlus} className="mr-2" />
                 Add Single Template
               </Link>
             </Button>
-            <Button asChild variant="secondary" className="w-full sm:w-auto">
+            <Button
+              asChild
+              variant="outline"
+              className="w-full sm:w-auto border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/70 text-emerald-800 font-semibold transition-all"
+            >
               <Link href="/admin/sections/meta-templates/campaigns">
-                <FontAwesomeIcon icon={faBullhorn} className="mr-2" />
+                <FontAwesomeIcon icon={faBullhorn} className="mr-2 text-emerald-600" />
                 Create Campaign
               </Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="hidden sm:inline-flex border-slate-200 text-slate-500 hover:text-slate-800"
+              onClick={load}
+              disabled={loading}
+              title="Refresh templates"
+            >
+              <FontAwesomeIcon icon={faRotate} className={loading ? 'animate-spin' : ''} />
             </Button>
           </div>
         }
       />
 
-      <KpiGrid
-        className="grid-cols-1 min-[440px]:grid-cols-2 xl:grid-cols-6"
-        cards={[
-          { title: 'All Templates', value: stats.total || 0, icon: faMessage },
-          { title: 'Approved', value: stats.approved || 0, icon: faMessage },
-          { title: 'Pending', value: stats.pending || 0, icon: faMessage },
-          { title: 'Rejected', value: stats.rejected || 0, icon: faMessage },
-          { title: 'Paused', value: stats.paused || 0, icon: faMessage },
-          { title: 'Disabled', value: stats.disabled || 0, icon: faMessage },
-        ]}
-      />
+      {/* ── WhatsApp Themed Hero Banner ────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F3E2E] via-[#14532D] to-[#166534] p-5 sm:p-6 text-white shadow-md">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-emerald-400/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-8 right-32 h-36 w-36 rounded-full bg-green-500/10 blur-xl" />
 
-      <SegmentedTabs tabs={LIST_TABS} value={listTab} onChange={(value) => { setListTab(value); setPage(1); }} />
+        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200 backdrop-blur-sm border border-emerald-400/30">
+              <FontAwesomeIcon icon={faWhatsapp} className="text-emerald-400 text-sm" />
+              Meta Cloud API • Business Templates
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+              Official WhatsApp Template Management
+            </h2>
+            <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+              Create Meta-compliant messaging templates for transactional updates, marketing broadcasts, and one-time passwords. Preview exactly how your message appears on user devices before sending.
+            </p>
+          </div>
 
-      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
-        <Input
-          value={search}
-          onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-          placeholder="Search template name or code"
-          className="h-10 w-full min-w-0 lg:max-w-sm"
-        />
-        <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm lg:w-auto">
-          {['ALL', 'APPROVED', 'PENDING', 'REJECTED', 'PAUSED', 'DISABLED'].map((item) => (
-            <option key={item} value={item}>{item === 'ALL' ? 'All statuses' : item}</option>
-          ))}
-        </select>
-        <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm lg:w-auto">
-          {['ALL', 'UTILITY', 'MARKETING', 'AUTHENTICATION'].map((item) => (
-            <option key={item} value={item}>{item === 'ALL' ? 'All categories' : item}</option>
-          ))}
-        </select>
-        <select value={language} onChange={(e) => { setLanguage(e.target.value); setPage(1); }} className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm lg:w-auto">
-          {languageChoices.map((item) => (
-            <option key={item} value={item}>{item === 'ALL' ? 'All languages' : item}</option>
-          ))}
-        </select>
-        {listTab === 'ALL' ? (
-          <select value={templateType} onChange={(e) => { setTemplateType(e.target.value); setPage(1); }} className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm lg:w-auto">
-            {['ALL', 'META_SYNC', 'QB_SINGLE', 'QB_CAMPAIGN'].map((item) => (
-              <option key={item} value={item}>{item === 'ALL' ? 'All origins' : item.replace('QB_', 'QB ').replace('META_', 'Meta ')}</option>
-            ))}
-          </select>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full lg:w-auto"
-          onClick={() => downloadCsv(
-            listTab === 'CAMPAIGN' ? 'whatsapp-campaigns.csv' : 'meta-templates.csv',
-            listTab === 'CAMPAIGN'
-              ? [{ key: 'name', label: 'Campaign' }, { key: 'status', label: 'Status' }, { key: 'recipientCount', label: 'Recipients' }, { key: 'sentCount', label: 'Sent' }]
-              : [{ key: 'name', label: 'Name' }, { key: 'templateName', label: 'Code' }, { key: 'language', label: 'Language' }, { key: 'status', label: 'Status' }],
-            listTab === 'CAMPAIGN' ? campaignRows : rows,
-          )}
-        >
-          <FontAwesomeIcon icon={faDownload} className="mr-2" />
-          Export CSV
-        </Button>
+          <div className="flex shrink-0 items-center gap-2.5 self-start md:self-center">
+            <Button
+              type="button"
+              onClick={sync}
+              disabled={syncing}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-sm border-0 transition-all text-xs sm:text-sm"
+            >
+              <FontAwesomeIcon icon={faRotate} className={`mr-2 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync Meta Templates'}
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm text-xs sm:text-sm"
+            >
+              <Link href="/admin/sections/meta-templates/create">
+                <FontAwesomeIcon icon={faPlus} className="mr-2" />
+                New Template
+              </Link>
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {syncInfo ? (
-        <p className={`text-sm ${syncInfo.success === false ? 'text-red-600' : 'text-[#718078]'}`}>
-          Fetched {syncInfo.fetched ?? 0}, added {syncInfo.created ?? 0}, updated {syncInfo.updated ?? 0}, unchanged {syncInfo.unchanged ?? 0}, failed {syncInfo.failed?.length ?? 0}. {syncInfo.message}
-        </p>
-      ) : null}
-
-      <div className="hidden md:block">
-        {listTab === 'CAMPAIGN' ? (
-          <TemplateTable
-            loading={loading}
-            error={error}
-            rows={campaignRows}
-            empty="No campaign records yet. Create a campaign from the actions above."
-            columns={['Campaign', 'Template', 'Recipients', 'Status', 'Sent', 'Scheduled']}
-            render={(row) => (
-              <tr key={row.id} className="border-t border-[#E2E8E5]">
-                <td className="px-3 py-3 font-medium">{row.name}</td>
-                <td className="px-3 py-3">{row.metaTemplate?.name || row.metaTemplate?.templateName || '—'}</td>
-                <td className="px-3 py-3">{row.recipientCount ?? 0}</td>
-                <td className="px-3 py-3"><span className="rounded-full bg-[#E8F1EC] px-2 py-1 text-xs font-semibold">{row.status}</span></td>
-                <td className="px-3 py-3">{row.sentCount ?? 0}</td>
-                <td className="px-3 py-3">{row.scheduledAt ? new Date(row.scheduledAt).toLocaleString() : '—'}</td>
-              </tr>
-            )}
-          />
-        ) : (
-        <TemplateTable
-          loading={loading}
-          error={error}
-          rows={rows}
-          empty="No WhatsApp templates are available. Sync from Meta or create a single template."
-          columns={['Name', 'Code', 'Language', 'Category', 'Approval', 'Actions']}
-          render={(row) => (
-            <tr key={row.id} className="border-t border-[#E2E8E5]">
-              <td className="px-3 py-3">{row.name}</td>
-              <td className="px-3 py-3 font-mono text-xs">{row.templateName || row.key}</td>
-              <td className="px-3 py-3">{row.language}</td>
-              <td className="px-3 py-3">{row.category}</td>
-              <td className="px-3 py-3">
-                <span className="rounded-full bg-[#E8F1EC] px-2 py-1 text-xs font-semibold text-[#163A2E]">{row.status}</span>
-              </td>
-              <td className="whitespace-nowrap px-3 py-3">
-                <button type="button" className="mr-3 text-[#163A2E]" onClick={() => setSelected(row)}>View</button>
-                <button
-                  type="button"
-                  className="text-[#163A2E]"
-                  onClick={async () => {
-                    await api.patch(`/templates/meta/${row.id}/toggle`, {});
-                    load();
-                  }}
+      {/* ── KPI Cards Grid ────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
+        {kpis.map((kpi) => {
+          const isSelected = status === kpi.statusKey;
+          return (
+            <button
+              key={kpi.title}
+              type="button"
+              onClick={() => {
+                setStatus(isSelected && kpi.statusKey !== 'ALL' ? 'ALL' : kpi.statusKey);
+                setPage(1);
+              }}
+              className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-white p-3.5 sm:p-4 text-left shadow-xs transition-all hover:shadow-md cursor-pointer ${
+                isSelected
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20'
+                  : 'border-slate-200/80 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">
+                  {kpi.title}
+                </span>
+                <span
+                  className={`inline-flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg border text-xs sm:text-sm ${kpi.color}`}
                 >
-                  {row.isLocalActive ? 'Deactivate' : 'Activate'}
-                </button>
-              </td>
-            </tr>
+                  <FontAwesomeIcon icon={kpi.icon} />
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-baseline justify-between">
+                <span className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                  {loading ? '—' : kpi.value}
+                </span>
+                {kpi.statusKey !== 'ALL' && (
+                  <span className="text-[10px] text-slate-400 group-hover:text-emerald-600 transition-colors">
+                    {isSelected ? 'Active filter' : 'Filter by'}
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Sync Feedback Banner (Dismissible) ────────────────────── */}
+      {syncInfo && (
+        <div
+          className={`flex items-start justify-between gap-3 rounded-xl border p-4 text-xs sm:text-sm shadow-xs transition-all ${
+            syncInfo.success === false
+              ? 'border-rose-200 bg-rose-50 text-rose-800'
+              : 'border-emerald-200 bg-emerald-50/70 text-emerald-900'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+                syncInfo.success === false
+                  ? 'bg-rose-200 text-rose-700'
+                  : 'bg-emerald-200 text-emerald-800'
+              }`}
+            >
+              <FontAwesomeIcon icon={syncInfo.success === false ? faCircleExclamation : faCheck} className="text-xs" />
+            </span>
+            <div className="space-y-1">
+              <p className="font-semibold">
+                {syncInfo.success === false ? 'Meta Synchronization Failed' : 'Meta Synchronization Complete'}
+              </p>
+              <p className="text-slate-600 leading-relaxed">{syncInfo.message}</p>
+              {syncInfo.fetched !== undefined && (
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs font-medium">
+                  <span className="rounded-md bg-white/80 px-2 py-0.5 border border-slate-200/60 text-slate-700">
+                    Fetched: {syncInfo.fetched ?? 0}
+                  </span>
+                  <span className="rounded-md bg-white/80 px-2 py-0.5 border border-slate-200/60 text-emerald-700">
+                    Added: {syncInfo.created ?? 0}
+                  </span>
+                  <span className="rounded-md bg-white/80 px-2 py-0.5 border border-slate-200/60 text-blue-700">
+                    Updated: {syncInfo.updated ?? 0}
+                  </span>
+                  <span className="rounded-md bg-white/80 px-2 py-0.5 border border-slate-200/60 text-slate-600">
+                    Unchanged: {syncInfo.unchanged ?? 0}
+                  </span>
+                  {syncInfo.failed?.length > 0 && (
+                    <span className="rounded-md bg-white/80 px-2 py-0.5 border border-rose-200 text-rose-700">
+                      Failed: {syncInfo.failed.length}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSyncInfo(null)}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+            aria-label="Dismiss message"
+          >
+            <FontAwesomeIcon icon={faXmark} className="text-sm" />
+          </button>
+        </div>
+      )}
+
+      {/* ── Navigation Tabs & Filter Toolbar ──────────────────────── */}
+      <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-sm no-scrollbar">
+          {LIST_TABS.map((tab) => {
+            const isActive = listTab === tab.value;
+            const count =
+              tab.value === 'CAMPAIGN'
+                ? stats.campaigns ?? campaignRows.length ?? 0
+                : tab.value === 'SINGLE'
+                ? stats.single ?? 0
+                : stats.total ?? total ?? 0;
+
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => {
+                  setListTab(tab.value);
+                  setPage(1);
+                }}
+                className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold transition-all ${
+                  isActive
+                    ? 'bg-[#16A34A] text-white shadow-sm'
+                    : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+                }`}
+              >
+                <span>{tab.label}</span>
+                {count > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] sm:text-xs font-bold ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-white text-slate-600 border border-slate-200'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="flex flex-col gap-2.5 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between border-t border-slate-100">
+          <div className="relative flex-1 min-w-[240px] sm:max-w-md">
+            <FontAwesomeIcon
+              icon={faSearch}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"
+            />
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search template name, code or keyword..."
+              className="h-10 pl-8 pr-8 text-xs sm:text-sm border-slate-200 rounded-lg focus-visible:ring-emerald-500"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
+                aria-label="Clear search"
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status Dropdown */}
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs sm:text-sm font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+            >
+              {['ALL', 'APPROVED', 'PENDING', 'REJECTED', 'PAUSED', 'DISABLED'].map((item) => (
+                <option key={item} value={item}>
+                  {item === 'ALL' ? 'All Statuses' : item.charAt(0) + item.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+
+            {/* Category Dropdown */}
+            <select
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                setPage(1);
+              }}
+              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs sm:text-sm font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+            >
+              {['ALL', 'UTILITY', 'MARKETING', 'AUTHENTICATION'].map((item) => (
+                <option key={item} value={item}>
+                  {item === 'ALL' ? 'All Categories' : item.charAt(0) + item.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+
+            {/* Language Dropdown */}
+            <select
+              value={language}
+              onChange={(e) => {
+                setLanguage(e.target.value);
+                setPage(1);
+              }}
+              className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs sm:text-sm font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+            >
+              {languageChoices.map((item) => (
+                <option key={item} value={item}>
+                  {item === 'ALL' ? 'All Languages' : item}
+                </option>
+              ))}
+            </select>
+
+            {/* Origin Dropdown (All Templates tab) */}
+            {listTab === 'ALL' && (
+              <select
+                value={templateType}
+                onChange={(e) => {
+                  setTemplateType(e.target.value);
+                  setPage(1);
+                }}
+                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs sm:text-sm font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+              >
+                {['ALL', 'META_SYNC', 'QB_SINGLE', 'QB_CAMPAIGN'].map((item) => (
+                  <option key={item} value={item}>
+                    {item === 'ALL'
+                      ? 'All Origins'
+                      : item.replace('QB_', 'QB ').replace('META_', 'Meta ')}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Clear Filters Button */}
+            {hasActiveFilters && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="h-10 text-xs text-slate-500 hover:text-slate-800"
+              >
+                <FontAwesomeIcon icon={faXmark} className="mr-1.5" />
+                Clear
+              </Button>
+            )}
+
+            {/* Export CSV Button */}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 border-slate-200 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() =>
+                downloadCsv(
+                  listTab === 'CAMPAIGN' ? 'whatsapp-campaigns.csv' : 'meta-templates.csv',
+                  listTab === 'CAMPAIGN'
+                    ? [
+                        { key: 'name', label: 'Campaign' },
+                        { key: 'status', label: 'Status' },
+                        { key: 'recipientCount', label: 'Recipients' },
+                        { key: 'sentCount', label: 'Sent' },
+                      ]
+                    : [
+                        { key: 'name', label: 'Name' },
+                        { key: 'templateName', label: 'Code' },
+                        { key: 'language', label: 'Language' },
+                        { key: 'category', label: 'Category' },
+                        { key: 'status', label: 'Approval' },
+                      ],
+                  listTab === 'CAMPAIGN' ? campaignRows : rows,
+                )
+              }
+            >
+              <FontAwesomeIcon icon={faDownload} className="mr-1.5 text-slate-500" />
+              Export CSV
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Desktop & Tablet Table (>= 768px) ──────────────────────── */}
+      <div className="hidden md:block">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+          {listTab === 'CAMPAIGN' ? (
+            <table className="min-w-full text-left text-sm text-slate-800">
+              <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3.5">Campaign Name</th>
+                  <th className="px-4 py-3.5">Template</th>
+                  <th className="px-4 py-3.5">Audience</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5">Sent</th>
+                  <th className="px-4 py-3.5">Scheduled</th>
+                  <th className="px-4 py-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                      <FontAwesomeIcon icon={faRotate} className="mr-2 animate-spin text-emerald-600" />
+                      Loading campaigns…
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-rose-600">
+                      <FontAwesomeIcon icon={faCircleExclamation} className="mr-2" />
+                      {error}
+                    </td>
+                  </tr>
+                ) : campaignRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center">
+                      <div className="mx-auto max-w-sm space-y-3">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                          <FontAwesomeIcon icon={faBullhorn} className="text-xl" />
+                        </div>
+                        <p className="font-semibold text-slate-800">No WhatsApp campaigns yet</p>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Launch your first broadcast campaign using approved WhatsApp Meta templates.
+                        </p>
+                        <Button asChild size="sm" className="bg-[#16A34A] hover:bg-[#15803D] text-white">
+                          <Link href="/admin/sections/meta-templates/campaigns">
+                            <FontAwesomeIcon icon={faPlus} className="mr-1.5" />
+                            Create Campaign
+                          </Link>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  campaignRows.map((row) => (
+                    <tr key={row.id} className="group transition-colors hover:bg-slate-50/70">
+                      <td className="px-4 py-3.5 font-semibold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
+                            <FontAwesomeIcon icon={faBullhorn} className="text-xs" />
+                          </div>
+                          <span className="truncate">{row.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-600">
+                        {row.metaTemplate?.name || row.metaTemplate?.templateName || '—'}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs font-semibold text-slate-700">
+                        {row.recipientCount ?? 0} recipients
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-600">
+                        {row.sentCount ?? 0}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500">
+                        {row.scheduledAt ? new Date(row.scheduledAt).toLocaleString() : '—'}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <Button asChild variant="ghost" size="sm" className="h-8 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
+                          <Link href="/admin/sections/meta-templates/campaigns">
+                            View Campaigns
+                          </Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="min-w-full text-left text-sm text-slate-800">
+              <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3.5">Template Name</th>
+                  <th className="px-4 py-3.5">Code / Key</th>
+                  <th className="px-4 py-3.5">Language</th>
+                  <th className="px-4 py-3.5">Category</th>
+                  <th className="px-4 py-3.5">Meta Status</th>
+                  <th className="px-4 py-3.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                      <FontAwesomeIcon icon={faRotate} className="mr-2 animate-spin text-emerald-600" />
+                      Loading WhatsApp templates…
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-rose-600">
+                      <FontAwesomeIcon icon={faCircleExclamation} className="mr-2" />
+                      {error}
+                    </td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center">
+                      <div className="mx-auto max-w-sm space-y-3">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                          <FontAwesomeIcon icon={faMessage} className="text-xl" />
+                        </div>
+                        <p className="font-semibold text-slate-800">No WhatsApp templates found</p>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          {hasActiveFilters
+                            ? 'No templates match your selected filters. Try clearing filters or search terms.'
+                            : 'No WhatsApp templates are currently available. Sync directly from Meta or create a new template.'}
+                        </p>
+                        {hasActiveFilters ? (
+                          <Button type="button" variant="outline" size="sm" onClick={clearAllFilters}>
+                            Clear Filters
+                          </Button>
+                        ) : (
+                          <Button type="button" size="sm" onClick={sync} className="bg-[#16A34A] hover:bg-[#15803D] text-white">
+                            <FontAwesomeIcon icon={faRotate} className="mr-1.5" />
+                            Sync from Meta
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((row) => {
+                    const statusInfo = STATUS_CONFIG[row.status] || {
+                      bg: 'bg-slate-100 text-slate-700 border-slate-200',
+                      dot: 'bg-slate-400',
+                      label: row.status,
+                    };
+                    const catInfo = CATEGORY_CONFIG[row.category] || {
+                      bg: 'bg-slate-100 text-slate-700 border-slate-200',
+                      label: row.category,
+                    };
+                    const isCopied = copiedCode === (row.templateName || row.key);
+
+                    return (
+                      <tr
+                        key={row.id}
+                        className="group transition-colors hover:bg-slate-50/70"
+                      >
+                        {/* Name Column */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                              <FontAwesomeIcon icon={faWhatsapp} className="text-base" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                                {row.name}
+                              </p>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                                <span>Source: {row.source ? row.source.replace('QB_', 'QB ') : 'Meta'}</span>
+                                {row.headerType && row.headerType !== 'NONE' && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Header: {row.headerType}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Code / Key Column */}
+                        <td className="px-4 py-3.5">
+                          <div className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/80 px-2 py-1 font-mono text-xs text-slate-700">
+                            <FontAwesomeIcon icon={faCode} className="text-[10px] text-slate-400" />
+                            <span>{row.templateName || row.key}</span>
+                            <button
+                              type="button"
+                              onClick={() => copyCode(row.templateName || row.key)}
+                              className="ml-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                              title="Copy code"
+                            >
+                              <FontAwesomeIcon icon={isCopied ? faCheck : faCopy} className={`text-[11px] ${isCopied ? 'text-emerald-600' : ''}`} />
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Language Column */}
+                        <td className="px-4 py-3.5">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 border border-slate-200">
+                            <FontAwesomeIcon icon={faGlobe} className="text-[10px] text-slate-400" />
+                            {row.language}
+                          </span>
+                        </td>
+
+                        {/* Category Column */}
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${catInfo.bg}`}>
+                            {catInfo.label}
+                          </span>
+                        </td>
+
+                        {/* Status Column */}
+                        <td className="px-4 py-3.5">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${statusInfo.bg}`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${statusInfo.dot}`} />
+                            {statusInfo.label}
+                          </span>
+                        </td>
+
+                        {/* Actions Column */}
+                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openPreview(row, 'preview')}
+                              className="h-8 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-emerald-700"
+                              title="Preview template"
+                            >
+                              <FontAwesomeIcon icon={faEye} className="mr-1 text-slate-400" />
+                              View
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openPreview(row, 'test')}
+                              className="h-8 px-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                              title="Test send to a phone"
+                            >
+                              <FontAwesomeIcon icon={faPaperPlane} className="mr-1 text-emerald-500" />
+                              Test
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleTemplate(row)}
+                              className={`h-8 px-2.5 text-xs font-semibold ${
+                                row.isLocalActive
+                                  ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                  : 'text-emerald-700 hover:bg-emerald-50'
+                              }`}
+                            >
+                              {row.isLocalActive ? 'Deactivate' : 'Activate'}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           )}
-        />
+        </div>
+      </div>
+
+      {/* ── Responsive Mobile Card List (< 768px) ──────────────────── */}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
+            <FontAwesomeIcon icon={faRotate} className="mr-2 animate-spin text-emerald-600" />
+            Loading…
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            {error}
+          </div>
+        ) : listTab === 'CAMPAIGN' ? (
+          campaignRows.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
+              No campaigns found.
+            </div>
+          ) : (
+            campaignRows.map((row) => (
+              <article key={row.id} className="space-y-2 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-slate-900 truncate">{row.name}</h3>
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                    {row.status}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {row.metaTemplate?.name || row.metaTemplate?.templateName || '—'}
+                </p>
+                <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-100">
+                  <span>{row.recipientCount ?? 0} recipients</span>
+                  <span>{row.sentCount ?? 0} sent</span>
+                </div>
+              </article>
+            ))
+          )
+        ) : rows.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-xs">
+            No templates found.
+          </div>
+        ) : (
+          rows.map((row) => {
+            const statusInfo = STATUS_CONFIG[row.status] || {
+              bg: 'bg-slate-100 text-slate-700 border-slate-200',
+              dot: 'bg-slate-400',
+              label: row.status,
+            };
+            const catInfo = CATEGORY_CONFIG[row.category] || {
+              bg: 'bg-slate-100 text-slate-700 border-slate-200',
+              label: row.category,
+            };
+            const isCopied = copiedCode === (row.templateName || row.key);
+
+            return (
+              <article
+                key={row.id}
+                className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                      <FontAwesomeIcon icon={faWhatsapp} className="text-base" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-slate-900 truncate">{row.name}</h3>
+                      <p className="text-[11px] text-slate-400">
+                        {row.category} • {row.language}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`inline-flex items-center gap-1.5 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${statusInfo.bg}`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${statusInfo.dot}`} />
+                    {statusInfo.label}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 border border-slate-100">
+                  <span className="font-mono text-xs text-slate-600 truncate">
+                    {row.templateName || row.key}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyCode(row.templateName || row.key)}
+                    className="text-xs text-slate-400 hover:text-slate-700 shrink-0"
+                  >
+                    <FontAwesomeIcon icon={isCopied ? faCheck : faCopy} className={isCopied ? 'text-emerald-600' : ''} />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs border-slate-200"
+                    onClick={() => openPreview(row, 'preview')}
+                  >
+                    <FontAwesomeIcon icon={faEye} className="mr-1 text-slate-400" />
+                    Preview
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs border-emerald-200 text-emerald-700 bg-emerald-50/50"
+                    onClick={() => openPreview(row, 'test')}
+                  >
+                    <FontAwesomeIcon icon={faPaperPlane} className="mr-1 text-emerald-600" />
+                    Test Send
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 text-xs text-slate-600"
+                    onClick={() => toggleTemplate(row)}
+                  >
+                    {row.isLocalActive ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
+              </article>
+            );
+          })
         )}
       </div>
 
-      <div className="space-y-3 md:hidden">
-        {loading ? <p className="rounded-xl border p-5 text-sm">Loading templates…</p> : error ? <p className="rounded-xl border border-red-200 p-4 text-sm text-red-700">{error}</p> : listTab === 'CAMPAIGN' ? (campaignRows.length ? campaignRows.map((row) => (
-          <article key={row.id} className="rounded-xl border bg-white p-4">
-            <h3 className="font-semibold">{row.name}</h3>
-            <p className="text-xs text-[#718078]">{row.metaTemplate?.name} · {row.recipientCount} recipients · {row.status}</p>
-          </article>
-        )) : <p className="rounded-xl border p-5 text-sm text-[#718078]">No campaigns found.</p>) : rows.length ? rows.map((row) => (
-          <article key={row.id} className="space-y-2 rounded-xl border border-[#E2E8E5] bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="min-w-0 break-words font-semibold">{row.name}</h3>
-              <span className="shrink-0 rounded-full bg-[#E8F1EC] px-2 py-1 text-xs">{row.status}</span>
-            </div>
-            <p className="break-all font-mono text-xs text-[#718078]">{row.templateName || row.key}</p>
-            <p className="text-xs text-[#718078]">{row.category} · {row.language}</p>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setSelected(row)}>View</Button>
-              <Button type="button" variant="outline" className="flex-1" onClick={async () => { await api.patch(`/templates/meta/${row.id}/toggle`, {}); load(); }}>{row.isLocalActive ? 'Deactivate' : 'Activate'}</Button>
-            </div>
-          </article>
-        )) : <p className="rounded-xl border p-5 text-sm text-[#718078]">No templates found.</p>}
+      {/* ── Pagination ────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-xs">
+        <Pager
+          page={page}
+          pages={pages}
+          limit={limit}
+          total={total}
+          onPage={setPage}
+          onLimit={(value) => {
+            setLimit(value);
+            setPage(1);
+          }}
+        />
       </div>
 
-      <Pager page={page} pages={pages} limit={limit} total={total} onPage={setPage} onLimit={(value) => { setLimit(value); setPage(1); }} />
-
-      {selected ? (
-        <div className="fixed inset-0 z-50 bg-black/25" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
-          <aside className="ml-auto flex h-[100dvh] w-full max-w-[min(520px,100vw)] flex-col overflow-hidden border-l bg-white shadow-xl">
-            <div className="flex items-start justify-between border-b p-5">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#718078]">Template Details</p>
-                <h2 className="mt-1 break-words text-lg font-bold">{selected.name}</h2>
-                <span className="mt-2 inline-flex rounded-full bg-[#E8F1EC] px-2 py-1 text-xs">{selected.status}</span>
-              </div>
-              <button className="min-h-11 min-w-11 rounded-lg border" aria-label="Close details" onClick={() => setSelected(null)}>×</button>
-            </div>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-              <MetaTemplateDetails template={selected} />
-              <section className="space-y-3 rounded-xl border p-4">
-                <h3 className="font-semibold">Test send</h3>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[110px_1fr]">
-                  <select value={testCountry} onChange={(e) => setTestCountry(e.target.value)} className="h-11 rounded-md border px-2">
-                    <option value="+91">+91</option>
-                    <option value="+1">+1</option>
-                  </select>
-                  <input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="Phone number" className="h-11 rounded-md border px-3" />
+      {/* ── Slide-Over Drawer with Live WhatsApp Preview & Test Send ── */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelected(null);
+          }}
+        >
+          <aside
+            className="flex h-[100dvh] w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl animate-in slide-in-from-right duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="template-preview-title"
+          >
+            {/* Drawer Header */}
+            <div className="flex items-start justify-between border-b border-slate-200 bg-slate-50/60 p-5">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                    <FontAwesomeIcon icon={faWhatsapp} className="text-xs" />
+                    WhatsApp Template
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border ${
+                      STATUS_CONFIG[selected.status]?.bg || 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[selected.status]?.dot || 'bg-slate-400'}`} />
+                    {selected.status}
+                  </span>
                 </div>
-                <Button
-                  type="button"
-                  disabled={testSending || !testPhone.trim()}
-                  onClick={async () => {
-                    setTestSending(true);
-                    setTestResult(null);
-                    try {
-                      const result = envelope(await api.post('/templates/meta/test-send', {
-                        templateId: selected.id,
-                        to: `${testCountry}${testPhone.replace(/\D/g, '')}`,
-                        variables: testVariables,
-                      }));
-                      setTestResult({ ok: true, text: `Accepted · ${result.messageId || result.status || 'OK'}` });
-                    } catch (err) {
-                      setTestResult({ ok: false, text: err?.response?.data?.message || err?.message || 'Test send failed' });
-                    } finally {
-                      setTestSending(false);
-                    }
-                  }}
-                >
-                  {testSending ? 'Sending…' : 'Send test'}
-                </Button>
-                {testResult ? <p className={`text-sm ${testResult.ok ? 'text-emerald-700' : 'text-red-700'}`}>{testResult.text}</p> : null}
-              </section>
+                <h2 id="template-preview-title" className="text-lg font-bold text-slate-900 break-words">
+                  {selected.name}
+                </h2>
+                <p className="font-mono text-xs text-slate-500 break-all">
+                  {selected.templateName || selected.key}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                aria-label="Close preview"
+                onClick={() => setSelected(null)}
+              >
+                <FontAwesomeIcon icon={faXmark} className="text-sm" />
+              </button>
+            </div>
+
+            {/* Drawer Tabs */}
+            <div className="flex border-b border-slate-200 bg-white px-5 text-sm">
+              <button
+                type="button"
+                onClick={() => setDrawerTab('preview')}
+                className={`flex items-center gap-2 border-b-2 py-3 px-3 text-xs sm:text-sm font-semibold transition-colors ${
+                  drawerTab === 'preview'
+                    ? 'border-emerald-600 text-emerald-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <FontAwesomeIcon icon={faMobileScreen} className="text-xs" />
+                Live Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrawerTab('test')}
+                className={`flex items-center gap-2 border-b-2 py-3 px-3 text-xs sm:text-sm font-semibold transition-colors ${
+                  drawerTab === 'test'
+                    ? 'border-emerald-600 text-emerald-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <FontAwesomeIcon icon={faPaperPlane} className="text-xs" />
+                Live Test Send
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrawerTab('details')}
+                className={`flex items-center gap-2 border-b-2 py-3 px-3 text-xs sm:text-sm font-semibold transition-colors ${
+                  drawerTab === 'details'
+                    ? 'border-emerald-600 text-emerald-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <FontAwesomeIcon icon={faSliders} className="text-xs" />
+                Template Details
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
+              {drawerTab === 'preview' && (
+                <div className="space-y-4">
+                  <div className="rounded-xl bg-slate-50 p-3 text-center text-xs text-slate-500">
+                    Live simulation of recipient WhatsApp chat interface.
+                  </div>
+                  <WhatsAppPreview
+                    body={selected.body || selected.bodyText}
+                    header={selected.headerContent}
+                    headerType={selected.headerType}
+                    footer={selected.footer || selected.footerText}
+                    buttons={selected.buttons}
+                  />
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      type="button"
+                      onClick={() => setDrawerTab('test')}
+                      className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold shadow-sm"
+                    >
+                      <FontAwesomeIcon icon={faPaperPlane} className="mr-1.5" />
+                      Test Send this Template
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {drawerTab === 'test' && (
+                <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-slate-900 text-sm">Send a Live Test Message</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Deliver a real WhatsApp message to an active phone number to verify template rendering and variable replacement.
+                    </p>
+                  </div>
+
+                  {/* Phone input */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Recipient Phone Number</label>
+                    <div className="grid grid-cols-[90px_1fr] gap-2">
+                      <select
+                        value={testCountry}
+                        onChange={(e) => setTestCountry(e.target.value)}
+                        className="h-10 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
+                      >
+                        <option value="+91">+91 (IN)</option>
+                        <option value="+1">+1 (US)</option>
+                        <option value="+44">+44 (UK)</option>
+                        <option value="+971">+971 (AE)</option>
+                      </select>
+                      <input
+                        value={testPhone}
+                        onChange={(e) => setTestPhone(e.target.value)}
+                        placeholder="10-digit mobile number"
+                        className="h-10 rounded-lg border border-slate-200 px-3 text-xs sm:text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Variables inputs if template contains {{1}}, {{2}} */}
+                  {Array.isArray(selected.variables) && selected.variables.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <label className="text-xs font-semibold text-slate-700">Sample Variable Values</label>
+                      <div className="space-y-2">
+                        {selected.variables.map((variable) => (
+                          <div key={variable} className="grid grid-cols-[100px_1fr] items-center gap-2">
+                            <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded">
+                              {`{{${variable}}}`}
+                            </span>
+                            <input
+                              value={testVariables[variable] || ''}
+                              onChange={(e) =>
+                                setTestVariables((prev) => ({
+                                  ...prev,
+                                  [variable]: e.target.value,
+                                }))
+                              }
+                              placeholder={`Sample value for {{${variable}}}`}
+                              className="h-9 rounded-lg border border-slate-200 px-2.5 text-xs text-slate-800"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    disabled={testSending || !testPhone.trim()}
+                    onClick={async () => {
+                      setTestSending(true);
+                      setTestResult(null);
+                      try {
+                        const result = envelope(
+                          await api.post('/templates/meta/test-send', {
+                            templateId: selected.id,
+                            to: `${testCountry}${testPhone.replace(/\D/g, '')}`,
+                            variables: testVariables,
+                          }),
+                        );
+                        setTestResult({
+                          ok: true,
+                          text: `Message accepted by Meta • ID: ${result.messageId || result.status || 'Delivered'}`,
+                        });
+                        toast.success('Test message sent via WhatsApp Cloud API');
+                      } catch (err) {
+                        const errMsg =
+                          err?.response?.data?.message || err?.message || 'Test send failed';
+                        setTestResult({ ok: false, text: errMsg });
+                        toast.error(errMsg);
+                      } finally {
+                        setTestSending(false);
+                      }
+                    }}
+                    className="w-full bg-[#16A34A] hover:bg-[#15803D] text-white font-semibold shadow-sm transition-all text-xs sm:text-sm"
+                  >
+                    <FontAwesomeIcon icon={testSending ? faRotate : faPaperPlane} className={`mr-2 ${testSending ? 'animate-spin' : ''}`} />
+                    {testSending ? 'Sending Test Message…' : 'Send WhatsApp Test'}
+                  </Button>
+
+                  {testResult && (
+                    <div
+                      className={`rounded-xl p-3 text-xs flex items-center gap-2 ${
+                        testResult.ok
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : 'bg-rose-50 text-rose-800 border border-rose-200'
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={testResult.ok ? faCircleCheck : faCircleExclamation} />
+                      <span>{testResult.text}</span>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {drawerTab === 'details' && (
+                <div className="space-y-4">
+                  <MetaTemplateDetails template={selected} />
+                </div>
+              )}
             </div>
           </aside>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

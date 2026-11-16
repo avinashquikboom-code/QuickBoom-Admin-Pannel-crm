@@ -3,19 +3,111 @@
 export function MetaTemplateDetails({ template }) {
   const buttons = Array.isArray(template.buttons) ? template.buttons : [];
   const variables = Array.isArray(template.variables) ? template.variables : [];
+
   return (
-    <div className="space-y-3 text-sm text-[#172B24]">
-      <p><span className="text-[#718078]">Code:</span> {template.templateName || template.key || '—'}</p>
-      <p><span className="text-[#718078]">Language:</span> {template.language}</p>
-      <p><span className="text-[#718078]">Category:</span> {template.category}</p>
-      <p><span className="text-[#718078]">Approval:</span> {template.status}</p>
-      <p><span className="text-[#718078]">Source:</span> {template.source || 'META_SYNC'}</p>
-      <p><span className="text-[#718078]">Header:</span> {template.headerContent || template.headerType || 'None'}</p>
-      <p className="whitespace-pre-wrap break-words"><span className="text-[#718078]">Body:</span> {template.body || template.bodyText}</p>
-      <p><span className="text-[#718078]">Footer:</span> {template.footer || template.footerText || '—'}</p>
-      <p><span className="text-[#718078]">Buttons:</span> {buttons.length ? buttons.map((button) => button.text || button.type).join(', ') : '—'}</p>
-      <p><span className="text-[#718078]">Variables:</span> {variables.length ? variables.join(', ') : '—'}</p>
-      {template.rejectionReason ? <p className="text-red-600">Rejection reason: {template.rejectionReason}</p> : null}
+    <div className="space-y-4 text-xs sm:text-sm text-slate-800">
+      {/* Rejection Alert if rejected */}
+      {template.rejectionReason && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-rose-800">
+          <p className="font-bold text-xs uppercase tracking-wide text-rose-700">Meta Rejection Reason</p>
+          <p className="mt-1 text-xs leading-relaxed">{template.rejectionReason}</p>
+        </div>
+      )}
+
+      {/* Overview Grid */}
+      <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+        <div>
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Code / Key</span>
+          <span className="font-mono text-xs font-semibold text-slate-800 break-all">
+            {template.templateName || template.key || '—'}
+          </span>
+        </div>
+        <div>
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Language</span>
+          <span className="font-semibold text-slate-800">{template.language || '—'}</span>
+        </div>
+        <div>
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Category</span>
+          <span className="font-semibold text-slate-800">{template.category || '—'}</span>
+        </div>
+        <div>
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Approval Status</span>
+          <span className="font-semibold text-emerald-700">{template.status || '—'}</span>
+        </div>
+        <div>
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Source</span>
+          <span className="font-medium text-slate-600">
+            {template.source ? template.source.replace('QB_', 'QB ') : 'META_SYNC'}
+          </span>
+        </div>
+        <div>
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Header Type</span>
+          <span className="font-medium text-slate-600">{template.headerType || 'NONE'}</span>
+        </div>
+      </div>
+
+      {/* Header Content if text */}
+      {template.headerContent && (
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-1">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Header Content</span>
+          <p className="text-xs font-semibold text-slate-800">{template.headerContent}</p>
+        </div>
+      )}
+
+      {/* Message Body */}
+      <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-1.5">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Message Body Text</span>
+        <div className="rounded-lg bg-slate-50 p-2.5 font-mono text-xs leading-relaxed text-slate-800 whitespace-pre-wrap break-words border border-slate-100">
+          {template.body || template.bodyText || '—'}
+        </div>
+      </div>
+
+      {/* Footer Content */}
+      {(template.footer || template.footerText) && (
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-1">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Footer Text</span>
+          <p className="text-xs text-slate-600">{template.footer || template.footerText}</p>
+        </div>
+      )}
+
+      {/* Interactive Buttons */}
+      {buttons.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+            Buttons ({buttons.length})
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {buttons.map((btn, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-[#00A884]"
+              >
+                <span>{btn.text || btn.type}</span>
+                {btn.url && <span className="text-[10px] text-slate-400 truncate max-w-[150px]">({btn.url})</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Variables */}
+      {variables.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+            Dynamic Variables ({variables.length})
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {variables.map((variable, idx) => (
+              <span
+                key={idx}
+                className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-xs font-bold text-emerald-800"
+              >
+                {`{{${variable}}}`}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
