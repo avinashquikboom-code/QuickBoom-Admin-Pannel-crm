@@ -9,7 +9,7 @@ import { EmployeeRegistrationWizard } from '@/modules/hrm/components/employees/w
 import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
 import { faUserPlus } from '@fortawesome/free-solid-svg-icons';
-import { createEmployee, deactivateEmployee, hrmError, loadEmployees, loadOffices, loadShifts, sessionCanAction, updateEmployee } from '@/modules/hrm/hrm-api';
+import { activateEmployee, createEmployee, deactivateEmployee, deleteEmployee, hrmError, loadEmployees, loadOffices, loadShifts, sessionCanAction, updateEmployee } from '@/modules/hrm/hrm-api';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
@@ -107,7 +107,8 @@ export default function EmployeesPage() {
     const [canDelete, setCanDelete] = React.useState(false);
     const [selected, setSelected] = React.useState([]);
     const [selectionReset, setSelectionReset] = React.useState(0);
-    const [bulkOpen, setBulkOpen] = React.useState(false);
+    const [bulkDeactivateOpen, setBulkDeactivateOpen] = React.useState(false);
+    const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
     React.useEffect(() => {
         setCanEdit(sessionCanAction('EMPLOYEE', 'EDIT'));
         setCanDelete(sessionCanAction('EMPLOYEE', 'DELETE'));
@@ -192,8 +193,87 @@ export default function EmployeesPage() {
 
       {/* Employee Listing Table */}
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} empty={!loading && employees.length === 0 ? 'No employees were returned for this company.' : ''} />
-      {!loading && !error && <EmployeeTable managers={managers} employees={employees} onSelectEmployee={handleSelectEmployee} onEditEmployee={(employee) => { setEditEmployee(employee); setEditForm({ firstName: employee.firstName || '', lastName: employee.lastName || '', email: employee.email === '—' ? '' : employee.email || '', phone: employee.phone === '—' ? '' : employee.phone || '', departmentId: employee.departmentId == null ? '' : String(employee.departmentId), managerId: employee.managerId == null ? '' : String(employee.managerId), designationId: employee.designationId == null ? '' : String(employee.designationId), employmentType: employee.employmentType === '—' ? '' : employee.employmentType || '', status: String(employee.status || 'active').toUpperCase() === 'ON_LEAVE' ? 'ACTIVE' : String(employee.status || 'ACTIVE').toUpperCase(), monthlySalary: employee.registeredSalary ?? '', employeeType: employee.employeeType || 'COMPANY', joiningDate: employee.joinDate === '—' ? '' : employee.joinDate || '', address: employee.address || '', officeId: employee.officeId ? String(employee.officeId) : '', shiftId: employee.shiftId ? String(employee.shiftId) : '', mobileLoginEnabled: employee.mobileLoginEnabled !== false, password: '' }); }} onDeleteEmployee={async (employee) => { try { await deactivateEmployee(employee.recordId); toast.success(`${employee.name} deactivated`); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } }} canEdit={canEdit} canDelete={canDelete} onSelectionChange={setSelected} selectionResetToken={selectionReset}/>}
-      {selected.length > 0 && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#E2E8E5] bg-white p-3"><span className="text-sm font-medium text-[#172B24]">{selected.length} selected</span><Button variant="outline" size="sm" onClick={() => setSelectionReset((value) => value + 1)}>Clear selection</Button>{canDelete && <Button variant="destructive" size="sm" onClick={() => setBulkOpen(true)}>Deactivate selected</Button>}</div>}
+      {!loading && !error && (
+        <EmployeeTable
+          managers={managers}
+          employees={employees}
+          onSelectEmployee={handleSelectEmployee}
+          onEditEmployee={(employee) => {
+            setEditEmployee(employee);
+            setEditForm({
+              firstName: employee.firstName || '',
+              lastName: employee.lastName || '',
+              email: employee.email === '—' ? '' : employee.email || '',
+              phone: employee.phone === '—' ? '' : employee.phone || '',
+              departmentId: employee.departmentId == null ? '' : String(employee.departmentId),
+              managerId: employee.managerId == null ? '' : String(employee.managerId),
+              designationId: employee.designationId == null ? '' : String(employee.designationId),
+              employmentType: employee.employmentType === '—' ? '' : employee.employmentType || '',
+              status: String(employee.status || 'active').toUpperCase() === 'ON_LEAVE' ? 'ACTIVE' : String(employee.status || 'ACTIVE').toUpperCase(),
+              monthlySalary: employee.registeredSalary ?? '',
+              employeeType: employee.employeeType || 'COMPANY',
+              joiningDate: employee.joinDate === '—' ? '' : employee.joinDate || '',
+              address: employee.address || '',
+              officeId: employee.officeId ? String(employee.officeId) : '',
+              shiftId: employee.shiftId ? String(employee.shiftId) : '',
+              mobileLoginEnabled: employee.mobileLoginEnabled !== false,
+              password: '',
+            });
+          }}
+          onToggleStatus={async (employee) => {
+            try {
+              const isCurrentlyActive = employee.status === 'active';
+              if (isCurrentlyActive) {
+                const res = await deactivateEmployee(employee.recordId);
+                toast.success(res?.message || `${employee.name} has been deactivated.`);
+              } else {
+                const res = await activateEmployee(employee.recordId);
+                toast.success(res?.message || `${employee.name} has been activated.`);
+              }
+              setRefresh((value) => value + 1);
+            } catch (err) {
+              toast.error(hrmError(err));
+            }
+          }}
+          onDeleteEmployee={async (employee) => {
+            try {
+              const res = await deleteEmployee(employee.recordId);
+              setEmployees((current) => current.filter((row) => row.recordId !== employee.recordId));
+              setSelectedEmployee((current) => current?.recordId === employee.recordId ? null : current);
+              const action = res?.action;
+              const msg = res?.message || (action === 'ARCHIVED'
+                ? 'Employee archived successfully. Historical records preserved.'
+                : 'Employee permanently deleted.');
+              toast.success(msg);
+              setRefresh((value) => value + 1);
+            } catch (err) {
+              toast.error(hrmError(err));
+            }
+          }}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onSelectionChange={setSelected}
+          selectionResetToken={selectionReset}
+        />
+      )}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#E2E8E5] bg-white p-3">
+          <span className="text-sm font-medium text-[#172B24]">{selected.length} selected</span>
+          <Button variant="outline" size="sm" onClick={() => setSelectionReset((value) => value + 1)}>
+            Clear selection
+          </Button>
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={() => setBulkDeactivateOpen(true)}>
+              Deactivate selected
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)}>
+              Delete selected
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Employee Detail Slide-Out */}
       <EmployeeDetail manager={managers.find((person) => person.recordId === selectedEmployee?.managerId)} employee={selectedEmployee} open={detailOpen} onOpenChange={setDetailOpen}/>
@@ -222,7 +302,53 @@ export default function EmployeesPage() {
         </div>
       </FormDrawer>
 
-      <ConfirmDialog open={bulkOpen} onOpenChange={setBulkOpen} variant="destructive" title="Deactivate selected employees" description={`${selected.length} employees will be deactivated. Attendance, payroll, salary slips, leave, claims, and overtime history will be kept.`} confirmLabel="Deactivate" onConfirm={async () => { setBulkOpen(false); const rows = selected; let done = 0; for (const employee of rows) { try { await deactivateEmployee(employee.recordId); done += 1; } catch (err) { toast.error(hrmError(err)); } } toast.success(`${done} employees deactivated`); setSelectionReset((value) => value + 1); setRefresh((value) => value + 1); }} />
+      <ConfirmDialog
+        open={bulkDeactivateOpen}
+        onOpenChange={setBulkDeactivateOpen}
+        title="Deactivate selected employees"
+        description={`${selected.length} employees will be marked as inactive. Their mobile access will be revoked, but their profile and records remain intact.`}
+        confirmLabel="Deactivate"
+        onConfirm={async () => {
+          setBulkDeactivateOpen(false);
+          const rows = selected;
+          let done = 0;
+          for (const employee of rows) {
+            try {
+              await deactivateEmployee(employee.recordId);
+              done += 1;
+            } catch (err) {
+              toast.error(hrmError(err));
+            }
+          }
+          toast.success(`${done} employees deactivated successfully.`);
+          setSelectionReset((value) => value + 1);
+          setRefresh((value) => value + 1);
+        }}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        variant="destructive"
+        title="Delete selected employees"
+        description={`Are you sure you want to delete ${selected.length} selected employees? Employees with financial or attendance history will be archived and removed from the active directory; employees without history will be permanently deleted.`}
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          setBulkDeleteOpen(false);
+          const rows = selected;
+          let done = 0;
+          for (const employee of rows) {
+            try {
+              await deleteEmployee(employee.recordId);
+              done += 1;
+            } catch (err) {
+              toast.error(hrmError(err));
+            }
+          }
+          toast.success(`${done} employees processed successfully.`);
+          setSelectionReset((value) => value + 1);
+          setRefresh((value) => value + 1);
+        }}
+      />
       <EmployeeRegistrationWizard
         open={wizardOpen}
         onOpenChange={setWizardOpen}

@@ -9,7 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { faMagnifyingGlass, faPhone } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope } from '@fortawesome/free-regular-svg-icons';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
-export function EmployeeTable({ employees, managers = [], onSelectEmployee, onEditEmployee, onDeleteEmployee, canEdit = false, canDelete = false, onSelectionChange, selectionResetToken = 0 }) {
+export function EmployeeTable({
+    employees,
+    managers = [],
+    onSelectEmployee,
+    onEditEmployee,
+    onToggleStatus,
+    onDeleteEmployee,
+    canEdit = false,
+    canDelete = false,
+    onSelectionChange,
+    selectionResetToken = 0,
+}) {
     const [search, setSearch] = React.useState('');
     const [selectedDept, setSelectedDept] = React.useState('All Departments');
     const [selectedStatus, setSelectedStatus] = React.useState('all');
@@ -103,9 +114,11 @@ export function EmployeeTable({ employees, managers = [], onSelectEmployee, onEd
                     viewLabel="View Profile"
                     onEdit={canEdit ? () => onEditEmployee(emp) : undefined}
                     editLabel="Edit Employee"
+                    onToggleStatus={canEdit && onToggleStatus ? () => onToggleStatus(emp) : undefined}
+                    statusLabel={emp.status === 'active' ? 'Deactivate' : 'Activate'}
                     onDelete={canDelete ? () => onDeleteEmployee(emp) : undefined}
                     deleteLabel="Delete Employee"
-                    deleteDescription={`Deactivate ${emp.name} (${emp.id})? Attendance, payroll, and salary history will be kept.`}
+                    deleteDescription={`Are you sure you want to permanently delete this employee? ${emp.name} (${emp.id}) will be removed from the active directory. Historical records will be retained.`}
                 />
             ),
         },

@@ -83,8 +83,19 @@ export function updateEmployee(id, values) {
   return api.patch(`/employees/${id}`, values);
 }
 
-export function deactivateEmployee(id) {
-  return api.delete(`/employees/${id}`);
+export async function deleteEmployee(id) {
+  const res = await api.delete(`/employees/${id}`);
+  return res?.data || res;
+}
+
+export async function deactivateEmployee(id) {
+  const res = await api.post(`/employees/${id}/deactivate`);
+  return res?.data || res;
+}
+
+export async function activateEmployee(id) {
+  const res = await api.post(`/employees/${id}/activate`);
+  return res?.data || res;
 }
 
 export async function loadLiveDashboard(date) {
