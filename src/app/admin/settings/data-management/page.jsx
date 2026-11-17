@@ -111,6 +111,36 @@ export default function DataManagementPage() {
     }
   }
 
+  async function runVerifiedReset() {
+    setBusy('reset');
+    try {
+      const response = await executeDataReset({
+        modules: selected,
+        scope,
+        previewToken: preview.previewToken,
+        backupId,
+        confirmation,
+        acknowledgement,
+        globalConfirmation,
+        idempotencyKey: crypto.randomUUID(),
+        reason,
+      });
+      const resetResult = dataOf(response);
+      if (resetResult.success !== true || resetResult.status !== 'SUCCESS' || resetResult.verified !== true) {
+        throw new Error('The reset was not verified by the database. Review reset history before retrying.');
+      }
+      setResult(resetResult);
+      setPreview(null);
+      setConfirmation('');
+      toast.success(`Reset complete: ${resetResult.recordsDeleted} records deleted and verified.`);
+      await reload();
+    } catch (err) {
+      toast.error(suiteError(err));
+    } finally {
+      setBusy('');
+    }
+  }
+
   async function saveFile(loader, fallback) {
     setBusy('download');
     try {
@@ -263,17 +293,7 @@ export default function DataManagementPage() {
               {scope !== 'selected' && <Input className="mt-3" placeholder="Type RESET ALL DATA" value={acknowledgement} onChange={(event) => setAcknowledgement(event.target.value)} />}
               {scope === 'global' && <Input className="mt-3" placeholder="Type RESET GLOBAL" value={globalConfirmation} onChange={(event) => setGlobalConfirmation(event.target.value)} />}
               <p className="mt-3 text-sm text-[#DC2626]">This operation will permanently delete the selected application data. This action cannot be undone.</p>
-              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || !preview || confirmation !== 'RESET'} onClick={() => run('reset', () => executeDataReset({
-                modules: selected,
-                scope,
-                previewToken: preview.previewToken,
-                backupId,
-                confirmation,
-                acknowledgement,
-                globalConfirmation,
-                idempotencyKey: crypto.randomUUID(),
-                reason,
-              }))}>Execute reset</Button>
+              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || !preview || confirmation !== 'RESET'} onClick={runVerifiedReset}>Execute reset</Button>
             </Panel>
             {result?.operationId && <Result result={result} />}
           </div>
@@ -474,7 +494,7 @@ function QuickActions({ busy, latest, onBackup, onDownload, onHistory }) {
   );
 }
 function Result({ result }) {
-  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}. Records: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}. Backup: {result.backupId || result.preRestoreBackupId || '—'}</p>{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
+  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}{result.verified ? ' · Database verification passed' : ''}. Records: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}. Backup: {result.backupId || result.preRestoreBackupId || '—'}</p>{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
 }
 function dataOf(response) {
   if (response && typeof response === 'object' && response.data && !Array.isArray(response.data)) return response.data;
