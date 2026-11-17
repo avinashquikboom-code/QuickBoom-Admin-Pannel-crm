@@ -427,19 +427,20 @@ export default function DataManagementPage() {
               <button type="button" onClick={() => setHistoryOpen(false)}>Close</button>
             </div>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-xs uppercase text-[#718078]"><tr><th>Operation</th><th>Status</th><th>Records</th><th>When</th><th>By</th></tr></thead>
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="text-xs uppercase text-[#718078]"><tr><th>Operation</th><th>Status</th><th>Records</th><th>Backup</th><th>When</th><th>By</th></tr></thead>
                 <tbody>
                   {history.map((item) => (
                     <tr key={`${item.id}-${item.createdAt}`} className="border-t border-[#E2E8E5]">
-                      <td className="py-2 pr-2">{item.operationType}<div className="text-xs text-[#718078]">{Array.isArray(item.modules) ? item.modules.join(', ') : item.modules}</div></td>
+                      <td className="py-2 pr-2">{item.operationType}<div className="text-xs text-[#718078]">{Array.isArray(item.modules) && item.modules.length ? item.modules.map((id) => modules.find((module) => module.id === id)?.name || id).join(', ') : 'Module details unavailable'}</div></td>
                       <td>{item.status}{item.failureReason ? <div className="text-xs text-[#DC2626]">{item.failureReason}</div> : null}</td>
-                      <td>{item.recordsAffected}</td>
+                      <td>{item.operationType === 'DATA_RESET' ? (item.verified ? item.recordsAffected ?? 0 : 'Unverified') : item.recordsAffected ?? '—'}</td>
+                      <td>{item.backupId || 'No backup recorded'}</td>
                       <td>{stamp(item.createdAt)}</td>
                       <td>{item.requestedBy}</td>
                     </tr>
                   ))}
-                  {!history.length && <tr><td className="py-3 text-[#718078]" colSpan={5}>No operations recorded.</td></tr>}
+                  {!history.length && <tr><td className="py-3 text-[#718078]" colSpan={6}>No operations recorded.</td></tr>}
                 </tbody>
               </table>
             </div>
