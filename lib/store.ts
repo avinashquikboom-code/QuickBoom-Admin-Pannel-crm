@@ -53,6 +53,8 @@ export const useAuthStore = create<AuthState>()(
             }
             if (refreshToken) {
               localStorage.setItem('refreshToken', refreshToken);
+            } else {
+              localStorage.removeItem('refreshToken');
             }
             localStorage.setItem('user', JSON.stringify(user));
           } catch (_) {}

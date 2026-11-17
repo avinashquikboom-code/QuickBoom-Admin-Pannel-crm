@@ -178,12 +178,6 @@ export function getPersistedAuthSession() {
 
   const token = isValidTokenString(session.token) ? session.token.trim() : null;
   let refreshToken = isValidTokenString(session.refreshToken) ? session.refreshToken.trim() : null;
-  if (!refreshToken && token && !isEmployeeRoute && typeof window !== 'undefined') {
-    try {
-      const storedRefresh = localStorage.getItem('refreshToken');
-      if (isValidTokenString(storedRefresh)) refreshToken = storedRefresh.trim();
-    } catch {}
-  }
   const user = session.user || null;
   const customerId = session.customerId || user?.customerId || null;
 
@@ -644,14 +638,12 @@ api.interceptors.response.use(
       !isAuthUrl &&
       typeof window !== 'undefined'
     ) {
-      const isEmployeeRoute = isEmployeePortalRoute();
-      const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
-      const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
-      if (!isEmployeeRoute) await clearAdminBrowserSession();
-      authStore.logout();
-      if (window.location.pathname !== loginRoute) {
-        toast.error('Your session has expired. Please sign in again.', { id: 'session-expired' });
-        window.location.href = loginRoute;
+      // The retry already carried a freshly issued token, so this 401 belongs to
+      // the endpoint (the API also answers 401 for a missing customer context),
+      // not to the session. A dead session is logged out by the refresh failure.
+      const message = getErrorMessage(error);
+      if (typeof message === 'string' && message !== '[object Event]' && message !== '[object Object]') {
+        toast.error(message, { id: message });
       }
       return Promise.reject(error);
     }
