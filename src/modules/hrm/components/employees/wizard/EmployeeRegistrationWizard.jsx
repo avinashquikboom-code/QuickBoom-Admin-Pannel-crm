@@ -25,7 +25,7 @@ const STEPS = [
   { id: 6, label: 'Review' },
 ];
 
-export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess, offices, shifts, assignmentError }) {
+export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess, offices, shifts, assignmentError, designations, designationError, designationLoading, departments, managers, organizationError, organizationLoading }) {
   const store = useEmployeeWizardStore();
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,7 +47,7 @@ export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess, offi
         );
       case 2:
         return (
-          <Step2EmploymentInfo offices={offices} shifts={shifts} assignmentError={assignmentError}
+          <Step2EmploymentInfo offices={offices} shifts={shifts} assignmentError={assignmentError} designations={designations} designationError={designationError} designationLoading={designationLoading} departments={departments} managers={managers} organizationError={organizationError} organizationLoading={organizationLoading}
             onValidationChange={(isValid) => setStepValid(isValid)}
           />
         );
@@ -104,6 +104,9 @@ export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess, offi
       return;
     }
 
+    if (!store.departmentId || !departments.some((item) => String(item.id) === store.departmentId)) { toast.error('Select a department'); return; }
+    if (store.reportingManagerId && !managers.some((item) => String(item.recordId) === store.reportingManagerId && item.status === 'active')) { toast.error('Select an available reporting manager'); return; }
+    if (!store.designation || !designations.some((item) => String(item.id) === store.designation && item.status === 'Active')) { toast.error('Select an active designation from the master list'); return; }
     if (password && password.trim().length < 6) { toast.error('Password must be at least 6 characters'); return; }
     setLoading(true);
     try {

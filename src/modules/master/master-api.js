@@ -120,8 +120,16 @@ export function saveDesignation(values, id) {
 export const removeDesignation = (id) => api.delete(`/designations/${id}`);
 
 export async function loadDepartments() {
-  const payload = await api.get('/departments', { params: { page: 1, limit: 100, isActive: true } });
-  return listFrom(payload);
+  const rows = [];
+  let page = 1;
+  let totalPages;
+  do {
+    const payload = await api.get('/departments', { params: { page, limit: 100, isActive: true } });
+    rows.push(...listFrom(payload));
+    totalPages = Number(payload?.meta?.totalPages ?? payload?.data?.meta?.totalPages) || 1;
+    page += 1;
+  } while (page <= totalPages);
+  return rows;
 }
 
 export async function loadLeavePolicyScreen() {

@@ -15,6 +15,7 @@ import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { loadDepartments, loadDesignations } from '@/modules/master/master-api';
 export default function EmployeesPage() {
     const [employees, setEmployees] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
@@ -34,6 +35,48 @@ export default function EmployeesPage() {
     const [editForm, setEditForm] = React.useState({});
     const [offices, setOffices] = React.useState([]);
     const [shifts, setShifts] = React.useState([]);
+    const [departments, setDepartments] = React.useState([]);
+    const [managers, setManagers] = React.useState([]);
+    const [organizationError, setOrganizationError] = React.useState('');
+    const [organizationLoading, setOrganizationLoading] = React.useState(false);
+    React.useEffect(() => {
+        let active = true;
+        setOrganizationLoading(true);
+        setOrganizationError('');
+        (async () => {
+            const [departmentRows, managerRows] = await Promise.all([loadDepartments(), (async () => {
+                const rows = [];
+                let page = 1;
+                let batch;
+                do { batch = await loadEmployees({ page, limit: 100 }); rows.push(...batch); page += 1; } while (batch.length === 100);
+                return rows;
+            })()]);
+            if (active) { setDepartments(departmentRows); setManagers(managerRows); }
+        })().catch((err) => { if (active) { setDepartments([]); setManagers([]); setOrganizationError(hrmError(err)); } }).finally(() => { if (active) setOrganizationLoading(false); });
+        return () => { active = false; };
+    }, [refresh]);
+    const [designations, setDesignations] = React.useState([]);
+    const [designationError, setDesignationError] = React.useState('');
+    const [designationLoading, setDesignationLoading] = React.useState(false);
+    React.useEffect(() => {
+        if (!wizardOpen && !editEmployee) return;
+        let active = true;
+        setDesignationLoading(true);
+        setDesignationError('');
+        (async () => {
+            const rows = [];
+            let page = 1;
+            let totalPages;
+            do {
+                const result = await loadDesignations({ page, limit: 100 });
+                rows.push(...result.rows);
+                totalPages = Number(result.meta.totalPages) || 1;
+                page += 1;
+            } while (page <= totalPages);
+            if (active) setDesignations(rows);
+        })().catch((err) => { if (active) { setDesignations([]); setDesignationError(hrmError(err)); } }).finally(() => { if (active) setDesignationLoading(false); });
+        return () => { active = false; };
+    }, [wizardOpen, editEmployee]);
     const [assignmentError, setAssignmentError] = React.useState('');
     React.useEffect(() => {
         let active = true;
@@ -44,6 +87,21 @@ export default function EmployeesPage() {
         }).catch((err) => { if (active) setAssignmentError(hrmError(err)); });
         return () => { active = false; };
     }, [wizardOpen, editEmployee]);
+    const eligibleManagers = React.useMemo(() => {
+        if (!editEmployee) return managers;
+        const byId = new Map(managers.map((row) => [String(row.recordId), row]));
+        return managers.filter((row) => {
+            let current = row;
+            const visited = new Set();
+            while (current) {
+                const id = String(current.recordId);
+                if (id === String(editEmployee.recordId) || visited.has(id)) return false;
+                visited.add(id);
+                current = current.managerId == null ? null : byId.get(String(current.managerId));
+            }
+            return true;
+        });
+    }, [managers, editEmployee]);
     const [saving, setSaving] = React.useState(false);
     const [canEdit, setCanEdit] = React.useState(false);
     const [canDelete, setCanDelete] = React.useState(false);
@@ -68,8 +126,9 @@ export default function EmployeesPage() {
                 lastName: wizardData.personal.lastName,
                 email: wizardData.personal.corporateEmail,
                 phone: wizardData.personal.phone,
-                departmentName: wizardData.employment.department,
-                designationName: wizardData.employment.jobTitle.trim(),
+                departmentId: Number(wizardData.employment.departmentId),
+                managerId: wizardData.employment.reportingManagerId ? Number(wizardData.employment.reportingManagerId) : undefined,
+                designationId: Number(wizardData.organization.designation),
                 branch: wizardData.employment.workLocation,
                 officeId: wizardData.employment.officeBranch ? Number(wizardData.employment.officeBranch) : undefined,
                 shiftId: wizardData.employment.shiftAssignment ? Number(wizardData.employment.shiftAssignment) : undefined,
@@ -133,21 +192,22 @@ export default function EmployeesPage() {
 
       {/* Employee Listing Table */}
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} empty={!loading && employees.length === 0 ? 'No employees were returned for this company.' : ''} />
-      {!loading && !error && <EmployeeTable employees={employees} onSelectEmployee={handleSelectEmployee} onEditEmployee={(employee) => { setEditEmployee(employee); setEditForm({ firstName: employee.firstName || '', lastName: employee.lastName || '', email: employee.email === '—' ? '' : employee.email || '', phone: employee.phone === '—' ? '' : employee.phone || '', departmentName: employee.department || '', designationName: employee.designation === '—' ? '' : employee.designation || '', employmentType: employee.employmentType === '—' ? '' : employee.employmentType || '', status: String(employee.status || 'active').toUpperCase() === 'ON_LEAVE' ? 'ACTIVE' : String(employee.status || 'ACTIVE').toUpperCase(), monthlySalary: employee.registeredSalary ?? '', employeeType: employee.employeeType || 'COMPANY', joiningDate: employee.joinDate === '—' ? '' : employee.joinDate || '', address: employee.address || '', officeId: employee.officeId ? String(employee.officeId) : '', shiftId: employee.shiftId ? String(employee.shiftId) : '', mobileLoginEnabled: employee.mobileLoginEnabled !== false, password: '' }); }} onDeleteEmployee={async (employee) => { try { await deactivateEmployee(employee.recordId); toast.success(`${employee.name} deactivated`); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } }} canEdit={canEdit} canDelete={canDelete} onSelectionChange={setSelected} selectionResetToken={selectionReset}/>}
+      {!loading && !error && <EmployeeTable managers={managers} employees={employees} onSelectEmployee={handleSelectEmployee} onEditEmployee={(employee) => { setEditEmployee(employee); setEditForm({ firstName: employee.firstName || '', lastName: employee.lastName || '', email: employee.email === '—' ? '' : employee.email || '', phone: employee.phone === '—' ? '' : employee.phone || '', departmentId: employee.departmentId == null ? '' : String(employee.departmentId), managerId: employee.managerId == null ? '' : String(employee.managerId), designationId: employee.designationId == null ? '' : String(employee.designationId), employmentType: employee.employmentType === '—' ? '' : employee.employmentType || '', status: String(employee.status || 'active').toUpperCase() === 'ON_LEAVE' ? 'ACTIVE' : String(employee.status || 'ACTIVE').toUpperCase(), monthlySalary: employee.registeredSalary ?? '', employeeType: employee.employeeType || 'COMPANY', joiningDate: employee.joinDate === '—' ? '' : employee.joinDate || '', address: employee.address || '', officeId: employee.officeId ? String(employee.officeId) : '', shiftId: employee.shiftId ? String(employee.shiftId) : '', mobileLoginEnabled: employee.mobileLoginEnabled !== false, password: '' }); }} onDeleteEmployee={async (employee) => { try { await deactivateEmployee(employee.recordId); toast.success(`${employee.name} deactivated`); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } }} canEdit={canEdit} canDelete={canDelete} onSelectionChange={setSelected} selectionResetToken={selectionReset}/>}
       {selected.length > 0 && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#E2E8E5] bg-white p-3"><span className="text-sm font-medium text-[#172B24]">{selected.length} selected</span><Button variant="outline" size="sm" onClick={() => setSelectionReset((value) => value + 1)}>Clear selection</Button>{canDelete && <Button variant="destructive" size="sm" onClick={() => setBulkOpen(true)}>Deactivate selected</Button>}</div>}
 
       {/* Employee Detail Slide-Out */}
-      <EmployeeDetail employee={selectedEmployee} open={detailOpen} onOpenChange={setDetailOpen}/>
+      <EmployeeDetail manager={managers.find((person) => person.recordId === selectedEmployee?.managerId)} employee={selectedEmployee} open={detailOpen} onOpenChange={setDetailOpen}/>
 
       {/* Employee Registration Wizard */}
-      <FormDrawer open={Boolean(editEmployee)} onOpenChange={(open) => { if (!open) { setEditEmployee(null); setEditForm({}); } }} title="Edit Employee" description={editEmployee ? `${editEmployee.name} · ${editEmployee.id}` : ''} submitLabel="Save changes" loading={saving} onSubmit={async (event) => { event.preventDefault(); setSaving(true); try { if (editForm.password && editForm.password.trim().length < 6) throw new Error('Password must be at least 6 characters.'); await updateEmployee(editEmployee.recordId, { officeId: editForm.officeId ? Number(editForm.officeId) : undefined, shiftId: editForm.shiftId ? Number(editForm.shiftId) : undefined, mobileLoginEnabled: editForm.mobileLoginEnabled, password: editForm.password || undefined, firstName: editForm.firstName, lastName: editForm.lastName, email: editForm.email || undefined, phone: editForm.phone || undefined, departmentName: editForm.departmentName || undefined, designationName: editForm.designationName?.trim() && editForm.designationName.trim() !== (editEmployee.designation === '—' ? '' : editEmployee.designation) ? editForm.designationName.trim() : undefined, employmentType: editForm.employmentType || undefined, status: editForm.status || undefined, employeeType: editForm.employeeType || undefined, joiningDate: editForm.joiningDate || undefined, address: editForm.address || undefined, monthlySalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary), basicSalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary) }); toast.success('Employee updated'); setEditEmployee(null); setEditForm({}); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } finally { setSaving(false); } }}>
+      <FormDrawer open={Boolean(editEmployee)} onOpenChange={(open) => { if (!open) { setEditEmployee(null); setEditForm({}); } }} title="Edit Employee" description={editEmployee ? `${editEmployee.name} · ${editEmployee.id}` : ''} submitLabel="Save changes" loading={saving} onSubmit={async (event) => { event.preventDefault(); setSaving(true); try { if (editForm.managerId && editForm.managerId !== String(editEmployee.managerId ?? '') && !eligibleManagers.some((row) => String(row.recordId) === editForm.managerId && row.status === 'active')) throw new Error('Select a valid reporting manager.'); if (editForm.password && editForm.password.trim().length < 6) throw new Error('Password must be at least 6 characters.'); await updateEmployee(editEmployee.recordId, { officeId: editForm.officeId ? Number(editForm.officeId) : undefined, shiftId: editForm.shiftId ? Number(editForm.shiftId) : undefined, mobileLoginEnabled: editForm.mobileLoginEnabled, password: editForm.password || undefined, firstName: editForm.firstName, lastName: editForm.lastName, email: editForm.email || undefined, phone: editForm.phone || undefined, departmentId: editForm.departmentId && editForm.departmentId !== String(editEmployee.departmentId ?? '') ? Number(editForm.departmentId) : undefined, managerId: editForm.managerId !== String(editEmployee.managerId ?? '') ? (editForm.managerId ? Number(editForm.managerId) : null) : undefined, designationId: editForm.designationId && editForm.designationId !== String(editEmployee.designationId ?? '') ? Number(editForm.designationId) : undefined, employmentType: editForm.employmentType || undefined, status: editForm.status || undefined, employeeType: editForm.employeeType || undefined, joiningDate: editForm.joiningDate || undefined, address: editForm.address || undefined, monthlySalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary), basicSalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary) }); toast.success('Employee updated'); setEditEmployee(null); setEditForm({}); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } finally { setSaving(false); } }}>
         <div className="grid gap-3 sm:grid-cols-2">
           <Label className="grid gap-1 text-xs">First name<Input value={editForm.firstName || ''} onChange={(event) => setEditForm({ ...editForm, firstName: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Last name<Input value={editForm.lastName || ''} onChange={(event) => setEditForm({ ...editForm, lastName: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Email<Input value={editForm.email || ''} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Phone<Input value={editForm.phone || ''} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} /></Label>
-          <Label className="grid gap-1 text-xs">Department<Input value={editForm.departmentName || ''} onChange={(event) => setEditForm({ ...editForm, departmentName: event.target.value })} /></Label>
-          <Label className="grid gap-1 text-xs">Designation<Input value={editForm.designationName || ''} onChange={(event) => setEditForm({ ...editForm, designationName: event.target.value })} /></Label>
+          <Label className="grid gap-1 text-xs">Department<select className="h-9 rounded-md border px-2 text-sm" value={editForm.departmentId || ''} disabled={organizationLoading || Boolean(organizationError)} onChange={(event) => setEditForm({ ...editForm, departmentId: event.target.value })}><option value="" disabled={Boolean(editEmployee?.departmentId)}>Select department</option>{editEmployee?.departmentId && !departments.some((row) => String(row.id) === String(editEmployee.departmentId)) && <option value={String(editEmployee.departmentId)}>{editEmployee.department}</option>}{departments.map((row) => <option key={row.id} value={String(row.id)}>{row.name}</option>)}</select></Label>
+          <Label className="grid gap-1 text-xs">Reporting manager<select className="h-9 rounded-md border px-2 text-sm" value={editForm.managerId || ''} disabled={organizationLoading || Boolean(organizationError)} onChange={(event) => setEditForm({ ...editForm, managerId: event.target.value })}><option value="">Unassigned</option>{editEmployee?.managerId && !managers.some((row) => String(row.recordId) === String(editEmployee.managerId)) && <option value={String(editEmployee.managerId)}>Current manager unavailable</option>}{eligibleManagers.filter((row) => row.status === 'active' || String(row.recordId) === String(editEmployee?.managerId)).map((row) => <option key={row.recordId} value={String(row.recordId)}>{row.name} · {row.id}</option>)}</select>{organizationError && <span className="text-red-600">Could not load organization data: {organizationError}</span>}</Label>
+          <Label className="grid gap-1 text-xs">Designation<select className="h-9 rounded-md border px-2 text-sm" value={editForm.designationId || ''} disabled={designationLoading || Boolean(designationError)} onChange={(event) => setEditForm({ ...editForm, designationId: event.target.value })}><option value="" disabled={Boolean(editEmployee?.designationId)}>Select designation</option>{editEmployee?.designationId && !designations.some((item) => String(item.id) === String(editEmployee.designationId)) && <option value={String(editEmployee.designationId)}>{editEmployee.designation}</option>}{designations.filter((item) => item.status === 'Active' || String(item.id) === String(editEmployee?.designationId)).map((item) => <option key={item.id} value={String(item.id)}>{item.name}{item.status !== 'Active' ? ' (inactive)' : ''}</option>)}</select>{designationError && <span className="text-red-600">Could not load designations: {designationError}</span>}</Label>
           <Label className="grid gap-1 text-xs">Employment type<Input value={editForm.employmentType || ''} onChange={(event) => setEditForm({ ...editForm, employmentType: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Status<select className="h-9 rounded-md border px-2 text-sm" value={editForm.status || 'ACTIVE'} onChange={(event) => setEditForm({ ...editForm, status: event.target.value })}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></Label>
           <Label className="grid gap-1 text-xs">Employee type<select className="h-9 rounded-md border px-2 text-sm" value={editForm.employeeType || 'COMPANY'} onChange={(event) => setEditForm({ ...editForm, employeeType: event.target.value })}><option value="COMPANY">Company</option><option value="FREELANCER">Freelancer</option></select></Label>
@@ -170,6 +230,13 @@ export default function EmployeesPage() {
         offices={offices}
         shifts={shifts}
         assignmentError={assignmentError}
+        designations={designations}
+        designationError={designationError}
+        designationLoading={designationLoading}
+        departments={departments}
+        managers={managers}
+        organizationError={organizationError}
+        organizationLoading={organizationLoading}
       />
     </div>);
 }

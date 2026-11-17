@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { faMagnifyingGlass, faPhone } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope } from '@fortawesome/free-regular-svg-icons';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
-export function EmployeeTable({ employees, onSelectEmployee, onEditEmployee, onDeleteEmployee, canEdit = false, canDelete = false, onSelectionChange, selectionResetToken = 0 }) {
+export function EmployeeTable({ employees, managers = [], onSelectEmployee, onEditEmployee, onDeleteEmployee, canEdit = false, canDelete = false, onSelectionChange, selectionResetToken = 0 }) {
     const [search, setSearch] = React.useState('');
     const [selectedDept, setSelectedDept] = React.useState('All Departments');
     const [selectedStatus, setSelectedStatus] = React.useState('all');
@@ -52,6 +52,13 @@ export function EmployeeTable({ employees, onSelectEmployee, onEditEmployee, onD
             {emp.department}
           </span>
         </div>),
+        },
+        {
+            header: 'Reporting Manager',
+            cell: (emp) => {
+                const manager = managers.find((person) => person.recordId === emp.managerId);
+                return manager ? `${manager.name} · ${manager.id}` : emp.managerId ? 'Unavailable' : 'Unassigned';
+            },
         },
         {
             header: 'Contact Info',

@@ -9,10 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const EMPLOYMENT_TYPES = ['Full-Time', 'Part-Time', 'Contract', 'Intern', 'Temporary'];
 const EMPLOYEE_STATUSES = ['Active', 'Probation', 'Notice Period', 'On Leave', 'Inactive'];
 const WORK_MODES = ['Office', 'Hybrid', 'Remote'];
-const DEPARTMENTS = ['Engineering', 'Product & Design', 'Human Resources', 'Finance', 'Sales', 'Marketing', 'Operations', 'Other'];
-const MANAGERS = ['Select a Manager', 'Sarah Jenkins', 'Alexander Vance', 'Priya Sharma', 'James Wilson', 'Emily Chen'];
 
-export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts = [], assignmentError }) {
+export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts = [], assignmentError, designations = [], designationError, designationLoading, departments = [], managers = [], organizationError, organizationLoading }) {
   const store = useEmployeeWizardStore();
   const [errors, setErrors] = useState({});
 
@@ -117,44 +115,19 @@ export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts =
         <h3 className="text-sm font-semibold text-slate-800 mb-3">Job Role & Organization</h3>
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <InputField
-              label="Job Title / Designation"
-              required
-              placeholder="e.g. Senior Engineer"
-              value={store.jobTitle}
-              onChange={(e) => store.updateField('jobTitle', e.target.value)}
-              error={errors.jobTitle}
-            />
+            <FormField label="Designation" required error={designationError || errors.jobTitle}>
+              <select className="h-9 w-full rounded-md border px-2 text-xs" value={store.designation} disabled={designationLoading || Boolean(designationError)} onChange={(e) => { const item = designations.find((row) => String(row.id) === e.target.value); store.updateFields({ designation: e.target.value, jobTitle: item?.name || '' }); }}>
+                <option value="">{designationLoading ? 'Loading designations...' : 'Select designation'}</option>
+                {designations.filter((item) => item.status === 'Active').map((item) => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
+              </select>
+            </FormField>
 
-            <FormField label="Department" required error={errors.department}>
-              <Select value={store.department} onValueChange={(value) => store.updateField('department', value)}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEPARTMENTS.map((dept) => (
-                    <SelectItem key={dept} value={dept} className="text-xs">
-                      {dept}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <FormField label="Department" required error={organizationError || errors.department}>
+              <select className="h-9 w-full rounded-md border px-2 text-xs" value={store.departmentId} disabled={organizationLoading || Boolean(organizationError)} onChange={(e) => { const item = departments.find((row) => String(row.id) === e.target.value); store.updateFields({ departmentId: e.target.value, department: item?.name || '' }); }}><option value="">{organizationLoading ? 'Loading departments...' : departments.length ? 'Select department' : 'No departments available'}</option>{departments.map((row) => <option key={row.id} value={String(row.id)}>{row.name}</option>)}</select>
             </FormField>
           </div>
-
-          <FormField label="Reporting Manager">
-            <Select value={store.reportingManager} onValueChange={(value) => store.updateField('reportingManager', value)}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Select manager" />
-              </SelectTrigger>
-              <SelectContent>
-                {MANAGERS.map((manager) => (
-                  <SelectItem key={manager} value={manager} className="text-xs">
-                    {manager}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <FormField label="Reporting Manager" error={organizationError}>
+            <select className="h-9 w-full rounded-md border px-2 text-xs" value={store.reportingManagerId} disabled={organizationLoading || Boolean(organizationError)} onChange={(e) => { const item = managers.find((row) => String(row.recordId) === e.target.value); store.updateFields({ reportingManagerId: e.target.value, reportingManager: item ? `${item.name} · ${item.id}` : '' }); }}><option value="">{organizationLoading ? 'Loading employees...' : 'Unassigned'}</option>{managers.filter((row) => row.status === 'active').map((row) => <option key={row.recordId} value={String(row.recordId)}>{row.name} · {row.id}</option>)}</select>
           </FormField>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

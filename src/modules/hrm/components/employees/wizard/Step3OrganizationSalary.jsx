@@ -10,7 +10,6 @@ import { Label } from '@/components/common/Label';
 
 const COMPANIES = ['QB Suite Inc.', 'QB Solutions', 'QB Technologies'];
 const BRANCHES = ['San Francisco HQ', 'Austin Office', 'New York Office', 'London Office'];
-const DESIGNATIONS = ['Intern', 'Junior Engineer', 'Senior Engineer', 'Staff Engineer', 'Engineering Manager', 'Director', 'VP', 'Other'];
 const TEAMS = ['Backend', 'Frontend', 'Mobile', 'DevOps', 'QA', 'Product', 'Design', 'Management'];
 const ROLES = ['Admin', 'Manager', 'Supervisor', 'Employee', 'Viewer'];
 const CATEGORIES = ['Salaried', 'Hourly', 'Contract', 'Intern', 'Consultant'];
@@ -89,21 +88,6 @@ export function Step3OrganizationSalary({ onValidationChange }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField label="Designation">
-              <Select value={store.designation} onValueChange={(value) => store.updateField('designation', value)}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Select designation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DESIGNATIONS.map((designation) => (
-                    <SelectItem key={designation} value={designation} className="text-xs">
-                      {designation}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-
             <FormField label="Team">
               <Select value={store.team} onValueChange={(value) => store.updateField('team', value)}>
                 <SelectTrigger className="h-9 text-xs">
