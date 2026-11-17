@@ -172,12 +172,7 @@ export function Step6ReviewConfirmation({ onEdit }) {
           isValid={store.basicSalary && store.bankName && store.accountNumber && store.ifscCode}
           data={
             <div className="space-y-2">
-              <DetailRow label="Company" value={data.organization.company} />
-              <DetailRow label="Branch" value={data.organization.branch} />
               <DetailRow label="Team" value={data.organization.team} />
-              <DetailRow label="Role / Access Level" value={data.organization.roleAccessLevel} />
-              <DetailRow label="Employee Category" value={data.organization.employeeCategory} />
-              <DetailRow label="Cost Center" value={data.organization.costCenter} />
               <hr className="my-2 border-slate-200" />
               <DetailRow label="Salary Structure" value={data.organization.salaryStructure} />
               <DetailRow label="Monthly Salary" value={`₹ ${data.organization.salary.basic}`} emphasis />
@@ -235,12 +230,6 @@ export function Step6ReviewConfirmation({ onEdit }) {
                 <>
                   <DetailRow label="Login Email" value={store.loginEmail} />
                   <DetailRow label="Username" value={store.username || 'Auto-generated'} />
-                  <DetailRow label="Application Role" value={store.applicationRole} />
-                  <DetailRow label="Permissions" value={store.permissions.length > 0 ? `${store.permissions.length} permissions assigned` : 'None'} />
-                  <DetailRow label="Attendance Access" value={store.enableAttendanceAccess ? 'Enabled' : 'Disabled'} />
-                  <DetailRow label="Location Tracking" value={store.enableLocationTracking ? 'Enabled' : 'Disabled'} />
-                  <DetailRow label="Push Notifications" value={store.enablePushNotifications ? 'Enabled' : 'Disabled'} />
-                  <DetailRow label="Account Status" value={store.accountStatus} />
                 </>
               )}
             </div>

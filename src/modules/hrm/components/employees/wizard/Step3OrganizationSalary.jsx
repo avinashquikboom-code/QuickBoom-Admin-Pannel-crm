@@ -8,11 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/common/Checkbox';
 import { Label } from '@/components/common/Label';
 
-const COMPANIES = ['QB Suite Inc.', 'QB Solutions', 'QB Technologies'];
-const BRANCHES = ['San Francisco HQ', 'Austin Office', 'New York Office', 'London Office'];
 const TEAMS = ['Backend', 'Frontend', 'Mobile', 'DevOps', 'QA', 'Product', 'Design', 'Management'];
-const ROLES = ['Admin', 'Manager', 'Supervisor', 'Employee', 'Viewer'];
-const CATEGORIES = ['Salaried', 'Hourly', 'Contract', 'Intern', 'Consultant'];
 const SALARY_STRUCTURES = ['Standard', 'CTC-Based', 'Commission-Based', 'Custom'];
 const BANKS = ['HDFC Bank', 'ICICI Bank', 'Axis Bank', 'SBI', 'Kotak Bank', 'IndusInd Bank', 'Other'];
 
@@ -56,38 +52,6 @@ export function Step3OrganizationSalary({ onValidationChange }) {
         <h3 className="text-sm font-semibold text-slate-800 mb-3">Organization</h3>
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField label="Company">
-              <Select value={store.company} onValueChange={(value) => store.updateField('company', value)}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Select company" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPANIES.map((company) => (
-                    <SelectItem key={company} value={company} className="text-xs">
-                      {company}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-
-            <FormField label="Branch">
-              <Select value={store.branch} onValueChange={(value) => store.updateField('branch', value)}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BRANCHES.map((branch) => (
-                    <SelectItem key={branch} value={branch} className="text-xs">
-                      {branch}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FormField label="Team">
               <Select value={store.team} onValueChange={(value) => store.updateField('team', value)}>
                 <SelectTrigger className="h-9 text-xs">
@@ -104,46 +68,6 @@ export function Step3OrganizationSalary({ onValidationChange }) {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField label="Role / Access Level">
-              <Select value={store.roleAccessLevel} onValueChange={(value) => store.updateField('roleAccessLevel', value)}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((role) => (
-                    <SelectItem key={role} value={role} className="text-xs">
-                      {role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-
-            <div>
-              <FormField label="Employee Category">
-                <Select value={store.employeeCategory} onValueChange={(value) => store.updateField('employeeCategory', value)}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat} className="text-xs">
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </div>
-          </div>
-
-          <InputField
-            label="Cost Center"
-            placeholder="e.g. CC-001"
-            value={store.costCenter}
-            onChange={(e) => store.updateField('costCenter', e.target.value)}
-          />
         </div>
       </div>
 
