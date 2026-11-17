@@ -63,7 +63,7 @@ export async function loadEmployees(params = {}) {
       lastName: employee.lastName || personName(employee).split(' ').slice(1).join(' '),
       name: personName(employee),
       department: typeof employee.department === 'string' ? employee.department : employee.departmentName || employee.department?.name || 'General',
-      designation: typeof employee.designation === 'string' ? employee.designation : employee.designationName || employee.designation?.name || 'Staff',
+      designation: employee.designationId === null ? '—' : (employee.designationObj?.name || employee.designationName || (typeof employee.designation === 'string' ? employee.designation : employee.designation?.name) || '—'),
       status: status === 'active' ? 'active' : status === 'on_leave' || status === 'on leave' ? 'on_leave' : status,
       employmentType: employee.employmentType || '—',
       joinDate: employee.joiningDate ? String(employee.joiningDate).slice(0, 10) : '—',
