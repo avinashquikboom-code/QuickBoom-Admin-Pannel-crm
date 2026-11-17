@@ -155,13 +155,13 @@ export function EmployeeDetail({ employee, open, onOpenChange, }) {
                   Bank Name
                 </span>
                 <span className="font-semibold text-slate-900">
-                  {employee.bankDetails.bankName}
+                  {employee.bankDetails?.bankName || '—'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Account Number</span>
                 <span className="font-mono text-slate-700">
-                  {employee.bankDetails.accountNumber}
+                  {employee.bankDetails?.accountNumber || '—'}
                 </span>
               </div>
             </div>
@@ -179,13 +179,13 @@ export function EmployeeDetail({ employee, open, onOpenChange, }) {
                   Contact Person
                 </span>
                 <span className="font-semibold text-slate-900">
-                  {employee.emergencyContact.name} ({employee.emergencyContact.relationship})
+                  {employee.emergencyContact?.name || '—'}{employee.emergencyContact?.relationship ? ` (${employee.emergencyContact.relationship})` : ''}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Emergency Phone</span>
                 <span className="font-semibold text-slate-900">
-                  {employee.emergencyContact.phone}
+                  {employee.emergencyContact?.phone || '—'}
                 </span>
               </div>
             </div>
