@@ -184,3 +184,20 @@ export function downloadCsv(filename, rows) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export async function loadLeaveTypes() {
+  const payload = await api.get('/leaves/types');
+  return listFrom(payload).map((row) => ({
+    ...row,
+    id: row.id ?? row.leaveTypeId,
+    name: row.name,
+    code: row.code,
+    head: row.daysAllowedPerYear != null ? `${row.daysAllowedPerYear} Days / Year` : '',
+    members: 0,
+    status: row.isActive === false ? 'Inactive' : 'Active',
+    createdOn: row.createdAt ? String(row.createdAt).slice(0, 10) : '',
+    description: row.description || '',
+  }));
+}
+
+export const removeLeaveType = (id) => api.delete(`/leaves/types/${id}`);
