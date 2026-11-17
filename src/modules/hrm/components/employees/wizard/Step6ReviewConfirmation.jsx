@@ -158,8 +158,6 @@ export function Step6ReviewConfirmation({ onEdit }) {
               <DetailRow label="Reporting Manager" value={data.employment.reportingManager} />
               <DetailRow label="Work Location" value={data.employment.workLocation} />
               <DetailRow label="Office / Branch" value={data.employment.officeBranch} />
-              <DetailRow label="Probation Period" value={data.employment.probationPeriod ? `${data.employment.probationPeriod} days` : undefined} />
-              <DetailRow label="Confirmation Date" value={data.employment.employmentConfirmationDate} />
             </div>
           }
         />

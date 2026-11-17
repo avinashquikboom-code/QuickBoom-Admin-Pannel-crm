@@ -277,7 +277,10 @@ export default function DataManagementPage() {
               {scope !== 'selected' && <Input className="mt-3" placeholder="Type RESET ALL DATA" value={acknowledgement} onChange={(event) => setAcknowledgement(event.target.value)} />}
               {scope === 'global' && <Input className="mt-3" placeholder="Type RESET GLOBAL" value={globalConfirmation} onChange={(event) => setGlobalConfirmation(event.target.value)} />}
               <p className="mt-3 text-sm text-[#DC2626]">This operation will permanently delete the selected application data. This action cannot be undone.</p>
-              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || !preview || confirmation !== 'RESET'} onClick={runVerifiedReset}>Execute reset</Button>
+              {(!backupId || !preview || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')) && (
+                <p className="mt-3 text-xs text-[#718078]">To enable reset, preview the selected modules, choose a verified backup, type RESET{scope !== 'selected' ? ', type RESET ALL DATA' : ''}{scope === 'global' ? ', and type RESET GLOBAL' : ''}.</p>
+              )}
+              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || !preview || !backupId || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')} onClick={runVerifiedReset}>Execute reset</Button>
             </Panel>
             {result?.operationId && <Result result={result} />}
           </div>
