@@ -105,7 +105,7 @@ export function EmployeeTable({ employees, managers = [], onSelectEmployee, onEd
                     editLabel="Edit Employee"
                     onDelete={canDelete ? () => onDeleteEmployee(emp) : undefined}
                     deleteLabel="Delete Employee"
-                    deleteDescription={`Deactivate ${emp.name} (${emp.id})? Attendance, payroll, and salary history will be kept.`}
+                    deleteDescription={`Are you sure you want to permanently delete this employee? ${emp.name} (${emp.id}) will be removed from the active directory. Historical records will be retained.`}
                 />
             ),
         },

@@ -83,9 +83,11 @@ export function updateEmployee(id, values) {
   return api.patch(`/employees/${id}`, values);
 }
 
-export function deactivateEmployee(id) {
+export function deleteEmployee(id) {
   return api.delete(`/employees/${id}`);
 }
+
+export const deactivateEmployee = deleteEmployee;
 
 export async function loadLiveDashboard(date) {
   const payload = await api.get('/admin/hrms/live-dashboard', { params: date ? { date } : {} });
