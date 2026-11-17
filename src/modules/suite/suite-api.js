@@ -26,6 +26,8 @@ export const loadDataHistory = () => api.get('/admin/data-management/history').t
 export const loadDataOverview = () => api.get('/admin/data-management/overview');
 export const loadDataModules = () => api.get('/admin/data-management/modules');
 export const loadDataOperations = () => api.get('/admin/data-management/reset/history');
+export const loadDataBin = () => api.get('/admin/data-management/bin');
+export const restoreDataBinItem = (type, id) => api.post(`/admin/data-management/bin/${type.toLowerCase()}/${encodeURIComponent(id)}/restore`);
 export const previewDataReset = (body) => api.post('/admin/data-management/reset/preview', body);
 export const executeDataReset = (body) => api.post('/admin/data-management/reset', body);
 export const createDataBackup = (body) => api.post('/admin/data-management/backups', body);
