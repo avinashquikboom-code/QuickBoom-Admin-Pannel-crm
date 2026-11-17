@@ -16,7 +16,6 @@ import {
   executeDataRestore,
   exportDataModule,
   loadDataBackups,
-  loadDataBin,
   loadDataModules,
   loadDataOperations,
   loadDataOverview,
@@ -24,14 +23,12 @@ import {
   previewDataImport,
   previewDataReset,
   previewDataRestore,
-  restoreDataBinItem,
   verifyDataBackup,
 } from '@/modules/suite/suite-api';
 import { toast } from '@/hooks/use-toast';
 
 const TABS = [
   ['database', 'Database Management'],
-  ['bin', 'Archived Records'],
   ['reset', 'Reset Data'],
   ['backup', 'Backup & Restore'],
   ['cleanup', 'Data Cleanup'],
@@ -178,9 +175,8 @@ export default function DataManagementPage() {
           <button key={id} type="button" onClick={() => setTab(id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${tab === id ? 'bg-[#163A2E] text-white' : 'bg-white text-[#172B24] border border-[#E2E8E5]'}`}>{label}</button>
         ))}
       </div>
-      {tab === 'bin' && <BinRecords />}
-      {tab !== 'bin' && loading && <Panel>Loading database information…</Panel>}
-      {tab !== 'bin' && error && (
+      {loading && <Panel>Loading database information…</Panel>}
+      {error && (
         <Panel>
           <p className="font-semibold text-[#DC2626]">Database information could not be loaded.</p>
           <p className="mt-1 text-sm text-[#718078]">{error}</p>
@@ -464,75 +460,6 @@ export default function DataManagementPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function BinRecords() {
-  const [items, setItems] = React.useState([]);
-  const [selected, setSelected] = React.useState([]);
-  const [search, setSearch] = React.useState('');
-  const [error, setError] = React.useState('');
-  const [loading, setLoading] = React.useState(true);
-  const [busy, setBusy] = React.useState(false);
-  const [results, setResults] = React.useState(null);
-  const keyOf = (item) => `${item.type}:${item.id}`;
-
-  const reload = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await loadDataBin();
-      setItems(listOf(response));
-      setSelected([]);
-      setError('');
-    } catch (err) {
-      setError(suiteError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  React.useEffect(() => { reload(); }, [reload]);
-
-  const visible = items.filter((item) => [item.name, item.email, item.type, item.customerName, item.employeeCode]
-    .some((value) => String(value || '').toLowerCase().includes(search.toLowerCase().trim())));
-  const allVisibleSelected = visible.length > 0 && visible.every((item) => selected.includes(keyOf(item)));
-
-  async function restoreSelected() {
-    const targets = items.filter((item) => selected.includes(keyOf(item)));
-    if (!targets.length || !window.confirm(`Restore ${targets.length} selected record(s)? Linked user accounts may also be reactivated.`)) return;
-    setBusy(true);
-    const completed = [];
-    const failed = [];
-    for (const item of targets) {
-      try {
-        await restoreDataBinItem(item.type, item.id);
-        completed.push(item);
-      } catch (err) {
-        failed.push({ item, message: suiteError(err) });
-      }
-    }
-    setResults({ completed, failed });
-    await reload();
-    setBusy(false);
-  }
-
-  return (
-    <Panel>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 className="font-semibold">Archived records</h2><p className="mt-1 text-sm text-[#718078]">Browse deleted customers and employees, review linked record counts, and restore selected records.</p></div>
-        <Button variant="outline" disabled={busy || loading} onClick={reload}>Refresh</Button>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Input aria-label="Search archived records" placeholder="Search name, email, or type" value={search} onChange={(event) => setSearch(event.target.value)} />
-        <Button disabled={!selected.length || busy || loading} onClick={restoreSelected}>{busy ? 'Restoring…' : `Restore selected (${selected.length})`}</Button>
-      </div>
-      {loading && <p className="mt-4 text-sm">Loading archived records…</p>}
-      {error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}
-      {results && <div role="status" className="mt-4 rounded-xl bg-[#F7F9F8] p-3 text-sm"><p>Restored {results.completed.length}; failed {results.failed.length}.</p>{results.failed.map(({ item, message }) => <p key={keyOf(item)} className="mt-1 text-red-700">{item.name || keyOf(item)}: {message}</p>)}</div>}
-      {!loading && !error && <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm">
-        <thead className="text-xs uppercase text-[#718078]"><tr><th className="py-2"><input type="checkbox" aria-label="Select visible records" checked={allVisibleSelected} onChange={(event) => setSelected((current) => event.target.checked ? [...new Set([...current, ...visible.map(keyOf)])] : current.filter((key) => !visible.some((item) => keyOf(item) === key)))} /></th><th>Record</th><th>Type</th><th>Company</th><th>Linked records</th><th>Archived</th></tr></thead>
-        <tbody>{visible.map((item) => <tr key={keyOf(item)} className="border-t border-[#E2E8E5]"><td className="py-3"><input type="checkbox" aria-label={`Select ${item.name}`} checked={selected.includes(keyOf(item))} onChange={(event) => setSelected((current) => event.target.checked ? [...current, keyOf(item)] : current.filter((key) => key !== keyOf(item)))} /></td><td><span className="font-medium">{item.name}</span><div className="text-xs text-[#718078]">{item.email || item.employeeCode || `#${item.id}`}</div></td><td>{item.type}</td><td>{item.customerName || '—'}</td><td>{item.dataCounts?.total ?? '—'}</td><td>{stamp(item.deletedAt)}</td></tr>)}{!visible.length && <tr><td colSpan={6} className="py-4 text-[#718078]">No archived records found.</td></tr>}</tbody>
-      </table></div>}
-    </Panel>
   );
 }
 
