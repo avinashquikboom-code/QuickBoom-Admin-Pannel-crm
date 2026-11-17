@@ -9,7 +9,7 @@ import { EmployeeRegistrationWizard } from '@/modules/hrm/components/employees/w
 import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
 import { faUserPlus } from '@fortawesome/free-solid-svg-icons';
-import { createEmployee, deactivateEmployee, hrmError, loadEmployees, sessionCanAction, updateEmployee } from '@/modules/hrm/hrm-api';
+import { createEmployee, deactivateEmployee, hrmError, loadEmployees, loadOffices, loadShifts, sessionCanAction, updateEmployee } from '@/modules/hrm/hrm-api';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
@@ -32,6 +32,18 @@ export default function EmployeesPage() {
     const [wizardOpen, setWizardOpen] = React.useState(false);
     const [editEmployee, setEditEmployee] = React.useState(null);
     const [editForm, setEditForm] = React.useState({});
+    const [offices, setOffices] = React.useState([]);
+    const [shifts, setShifts] = React.useState([]);
+    const [assignmentError, setAssignmentError] = React.useState('');
+    React.useEffect(() => {
+        let active = true;
+        if (!wizardOpen && !editEmployee) return;
+        setAssignmentError('');
+        Promise.all([loadOffices(), loadShifts()]).then(([officeRows, shiftResult]) => {
+            if (active) { setOffices(officeRows); setShifts(shiftResult.rows); }
+        }).catch((err) => { if (active) setAssignmentError(hrmError(err)); });
+        return () => { active = false; };
+    }, [wizardOpen, editEmployee]);
     const [saving, setSaving] = React.useState(false);
     const [canEdit, setCanEdit] = React.useState(false);
     const [canDelete, setCanDelete] = React.useState(false);
@@ -59,6 +71,10 @@ export default function EmployeesPage() {
                 departmentName: wizardData.employment.department,
                 designationName: wizardData.employment.jobTitle,
                 branch: wizardData.employment.workLocation,
+                officeId: wizardData.employment.officeBranch ? Number(wizardData.employment.officeBranch) : undefined,
+                shiftId: wizardData.employment.shiftAssignment ? Number(wizardData.employment.shiftAssignment) : undefined,
+                mobileLoginEnabled: wizardData.mobileAccess.enabled,
+                password: wizardData.mobileAccess.password || undefined,
                 monthlySalary: Number(salary.basic || 0),
                 basicSalary: Number(salary.basic || 0),
                 hra: Number(salary.hra || 0),
@@ -117,14 +133,14 @@ export default function EmployeesPage() {
 
       {/* Employee Listing Table */}
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} empty={!loading && employees.length === 0 ? 'No employees were returned for this company.' : ''} />
-      {!loading && !error && <EmployeeTable employees={employees} onSelectEmployee={handleSelectEmployee} onEditEmployee={(employee) => { setEditEmployee(employee); setEditForm({ firstName: employee.firstName || '', lastName: employee.lastName || '', email: employee.email === '—' ? '' : employee.email || '', phone: employee.phone === '—' ? '' : employee.phone || '', departmentName: employee.department || '', designationName: employee.designation === '—' ? '' : employee.designation || '', employmentType: employee.employmentType === '—' ? '' : employee.employmentType || '', status: String(employee.status || 'active').toUpperCase() === 'ON_LEAVE' ? 'ACTIVE' : String(employee.status || 'ACTIVE').toUpperCase(), monthlySalary: employee.registeredSalary ?? '', employeeType: employee.employeeType || 'COMPANY', joiningDate: employee.joinDate === '—' ? '' : employee.joinDate || '', address: employee.address || '' }); }} onDeleteEmployee={async (employee) => { try { await deactivateEmployee(employee.recordId); toast.success(`${employee.name} deactivated`); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } }} canEdit={canEdit} canDelete={canDelete} onSelectionChange={setSelected} selectionResetToken={selectionReset}/>}
+      {!loading && !error && <EmployeeTable employees={employees} onSelectEmployee={handleSelectEmployee} onEditEmployee={(employee) => { setEditEmployee(employee); setEditForm({ firstName: employee.firstName || '', lastName: employee.lastName || '', email: employee.email === '—' ? '' : employee.email || '', phone: employee.phone === '—' ? '' : employee.phone || '', departmentName: employee.department || '', designationName: employee.designation === '—' ? '' : employee.designation || '', employmentType: employee.employmentType === '—' ? '' : employee.employmentType || '', status: String(employee.status || 'active').toUpperCase() === 'ON_LEAVE' ? 'ACTIVE' : String(employee.status || 'ACTIVE').toUpperCase(), monthlySalary: employee.registeredSalary ?? '', employeeType: employee.employeeType || 'COMPANY', joiningDate: employee.joinDate === '—' ? '' : employee.joinDate || '', address: employee.address || '', officeId: employee.officeId ? String(employee.officeId) : '', shiftId: employee.shiftId ? String(employee.shiftId) : '', mobileLoginEnabled: employee.mobileLoginEnabled !== false, password: '' }); }} onDeleteEmployee={async (employee) => { try { await deactivateEmployee(employee.recordId); toast.success(`${employee.name} deactivated`); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } }} canEdit={canEdit} canDelete={canDelete} onSelectionChange={setSelected} selectionResetToken={selectionReset}/>}
       {selected.length > 0 && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#E2E8E5] bg-white p-3"><span className="text-sm font-medium text-[#172B24]">{selected.length} selected</span><Button variant="outline" size="sm" onClick={() => setSelectionReset((value) => value + 1)}>Clear selection</Button>{canDelete && <Button variant="destructive" size="sm" onClick={() => setBulkOpen(true)}>Deactivate selected</Button>}</div>}
 
       {/* Employee Detail Slide-Out */}
       <EmployeeDetail employee={selectedEmployee} open={detailOpen} onOpenChange={setDetailOpen}/>
 
       {/* Employee Registration Wizard */}
-      <FormDrawer open={Boolean(editEmployee)} onOpenChange={(open) => { if (!open) setEditEmployee(null); }} title="Edit Employee" description={editEmployee ? `${editEmployee.name} · ${editEmployee.id}` : ''} submitLabel="Save changes" loading={saving} onSubmit={async (event) => { event.preventDefault(); setSaving(true); try { await updateEmployee(editEmployee.recordId, { firstName: editForm.firstName, lastName: editForm.lastName, email: editForm.email || undefined, phone: editForm.phone || undefined, departmentName: editForm.departmentName || undefined, designationName: editForm.designationName || undefined, employmentType: editForm.employmentType || undefined, status: editForm.status || undefined, employeeType: editForm.employeeType || undefined, joiningDate: editForm.joiningDate || undefined, address: editForm.address || undefined, monthlySalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary), basicSalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary) }); toast.success('Employee updated'); setEditEmployee(null); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } finally { setSaving(false); } }}>
+      <FormDrawer open={Boolean(editEmployee)} onOpenChange={(open) => { if (!open) { setEditEmployee(null); setEditForm({}); } }} title="Edit Employee" description={editEmployee ? `${editEmployee.name} · ${editEmployee.id}` : ''} submitLabel="Save changes" loading={saving} onSubmit={async (event) => { event.preventDefault(); setSaving(true); try { if (editForm.password && editForm.password.trim().length < 6) throw new Error('Password must be at least 6 characters.'); await updateEmployee(editEmployee.recordId, { officeId: editForm.officeId ? Number(editForm.officeId) : undefined, shiftId: editForm.shiftId ? Number(editForm.shiftId) : undefined, mobileLoginEnabled: editForm.mobileLoginEnabled, password: editForm.password || undefined, firstName: editForm.firstName, lastName: editForm.lastName, email: editForm.email || undefined, phone: editForm.phone || undefined, departmentName: editForm.departmentName || undefined, designationName: editForm.designationName || undefined, employmentType: editForm.employmentType || undefined, status: editForm.status || undefined, employeeType: editForm.employeeType || undefined, joiningDate: editForm.joiningDate || undefined, address: editForm.address || undefined, monthlySalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary), basicSalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary) }); toast.success('Employee updated'); setEditEmployee(null); setEditForm({}); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } finally { setSaving(false); } }}>
         <div className="grid gap-3 sm:grid-cols-2">
           <Label className="grid gap-1 text-xs">First name<Input value={editForm.firstName || ''} onChange={(event) => setEditForm({ ...editForm, firstName: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Last name<Input value={editForm.lastName || ''} onChange={(event) => setEditForm({ ...editForm, lastName: event.target.value })} /></Label>
@@ -137,6 +153,11 @@ export default function EmployeesPage() {
           <Label className="grid gap-1 text-xs">Employee type<select className="h-9 rounded-md border px-2 text-sm" value={editForm.employeeType || 'COMPANY'} onChange={(event) => setEditForm({ ...editForm, employeeType: event.target.value })}><option value="COMPANY">Company</option><option value="FREELANCER">Freelancer</option></select></Label>
           <Label className="grid gap-1 text-xs">Joining date<Input type="date" value={editForm.joiningDate || ''} onChange={(event) => setEditForm({ ...editForm, joiningDate: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs sm:col-span-2">Address<Input value={editForm.address || ''} onChange={(event) => setEditForm({ ...editForm, address: event.target.value })} /></Label>
+          {assignmentError && <p className="text-sm text-red-600 sm:col-span-2">Could not load offices and shifts: {assignmentError}</p>}
+          <Label className="grid gap-1 text-xs">Office<select className="h-9 rounded-md border px-2 text-sm" value={editForm.officeId || ''} onChange={(event) => setEditForm({ ...editForm, officeId: event.target.value })}><option value="" disabled={Boolean(editEmployee?.officeId)}>No office selected</option>{offices.filter((office) => office.status === 'Active' || String(office.id) === editForm.officeId).map((office) => <option key={office.id} value={String(office.id)}>{office.name}</option>)}</select></Label>
+          <Label className="grid gap-1 text-xs">Shift<select className="h-9 rounded-md border px-2 text-sm" value={editForm.shiftId || ''} onChange={(event) => setEditForm({ ...editForm, shiftId: event.target.value })}><option value="" disabled={Boolean(editEmployee?.shiftId)}>No shift selected</option>{shifts.filter((shift) => shift.status === 'ACTIVE' || String(shift.id) === editForm.shiftId).map((shift) => <option key={shift.id} value={String(shift.id)}>{shift.name}</option>)}</select></Label>
+          <Label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={editForm.mobileLoginEnabled === true} onChange={(event) => setEditForm({ ...editForm, mobileLoginEnabled: event.target.checked })} />Enable mobile login</Label>
+          <Label className="grid gap-1 text-xs">New mobile password (optional)<Input type="password" autoComplete="new-password" value={editForm.password || ''} onChange={(event) => setEditForm({ ...editForm, password: event.target.value })} placeholder="Leave blank to keep current password" /></Label>
           <Label className="grid gap-1 text-xs">Monthly salary (₹)<Input type="number" min="0" value={editForm.monthlySalary ?? ''} onChange={(event) => setEditForm({ ...editForm, monthlySalary: event.target.value })} /></Label>
         </div>
       </FormDrawer>
@@ -146,6 +167,9 @@ export default function EmployeesPage() {
         open={wizardOpen}
         onOpenChange={setWizardOpen}
         onSuccess={handleWizardSuccess}
+        offices={offices}
+        shifts={shifts}
+        assignmentError={assignmentError}
       />
     </div>);
 }

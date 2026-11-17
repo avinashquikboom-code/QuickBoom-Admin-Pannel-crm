@@ -5,8 +5,6 @@ import { InputField, FormField } from './FormField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/common/Select';
 import { Checkbox } from '@/components/common/Checkbox';
 import { Label } from '@/components/common/Label';
-import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 
 const ROLES = ['Admin', 'Manager', 'Supervisor', 'Employee', 'Viewer'];
 const PERMISSIONS = [
@@ -20,7 +18,7 @@ const PERMISSIONS = [
   { id: 'team_management', label: 'Team Management' },
 ];
 
-export function Step5MobileAccess() {
+export function Step5MobileAccess({ password, onPasswordChange }) {
   const store = useEmployeeWizardStore();
 
   const handlePermissionToggle = (permission) => {
@@ -66,29 +64,8 @@ export function Step5MobileAccess() {
           <div>
             <h3 className="text-sm font-semibold text-slate-800 mb-3">Login Credentials</h3>
             <div className="space-y-3">
-              <InputField
-                label="Login Email"
-                type="email"
-                placeholder="employee@company.com"
-                value={store.loginEmail}
-                onChange={(e) => store.updateField('loginEmail', e.target.value)}
-                hint="Email for mobile app login"
-              />
-
-              <InputField
-                label="Username (Optional)"
-                placeholder="Auto-generated if empty"
-                value={store.username}
-                onChange={(e) => store.updateField('username', e.target.value)}
-                hint="Leave empty for auto-generated username"
-              />
-
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2">
-                <FontAwesomeIcon icon={faInfoCircle} className="size-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700">
-                  A secure password setup link will be sent to the login email. The employee must set their password before first login.
-                </p>
-              </div>
+              <InputField label="Initial password (optional)" type="password" value={password} onChange={(e) => onPasswordChange(e.target.value)} hint="Leave blank to use the existing server default. Use at least 6 characters for a custom password." />
+              <p className="text-xs text-slate-500">Employees can sign in using their employee email, employee ID, or mobile number.</p>
             </div>
           </div>
 
