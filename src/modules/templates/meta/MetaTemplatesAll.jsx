@@ -53,7 +53,7 @@ const STATUS_CONFIG = {
   PENDING: {
     bg: 'bg-amber-50 text-amber-700 border-amber-200',
     dot: 'bg-amber-500 animate-pulse',
-    label: 'In Review',
+    label: 'Pending',
     icon: faClock,
   },
   REJECTED: {
@@ -74,7 +74,25 @@ const STATUS_CONFIG = {
     label: 'Disabled',
     icon: faBan,
   },
+  DISABLED_BY_META: {
+    bg: 'bg-slate-100 text-slate-700 border-slate-200',
+    dot: 'bg-slate-400',
+    label: 'Disabled',
+    icon: faBan,
+  },
 };
+
+function metaStatusInfo(row) {
+  if (row.syncStatus === 'SYNC_FAILED') return {
+    bg: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500', label: 'Sync Failed',
+  };
+  if (row.syncStatus === 'NOT_SYNCED' || !row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_')) return {
+    bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Not Synced',
+  };
+  return STATUS_CONFIG[String(row.status || '').toUpperCase()] || {
+    bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: row.status || 'Unknown',
+  };
+}
 
 const CATEGORY_CONFIG = {
   MARKETING: {
@@ -110,6 +128,7 @@ export function MetaTemplatesAll() {
   const [error, setError] = React.useState('');
   const [syncing, setSyncing] = React.useState(false);
   const [syncInfo, setSyncInfo] = React.useState(null);
+  const [syncingId, setSyncingId] = React.useState(null);
   const [selected, setSelected] = React.useState(null);
   const [editing, setEditing] = React.useState(null);
   const [drawerTab, setDrawerTab] = React.useState('preview'); // 'preview' | 'test' | 'details'
@@ -205,13 +224,30 @@ export function MetaTemplatesAll() {
       } else {
         toast.success(result?.message || 'Meta templates synchronized successfully');
       }
-      load();
+      await load();
     } catch (err) {
       const message = err?.response?.data?.message || err?.message || 'Meta sync failed.';
       setSyncInfo({ success: false, message });
       toast.error(message);
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function syncTemplate(row) {
+    setSyncingId(row.id);
+    try {
+      const notLinked = row.syncStatus === 'NOT_SYNCED' || !row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_');
+      const response = envelope(await api.post(`/templates/meta/${row.id}/${notLinked ? 'submit' : 'sync'}`, {}));
+      toast.success(response?.message || `${row.name} status synchronized with Meta.`);
+      await load();
+      if (selected?.id === row.id) setSelected(response);
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Template synchronization failed.';
+      toast.error(message);
+      await load();
+    } finally {
+      setSyncingId(null);
     }
   }
 
@@ -414,6 +450,7 @@ export function MetaTemplatesAll() {
                   )}
                 </div>
               )}
+              {syncInfo.failed?.length > 0 && <ul className="max-h-24 space-y-1 overflow-auto text-xs text-rose-700">{syncInfo.failed.slice(0, 10).map((item) => <li key={`${item.name}:${item.reason}`}>{item.name}: {item.reason}</li>)}</ul>}
             </div>
           </div>
           <button
@@ -725,7 +762,7 @@ export function MetaTemplatesAll() {
                   <th className="px-4 py-3.5">Category</th>
                   <th className="px-4 py-3.5">Approval Status</th>
                   <th className="px-4 py-3.5">Header / PDF</th>
-                  <th className="px-4 py-3.5">Last Updated</th>
+                  <th className="px-4 py-3.5">Last Synced</th>
                   <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -772,11 +809,7 @@ export function MetaTemplatesAll() {
                   </tr>
                 ) : (
                   rows.map((row) => {
-                    const statusInfo = (!row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_')) ? { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Not synced' } : STATUS_CONFIG[row.status] || {
-                      bg: 'bg-slate-100 text-slate-700 border-slate-200',
-                      dot: 'bg-slate-400',
-                      label: row.status,
-                    };
+                    const statusInfo = metaStatusInfo(row);
                     const catInfo = CATEGORY_CONFIG[row.category] || {
                       bg: 'bg-slate-100 text-slate-700 border-slate-200',
                       label: row.category,
@@ -853,10 +886,17 @@ export function MetaTemplatesAll() {
                         </td>
 
                         <td className="px-4 py-3.5 text-xs text-slate-600">{row.headerType === 'DOCUMENT' ? 'Document / PDF' : row.headerType || 'None'}</td>
-                        <td className="px-4 py-3.5 whitespace-nowrap text-xs text-slate-600">{row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : '—'}</td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-xs text-slate-600" title={row.syncError || ''}>
+                          {row.lastSyncedAt ? new Date(row.lastSyncedAt).toLocaleString() : '—'}
+                          {row.syncError && <span className="mt-1 block max-w-48 whitespace-normal text-rose-600">{row.syncError}</span>}
+                        </td>
                         {/* Actions Column */}
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
+                            <Button type="button" variant="ghost" size="sm" disabled={syncingId === row.id} onClick={() => syncTemplate(row)} className="h-8 px-2 text-xs font-semibold text-emerald-700" title={statusInfo.label === 'Not Synced' ? 'Check Meta, then submit if missing' : 'Refresh status from Meta'}>
+                              <FontAwesomeIcon icon={faRotate} className={`mr-1 ${syncingId === row.id ? 'animate-spin' : ''}`} />
+                              {syncingId === row.id ? 'Syncing' : statusInfo.label === 'Not Synced' ? 'Submit to Meta' : statusInfo.label === 'Sync Failed' ? 'Retry Sync' : 'Sync'}
+                            </Button>
                             <Button
                               type="button"
                               variant="ghost"
@@ -947,11 +987,7 @@ export function MetaTemplatesAll() {
           </div>
         ) : (
           rows.map((row) => {
-            const statusInfo = (!row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_')) ? { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Not synced' } : STATUS_CONFIG[row.status] || {
-              bg: 'bg-slate-100 text-slate-700 border-slate-200',
-              dot: 'bg-slate-400',
-              label: row.status,
-            };
+            const statusInfo = metaStatusInfo(row);
             const catInfo = CATEGORY_CONFIG[row.category] || {
               bg: 'bg-slate-100 text-slate-700 border-slate-200',
               label: row.category,
@@ -983,7 +1019,8 @@ export function MetaTemplatesAll() {
                   </span>
                 </div>
 
-                <p className="break-all text-xs text-slate-500">Key: {row.key || '—'} · Header: {row.headerType === 'DOCUMENT' ? 'Document / PDF' : row.headerType || 'None'} · Updated: {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString() : '—'}</p>
+                <p className="break-all text-xs text-slate-500">Key: {row.key || '—'} · Header: {row.headerType === 'DOCUMENT' ? 'Document / PDF' : row.headerType || 'None'} · Last synced: {row.lastSyncedAt ? new Date(row.lastSyncedAt).toLocaleString() : '—'}</p>
+                {row.syncError && <p className="break-words text-xs text-rose-600">{row.syncError}</p>}
                 <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 border border-slate-100">
                   <span className="font-mono text-xs text-slate-600 truncate">
                     {row.templateName || row.key}
@@ -998,6 +1035,10 @@ export function MetaTemplatesAll() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
+                  <Button type="button" variant="outline" size="sm" className="flex-1 text-xs border-emerald-200 text-emerald-700" disabled={syncingId === row.id} onClick={() => syncTemplate(row)}>
+                    <FontAwesomeIcon icon={faRotate} className={`mr-1 ${syncingId === row.id ? 'animate-spin' : ''}`} />
+                    {syncingId === row.id ? 'Syncing' : statusInfo.label === 'Not Synced' ? 'Submit to Meta' : statusInfo.label === 'Sync Failed' ? 'Retry Sync' : 'Sync'}
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -1073,14 +1114,7 @@ export function MetaTemplatesAll() {
                     <FontAwesomeIcon icon={faWhatsapp} className="text-xs" />
                     WhatsApp Template
                   </span>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border ${
-                      STATUS_CONFIG[selected.status]?.bg || 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[selected.status]?.dot || 'bg-slate-400'}`} />
-                    {!selected.metaTemplateId || String(selected.metaTemplateId).startsWith('seed_') ? 'Not synced' : selected.status}
-                  </span>
+                  {(() => { const status = metaStatusInfo(selected); return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold border ${status.bg}`}><span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />{status.label}</span>; })()}
                 </div>
                 <h2 id="template-preview-title" className="text-lg font-bold text-slate-900 break-words">
                   {selected.name}
@@ -1088,6 +1122,13 @@ export function MetaTemplatesAll() {
                 <p className="font-mono text-xs text-slate-500 break-all">
                   {selected.templateName || selected.key}
                 </p>
+                <p className="text-xs text-slate-500">Last synced: {selected.lastSyncedAt ? new Date(selected.lastSyncedAt).toLocaleString() : 'Never'}</p>
+                {selected.syncError && <p className="break-words text-xs text-rose-700">Sync error: {selected.syncError}</p>}
+                {String(selected.status || '').toUpperCase() === 'REJECTED' && selected.rejectionReason && <p className="break-words text-xs text-rose-700">Meta rejection reason: {selected.rejectionReason}</p>}
+                <Button type="button" size="sm" variant="outline" className="mt-2" disabled={syncingId === selected.id} onClick={() => syncTemplate(selected)}>
+                  <FontAwesomeIcon icon={faRotate} className={`mr-1.5 ${syncingId === selected.id ? 'animate-spin' : ''}`} />
+                  {syncingId === selected.id ? 'Syncing…' : metaStatusInfo(selected).label === 'Not Synced' ? 'Submit to Meta' : metaStatusInfo(selected).label === 'Sync Failed' ? 'Retry Sync' : 'Sync Status'}
+                </Button>
               </div>
 
               <button
