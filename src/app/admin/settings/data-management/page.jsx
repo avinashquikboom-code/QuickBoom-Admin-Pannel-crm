@@ -28,7 +28,6 @@ import {
 import { toast } from '@/hooks/use-toast';
 
 const TABS = [
-  ['database', 'Database Management'],
   ['reset', 'Reset Data'],
   ['backup', 'Backup & Restore'],
   ['cleanup', 'Data Cleanup'],
@@ -36,7 +35,7 @@ const TABS = [
 ];
 
 export default function DataManagementPage() {
-  const [tab, setTab] = React.useState('database');
+  const [tab, setTab] = React.useState('reset');
   const [overview, setOverview] = React.useState(null);
   const [modules, setModules] = React.useState([]);
   const [protectedRecords, setProtectedRecords] = React.useState([]);
@@ -163,13 +162,19 @@ export default function DataManagementPage() {
       <PageHeader
         category="SYSTEM MANAGEMENT"
         title="Data Management"
-        description="Manage, reset and restore application database data from the admin panel."
+        description="Backup, reset or clean application data safely."
         rightContent={(
           <div className="flex size-16 items-center justify-center rounded-2xl bg-[#E8F1EC] text-[#163A2E] sm:size-20">
             <FontAwesomeIcon icon={faDatabase} className="size-7 sm:size-9" />
           </div>
         )}
       />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <Stat label="Last Backup" value={stamp(overview?.lastBackup)} />
+        <Stat label="Total Data" value={Number(overview?.tenantRecords || 0).toLocaleString()} />
+        <Stat label="Database Size" value={overview?.databaseSize || '—'} />
+        <Stat label="Database Health" value={overview?.health || '—'} />
+      </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map(([id, label]) => (
           <button key={id} type="button" onClick={() => setTab(id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${tab === id ? 'bg-[#163A2E] text-white' : 'bg-white text-[#172B24] border border-[#E2E8E5]'}`}>{label}</button>
@@ -183,41 +188,19 @@ export default function DataManagementPage() {
           <Button className="mt-3" onClick={reload}>Retry</Button>
         </Panel>
       )}
-      {!loading && !error && tab === 'database' && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Stat label="Total Records" value={overview?.tenantRecords ?? '—'} />
-            <Stat label="Total Tables" value={overview?.totalTables ?? '—'} />
-            <Stat label="Database Size" value={overview?.databaseSize || '—'} />
-            <Stat label="Last Backup" value={stamp(overview?.lastBackup)} />
-            <div className="rounded-2xl border border-[#E2E8E5] bg-white p-4 shadow-sm sm:col-span-2">
-              <h2 className="font-semibold text-[#172B24]">Database information</h2>
-              <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                <Info label="Database type" value={overview?.databaseType} />
-                <Info label="Database name" value={overview?.databaseName} />
-                <Info label="Health" value={overview?.health} />
-                <Info label="Last reset" value={stamp(overview?.lastReset)} />
-              </dl>
-            </div>
-          </div>
-          <QuickActions
-            busy={busy}
-            latest={latestBackup}
-            onBackup={() => run('backup', () => createDataBackup({ name: 'Manual backup', modules: modules.filter((item) => item.available).map((item) => item.id) }))}
-            onDownload={() => latestBackup && saveFile(() => downloadDataBackup(latestBackup.id), `qb-backup-${latestBackup.id}.json.gz`)}
-            onHistory={() => setHistoryOpen(true)}
-          />
-        </div>
-      )}
       {!loading && !error && tab === 'reset' && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-4">
             <Panel>
               <h2 className="font-semibold text-[#172B24]">Reset selected modules</h2>
               <p className="mt-1 text-sm text-[#718078]">The preview lists the real tables and record counts. Nothing is deleted until a verified backup and the confirmation both succeed.</p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-[#718078]">{selected.length} selected · {Number(preview?.estimatedRecords || 0).toLocaleString()} records in current preview</p>
+                <div className="flex gap-2"><Button variant="outline" disabled={Boolean(busy)} onClick={() => { setSelected(modules.filter((item) => item.available).map((item) => item.id)); setPreview(null); }}>Select all</Button><Button variant="outline" disabled={Boolean(busy)} onClick={() => { setSelected([]); setPreview(null); }}>Clear</Button></div>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {modules.map((item) => (
-                  <label key={item.id} className={`flex min-h-11 items-start gap-2 rounded-xl border p-3 text-sm ${item.available ? 'border-[#E2E8E5]' : 'border-dashed border-[#E2E8E5] text-[#718078]'}`}>
+                  <label key={item.id} className={`flex min-h-28 cursor-pointer items-start gap-3 rounded-2xl border p-4 text-sm transition-colors hover:border-[#9FB9AA] ${selected.includes(item.id) ? 'border-[#3C775B] bg-[#F1F7F3]' : 'border-[#E2E8E5] bg-white'} ${item.available ? '' : 'cursor-not-allowed opacity-60'}`}>
                     <input
                       type="checkbox"
                       className="mt-1"
@@ -231,6 +214,7 @@ export default function DataManagementPage() {
                     />
                     <span>
                       <span className="font-medium text-[#172B24]">{item.name}</span>
+                      <span className="mt-1 block text-xs font-semibold text-[#3C775B]">{item.tables?.length || 0} data tables</span>
                       <span className="mt-0.5 block text-xs text-[#718078]">{item.available ? item.description : item.reason}</span>
                     </span>
                   </label>

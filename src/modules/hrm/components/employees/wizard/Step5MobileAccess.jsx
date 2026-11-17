@@ -1,33 +1,13 @@
 'use client';
 import React from 'react';
 import { useEmployeeWizardStore } from '@/lib/stores/employee-wizard-store';
-import { InputField, FormField } from './FormField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/common/Select';
+import { InputField } from './FormField';
 import { Checkbox } from '@/components/common/Checkbox';
 import { Label } from '@/components/common/Label';
 
-const ROLES = ['Admin', 'Manager', 'Supervisor', 'Employee', 'Viewer'];
-const PERMISSIONS = [
-  { id: 'attendance', label: 'Attendance Management' },
-  { id: 'leave', label: 'Leave Management' },
-  { id: 'payroll', label: 'Payroll Access' },
-  { id: 'reports', label: 'Reports & Analytics' },
-  { id: 'expenses', label: 'Expense Claims' },
-  { id: 'timesheet', label: 'Timesheet Management' },
-  { id: 'projects', label: 'Project Management' },
-  { id: 'team_management', label: 'Team Management' },
-];
 
 export function Step5MobileAccess({ password, onPasswordChange }) {
   const store = useEmployeeWizardStore();
-
-  const handlePermissionToggle = (permission) => {
-    if (store.permissions.includes(permission)) {
-      store.removePermission(permission);
-    } else {
-      store.addPermission(permission);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -69,119 +49,6 @@ export function Step5MobileAccess({ password, onPasswordChange }) {
             </div>
           </div>
 
-          {/* Role & Permissions */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Role & Permissions</h3>
-            <div className="space-y-3">
-              <FormField label="Application Role">
-                <Select value={store.applicationRole} onValueChange={(value) => store.updateField('applicationRole', value)}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((role) => (
-                      <SelectItem key={role} value={role} className="text-xs">
-                        {role}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-
-              <div>
-                <Label className="text-xs font-semibold text-slate-800 mb-3 block">
-                  Assign Permissions
-                </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {PERMISSIONS.map((permission) => (
-                    <div key={permission.id} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`perm-${permission.id}`}
-                        checked={store.permissions.includes(permission.id)}
-                        onCheckedChange={() => handlePermissionToggle(permission.id)}
-                      />
-                      <Label htmlFor={`perm-${permission.id}`} className="text-xs font-medium cursor-pointer">
-                        {permission.label}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Feature Toggles */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Feature Access</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50/50 transition-colors">
-                <div>
-                  <Label className="text-xs font-medium text-slate-800 block">Attendance Access</Label>
-                  <p className="text-xs text-slate-500 mt-0.5">Allow check-in/check-out via mobile</p>
-                </div>
-                <Checkbox
-                  checked={store.enableAttendanceAccess}
-                  onCheckedChange={(checked) => store.updateField('enableAttendanceAccess', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50/50 transition-colors">
-                <div>
-                  <Label className="text-xs font-medium text-slate-800 block">Location Tracking</Label>
-                  <p className="text-xs text-slate-500 mt-0.5">Enable GPS location tracking during work</p>
-                </div>
-                <Checkbox
-                  checked={store.enableLocationTracking}
-                  onCheckedChange={(checked) => store.updateField('enableLocationTracking', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50/50 transition-colors">
-                <div>
-                  <Label className="text-xs font-medium text-slate-800 block">Push Notifications</Label>
-                  <p className="text-xs text-slate-500 mt-0.5">Receive announcements and alerts</p>
-                </div>
-                <Checkbox
-                  checked={store.enablePushNotifications}
-                  onCheckedChange={(checked) => store.updateField('enablePushNotifications', checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50/50 transition-colors">
-                <div>
-                  <Label className="text-xs font-medium text-slate-800 block">Employee Self-Service</Label>
-                  <p className="text-xs text-slate-500 mt-0.5">Access leave, expense & payroll services</p>
-                </div>
-                <Checkbox
-                  checked={store.enableEmployeeSelfService}
-                  onCheckedChange={(checked) => store.updateField('enableEmployeeSelfService', checked)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Account Status */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Account Status</h3>
-            <FormField label="Mobile Account Status">
-              <Select value={store.accountStatus} onValueChange={(value) => store.updateField('accountStatus', value)}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active" className="text-xs">
-                    Active - Account is active
-                  </SelectItem>
-                  <SelectItem value="Inactive" className="text-xs">
-                    Inactive - Account is disabled
-                  </SelectItem>
-                  <SelectItem value="Suspended" className="text-xs">
-                    Suspended - Account temporarily suspended
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
-          </div>
         </div>
       )}
 

@@ -235,12 +235,6 @@ export function Step6ReviewConfirmation({ onEdit }) {
                 <>
                   <DetailRow label="Login Email" value={store.loginEmail} />
                   <DetailRow label="Username" value={store.username || 'Auto-generated'} />
-                  <DetailRow label="Application Role" value={store.applicationRole} />
-                  <DetailRow label="Permissions" value={store.permissions.length > 0 ? `${store.permissions.length} permissions assigned` : 'None'} />
-                  <DetailRow label="Attendance Access" value={store.enableAttendanceAccess ? 'Enabled' : 'Disabled'} />
-                  <DetailRow label="Location Tracking" value={store.enableLocationTracking ? 'Enabled' : 'Disabled'} />
-                  <DetailRow label="Push Notifications" value={store.enablePushNotifications ? 'Enabled' : 'Disabled'} />
-                  <DetailRow label="Account Status" value={store.accountStatus} />
                 </>
               )}
             </div>
