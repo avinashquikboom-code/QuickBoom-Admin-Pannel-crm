@@ -97,6 +97,12 @@ test('current session wins over later-expiring legacy credentials; request uses 
   const sent = await f.hooks.request(config());
   assert.equal(sent.headers.get('Authorization'), `Bearer ${f.state.token}`);
 });
+test('a session without a refresh token cannot borrow one from a previous login', () => {
+  const f = fixture();
+  f.state.refreshToken = null;
+  f.storage.set('refreshToken', 'previous-account-refresh');
+  assert.equal(f.exports.getPersistedAuthSession().refreshToken, null);
+});
 test('hydration preserves the persisted pair; employee portal cannot borrow admin credentials', () => {
   const f = fixture(); f.state._hasHydrated = false;
   f.storage.set('quikboom-next-auth-storage', JSON.stringify({ state: { token: token(3), refreshToken: 'persisted', user: { id: 3 } } }));
