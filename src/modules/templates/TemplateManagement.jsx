@@ -64,8 +64,8 @@ function StageNotifications() {
     try {
       const [stageRows, emailPayload, metaPayload] = await Promise.all([
         loadLeadStages(),
-        api.get('/email/templates', { params: { page: 1, limit: 100, status: 'ACTIVE' } }),
-        api.get('/templates/meta', { params: { page: 1, limit: 100, status: 'APPROVED' } }),
+        api.get('/email/templates', { params: { page: 1, limit: 100, status: 'ALL' } }),
+        api.get('/templates/meta', { params: { page: 1, limit: 100, status: 'ALL' } }),
       ]);
       setStages(stageRows);
       setEmails(rowsOf(emailPayload));
@@ -105,8 +105,8 @@ function StageNotifications() {
       <TemplateTable loading={loading} error={error} rows={stages} empty="No lead stages are configured." columns={['Stage', 'Email', 'WhatsApp', 'Status', 'Actions']} render={(stage) => (
         <tr key={stage.id} className="border-t border-[#E2E8E5]">
           <td className="px-3 py-3">{stage.name}</td>
-          <td className="px-3 py-3">{stage.emailEnabled ? (stage.emailTemplate?.name || 'Enabled, no template') : 'Off'}</td>
-          <td className="px-3 py-3">{stage.whatsappEnabled ? (stage.whatsappTemplate?.name || 'Enabled, no template') : 'Off'}</td>
+          <td className="px-3 py-3">{emailStageTemplateStatus(stage)}{stage.emailTemplate?.name ? ` · ${stage.emailTemplate.name}` : ''}</td>
+          <td className="px-3 py-3">{whatsappStageTemplateStatus(stage)}{stage.whatsappTemplate?.name ? ` · ${stage.whatsappTemplate.name}` : ''}</td>
           <td className="px-3 py-3">{stage.isActive ? 'Active' : 'Inactive'}</td>
           <td className="px-3 py-3"><button type="button" className="text-[#163A2E]" onClick={() => setForm({ ...stage, emailTemplateId: stage.emailTemplateId || stage.emailTemplate?.id || '', whatsappTemplateId: stage.whatsappTemplateId || stage.whatsappTemplate?.id || '' })}>Edit</button></td>
         </tr>
@@ -119,14 +119,17 @@ function StageNotifications() {
             <Field label="Email template">
               <select value={form.emailTemplateId || ''} onChange={(event) => setForm({ ...form, emailTemplateId: event.target.value })} className="h-10 w-full rounded-md border border-[#E2E8E5] px-3">
                 <option value="">No template</option>
-                {emails.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                {emails.map((item) => <option key={item.id} value={item.id} disabled={!item.isActive}>{item.name}{item.isActive ? '' : ' (inactive)'}</option>)}
               </select>
             </Field>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.whatsappEnabled !== false} onChange={(event) => setForm({ ...form, whatsappEnabled: event.target.checked })} />WhatsApp enabled</label>
             <Field label="WhatsApp template">
               <select value={form.whatsappTemplateId || ''} onChange={(event) => setForm({ ...form, whatsappTemplateId: event.target.value })} className="h-10 w-full rounded-md border border-[#E2E8E5] px-3">
                 <option value="">No template</option>
-                {whatsapp.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.status})</option>)}
+                {whatsapp.map((item) => {
+                  const usable = String(item.status || '').toUpperCase() === 'APPROVED' && item.isLocalActive !== false && Boolean(item.metaTemplateId) && !String(item.metaTemplateId).startsWith('seed_');
+                  return <option key={item.id} value={item.id} disabled={!usable}>{item.name} ({item.status}{usable ? '' : ', unavailable'})</option>;
+                })}
               </select>
             </Field>
           </>
@@ -134,5 +137,22 @@ function StageNotifications() {
       </FormDrawer>
     </Shell>
   );
+}
+
+function emailStageTemplateStatus(stage) {
+  if (stage.emailEnabled === false) return 'Inactive';
+  if (!stage.emailTemplate || stage.emailTemplate.deletedAt) return 'Missing';
+  return stage.emailTemplate.isActive === false ? 'Inactive' : 'Configured';
+}
+
+function whatsappStageTemplateStatus(stage) {
+  if (stage.whatsappEnabled === false) return 'Inactive';
+  const template = stage.whatsappTemplate;
+  if (!template || template.deletedAt) return 'Missing';
+  const status = String(template.status || '').toUpperCase();
+  if (status === 'PENDING') return 'Pending Approval';
+  if (status === 'REJECTED') return 'Rejected';
+  if (status === 'APPROVED' && template.isLocalActive !== false && template.metaTemplateId && !String(template.metaTemplateId).startsWith('seed_')) return 'Configured';
+  return 'Inactive';
 }
 
