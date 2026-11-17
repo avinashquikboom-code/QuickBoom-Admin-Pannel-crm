@@ -305,7 +305,7 @@ export default function DataManagementPage() {
                 <p className="mt-3 text-xs text-[#718078]">{(preview.dependencies || []).join(' ')}</p>
                 {!!preview.dependencyWarnings?.length && <div className="mt-3 rounded-xl border border-[#F3D4A6] bg-[#FFFAF0] p-3">
                   <p className="text-sm font-semibold text-[#92400E]">Dependency warnings</p>
-                  <ul className="mt-1 space-y-1 text-xs text-[#78350F]">{preview.dependencyWarnings.map((item) => <li key={`${item.module}-${item.model}`}>{item.label}: {Number(item.records).toLocaleString()} records{item.blocking ? ' — blocks deletion until included through an eligible selected module or resolved' : ' — included in selected modules'}</li>)}</ul>
+                  <ul className="mt-1 space-y-1 text-xs text-[#78350F]">{preview.dependencyWarnings.map((item) => <li key={`${item.module}-${item.model}`}>{item.label}: {Number(item.records).toLocaleString()} records{item.crossTenantRecords ? ` (${Number(item.crossTenantRecords).toLocaleString()} reference another tenant)` : ''}{item.blocking ? ' — blocks deletion until the dependency is resolved' : item.willSetNull ? ' — employee references will be cleared; related records will remain' : item.includedInSelectedModule ? ' — deleted with a selected module' : ''}</li>)}</ul>
                 </div>}
               </Panel>
             )}
