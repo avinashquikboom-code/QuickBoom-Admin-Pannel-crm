@@ -64,7 +64,7 @@ export function Step5MobileAccess({ password, onPasswordChange }) {
           <div>
             <h3 className="text-sm font-semibold text-slate-800 mb-3">Login Credentials</h3>
             <div className="space-y-3">
-              <InputField label="Initial password (optional)" type="password" value={password} onChange={(e) => onPasswordChange(e.target.value)} hint="Leave blank to use the existing server default. Use at least 6 characters for a custom password." />
+              <InputField label="Initial password (optional)" type="password" value={password} onChange={(e) => onPasswordChange(e.target.value)} hint="Leave blank to use the default password. Use at least 6 characters for a custom password." />
               <p className="text-xs text-slate-500">Employees can sign in using their employee email, employee ID, or mobile number.</p>
             </div>
           </div>

@@ -79,7 +79,7 @@ const INITIAL_STATE = {
   ],
 
   // Step 5: Mobile Login & Access
-  enableMobileAccess: true,
+  enableMobileAccess: false,
   loginEmail: '',
   username: '',
   applicationRole: '',
