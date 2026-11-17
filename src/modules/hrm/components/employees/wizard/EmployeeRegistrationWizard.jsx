@@ -25,8 +25,9 @@ const STEPS = [
   { id: 6, label: 'Review' },
 ];
 
-export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess }) {
+export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess, offices, shifts, assignmentError }) {
   const store = useEmployeeWizardStore();
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [stepValid, setStepValid] = useState(false);
   const [confirmationAgreed, setConfirmationAgreed] = useState(false);
@@ -46,7 +47,7 @@ export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess }) {
         );
       case 2:
         return (
-          <Step2EmploymentInfo
+          <Step2EmploymentInfo offices={offices} shifts={shifts} assignmentError={assignmentError}
             onValidationChange={(isValid) => setStepValid(isValid)}
           />
         );
@@ -63,7 +64,7 @@ export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess }) {
           />
         );
       case 5:
-        return <Step5MobileAccess />;
+        return <Step5MobileAccess password={password} onPasswordChange={setPassword} />;
       case 6:
         return (
           <Step6ReviewConfirmation
@@ -103,9 +104,11 @@ export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess }) {
       return;
     }
 
+    if (password && password.trim().length < 6) { toast.error('Password must be at least 6 characters'); return; }
     setLoading(true);
     try {
       const data = store.getAllData();
+      data.mobileAccess.password = password;
       await onSuccess?.(data);
 
       toast.success('Employee Registered Successfully', {
@@ -114,6 +117,7 @@ export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess }) {
 
       // Reset and close
       store.reset();
+      setPassword('');
       onOpenChange(false);
     } catch (error) {
       toast.error('Registration Failed', {
@@ -135,6 +139,7 @@ export function EmployeeRegistrationWizard({ open, onOpenChange, onSuccess }) {
       return;
     }
     store.reset();
+    setPassword('');
     onOpenChange(false);
   };
 

@@ -12,7 +12,7 @@ const WORK_MODES = ['Office', 'Hybrid', 'Remote'];
 const DEPARTMENTS = ['Engineering', 'Product & Design', 'Human Resources', 'Finance', 'Sales', 'Marketing', 'Operations', 'Other'];
 const MANAGERS = ['Select a Manager', 'Sarah Jenkins', 'Alexander Vance', 'Priya Sharma', 'James Wilson', 'Emily Chen'];
 
-export function Step2EmploymentInfo({ onValidationChange }) {
+export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts = [], assignmentError }) {
   const store = useEmployeeWizardStore();
   const [errors, setErrors] = useState({});
 
@@ -165,12 +165,13 @@ export function Step2EmploymentInfo({ onValidationChange }) {
               onChange={(e) => store.updateField('workLocation', e.target.value)}
             />
 
-            <InputField
-              label="Office / Branch"
-              placeholder="e.g. HQ Building A"
-              value={store.officeBranch}
-              onChange={(e) => store.updateField('officeBranch', e.target.value)}
-            />
+            <FormField label="Office / Branch">
+              <select className="h-9 w-full rounded-md border px-2 text-xs" value={store.officeBranch} onChange={(e) => store.updateField('officeBranch', e.target.value)}><option value="">Select office</option>{offices.filter((office) => office.status === 'Active').map((office) => <option key={office.id} value={String(office.id)}>{office.name}</option>)}</select>
+            </FormField>
+            <FormField label="Shift">
+              <select className="h-9 w-full rounded-md border px-2 text-xs" value={store.shiftAssignment} onChange={(e) => store.updateField('shiftAssignment', e.target.value)}><option value="">Select shift</option>{shifts.filter((shift) => shift.status === 'ACTIVE').map((shift) => <option key={shift.id} value={String(shift.id)}>{shift.name}</option>)}</select>
+            </FormField>
+            {assignmentError && <p className="text-xs text-red-600 sm:col-span-2">Could not load offices and shifts: {assignmentError}</p>}
           </div>
         </div>
       </div>
