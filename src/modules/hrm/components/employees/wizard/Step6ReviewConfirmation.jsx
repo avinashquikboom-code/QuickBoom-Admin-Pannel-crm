@@ -151,7 +151,7 @@ export function Step6ReviewConfirmation({ onEdit }) {
             <div className="space-y-2">
               <DetailRow label="Date of Joining" value={data.employment.dateOfJoining} emphasis />
               <DetailRow label="Employment Type" value={data.employment.employmentType} />
-              <DetailRow label="Job Title" value={data.employment.jobTitle} />
+              <DetailRow label="Designation" value={data.employment.jobTitle} />
               <DetailRow label="Department" value={data.employment.department} />
               <DetailRow label="Employee Status" value={data.employment.employeeStatus} />
               <DetailRow label="Work Mode" value={data.employment.workMode} />
@@ -174,7 +174,6 @@ export function Step6ReviewConfirmation({ onEdit }) {
             <div className="space-y-2">
               <DetailRow label="Company" value={data.organization.company} />
               <DetailRow label="Branch" value={data.organization.branch} />
-              <DetailRow label="Designation" value={data.organization.designation} />
               <DetailRow label="Team" value={data.organization.team} />
               <DetailRow label="Role / Access Level" value={data.organization.roleAccessLevel} />
               <DetailRow label="Employee Category" value={data.organization.employeeCategory} />
