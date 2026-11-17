@@ -149,44 +149,6 @@ export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts =
         </div>
       </div>
 
-      {/* Contract Details */}
-      <div>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Contract Details</h3>
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <InputField
-              label="Probation Period (days)"
-              type="number"
-              placeholder="90"
-              value={store.probationPeriod}
-              onChange={(e) => store.updateField('probationPeriod', e.target.value)}
-            />
-
-            <InputField
-              label="Employment Confirmation Date"
-              type="date"
-              value={store.employmentConfirmationDate}
-              onChange={(e) => store.updateField('employmentConfirmationDate', e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <InputField
-              label="Contract Start Date"
-              type="date"
-              value={store.contractStartDate}
-              onChange={(e) => store.updateField('contractStartDate', e.target.value)}
-            />
-
-            <InputField
-              label="Contract End Date"
-              type="date"
-              value={store.contractEndDate}
-              onChange={(e) => store.updateField('contractEndDate', e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

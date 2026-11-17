@@ -74,22 +74,39 @@ export default function DataManagementPage() {
         loadDataBackups(),
         loadDataOperations(),
       ]);
-      setOverview(dataOf(overviewResponse));
+      const freshOverview = dataOf(overviewResponse);
+      setOverview(freshOverview);
       const modulePayload = dataOf(moduleResponse);
       setModules(modulePayload.modules || []);
       setProtectedRecords(modulePayload.protected || []);
       setBackups(listOf(backupResponse));
       setHistory(listOf(historyResponse));
       setError('');
+      return freshOverview;
     } catch (err) {
       setOverview(null);
       setError(suiteError(err));
+      return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
   React.useEffect(() => { reload(); }, [reload]);
+
+  React.useEffect(() => {
+    if (!selected.length || scope !== 'selected' || loading || error) return;
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await previewDataReset({ modules: selected, scope: 'selected' });
+        if (active) setPreview(dataOf(response));
+      } catch (err) {
+        if (active) setPreview(null);
+      }
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [selected, scope, loading, error]);
 
   const verifiedBackups = backups.filter((item) => item.status === 'VERIFIED');
   const latestBackup = verifiedBackups[0];
@@ -98,10 +115,17 @@ export default function DataManagementPage() {
     setBusy(label);
     try {
       const response = await action();
-      setResult(dataOf(response));
+      const payload = dataOf(response);
+      if (label === 'backup' && (payload.status !== 'VERIFIED' || !payload.backupId)) {
+        throw new Error('Backup was not verified by the backend. It cannot be used for reset.');
+      }
+      setResult(payload);
+      if (label === 'backup' && payload.backupId && (payload.scope !== 'global' || scope === 'global')) {
+        setBackupId(payload.backupId);
+      }
       toast.success('Operation completed');
       await reload();
-      return dataOf(response);
+      return payload;
     } catch (err) {
       toast.error(suiteError(err));
       return null;
@@ -131,8 +155,19 @@ export default function DataManagementPage() {
       setResult(resetResult);
       setPreview(null);
       setConfirmation('');
-      toast.success(`Reset complete: ${resetResult.recordsDeleted} records deleted and verified.`);
-      await reload();
+      const refreshedOverview = await reload();
+      if (!refreshedOverview) {
+        toast.error('The reset was verified by the backend, but the refreshed database counts could not be loaded. Reload Data Management to confirm zero counts.');
+        return;
+      }
+      const nonzeroModules = selected
+        .map((id) => refreshedOverview.modules?.find((item) => item.id === id) || { id, name: id, records: null })
+        .filter((item) => item.records !== 0);
+      if (nonzeroModules.length) {
+        toast.error(`The reset committed, but fresh module counts are not zero for: ${nonzeroModules.map((item) => item.name).join(', ')}. Review the table counts and history.`);
+        return;
+      }
+      toast.success(`Reset complete: ${resetResult.recordsDeleted} records deleted; selected modules now show zero records.`);
     } catch (err) {
       toast.error(suiteError(err));
     } finally {
@@ -214,7 +249,7 @@ export default function DataManagementPage() {
                     />
                     <span>
                       <span className="font-medium text-[#172B24]">{item.name}</span>
-                      <span className="mt-1 block text-xs font-semibold text-[#3C775B]">{item.tables?.length || 0} data tables</span>
+                      <span className="mt-1 block text-xs font-semibold text-[#3C775B]">{Number(overview?.modules?.find((entry) => entry.id === item.id)?.records || 0).toLocaleString()} records · {item.tables?.length || 0} tables</span>
                       <span className="mt-0.5 block text-xs text-[#718078]">{item.available ? item.description : item.reason}</span>
                     </span>
                   </label>
@@ -230,7 +265,7 @@ export default function DataManagementPage() {
             </Panel>
             <Panel>
               <h2 className="font-semibold text-[#DC2626]">Reset entire application data</h2>
-              <p className="mt-1 text-sm text-[#718078]">This deletes every approved business module for the signed-in tenant. Accounts, roles, employees, salary structures, integrations, audit logs, and migration history stay.</p>
+              <p className="mt-1 text-sm text-[#718078]">This deletes every approved business module for the signed-in tenant. Accounts, roles, integrations, audit logs, and migration history stay.</p>
               <Button className="mt-3" variant="outline" disabled={Boolean(busy)} onClick={() => {
                 const ids = modules.filter((item) => item.available).map((item) => item.id);
                 setSelected(ids);
@@ -259,11 +294,19 @@ export default function DataManagementPage() {
             {preview && (
               <Panel>
                 <h2 className="font-semibold">Reset preview</h2>
-                <p className="mt-1 text-sm text-[#718078]">{preview.estimatedRecords} records across {preview.tables?.length || 0} tables. Backup: {preview.backupStatus?.verified ? preview.backupStatus.backupId : 'not verified'}</p>
+                <p className="mt-1 text-sm text-[#718078]">{Number(preview.estimatedRecords || 0).toLocaleString()} eligible records across {preview.tables?.length || 0} unique tables. Backup: {preview.backupStatus?.verified ? `verified (${preview.backupStatus.backupId})` : 'not verified'}</p>
+                {!preview.backupStatus?.verified && <p className="mt-1 text-xs text-[#B45309]">{preview.backupStatus?.reason || 'Create and verify a backup covering every selected module before reset.'}</p>}
+                <p className="mt-3 text-sm font-medium">Selected modules</p>
+                <ul className="mt-1 space-y-1 text-sm">{(preview.modules || []).map((item) => <li key={item.id} className="flex justify-between gap-3"><span>{item.name}</span><span>{Number(item.records || 0).toLocaleString()} module records</span></li>)}</ul>
+                <p className="mt-3 text-xs text-[#718078]">The eligible total below counts each selected table once; module subtotals can overlap.</p>
                 <ul className="mt-3 max-h-48 space-y-1 overflow-auto text-sm">
                   {(preview.tables || []).map((table) => <li key={table.model} className="flex justify-between gap-3"><span>{table.label}</span><span>{table.records}</span></li>)}
                 </ul>
                 <p className="mt-3 text-xs text-[#718078]">{(preview.dependencies || []).join(' ')}</p>
+                {!!preview.dependencyWarnings?.length && <div className="mt-3 rounded-xl border border-[#F3D4A6] bg-[#FFFAF0] p-3">
+                  <p className="text-sm font-semibold text-[#92400E]">Dependency warnings</p>
+                  <ul className="mt-1 space-y-1 text-xs text-[#78350F]">{preview.dependencyWarnings.map((item) => <li key={`${item.module}-${item.model}`}>{item.label}: {Number(item.records).toLocaleString()} records{item.blocking ? ' — blocks deletion until included through an eligible selected module or resolved' : ' — included in selected modules'}</li>)}</ul>
+                </div>}
               </Panel>
             )}
             <Panel>
@@ -277,11 +320,14 @@ export default function DataManagementPage() {
               {scope !== 'selected' && <Input className="mt-3" placeholder="Type RESET ALL DATA" value={acknowledgement} onChange={(event) => setAcknowledgement(event.target.value)} />}
               {scope === 'global' && <Input className="mt-3" placeholder="Type RESET GLOBAL" value={globalConfirmation} onChange={(event) => setGlobalConfirmation(event.target.value)} />}
               <p className="mt-3 text-sm text-[#DC2626]">This operation will permanently delete the selected application data. This action cannot be undone.</p>
-              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || !preview || confirmation !== 'RESET'} onClick={runVerifiedReset}>Execute reset</Button>
+              {(!backupId || !preview || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')) && (
+                <p className="mt-3 text-xs text-[#718078]">To enable reset, preview the selected modules, choose a verified backup, type RESET{scope !== 'selected' ? ', type RESET ALL DATA' : ''}{scope === 'global' ? ', and type RESET GLOBAL' : ''}.</p>
+              )}
+              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || !preview || !backupId || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')} onClick={runVerifiedReset}>Execute reset</Button>
             </Panel>
             {result?.operationId && <Result result={result} />}
           </div>
-          <ProtectedList records={protectedRecords} />
+          <ProtectedList records={protectedRecords} counts={preview?.protectedCounts} />
         </div>
       )}
       {!loading && !error && tab === 'backup' && (
@@ -424,19 +470,20 @@ export default function DataManagementPage() {
               <button type="button" onClick={() => setHistoryOpen(false)}>Close</button>
             </div>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-xs uppercase text-[#718078]"><tr><th>Operation</th><th>Status</th><th>Records</th><th>When</th><th>By</th></tr></thead>
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="text-xs uppercase text-[#718078]"><tr><th>Operation</th><th>Status</th><th>Records</th><th>Backup</th><th>When</th><th>By</th></tr></thead>
                 <tbody>
                   {history.map((item) => (
                     <tr key={`${item.id}-${item.createdAt}`} className="border-t border-[#E2E8E5]">
-                      <td className="py-2 pr-2">{item.operationType}<div className="text-xs text-[#718078]">{Array.isArray(item.modules) ? item.modules.join(', ') : item.modules}</div></td>
+                      <td className="py-2 pr-2">{item.operationType}<div className="text-xs text-[#718078]">{Array.isArray(item.modules) && item.modules.length ? item.modules.map((id) => modules.find((module) => module.id === id)?.name || id).join(', ') : 'Module details unavailable'}</div></td>
                       <td>{item.status}{item.failureReason ? <div className="text-xs text-[#DC2626]">{item.failureReason}</div> : null}</td>
-                      <td>{item.recordsAffected}</td>
+                      <td>{item.operationType === 'DATA_RESET' ? (item.verified ? item.recordsAffected ?? 0 : 'Unverified') : item.recordsAffected ?? '—'}</td>
+                      <td>{item.backupId || 'No backup recorded'}</td>
                       <td>{stamp(item.createdAt)}</td>
                       <td>{item.requestedBy}</td>
                     </tr>
                   ))}
-                  {!history.length && <tr><td className="py-3 text-[#718078]" colSpan={5}>No operations recorded.</td></tr>}
+                  {!history.length && <tr><td className="py-3 text-[#718078]" colSpan={6}>No operations recorded.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -456,10 +503,19 @@ function Stat({ label, value }) {
 function Info({ label, value }) {
   return <div><dt className="text-[#718078]">{label}</dt><dd className="font-medium text-[#172B24]">{value || 'Not available'}</dd></div>;
 }
-function ProtectedList({ records }) {
+function ProtectedList({ records, counts }) {
   return (
     <Panel>
       <h2 className="flex items-center gap-2 font-semibold"><FontAwesomeIcon icon={faShieldHalved} className="text-[#163A2E]" /> Protected records</h2>
+      {counts && <div className="mt-3 space-y-3 text-sm">
+        {[['System-critical', counts.systemCritical], ['Remaining tenant configuration', counts.remainingTenantConfiguration]].map(([label, group]) => (
+          <div key={label} className="rounded-xl bg-[#F1F7F3] p-3">
+            <div className="flex justify-between gap-3 font-semibold"><span>{label}</span><span>{Number(group?.records || 0).toLocaleString()} protected rows</span></div>
+            <ul className="mt-2 space-y-1 text-xs text-[#718078]">{Object.entries(group?.tables || {}).map(([table, value]) => <li key={table} className="flex justify-between gap-3"><span>{table}</span><span>{Number(value).toLocaleString()}</span></li>)}</ul>
+          </div>
+        ))}
+        <p className="text-xs text-[#718078]">{counts.note}</p>
+      </div>}
       <ul className="mt-3 space-y-2 text-sm text-[#172B24]">{records.map((item) => <li key={item}>{item}</li>)}</ul>
     </Panel>
   );
@@ -478,7 +534,7 @@ function QuickActions({ busy, latest, onBackup, onDownload, onHistory }) {
   );
 }
 function Result({ result }) {
-  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}{result.verified ? ' · Database verification passed' : ''}. Records: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}. Backup: {result.backupId || result.preRestoreBackupId || '—'}</p>{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
+  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}{result.verified ? ' · Database verification passed' : ''}. Records: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}. Backup: {result.backupId || result.preRestoreBackupId || '—'}</p>{result.verified && result.countsAfter ? <div className="mt-3"><p className="text-sm font-medium">Remaining records after commit</p><ul className="mt-1 grid gap-1 text-sm text-[#718078] sm:grid-cols-2">{Object.entries(result.countsAfter).map(([table, count]) => <li key={table} className="flex justify-between gap-3"><span>{table}</span><span className={count === 0 ? 'font-semibold text-[#247047]' : 'font-semibold text-[#DC2626]'}>{count}</span></li>)}</ul></div> : null}{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
 }
 function dataOf(response) {
   if (response && typeof response === 'object' && response.data && !Array.isArray(response.data)) return response.data;
