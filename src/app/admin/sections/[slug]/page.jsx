@@ -30,6 +30,7 @@ import { toast } from '@/hooks/use-toast';
 import { getSectionConfig } from '@/config/admin-sections';
 import { hrmError, loadOffices, loadTeams, removeOffice, removeTeam, saveOffice, saveTeam } from '@/modules/hrm/hrm-api';
 import { isLiveMasterSlug, MasterManagement } from '@/modules/master/MasterManagement';
+import { loadLeaveTypes, removeLeaveType } from '@/modules/master/master-api';
 import { TemplateManagement } from '@/modules/templates/TemplateManagement';
 import { SubscriptionPlans } from '@/modules/subscription/SubscriptionPlans';
 
@@ -103,6 +104,8 @@ function SectionPageContent() {
         if (slug === 'office-management' || slug === 'team-management') {
             const load = slug === 'office-management' ? loadOffices : loadTeams;
             load().then((rows) => { if (active) setRecords(rows); }).catch((err) => { if (active) toast.error(hrmError(err)); });
+        } else if (slug === 'leave-types') {
+            loadLeaveTypes().then((rows) => { if (active) setRecords(rows); }).catch((err) => { if (active) toast.error(hrmError(err)); });
         } else {
             setRecords(config.initialRecords);
         }
@@ -167,14 +170,28 @@ function SectionPageContent() {
         setConfirmDeleteOpen(true);
     }, []);
 
-    // Confirm Delete
+    // Confirm Delete — only sections backed by a real API may delete.
+    // Mock-data sections must not pretend to delete: the record would reappear on refresh.
+    const SECTION_DELETE = {
+        'office-management': removeOffice,
+        'team-management': removeTeam,
+        'leave-types': removeLeaveType,
+    };
     const handleConfirmDelete = async () => {
         if (!recordToDelete) return;
+        const remove = SECTION_DELETE[slug];
+        if (!remove) {
+            toast.info(`${config.singular} cannot be deleted here`, {
+                description: 'This section is not connected to a live API yet. Use the dedicated management page for this module.',
+            });
+            setConfirmDeleteOpen(false);
+            setRecordToDelete(null);
+            return;
+        }
         try {
-            if (slug === 'office-management') await removeOffice(recordToDelete.id);
-            else if (slug === 'team-management') await removeTeam(recordToDelete.id);
+            const result = await remove(recordToDelete.id);
             setRecords((prev) => prev.filter((r) => r.id !== recordToDelete.id));
-            toast.success(`${config.singular} deleted`);
+            toast.success(result?.message || result?.data?.message || `${config.singular} deleted`);
             setConfirmDeleteOpen(false);
             setRecordToDelete(null);
         } catch (err) {
