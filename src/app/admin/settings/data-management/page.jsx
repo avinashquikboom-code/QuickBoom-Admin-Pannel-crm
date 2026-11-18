@@ -50,7 +50,6 @@ export default function DataManagementPage() {
   const [confirmation, setConfirmation] = React.useState('');
   const [acknowledgement, setAcknowledgement] = React.useState('');
   const [globalConfirmation, setGlobalConfirmation] = React.useState('');
-  const [backupId, setBackupId] = React.useState('');
   const [reason, setReason] = React.useState('');
   const [result, setResult] = React.useState(null);
   const [busy, setBusy] = React.useState('');
@@ -116,13 +115,7 @@ export default function DataManagementPage() {
     try {
       const response = await action();
       const payload = dataOf(response);
-      if (label === 'backup' && (payload.status !== 'VERIFIED' || !payload.backupId)) {
-        throw new Error('Backup was not verified by the backend. It cannot be used for reset.');
-      }
       setResult(payload);
-      if (label === 'backup' && payload.backupId && (payload.scope !== 'global' || scope === 'global')) {
-        setBackupId(payload.backupId);
-      }
       toast.success('Operation completed');
       await reload();
       return payload;
@@ -141,7 +134,6 @@ export default function DataManagementPage() {
         modules: selected,
         scope,
         previewToken: preview.previewToken,
-        backupId,
         confirmation,
         acknowledgement,
         globalConfirmation,
@@ -194,18 +186,13 @@ export default function DataManagementPage() {
 
   const previewExpired = !preview?.expiresAt || new Date(preview.expiresAt).getTime() <= Date.now();
   const blockers = (preview?.dependencyWarnings || []).filter((item) => item.blocking);
-  const backupCoversSelection = Boolean(
-    backupId && preview?.backupStatus?.verified && preview.backupStatus.backupId === backupId,
-  );
   const resetBlockedReason = !preview
     ? 'Run a fresh preview for the current module selection.'
     : previewExpired
       ? 'The reset preview expired. Run it again before confirming.'
       : blockers.length
         ? `Resolve blocking dependencies: ${blockers.map((item) => item.label).join(', ')}.`
-        : !backupCoversSelection
-          ? 'Create or select a verified backup that covers every selected module.'
-          : null;
+        : null;
 
   return (
     <div className="max-w-none w-full min-w-0 space-y-5">
@@ -294,7 +281,7 @@ export default function DataManagementPage() {
               }}>Preview full tenant reset</Button>
               <div className="mt-4 rounded-xl bg-[#F7F9F8] p-3 text-sm">
                 <p className="font-medium">Every tenant</p>
-                <p className="mt-1 text-[#718078]">A global reset needs a verified global backup and three confirmations. It still does not drop the schema or remove protected records.</p>
+                <p className="mt-1 text-[#718078]">A global reset requires three confirmations. It does not drop the schema or remove protected records.</p>
                 <Button className="mt-3" variant="outline" disabled={Boolean(busy)} onClick={() => {
                   setScope('global');
                   setPreview(null);
@@ -309,8 +296,7 @@ export default function DataManagementPage() {
             {preview && (
               <Panel>
                 <h2 className="font-semibold">Reset preview</h2>
-                <p className="mt-1 text-sm text-[#718078]">{Number(preview.estimatedRecords || 0).toLocaleString()} eligible records across {preview.tables?.length || 0} unique tables. Backup: {preview.backupStatus?.verified ? `verified (${preview.backupStatus.backupId})` : 'not verified'}</p>
-                {!preview.backupStatus?.verified && <p className="mt-1 text-xs text-[#B45309]">{preview.backupStatus?.reason || 'Create and verify a backup covering every selected module before reset.'}</p>}
+                <p className="mt-1 text-sm text-[#718078]">{Number(preview.estimatedRecords || 0).toLocaleString()} eligible records across {preview.tables?.length || 0} unique tables.</p>
                 <p className="mt-3 text-sm font-medium">Selected modules</p>
                 <ul className="mt-1 space-y-1 text-sm">{(preview.modules || []).map((item) => <li key={item.id} className="flex justify-between gap-3"><span>{item.name}</span><span>{Number(item.records || 0).toLocaleString()} module records</span></li>)}</ul>
                 <p className="mt-3 text-xs text-[#718078]">The eligible total below counts each selected table once; module subtotals can overlap.</p>
@@ -325,12 +311,8 @@ export default function DataManagementPage() {
               </Panel>
             )}
             <Panel>
-              <label className="block text-sm font-medium">Verified backup</label>
-              <select className="mt-1 h-10 w-full rounded-lg border border-[#E2E8E5] px-3 text-sm" value={backupId} onChange={(event) => setBackupId(event.target.value)}>
-                <option value="">Select a backup</option>
-                {verifiedBackups.map((item) => <option key={item.id} value={item.id}>{item.name} · {stamp(item.createdAt)}</option>)}
-              </select>
-              <Input className="mt-3" placeholder="Reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+              <label className="block text-sm font-medium">Reset reason (optional)</label>
+              <Input className="mt-1" placeholder="Reason" value={reason} onChange={(event) => setReason(event.target.value)} />
               <Input className="mt-3" placeholder="Type RESET" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
               {scope !== 'selected' && <Input className="mt-3" placeholder="Type RESET ALL DATA" value={acknowledgement} onChange={(event) => setAcknowledgement(event.target.value)} />}
               {scope === 'global' && <Input className="mt-3" placeholder="Type RESET GLOBAL" value={globalConfirmation} onChange={(event) => setGlobalConfirmation(event.target.value)} />}
@@ -544,12 +526,12 @@ function QuickActions({ busy, latest, onBackup, onDownload, onHistory }) {
         <Button variant="outline" disabled={!latest || Boolean(busy)} onClick={onDownload}><FontAwesomeIcon icon={faDownload} /> Download Latest Backup</Button>
         <Button variant="outline" onClick={onHistory}><FontAwesomeIcon icon={faClockRotateLeft} /> View Reset History</Button>
       </div>
-      {!latest && <p className="mt-3 flex items-start gap-2 text-xs text-[#D97706]"><FontAwesomeIcon icon={faTriangleExclamation} className="mt-0.5" /> A reset stays disabled until a backup verifies.</p>}
+      {!latest && <p className="mt-3 flex items-start gap-2 text-xs text-[#D97706]"><FontAwesomeIcon icon={faTriangleExclamation} className="mt-0.5" /> No verified backups are available yet.</p>}
     </Panel>
   );
 }
 function Result({ result }) {
-  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}{result.verified ? ' · Database verification passed' : ''}. Records: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}. Backup: {result.backupId || result.preRestoreBackupId || '—'}</p>{result.verified && result.countsAfter ? <div className="mt-3"><p className="text-sm font-medium">Remaining records after commit</p><ul className="mt-1 grid gap-1 text-sm text-[#718078] sm:grid-cols-2">{Object.entries(result.countsAfter).map(([table, count]) => <li key={table} className="flex justify-between gap-3"><span>{table}</span><span className={count === 0 ? 'font-semibold text-[#247047]' : 'font-semibold text-[#DC2626]'}>{count}</span></li>)}</ul></div> : null}{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
+  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}{result.verified ? ' · Database verification passed' : ''}. Records: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}{result.preRestoreBackupId ? ` · Pre-restore backup: ${result.preRestoreBackupId}` : ''}</p>{result.verified && result.countsAfter ? <div className="mt-3"><p className="text-sm font-medium">Remaining records after commit</p><ul className="mt-1 grid gap-1 text-sm text-[#718078] sm:grid-cols-2">{Object.entries(result.countsAfter).map(([table, count]) => <li key={table} className="flex justify-between gap-3"><span>{table}</span><span className={count === 0 ? 'font-semibold text-[#247047]' : 'font-semibold text-[#DC2626]'}>{count}</span></li>)}</ul></div> : null}{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
 }
 function dataOf(response) {
   if (response && typeof response === 'object' && response.data && !Array.isArray(response.data)) return response.data;
