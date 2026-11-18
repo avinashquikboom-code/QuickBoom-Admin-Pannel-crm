@@ -26,6 +26,7 @@ import {
   verifyDataBackup,
 } from '@/modules/suite/suite-api';
 import { toast } from '@/hooks/use-toast';
+import { useAuthStore } from '../../../../../lib/store';
 
 const TABS = [
   ['reset', 'Reset Data'],
@@ -34,7 +35,10 @@ const TABS = [
   ['transfer', 'Import / Export'],
 ];
 
+const phraseMatches = (value, phrase) => String(value || '').trim().toUpperCase() === phrase;
+
 export default function DataManagementPage() {
+  const authUser = useAuthStore((state) => state.user);
   const [tab, setTab] = React.useState('reset');
   const [overview, setOverview] = React.useState(null);
   const [modules, setModules] = React.useState([]);
@@ -184,15 +188,37 @@ export default function DataManagementPage() {
     }
   }
 
-  const previewExpired = !preview?.expiresAt || new Date(preview.expiresAt).getTime() <= Date.now();
-  const blockers = (preview?.dependencyWarnings || []).filter((item) => item.blocking);
-  const resetBlockedReason = !preview
-    ? 'Run a fresh preview for the current module selection.'
-    : previewExpired
-      ? 'The reset preview expired. Run it again before confirming.'
-      : blockers.length
-        ? `Resolve blocking dependencies: ${blockers.map((item) => item.label).join(', ')}.`
-        : null;
+  const [clock, setClock] = React.useState(Date.now());
+  React.useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const previewExpired = !preview?.expiresAt || new Date(preview.expiresAt).getTime() <= clock;
+  const warnings = preview?.dependencyWarnings || [];
+  const blockers = warnings.filter((item) => item.blocking);
+  const resolvedDependencies = warnings.filter((item) => Number(item.resolvedRecords || 0) > 0 || (!item.blocking && item.records > 0));
+  const unresolvedDependencies = warnings.filter((item) => item.blocking || Number(item.unresolvedRecords || 0) > 0);
+  const roles = [authUser?.role, authUser?.accountType, ...(Array.isArray(authUser?.roles) ? authUser.roles : [])]
+    .map((role) => String(role || '').trim().toUpperCase().replace(/[\s-]+/g, '_'));
+  const authorized = roles.includes('SUPER_ADMIN');
+  const confirmationValid = phraseMatches(confirmation, 'RESET');
+  const acknowledgementValid = scope === 'selected' || phraseMatches(acknowledgement, 'RESET ALL DATA');
+  const globalConfirmationValid = scope !== 'global' || phraseMatches(globalConfirmation, 'RESET GLOBAL');
+  const hasPreviewToken = Boolean(preview?.previewToken);
+  const expectedPreviewModules = (scope === 'selected' ? selected : modules.filter((item) => item.available).map((item) => item.id)).slice().sort();
+  const actualPreviewModules = (preview?.modules || []).map((item) => item.id).slice().sort();
+  const previewMatchesSelection = hasPreviewToken && expectedPreviewModules.length === actualPreviewModules.length
+    && expectedPreviewModules.every((id, index) => id === actualPreviewModules[index]);
+  const disableReasons = [];
+  if (busy) disableReasons.push('A data operation is already running.');
+  if (!authorized) disableReasons.push(authUser ? 'Only a Super Admin can execute a reset.' : 'Sign in as a Super Admin to execute a reset.');
+  if (!preview || !hasPreviewToken || !previewMatchesSelection) disableReasons.push('Run a fresh preview for the current module selection.');
+  else if (previewExpired) disableReasons.push('The reset preview expired. Run it again.');
+  if (preview && blockers.length) disableReasons.push(`${blockers.length} blocking dependency ${blockers.length === 1 ? 'remains' : 'items remain'}; review the unresolved list below.`);
+  if (!confirmationValid) disableReasons.push('Confirmation text is missing or incorrect. Enter RESET.');
+  if (!acknowledgementValid) disableReasons.push('Full reset confirmation is missing or incorrect. Enter RESET ALL DATA.');
+  if (!globalConfirmationValid) disableReasons.push('Global confirmation is missing or incorrect. Enter RESET GLOBAL.');
+  const resetDisabled = disableReasons.length > 0;
 
   return (
     <div className="max-w-none w-full min-w-0 space-y-5">
@@ -230,7 +256,7 @@ export default function DataManagementPage() {
           <div className="space-y-4">
             <Panel>
               <h2 className="font-semibold text-[#172B24]">Reset selected modules</h2>
-              <p className="mt-1 text-sm text-[#718078]">The preview lists the real tables and record counts. Nothing is deleted until a verified backup and the confirmation both succeed.</p>
+              <p className="mt-1 text-sm text-[#718078]">The preview lists the real tables and record counts. Reset requires a current preview, no unresolved blocking dependencies, and the exact confirmation phrases.</p>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm text-[#718078]">{selected.length} selected · {Number(preview?.estimatedRecords || 0).toLocaleString()} records in current preview</p>
                 <div className="flex gap-2"><Button variant="outline" disabled={Boolean(busy)} onClick={() => { setSelected(modules.filter((item) => item.available).map((item) => item.id)); setPreview(null); }}>Select all</Button><Button variant="outline" disabled={Boolean(busy)} onClick={() => { setSelected([]); setPreview(null); }}>Clear</Button></div>
@@ -304,23 +330,41 @@ export default function DataManagementPage() {
                   {(preview.tables || []).map((table) => <li key={table.model} className="flex justify-between gap-3"><span>{table.label}</span><span>{table.records}</span></li>)}
                 </ul>
                 <p className="mt-3 text-xs text-[#718078]">{(preview.dependencies || []).join(' ')}</p>
-                {!!preview.dependencyWarnings?.length && <div className="mt-3 rounded-xl border border-[#F3D4A6] bg-[#FFFAF0] p-3">
-                  <p className="text-sm font-semibold text-[#92400E]">Dependency warnings</p>
-                  <ul className="mt-1 space-y-1 text-xs text-[#78350F]">{preview.dependencyWarnings.map((item) => <li key={`${item.module}-${item.model}`}>{item.label}: {Number(item.records).toLocaleString()} records{item.crossTenantRecords ? ` (${Number(item.crossTenantRecords).toLocaleString()} reference another tenant)` : ''}{item.blocking ? ' — blocks deletion until the dependency is resolved' : item.willSetNull ? ' — employee references will be cleared; related records will remain' : item.includedInSelectedModule ? ' — deleted with a selected module' : ''}</li>)}</ul>
+                {!!preview.dependencyWarnings?.length && <div className="mt-3 space-y-3">
+                  {resolvedDependencies.length > 0 && <div className="rounded-xl border border-[#B7DCC4] bg-[#F1F8F3] p-3">
+                    <p className="text-sm font-semibold text-[#24613D]">Same-tenant dependencies handled by this reset</p>
+                    <ul className="mt-1 space-y-1 text-xs text-[#315B40]">{resolvedDependencies.map((item) => <li key={`resolved-${item.module}-${item.model}`}>{item.label}: {Number(item.resolvedRecords || (!item.blocking ? item.records : 0)).toLocaleString()} same-tenant references{item.willSetNull ? ' will be cleared while the protected records remain' : item.includedInSelectedModule ? ' will be deleted by the selected module' : ' are safe for this reset'}.</li>)}</ul>
+                  </div>}
+                  {unresolvedDependencies.length > 0 && <div className="rounded-xl border border-[#F3D4A6] bg-[#FFFAF0] p-3">
+                    <p className="text-sm font-semibold text-[#92400E]">Unresolved blockers</p>
+                    <ul className="mt-1 space-y-1 text-xs text-[#78350F]">{unresolvedDependencies.map((item) => {
+                      const protectedReference = item.policy === 'protected' || /protected/i.test(item.label || '');
+                      const otherTenant = Number(item.crossTenantRecords || 0);
+                      const unresolvedCount = Number(item.unresolvedRecords ?? (otherTenant ? otherTenant : item.records));
+                      const eligibleSameTenant = Math.max(0, Number(item.records || 0) - otherTenant);
+                      const reasonText = protectedReference
+                        ? 'Protected role/designation reference; leave Designations out of this reset or resolve the link through authorized role management.'
+                        : otherTenant
+                          ? `${otherTenant.toLocaleString()} cross-tenant reference${otherTenant === 1 ? '' : 's'} must be resolved by that tenant; this reset will not modify them.${eligibleSameTenant && item.resolutionModule ? ` Select ${item.resolutionModule.name} to include ${eligibleSameTenant.toLocaleString()} same-tenant record${eligibleSameTenant === 1 ? '' : 's'}.` : ''}`
+                          : item.policy === 'cascade' && !item.includedInSelectedModule
+                            ? `Select ${item.resolutionModule?.name || 'the eligible module'} to include these same-tenant records.`
+                            : 'This dependency must be resolved before execution.';
+                      return <li key={`blocked-${item.module}-${item.model}`}>{item.label}: {unresolvedCount.toLocaleString()} unresolved of {Number(item.records).toLocaleString()}{otherTenant ? ` (${otherTenant.toLocaleString()} cross-tenant)` : ''}. {reasonText}</li>;
+                    })}</ul>
+                  </div>}
                 </div>}
               </Panel>
             )}
             <Panel>
               <label className="block text-sm font-medium">Reset reason (optional)</label>
               <Input className="mt-1" placeholder="Reason" value={reason} onChange={(event) => setReason(event.target.value)} />
-              <Input className="mt-3" placeholder="Type RESET" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
-              {scope !== 'selected' && <Input className="mt-3" placeholder="Type RESET ALL DATA" value={acknowledgement} onChange={(event) => setAcknowledgement(event.target.value)} />}
-              {scope === 'global' && <Input className="mt-3" placeholder="Type RESET GLOBAL" value={globalConfirmation} onChange={(event) => setGlobalConfirmation(event.target.value)} />}
+              <label className="mt-3 block text-sm font-medium">Type <code>RESET</code> to confirm</label>
+              <Input className="mt-1" aria-label="Type RESET to confirm" placeholder="RESET" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
+              {scope !== 'selected' && <><label className="mt-3 block text-sm font-medium">Type <code>RESET ALL DATA</code> for a full reset</label><Input className="mt-1" aria-label="Type RESET ALL DATA" placeholder="RESET ALL DATA" value={acknowledgement} onChange={(event) => setAcknowledgement(event.target.value)} /></>}
+              {scope === 'global' && <><label className="mt-3 block text-sm font-medium">Type <code>RESET GLOBAL</code> for every tenant</label><Input className="mt-1" aria-label="Type RESET GLOBAL" placeholder="RESET GLOBAL" value={globalConfirmation} onChange={(event) => setGlobalConfirmation(event.target.value)} /></>}
               <p className="mt-3 text-sm text-[#DC2626]">This operation will permanently delete the selected application data. This action cannot be undone.</p>
-              {(resetBlockedReason || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')) && (
-                <p className="mt-3 text-xs text-[#718078]">{resetBlockedReason || `To enable reset, type RESET${scope !== 'selected' ? ', type RESET ALL DATA' : ''}${scope === 'global' ? ', and type RESET GLOBAL' : ''}.`}</p>
-              )}
-              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || Boolean(resetBlockedReason) || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')} onClick={runVerifiedReset}>Execute reset</Button>
+              {disableReasons.length > 0 && <ul className="mt-3 space-y-1 text-xs text-[#718078]">{disableReasons.map((item) => <li key={item}>{item}</li>)}</ul>}
+              <Button className="mt-3 w-full sm:w-auto" disabled={resetDisabled} onClick={runVerifiedReset}>Execute reset</Button>
             </Panel>
             {result?.operationId && <Result result={result} />}
           </div>
