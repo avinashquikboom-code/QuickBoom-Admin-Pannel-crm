@@ -470,6 +470,27 @@ export function StageManagement() {
     return { label: 'Configured', cls: 'bg-[#E8F1EC] text-[#163A2E]' };
   };
 
+  const whatsappTemplateFor = (stage) => {
+    const templateId = stage.whatsappTemplateId || stage.whatsappTemplate?.id;
+    return stage.whatsappTemplate && String(stage.whatsappTemplate.id) === String(templateId)
+      ? stage.whatsappTemplate
+      : metaTemplates.find((item) => String(item.id) === String(templateId));
+  };
+
+  const emailTemplateFor = (stage) => stage.emailTemplate ||
+    emailTemplates.find((item) => String(item.id) === String(stage.emailTemplateId));
+
+  const mappingCell = (template, status, channel) => (
+    <div className="min-w-40 space-y-1">
+      <p className="max-w-56 truncate font-medium text-[#172B24]" title={template ? `${template.name || template.templateName} · ID ${template.id}` : ''}>
+        {template ? `${template.name || template.templateName} · #${template.id}` : 'No template mapped'}
+      </p>
+      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${status?.cls || 'bg-slate-100 text-slate-600'}`}>
+        {status?.label || `${channel} unavailable`}
+      </span>
+    </div>
+  );
+
   const active = stages.filter((stage) => stage.isActive !== false).length;
   const allVisibleSelected = visible.length > 0 && visible.every((stage) => selected.includes(keyOf(stage)));
 
@@ -493,7 +514,7 @@ export function StageManagement() {
             <thead className="bg-[#F7F9F8] text-xs uppercase tracking-wide text-[#718078]">
               <tr>
                 <th className="px-4 py-3"><input aria-label="Select visible stages" type="checkbox" checked={allVisibleSelected} onChange={(event) => setSelected(event.target.checked ? [...new Set([...selected, ...visible.map(keyOf)])] : selected.filter((key) => !visible.some((stage) => keyOf(stage) === key)))} /></th>
-                {['Stage Name', 'Description', 'Color', 'Probability', 'Order', 'Status', 'WhatsApp', 'Email', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
+                {['Stage Name', 'Description', 'Color', 'Probability', 'Order', 'Status', 'WhatsApp Template', 'Email Template', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -506,8 +527,8 @@ export function StageManagement() {
                   <td className="px-4 py-3">{stage.type === 'Deal' ? `${stage.probability ?? 0}%` : '—'}</td>
                   <td className="px-4 py-3">{stage.order ?? stage.sortOrder ?? '—'}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${stage.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-[#E8F1EC] text-[#163A2E]'}`}>{stage.isActive === false ? 'Inactive' : 'Active'}</span></td>
-                  <td className="px-4 py-3">{waStatusOf(stage) ? <span className={`rounded-full px-2 py-1 text-xs font-semibold ${waStatusOf(stage).cls}`} title={waStatusOf(stage).label}>{waStatusOf(stage).label}</span> : '—'}</td>
-                  <td className="px-4 py-3">{emailStatusOf(stage) ? <span className={`rounded-full px-2 py-1 text-xs font-semibold ${emailStatusOf(stage).cls}`}>{emailStatusOf(stage).label}</span> : '—'}</td>
+                  <td className="px-4 py-3">{stage.type === 'Deal' ? '—' : mappingCell(whatsappTemplateFor(stage), waStatusOf(stage), 'WhatsApp')}</td>
+                  <td className="px-4 py-3">{stage.type === 'Deal' ? '—' : mappingCell(emailTemplateFor(stage), emailStatusOf(stage), 'Email')}</td>
                   <td className="px-4 py-3 text-[#64748B]">{stage.createdAt ? new Date(stage.createdAt).toLocaleDateString('en-IN') : '—'}</td>
                   <td className="px-4 py-3"><div className="flex flex-wrap gap-1"><Button type="button" size="sm" variant="outline" onClick={() => open('view', stage)}>View</Button><Button type="button" size="sm" variant="outline" onClick={() => open('edit', stage)}>Edit</Button><Button type="button" size="sm" variant="outline" onClick={() => setActive([keyOf(stage)], stage.isActive === false)}>{stage.isActive === false ? 'Activate' : 'Deactivate'}</Button><Button type="button" size="sm" variant="outline" className="text-rose-700" onClick={() => { setTargetStageId(''); setConfirm({ ids: [keyOf(stage)], key: keyOf(stage), stageId: stage.id, name: stage.name, used: usageOf(stage), type: stage.type }); }}>Delete</Button></div></td>
                 </tr>
