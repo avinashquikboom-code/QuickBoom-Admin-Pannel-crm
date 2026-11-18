@@ -133,7 +133,6 @@ function TemplateRowActions({
   setEditing,
   setDeletingTemplate,
   deletingId,
-  onDelete,
 }) {
   const isSyncing = syncingId === row?.id;
   const isDeleting = deletingId === row?.id;
@@ -371,7 +370,7 @@ function TemplateRowActions({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={isDeleting}
-            onClick={() => (deletePending ? onDelete(row) : setDeletingTemplate(row))}
+            onClick={() => setDeletingTemplate(row)}
             className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
           >
             <Trash2 className="mr-2 h-4 w-4 text-rose-500" />
@@ -571,7 +570,7 @@ export function MetaTemplatesAll() {
       if (response?.deletionPending) {
         toast.warning(response.message || 'Template was deleted from Meta, but local cleanup is pending. Use Retry Delete to finish.');
       } else {
-        toast.success(response?.message || `Template "${target.name || target.templateName}" deleted successfully.`);
+        toast.success(response?.message || 'Template deleted successfully.');
         setDeletingTemplate(null);
         setDeleteReason('');
         setDeletePreview(null);
@@ -1243,7 +1242,6 @@ export function MetaTemplatesAll() {
                             setEditing={setEditing}
                             setDeletingTemplate={setDeletingTemplate}
                             deletingId={deletingId}
-                            onDelete={handleDeleteTemplate}
                           />
                         </td>
                       </tr>
@@ -1355,7 +1353,6 @@ export function MetaTemplatesAll() {
                     setEditing={setEditing}
                     setDeletingTemplate={setDeletingTemplate}
                     deletingId={deletingId}
-                    onDelete={handleDeleteTemplate}
                   />
                 </div>
               </article>
@@ -1631,6 +1628,7 @@ export function MetaTemplatesAll() {
           confirmLabel={deletingId === deletingTemplate.id ? 'Deleting…' : deletingTemplate.deletionState === 'PENDING' ? 'Retry Delete' : 'Delete Template'}
           variant="destructive"
           loading={deletingId === deletingTemplate.id}
+          closeOnConfirm={false}
           onConfirm={() => handleDeleteTemplate(deletingTemplate).catch(() => {})}
           details={(
             <div className="space-y-3 text-left">
