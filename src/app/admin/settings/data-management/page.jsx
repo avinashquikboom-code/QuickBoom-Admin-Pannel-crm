@@ -192,6 +192,21 @@ export default function DataManagementPage() {
     }
   }
 
+  const previewExpired = !preview?.expiresAt || new Date(preview.expiresAt).getTime() <= Date.now();
+  const blockers = (preview?.dependencyWarnings || []).filter((item) => item.blocking);
+  const backupCoversSelection = Boolean(
+    backupId && preview?.backupStatus?.verified && preview.backupStatus.backupId === backupId,
+  );
+  const resetBlockedReason = !preview
+    ? 'Run a fresh preview for the current module selection.'
+    : previewExpired
+      ? 'The reset preview expired. Run it again before confirming.'
+      : blockers.length
+        ? `Resolve blocking dependencies: ${blockers.map((item) => item.label).join(', ')}.`
+        : !backupCoversSelection
+          ? 'Create or select a verified backup that covers every selected module.'
+          : null;
+
   return (
     <div className="max-w-none w-full min-w-0 space-y-5">
       <PageHeader
@@ -320,10 +335,10 @@ export default function DataManagementPage() {
               {scope !== 'selected' && <Input className="mt-3" placeholder="Type RESET ALL DATA" value={acknowledgement} onChange={(event) => setAcknowledgement(event.target.value)} />}
               {scope === 'global' && <Input className="mt-3" placeholder="Type RESET GLOBAL" value={globalConfirmation} onChange={(event) => setGlobalConfirmation(event.target.value)} />}
               <p className="mt-3 text-sm text-[#DC2626]">This operation will permanently delete the selected application data. This action cannot be undone.</p>
-              {(!backupId || !preview || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')) && (
-                <p className="mt-3 text-xs text-[#718078]">To enable reset, preview the selected modules, choose a verified backup, type RESET{scope !== 'selected' ? ', type RESET ALL DATA' : ''}{scope === 'global' ? ', and type RESET GLOBAL' : ''}.</p>
+              {(resetBlockedReason || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')) && (
+                <p className="mt-3 text-xs text-[#718078]">{resetBlockedReason || `To enable reset, type RESET${scope !== 'selected' ? ', type RESET ALL DATA' : ''}${scope === 'global' ? ', and type RESET GLOBAL' : ''}.`}</p>
               )}
-              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || !preview || !backupId || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')} onClick={runVerifiedReset}>Execute reset</Button>
+              <Button className="mt-3 w-full sm:w-auto" disabled={Boolean(busy) || Boolean(resetBlockedReason) || confirmation !== 'RESET' || (scope !== 'selected' && acknowledgement !== 'RESET ALL DATA') || (scope === 'global' && globalConfirmation !== 'RESET GLOBAL')} onClick={runVerifiedReset}>Execute reset</Button>
             </Panel>
             {result?.operationId && <Result result={result} />}
           </div>
