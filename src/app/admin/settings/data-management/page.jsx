@@ -27,6 +27,7 @@ import {
 } from '@/modules/suite/suite-api';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore } from '../../../../../lib/store';
+import { evaluateResetEligibility } from '@/lib/data-management/reset-eligibility.mjs';
 
 const TABS = [
   ['reset', 'Reset Data'],
@@ -34,8 +35,6 @@ const TABS = [
   ['cleanup', 'Data Cleanup'],
   ['transfer', 'Import / Export'],
 ];
-
-const phraseMatches = (value, phrase) => String(value || '').trim().toUpperCase() === phrase;
 
 export default function DataManagementPage() {
   const authUser = useAuthStore((state) => state.user);
@@ -165,7 +164,14 @@ export default function DataManagementPage() {
       }
       toast.success(`Reset complete: ${resetResult.recordsDeleted} deleted; ${resetResult.recordsPreserved || 0} protected records preserved. Counts verified after commit.`);
     } catch (err) {
-      toast.error(suiteError(err));
+      const message = suiteError(err);
+      toast.error(message);
+      if (/preview/i.test(message)) {
+        setPreview(null);
+        setConfirmation('');
+        setAcknowledgement('');
+        setGlobalConfirmation('');
+      }
     } finally {
       setBusy('');
     }
@@ -193,32 +199,33 @@ export default function DataManagementPage() {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-  const previewExpired = !preview?.expiresAt || new Date(preview.expiresAt).getTime() <= clock;
-  const warnings = preview?.dependencyWarnings || [];
-  const blockers = warnings.filter((item) => item.blocking);
-  const resolvedDependencies = warnings.filter((item) => !item.preserved && (Number(item.resolvedRecords || 0) > 0 || (!item.blocking && item.records > 0)));
-  const unresolvedDependencies = warnings.filter((item) => item.blocking || Number(item.unresolvedRecords || 0) > 0);
   const roles = [authUser?.role, authUser?.accountType, ...(Array.isArray(authUser?.roles) ? authUser.roles : [])]
     .map((role) => String(role || '').trim().toUpperCase().replace(/[\s-]+/g, '_'));
-  const authorized = roles.includes('SUPER_ADMIN');
-  const confirmationValid = phraseMatches(confirmation, 'RESET');
-  const acknowledgementValid = scope === 'selected' || phraseMatches(acknowledgement, 'RESET ALL DATA');
-  const globalConfirmationValid = scope !== 'global' || phraseMatches(globalConfirmation, 'RESET GLOBAL');
-  const hasPreviewToken = Boolean(preview?.previewToken);
-  const expectedPreviewModules = (scope === 'selected' ? selected : modules.filter((item) => item.available).map((item) => item.id)).slice().sort();
-  const actualPreviewModules = (preview?.modules || []).map((item) => item.id).slice().sort();
-  const previewMatchesSelection = hasPreviewToken && expectedPreviewModules.length === actualPreviewModules.length
-    && expectedPreviewModules.every((id, index) => id === actualPreviewModules[index]);
-  const disableReasons = [];
-  if (busy) disableReasons.push('A data operation is already running.');
-  if (!authorized) disableReasons.push(authUser ? 'Only a Super Admin can execute a reset.' : 'Sign in as a Super Admin to execute a reset.');
-  if (!preview || !hasPreviewToken || !previewMatchesSelection) disableReasons.push('Run a fresh preview for the current module selection.');
-  else if (previewExpired) disableReasons.push('The reset preview expired. Run it again.');
-  if (preview && blockers.length) disableReasons.push(`${blockers.length} blocking dependency ${blockers.length === 1 ? 'remains' : 'items remain'}; review the unresolved list below.`);
-  if (!confirmationValid) disableReasons.push('Confirmation text is missing or incorrect. Enter RESET.');
-  if (!acknowledgementValid) disableReasons.push('Full reset confirmation is missing or incorrect. Enter RESET ALL DATA.');
-  if (!globalConfirmationValid) disableReasons.push('Global confirmation is missing or incorrect. Enter RESET GLOBAL.');
-  const resetDisabled = disableReasons.length > 0;
+  const resetEligibility = evaluateResetEligibility({
+    busy: Boolean(busy),
+    authorized: roles.includes('SUPER_ADMIN'),
+    authenticated: Boolean(authUser),
+    preview,
+    selected,
+    modules,
+    scope,
+    confirmation,
+    acknowledgement,
+    globalConfirmation,
+    now: clock,
+  });
+  const {
+    previewExpired,
+    warnings,
+    blockers,
+    resolvedDependencies,
+    unresolvedDependencies,
+    confirmationValid,
+    acknowledgementValid,
+    globalConfirmationValid,
+    disableReasons,
+  } = resetEligibility;
+  const resetDisabled = resetEligibility.disabled;
 
   return (
     <div className="max-w-none w-full min-w-0 space-y-5">
