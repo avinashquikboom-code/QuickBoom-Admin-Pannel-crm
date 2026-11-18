@@ -37,6 +37,9 @@ export default function EmployeesPage() {
     const [shifts, setShifts] = React.useState([]);
     const [departments, setDepartments] = React.useState([]);
     const [managers, setManagers] = React.useState([]);
+    const [managerOptions, setManagerOptions] = React.useState([]);
+    const [managerOptionsLoading, setManagerOptionsLoading] = React.useState(false);
+    const [managerOptionsError, setManagerOptionsError] = React.useState('');
     const [organizationError, setOrganizationError] = React.useState('');
     const [organizationLoading, setOrganizationLoading] = React.useState(false);
     React.useEffect(() => {
@@ -55,6 +58,38 @@ export default function EmployeesPage() {
         })().catch((err) => { if (active) { setDepartments([]); setManagers([]); setOrganizationError(hrmError(err)); } }).finally(() => { if (active) setOrganizationLoading(false); });
         return () => { active = false; };
     }, [refresh]);
+    React.useEffect(() => {
+        let active = true;
+        if (!wizardOpen && !editEmployee) return;
+        setManagerOptionsLoading(true);
+        setManagerOptionsError('');
+        setManagerOptions([]);
+        (async () => {
+            const rows = [];
+            let page = 1;
+            let batch;
+            do {
+                batch = await loadEmployees({
+                    page,
+                    limit: 100,
+                    managerOptions: true,
+                    status: 'ACTIVE',
+                    ...(editEmployee?.customerId ? { customerId: editEmployee.customerId } : {}),
+                });
+                rows.push(...batch);
+                page += 1;
+            } while (batch.length === 100);
+            if (active) setManagerOptions(rows);
+        })().catch((err) => {
+            if (active) {
+                setManagerOptions([]);
+                setManagerOptionsError(hrmError(err));
+            }
+        }).finally(() => {
+            if (active) setManagerOptionsLoading(false);
+        });
+        return () => { active = false; };
+    }, [wizardOpen, editEmployee?.customerId, refresh]);
     const [designations, setDesignations] = React.useState([]);
     const [designationError, setDesignationError] = React.useState('');
     const [designationLoading, setDesignationLoading] = React.useState(false);
@@ -88,9 +123,9 @@ export default function EmployeesPage() {
         return () => { active = false; };
     }, [wizardOpen, editEmployee]);
     const eligibleManagers = React.useMemo(() => {
-        if (!editEmployee) return managers;
-        const byId = new Map(managers.map((row) => [String(row.recordId), row]));
-        return managers.filter((row) => {
+        if (!editEmployee) return managerOptions;
+        const byId = new Map(managerOptions.map((row) => [String(row.recordId), row]));
+        return managerOptions.filter((row) => {
             let current = row;
             const visited = new Set();
             while (current) {
@@ -101,7 +136,7 @@ export default function EmployeesPage() {
             }
             return true;
         });
-    }, [managers, editEmployee]);
+    }, [managerOptions, editEmployee]);
     const [saving, setSaving] = React.useState(false);
     const [canEdit, setCanEdit] = React.useState(false);
     const [canDelete, setCanDelete] = React.useState(false);
@@ -279,14 +314,14 @@ export default function EmployeesPage() {
       <EmployeeDetail manager={managers.find((person) => person.recordId === selectedEmployee?.managerId)} employee={selectedEmployee} open={detailOpen} onOpenChange={setDetailOpen}/>
 
       {/* Employee Registration Wizard */}
-      <FormDrawer open={Boolean(editEmployee)} onOpenChange={(open) => { if (!open) { setEditEmployee(null); setEditForm({}); } }} title="Edit Employee" description={editEmployee ? `${editEmployee.name} · ${editEmployee.id}` : ''} submitLabel="Save changes" loading={saving} onSubmit={async (event) => { event.preventDefault(); setSaving(true); try { if (editForm.managerId && editForm.managerId !== String(editEmployee.managerId ?? '') && !eligibleManagers.some((row) => String(row.recordId) === editForm.managerId && row.status === 'active')) throw new Error('Select a valid reporting manager.'); if (editForm.password && editForm.password.trim().length < 6) throw new Error('Password must be at least 6 characters.'); await updateEmployee(editEmployee.recordId, { officeId: editForm.officeId ? Number(editForm.officeId) : undefined, shiftId: editForm.shiftId ? Number(editForm.shiftId) : undefined, mobileLoginEnabled: editForm.mobileLoginEnabled, password: editForm.password || undefined, firstName: editForm.firstName, lastName: editForm.lastName, email: editForm.email || undefined, phone: editForm.phone || undefined, departmentId: editForm.departmentId && editForm.departmentId !== String(editEmployee.departmentId ?? '') ? Number(editForm.departmentId) : undefined, managerId: editForm.managerId !== String(editEmployee.managerId ?? '') ? (editForm.managerId ? Number(editForm.managerId) : null) : undefined, designationId: editForm.designationId && editForm.designationId !== String(editEmployee.designationId ?? '') ? Number(editForm.designationId) : undefined, employmentType: editForm.employmentType || undefined, status: editForm.status || undefined, employeeType: editForm.employeeType || undefined, joiningDate: editForm.joiningDate || undefined, address: editForm.address || undefined, monthlySalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary), basicSalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary) }); toast.success('Employee updated'); setEditEmployee(null); setEditForm({}); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } finally { setSaving(false); } }}>
+      <FormDrawer open={Boolean(editEmployee)} onOpenChange={(open) => { if (!open) { setEditEmployee(null); setEditForm({}); } }} title="Edit Employee" description={editEmployee ? `${editEmployee.name} · ${editEmployee.id}` : ''} submitLabel="Save changes" loading={saving} onSubmit={async (event) => { event.preventDefault(); setSaving(true); try { if (editForm.managerId && editForm.managerId !== String(editEmployee.managerId ?? '') && !eligibleManagers.some((row) => String(row.recordId) === editForm.managerId && row.status === 'active')) throw new Error('Select a valid reporting manager.'); if (editForm.password && editForm.password.trim().length < 6) throw new Error('Password must be at least 6 characters.'); await updateEmployee(editEmployee.recordId, { officeId: editForm.officeId ? Number(editForm.officeId) : undefined, shiftId: editForm.shiftId ? Number(editForm.shiftId) : undefined, mobileLoginEnabled: editForm.mobileLoginEnabled, password: editForm.password || undefined, firstName: editForm.firstName, lastName: editForm.lastName, email: editForm.email || undefined, phone: editForm.phone || undefined, departmentId: editForm.departmentId && editForm.departmentId !== String(editEmployee.departmentId ?? '') ? Number(editForm.departmentId) : undefined, managerId: editForm.managerId !== String(editEmployee.managerId ?? '') ? (editForm.managerId ? Number(editForm.managerId) : null) : undefined, designationId: editForm.designationId && editForm.designationId !== String(editEmployee.designationId ?? '') ? Number(editForm.designationId) : undefined, employmentType: editForm.employmentType || undefined, status: editForm.status || undefined, employeeType: editForm.employeeType || undefined, joiningDate: editForm.joiningDate || undefined, address: editForm.address || undefined, monthlySalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary), basicSalary: editForm.monthlySalary === '' ? undefined : Number(editForm.monthlySalary) }, editEmployee.customerId); toast.success('Employee updated'); setEditEmployee(null); setEditForm({}); setRefresh((value) => value + 1); } catch (err) { toast.error(hrmError(err)); } finally { setSaving(false); } }}>
         <div className="grid gap-3 sm:grid-cols-2">
           <Label className="grid gap-1 text-xs">First name<Input value={editForm.firstName || ''} onChange={(event) => setEditForm({ ...editForm, firstName: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Last name<Input value={editForm.lastName || ''} onChange={(event) => setEditForm({ ...editForm, lastName: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Email<Input value={editForm.email || ''} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Phone<Input value={editForm.phone || ''} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Department<select className="h-9 rounded-md border px-2 text-sm" value={editForm.departmentId || ''} disabled={organizationLoading || Boolean(organizationError)} onChange={(event) => setEditForm({ ...editForm, departmentId: event.target.value })}><option value="" disabled={Boolean(editEmployee?.departmentId)}>Select department</option>{editEmployee?.departmentId && !departments.some((row) => String(row.id) === String(editEmployee.departmentId)) && <option value={String(editEmployee.departmentId)}>{editEmployee.department}</option>}{departments.map((row) => <option key={row.id} value={String(row.id)}>{row.name}</option>)}</select></Label>
-          <Label className="grid gap-1 text-xs">Reporting manager<select className="h-9 rounded-md border px-2 text-sm" value={editForm.managerId || ''} disabled={organizationLoading || Boolean(organizationError)} onChange={(event) => setEditForm({ ...editForm, managerId: event.target.value })}><option value="">Unassigned</option>{editEmployee?.managerId && !managers.some((row) => String(row.recordId) === String(editEmployee.managerId)) && <option value={String(editEmployee.managerId)}>Current manager unavailable</option>}{eligibleManagers.filter((row) => row.status === 'active' || String(row.recordId) === String(editEmployee?.managerId)).map((row) => <option key={row.recordId} value={String(row.recordId)}>{row.name} · {row.id}</option>)}</select>{organizationError && <span className="text-red-600">Could not load organization data: {organizationError}</span>}</Label>
+          <Label className="grid gap-1 text-xs">Reporting manager<select className="h-9 w-full rounded-md border px-2 text-sm" value={editForm.managerId || ''} disabled={organizationLoading || managerOptionsLoading || Boolean(organizationError || managerOptionsError)} onChange={(event) => setEditForm({ ...editForm, managerId: event.target.value })}><option value="">Unassigned</option>{editEmployee?.managerId && !managerOptions.some((row) => String(row.recordId) === String(editEmployee.managerId)) && <option value={String(editEmployee.managerId)}>Current manager unavailable</option>}{eligibleManagers.filter((row) => row.status === 'active' || String(row.recordId) === String(editEmployee?.managerId)).map((row) => <option key={row.recordId} value={String(row.recordId)}>{row.name} · {row.id}</option>)}</select>{(organizationError || managerOptionsError) && <span className="text-red-600">Could not load organization data: {organizationError || managerOptionsError}</span>}</Label>
           <Label className="grid gap-1 text-xs">Designation<select className="h-9 rounded-md border px-2 text-sm" value={editForm.designationId || ''} disabled={designationLoading || Boolean(designationError)} onChange={(event) => setEditForm({ ...editForm, designationId: event.target.value })}><option value="" disabled={Boolean(editEmployee?.designationId)}>Select designation</option>{editEmployee?.designationId && !designations.some((item) => String(item.id) === String(editEmployee.designationId)) && <option value={String(editEmployee.designationId)}>{editEmployee.designation}</option>}{designations.filter((item) => item.status === 'Active' || String(item.id) === String(editEmployee?.designationId)).map((item) => <option key={item.id} value={String(item.id)}>{item.name}{item.status !== 'Active' ? ' (inactive)' : ''}</option>)}</select>{designationError && <span className="text-red-600">Could not load designations: {designationError}</span>}</Label>
           <Label className="grid gap-1 text-xs">Employment type<Input value={editForm.employmentType || ''} onChange={(event) => setEditForm({ ...editForm, employmentType: event.target.value })} /></Label>
           <Label className="grid gap-1 text-xs">Status<select className="h-9 rounded-md border px-2 text-sm" value={editForm.status || 'ACTIVE'} onChange={(event) => setEditForm({ ...editForm, status: event.target.value })}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></Label>
@@ -360,9 +395,9 @@ export default function EmployeesPage() {
         designationError={designationError}
         designationLoading={designationLoading}
         departments={departments}
-        managers={managers}
-        organizationError={organizationError}
-        organizationLoading={organizationLoading}
+        managers={managerOptions}
+        organizationError={organizationError || managerOptionsError}
+        organizationLoading={organizationLoading || managerOptionsLoading}
       />
     </div>);
 }

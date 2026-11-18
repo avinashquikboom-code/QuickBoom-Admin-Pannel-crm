@@ -79,8 +79,10 @@ export async function createEmployee(values) {
   await api.post('/employees', values);
 }
 
-export function updateEmployee(id, values) {
-  return api.patch(`/employees/${id}`, values);
+export function updateEmployee(id, values, customerId) {
+  return api.patch(`/employees/${id}`, values, {
+    params: customerId ? { customerId } : undefined,
+  });
 }
 
 export async function deleteEmployee(id) {
