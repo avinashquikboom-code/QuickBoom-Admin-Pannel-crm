@@ -132,8 +132,12 @@ function TemplateRowActions({
   toggleTemplate,
   setEditing,
   setDeletingTemplate,
+  deletingId,
+  onDelete,
 }) {
   const isSyncing = syncingId === row?.id;
+  const isDeleting = deletingId === row?.id;
+  const deletePending = row?.deletionState === 'PENDING';
   const isLocalActive = row?.isLocalActive !== false;
   const statusKey = String(row?.status || '').toUpperCase();
   const syncStatus = String(row?.syncStatus || '').toUpperCase();
@@ -366,11 +370,12 @@ function TemplateRowActions({
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() => setDeletingTemplate(row)}
+            disabled={isDeleting}
+            onClick={() => (deletePending ? onDelete(row) : setDeletingTemplate(row))}
             className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
           >
             <Trash2 className="mr-2 h-4 w-4 text-rose-500" />
-            Delete Template
+            {isDeleting ? 'Deleting…' : deletePending ? 'Retry Delete' : 'Delete Template'}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -418,8 +423,11 @@ export function MetaTemplatesAll() {
   const [drawerTab, setDrawerTab] = React.useState('preview'); // 'preview' | 'test' | 'details'
   const [copiedCode, setCopiedCode] = React.useState(null);
   const [deletingTemplate, setDeletingTemplate] = React.useState(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
   const [deleteReason, setDeleteReason] = React.useState('');
+  const [deletingId, setDeletingId] = React.useState(null);
+  const [deletePreview, setDeletePreview] = React.useState(null);
+  const [deletePreviewError, setDeletePreviewError] = React.useState('');
+  const [deletePreviewLoading, setDeletePreviewLoading] = React.useState(false);
 
   // Test Send state
   const [testPhone, setTestPhone] = React.useState('');
@@ -552,24 +560,51 @@ export function MetaTemplatesAll() {
     }
   }
 
-  async function handleDeleteTemplate() {
-    if (!deletingTemplate) return;
-    setIsDeleting(true);
+  async function handleDeleteTemplate(template) {
+    const target = template || deletingTemplate;
+    if (!target) return;
+    setDeletingId(target.id);
     try {
-      await api.delete(`/templates/meta/${deletingTemplate.id}`, {
-        data: { reason: deleteReason ? deleteReason.trim() : undefined },
-      });
-      toast.success(`Template "${deletingTemplate.name || deletingTemplate.templateName}" deleted successfully.`);
-      setDeletingTemplate(null);
-      setDeleteReason('');
+      const response = envelope(await api.delete(`/templates/meta/${target.id}`, {
+        data: { reason: deleteReason ? deleteReason.trim() : undefined, confirmation: 'DELETE' },
+      }));
+      if (response?.deletionPending) {
+        toast.warning(response.message || 'Template was deleted from Meta, but local cleanup is pending. Use Retry Delete to finish.');
+      } else {
+        toast.success(response?.message || `Template "${target.name || target.templateName}" deleted successfully.`);
+        setDeletingTemplate(null);
+        setDeleteReason('');
+        setDeletePreview(null);
+        if (selected?.id === target.id) setSelected(null);
+      }
       await load();
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to delete template.';
-      toast.error(msg);
+      toast.error(Array.isArray(msg) ? msg.join(' ') : msg);
+      await load().catch(() => {});
+      throw new Error(Array.isArray(msg) ? msg.join(' ') : msg);
     } finally {
-      setIsDeleting(false);
+      setDeletingId(null);
     }
   }
+
+  React.useEffect(() => {
+    if (!deletingTemplate) {
+      setDeletePreview(null);
+      setDeletePreviewError('');
+      setDeletePreviewLoading(false);
+      return undefined;
+    }
+    let active = true;
+    setDeletePreview(null);
+    setDeletePreviewError('');
+    setDeletePreviewLoading(true);
+    api.post(`/templates/meta/${deletingTemplate.id}/delete-preview`, {})
+      .then((response) => { if (active) setDeletePreview(envelope(response)); })
+      .catch((err) => { if (active) setDeletePreviewError(err?.response?.data?.message || 'Template references could not be loaded.'); })
+      .finally(() => { if (active) setDeletePreviewLoading(false); });
+    return () => { active = false; };
+  }, [deletingTemplate?.id]);
 
   function copyCode(code) {
     if (!code) return;
@@ -1207,6 +1242,8 @@ export function MetaTemplatesAll() {
                             toggleTemplate={toggleTemplate}
                             setEditing={setEditing}
                             setDeletingTemplate={setDeletingTemplate}
+                            deletingId={deletingId}
+                            onDelete={handleDeleteTemplate}
                           />
                         </td>
                       </tr>
@@ -1317,6 +1354,8 @@ export function MetaTemplatesAll() {
                     toggleTemplate={toggleTemplate}
                     setEditing={setEditing}
                     setDeletingTemplate={setDeletingTemplate}
+                    deletingId={deletingId}
+                    onDelete={handleDeleteTemplate}
                   />
                 </div>
               </article>
@@ -1579,17 +1618,51 @@ export function MetaTemplatesAll() {
         <ConfirmDialog
           open={Boolean(deletingTemplate)}
           onOpenChange={(open) => {
-            if (!open) {
+            if (!open && !deletingId) {
               setDeletingTemplate(null);
               setDeleteReason('');
+              setDeletePreview(null);
             }
           }}
-          title={`Delete "${deletingTemplate.name || deletingTemplate.templateName}"?`}
-          description="Are you sure you want to delete this template from Meta and archive the local CRM record? This action cannot be undone."
-          confirmLabel={isDeleting ? 'Deleting…' : 'Delete Template'}
+          title={deletingTemplate.deletionState === 'PENDING' ? 'Retry Template Deletion?' : 'Delete WhatsApp Template?'}
+          description={deletingTemplate.deletionState === 'PENDING'
+            ? 'Meta deletion already succeeded. This retry only finishes archiving the local record and does not call Meta again.'
+            : 'This action will permanently delete this template from your connected Meta WhatsApp Business Account and QB Suite database. This operation cannot be undone.'}
+          confirmLabel={deletingId === deletingTemplate.id ? 'Deleting…' : deletingTemplate.deletionState === 'PENDING' ? 'Retry Delete' : 'Delete Template'}
           variant="destructive"
-          loading={isDeleting}
-          onConfirm={handleDeleteTemplate}
+          loading={deletingId === deletingTemplate.id}
+          onConfirm={() => handleDeleteTemplate(deletingTemplate).catch(() => {})}
+          details={(
+            <div className="space-y-3 text-left">
+              <dl className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 text-xs">
+                <div><dt className="text-slate-400">Template name</dt><dd className="font-semibold text-slate-800 break-words">{deletingTemplate.name}</dd></div>
+                <div><dt className="text-slate-400">Language</dt><dd className="font-semibold text-slate-800">{deletingTemplate.language || '—'}</dd></div>
+                <div><dt className="text-slate-400">Category</dt><dd className="font-semibold text-slate-800">{CATEGORY_CONFIG[deletingTemplate.category]?.label || deletingTemplate.category || '—'}</dd></div>
+                <div>
+                  <dt className="text-slate-400">Meta synchronization status</dt>
+                  <dd className="font-semibold text-slate-800">{metaStatusInfo(deletingTemplate).label}</dd>
+                </div>
+              </dl>
+              {deletePreviewLoading && <p className="text-xs text-slate-500">Checking lead stages, campaigns, and delivery records…</p>}
+              {deletePreviewError && <p className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">{deletePreviewError}</p>}
+              {deletePreview && (
+                <div className="space-y-1 text-xs text-slate-600">
+                  <p className="font-semibold text-slate-700">References</p>
+                  <ul className="list-disc space-y-0.5 pl-4">
+                    <li>Lead stages mapped: {deletePreview.references?.leadStages?.length || 0}{deletePreview.references?.leadStages?.length ? ` (${deletePreview.references.leadStages.map((stage) => stage.name).join(', ')})` : ''}</li>
+                    <li>WhatsApp campaigns: {deletePreview.references?.whatsappCampaigns || 0} (active ones are cancelled; history is kept)</li>
+                    <li>Stage delivery records preserved: {deletePreview.references?.deliveryRecords || 0}</li>
+                  </ul>
+                  {(deletePreview.blockers || []).length > 0 && (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-700">
+                      <p className="font-semibold">Deletion is blocked</p>
+                      <ul className="mt-1 list-disc pl-4">{deletePreview.blockers.map((item) => <li key={item}>{item}</li>)}</ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           note={{
             label: 'Deletion reason (optional for audit log)',
             value: deleteReason,
