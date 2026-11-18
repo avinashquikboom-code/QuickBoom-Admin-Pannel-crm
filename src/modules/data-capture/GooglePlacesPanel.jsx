@@ -141,7 +141,7 @@ export function GooglePlacesPanel({ open, onOpenChange, onImported, initialPlace
     }
   };
   const failedIds = selected.filter((id) => outcomes[id]?.status === 'failed');
-  return <FormDrawer open={open} onOpenChange={(value) => { if (!importing) onOpenChange(value); }} title="Find Leads from Google" description="Google Maps results are live references. Enter business fields from your own records before importing a CRM lead; do not copy Google content." size="xl" showFooter={false} bodyClassName="!flex !min-h-0 !flex-1 !flex-col !overflow-hidden !space-y-0 !p-0" contentClassName="w-full sm:max-w-[760px]">
+  return <FormDrawer open={open} onOpenChange={(value) => { if (!importing) onOpenChange(value); }} title="Find Leads from Google" description="Google Maps details are shown as an attributed live preview. CRM fields must come from your own records or another authorized source." size="xl" showFooter={false} bodyClassName="!flex !min-h-0 !flex-1 !flex-col !overflow-hidden !space-y-0 !p-0" contentClassName="w-full sm:max-w-[760px]">
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
         <div className="relative">
@@ -180,23 +180,32 @@ export function GooglePlacesPanel({ open, onOpenChange, onImported, initialPlace
           {places.map((place) => {
             const outcome = outcomes[placeKey(place)];
             const km = distanceKm(location, place);
+            const availableGoogleDetails = [place.businessName, place.category, place.phone, place.website, place.address].filter(Boolean).length;
             return <article key={placeKey(place) || place.id} className={`rounded-xl border bg-white p-3 text-sm shadow-sm ${selected.includes(placeKey(place)) ? 'border-[#163A2E]' : 'border-[#E2E8E5]'}`}>
               <div className="flex items-start gap-3">
                 <AdminSelectCheckbox checked={selected.includes(placeKey(place))} disabled={!placeKey(place) || ['imported', 'duplicate'].includes(outcome?.status)} onChange={() => toggle(place)} label={`Select ${place.businessName}`} />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-[#172B24]">{place.businessName || 'Google Maps reference'}</p>
                   <p className="text-[#718078]">{place.category || 'Not available'}{km != null ? ` · ${km} km` : ''}</p>
+                  <p className="text-[11px] text-[#718078]">Google details available: {availableGoogleDetails}/5 · Live Google Maps reference</p>
                   <p className="mt-1 flex items-start gap-2"><FontAwesomeIcon icon={faLocationDot} className="mt-0.5 text-[#163A2E]" /> {place.address && place.address !== 'N/A' ? place.address : 'Not available'}</p>
+                  <p className="ml-5 text-xs text-[#718078]">{[place.rawData?.city, place.rawData?.state, place.rawData?.country].filter(Boolean).join(', ') || 'City and state not available'}{place.rawData?.pincode ? ` · ${place.rawData.pincode}` : ''}</p>
                   <p className="flex items-center gap-2"><FontAwesomeIcon icon={faPhone} className="text-[#163A2E]" /> {place.phone || 'Not available'}</p>
                   {place.email && <p className="flex items-center gap-2"><FontAwesomeIcon icon={faEnvelope} className="text-[#163A2E]" /> {place.email}</p>}
                   <p className="flex items-center gap-2"><FontAwesomeIcon icon={faGlobe} className="text-[#163A2E]" /> {place.website ? <a className="truncate text-[#163A2E] underline" href={place.website} target="_blank" rel="noreferrer">{place.website}</a> : 'Not available'}</p>
                   {place.googleMapsUrl && <a className="text-xs text-[#163A2E] underline" href={place.googleMapsUrl} target="_blank" rel="noreferrer">Google Maps profile</a>}
                   {outcome && <p className={`mt-1 text-xs ${outcome.status === 'failed' ? 'text-red-700' : 'text-[#163A2E]'}`}>{outcome.status === 'imported' ? 'Imported' : outcome.status === 'duplicate' ? 'Already in CRM' : outcome.message}</p>}
                   {(place.rawData?.attributions || []).map((item, index) => <p key={index} className="text-xs">{item.provider ? <a href={item.providerUri} target="_blank" rel="noreferrer">{item.provider}</a> : null}</p>)}
+                  <section className="mt-3 rounded-lg border border-[#E2E8E5] p-3">
+                    <p className="text-xs font-medium">Social Media &amp; Online Presence</p>
+                    {Object.entries(place.socialMedia || {}).filter(([, value]) => typeof value === 'string' && /^https:\/\//i.test(value)).length ? Object.entries(place.socialMedia || {}).filter(([, value]) => typeof value === 'string' && /^https:\/\//i.test(value)).map(([platform, url]) => <a key={platform} className="mr-3 text-xs text-[#163A2E] underline" href={url} target="_blank" rel="noreferrer">{platform}</a>) : <p className="mt-1 text-xs text-[#718078]">No verified social media profiles found.</p>}
+                    <p className="mt-1 text-[11px] text-[#718078]">You can add official URLs from your own records below. Manually added profiles are saved as unverified.</p>
+                  </section>
                   {outcome?.leadId && <Link className="ml-2 text-xs underline" href={`/admin/crm/leads?leadId=${outcome.leadId}`}>CRM lead #{outcome.leadId}</Link>}
                   {selected.includes(placeKey(place)) && !['imported', 'duplicate'].includes(outcome?.status) && <fieldset className="mt-3 grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
                     <legend className="px-1 text-xs font-medium">Independently supplied CRM fields</legend>
                     {['businessName', 'phone', 'email', 'website', 'address', 'city', 'state', 'country', 'pincode', 'category'].map((key) => <Field key={key} label={key === 'businessName' ? 'Business name (required)' : key}><Input value={independentFields[placeKey(place)]?.[key] || ''} onChange={(event) => setIndependentFields((current) => ({ ...current, [placeKey(place)]: { ...current[placeKey(place)], [key]: event.target.value } }))} /></Field>)}
+                    <div className="sm:col-span-2"><p className="mb-2 text-xs font-medium">Social profiles from your records (optional)</p><div className="grid gap-2 sm:grid-cols-2">{['instagram', 'facebook', 'linkedin', 'youtube', 'twitter', 'tiktok', 'pinterest', 'other'].map((platform) => <Field key={platform} label={platform}><Input type="url" placeholder="https://" value={independentFields[placeKey(place)]?.socialMedia?.[platform] || ''} onChange={(event) => setIndependentFields((current) => ({ ...current, [placeKey(place)]: { ...current[placeKey(place)], socialMedia: { ...current[placeKey(place)]?.socialMedia, [platform]: event.target.value } } }))} /></Field>)}</div></div>
                   </fieldset>}
                   <Button className="mt-2" size="sm" variant="outline" onClick={async () => { try { setDetail(unwrap(await loadCapturedPlace(place.id))); } catch (err) { toast.error(crmError(err)); } }}>View Details</Button>
                 </div>
