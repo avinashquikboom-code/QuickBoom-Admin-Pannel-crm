@@ -32,6 +32,32 @@ import {
   faCode,
 } from '@fortawesome/free-solid-svg-icons';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import {
+  RotateCw,
+  Eye,
+  Send,
+  Pencil,
+  Copy,
+  Power,
+  History,
+  MoreHorizontal,
+  AlertCircle,
+  Trash2,
+  UploadCloud,
+} from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadCsv, envelope, pageOf, Pager, rowsOf } from '../template-shared';
 import { MetaTemplateDetails, WhatsAppPreview } from './meta-shared';
@@ -83,15 +109,273 @@ const STATUS_CONFIG = {
 };
 
 function metaStatusInfo(row) {
-  if (row.syncStatus === 'SYNC_FAILED') return {
-    bg: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500', label: 'Sync Failed',
-  };
-  if (row.syncStatus === 'NOT_SYNCED' || !row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_')) return {
-    bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Not Synced',
-  };
+  if (!row) {
+    return { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Unknown' };
+  }
+  if (row.syncStatus === 'SYNC_FAILED') {
+    return { bg: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500', label: 'Sync Failed' };
+  }
+  if (row.syncStatus === 'NOT_SYNCED' || !row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_')) {
+    return { bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: 'Not Synced' };
+  }
   return STATUS_CONFIG[String(row.status || '').toUpperCase()] || {
     bg: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400', label: row.status || 'Unknown',
   };
+}
+
+function TemplateRowActions({
+  row,
+  statusInfo,
+  syncingId,
+  openPreview,
+  syncTemplate,
+  toggleTemplate,
+  setEditing,
+  setDeletingTemplate,
+}) {
+  const isSyncing = syncingId === row?.id;
+  const isLocalActive = row?.isLocalActive !== false;
+  const statusKey = String(row?.status || '').toUpperCase();
+  const syncStatus = String(row?.syncStatus || '').toUpperCase();
+  const notLinked =
+    syncStatus === 'NOT_SYNCED' || !row?.metaTemplateId || String(row?.metaTemplateId).startsWith('seed_');
+
+  // Determine status classification
+  let statusMode = 'APPROVED';
+  if (!isLocalActive) {
+    statusMode = 'INACTIVE';
+  } else if (syncStatus === 'SYNC_FAILED') {
+    statusMode = 'SYNC_FAILED';
+  } else if (notLinked) {
+    statusMode = 'NOT_SYNCED';
+  } else if (statusKey === 'REJECTED') {
+    statusMode = 'REJECTED';
+  } else if (statusKey === 'PENDING') {
+    statusMode = 'PENDING';
+  } else if (statusKey === 'APPROVED') {
+    statusMode = 'APPROVED';
+  } else {
+    statusMode = 'APPROVED';
+  }
+
+  // Primary & Secondary actions based on specification
+  let primary = {
+    label: 'Sync',
+    icon: RotateCw,
+    onClick: () => syncTemplate(row),
+    title: 'Sync status with Meta',
+  };
+  let secondary = {
+    label: 'View',
+    icon: Eye,
+    onClick: () => openPreview(row, 'preview'),
+    title: 'View template preview and details',
+  };
+
+  switch (statusMode) {
+    case 'INACTIVE':
+      primary = {
+        label: 'Activate',
+        icon: Power,
+        onClick: () => toggleTemplate(row),
+        title: 'Activate template in CRM',
+      };
+      secondary = {
+        label: 'View',
+        icon: Eye,
+        onClick: () => openPreview(row, 'preview'),
+        title: 'View template preview and details',
+      };
+      break;
+
+    case 'NOT_SYNCED':
+      primary = {
+        label: 'Submit to Meta',
+        icon: UploadCloud,
+        onClick: () => syncTemplate(row),
+        title: 'Submit this template to Meta for review',
+      };
+      secondary = {
+        label: 'View',
+        icon: Eye,
+        onClick: () => openPreview(row, 'preview'),
+        title: 'View template preview and details',
+      };
+      break;
+
+    case 'PENDING':
+      primary = {
+        label: 'Refresh Status',
+        icon: RotateCw,
+        onClick: () => syncTemplate(row),
+        title: 'Refresh approval status from Meta',
+      };
+      secondary = {
+        label: 'View',
+        icon: Eye,
+        onClick: () => openPreview(row, 'preview'),
+        title: 'View template preview and details',
+      };
+      break;
+
+    case 'REJECTED':
+      primary = {
+        label: 'View Rejection',
+        icon: AlertCircle,
+        onClick: () => openPreview(row, 'preview'),
+        title: row?.rejectionReason ? `Meta rejection reason: ${row.rejectionReason}` : 'View rejection reason',
+      };
+      secondary = {
+        label: 'Retry Submission',
+        icon: RotateCw,
+        onClick: () => syncTemplate(row),
+        title: 'Retry template submission to Meta',
+      };
+      break;
+
+    case 'SYNC_FAILED':
+      primary = {
+        label: 'Retry Sync',
+        icon: RotateCw,
+        onClick: () => syncTemplate(row),
+        title: 'Retry synchronization with Meta',
+      };
+      secondary = {
+        label: 'View Error',
+        icon: AlertCircle,
+        onClick: () => {
+          if (row?.syncError) toast.error(row.syncError);
+          openPreview(row, 'preview');
+        },
+        title: row?.syncError || 'View sync error details',
+      };
+      break;
+
+    case 'APPROVED':
+    default:
+      primary = {
+        label: 'Sync',
+        icon: RotateCw,
+        onClick: () => syncTemplate(row),
+        title: 'Sync status with Meta',
+      };
+      secondary = {
+        label: 'View',
+        icon: Eye,
+        onClick: () => openPreview(row, 'preview'),
+        title: 'View template preview and details',
+      };
+      break;
+  }
+
+  const PrimaryIcon = primary.icon;
+  const SecondaryIcon = secondary.icon;
+
+  return (
+    <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+      {/* Primary Action Button */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isSyncing}
+            onClick={primary.onClick}
+            className="h-8 px-2.5 text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 border-emerald-200 transition-colors shadow-2xs rounded-lg whitespace-nowrap"
+          >
+            <PrimaryIcon className={`mr-1.5 h-3.5 w-3.5 shrink-0 ${isSyncing ? 'animate-spin text-emerald-700' : 'text-emerald-600'}`} />
+            {isSyncing ? 'Syncing…' : primary.label}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>{primary.title}</p>
+        </TooltipContent>
+      </Tooltip>
+
+      {/* Secondary Action Button */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={isSyncing}
+            onClick={secondary.onClick}
+            className="h-8 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg whitespace-nowrap"
+          >
+            <SecondaryIcon className="mr-1 h-3.5 w-3.5 text-slate-400 shrink-0" />
+            {secondary.label}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>{secondary.title}</p>
+        </TooltipContent>
+      </Tooltip>
+
+      {/* More Actions Dropdown */}
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-lg shrink-0"
+                aria-label={`More actions for ${row?.name || 'template'}`}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p>More actions</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <DropdownMenuContent align="end" side="bottom" className="w-52 bg-white shadow-lg border border-slate-200 rounded-xl">
+          <DropdownMenuItem onClick={() => openPreview(row, 'test')}>
+            <Send className="mr-2 h-4 w-4 text-emerald-600" />
+            Test Template
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEditing({ row, duplicate: false })}>
+            <Pencil className="mr-2 h-4 w-4 text-slate-500" />
+            Edit Template
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEditing({ row, duplicate: true })}>
+            <Copy className="mr-2 h-4 w-4 text-slate-500" />
+            Duplicate Template
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => toggleTemplate(row)}>
+            <Power className="mr-2 h-4 w-4 text-slate-500" />
+            {isLocalActive ? 'Deactivate' : 'Activate'}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => {
+              if (row?.lastSyncedAt) {
+                toast.info(`Last synced with Meta: ${new Date(row.lastSyncedAt).toLocaleString()}`);
+              } else {
+                toast.info('This template has never been synced with Meta.');
+              }
+              openPreview(row, 'details');
+            }}
+          >
+            <History className="mr-2 h-4 w-4 text-slate-500" />
+            View Sync History
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setDeletingTemplate(row)}
+            className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+          >
+            <Trash2 className="mr-2 h-4 w-4 text-rose-500" />
+            Delete Template
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }
 
 const CATEGORY_CONFIG = {
@@ -133,6 +417,9 @@ export function MetaTemplatesAll() {
   const [editing, setEditing] = React.useState(null);
   const [drawerTab, setDrawerTab] = React.useState('preview'); // 'preview' | 'test' | 'details'
   const [copiedCode, setCopiedCode] = React.useState(null);
+  const [deletingTemplate, setDeletingTemplate] = React.useState(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [deleteReason, setDeleteReason] = React.useState('');
 
   // Test Send state
   const [testPhone, setTestPhone] = React.useState('');
@@ -262,6 +549,25 @@ export function MetaTemplatesAll() {
       load();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to toggle template status.');
+    }
+  }
+
+  async function handleDeleteTemplate() {
+    if (!deletingTemplate) return;
+    setIsDeleting(true);
+    try {
+      await api.delete(`/templates/meta/${deletingTemplate.id}`, {
+        data: { reason: deleteReason ? deleteReason.trim() : undefined },
+      });
+      toast.success(`Template "${deletingTemplate.name || deletingTemplate.templateName}" deleted successfully.`);
+      setDeletingTemplate(null);
+      setDeleteReason('');
+      await load();
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to delete template.';
+      toast.error(msg);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -763,7 +1069,7 @@ export function MetaTemplatesAll() {
                   <th className="px-4 py-3.5">Approval Status</th>
                   <th className="px-4 py-3.5">Header / PDF</th>
                   <th className="px-4 py-3.5">Last Synced</th>
-                  <th className="px-4 py-3.5 text-right">Actions</th>
+                  <th className="sticky right-0 z-20 bg-slate-50/95 backdrop-blur-xs px-4 py-3.5 text-right shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -891,112 +1197,17 @@ export function MetaTemplatesAll() {
                           {row.syncError && <span className="mt-1 block max-w-48 whitespace-normal text-rose-600">{row.syncError}</span>}
                         </td>
                         {/* Actions Column */}
-                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Primary Action */}
-                            {(() => {
-                              const isNotSynced = statusInfo.label === 'Not Synced' || !row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_');
-                              const isSyncFailed = statusInfo.label === 'Sync Failed';
-                              const isApproved = statusInfo.label === 'Approved';
-                              const isPending = statusInfo.label === 'Pending';
-                              const isRejected = statusInfo.label === 'Rejected';
-                              const isInactive = !row.isLocalActive;
-                              // Determine primary button props
-                              let primaryLabel = '';
-                              let primaryIcon = faRotate;
-                              let primaryHandler = () => {};
-                              let primaryDisabled = syncingId === row.id;
-                              let primaryTitle = '';
-
-                              if (isApproved) {
-                                primaryLabel = 'Sync';
-                                primaryHandler = () => syncTemplate(row);
-                                primaryTitle = 'Sync with Meta';
-                              } else if (isNotSynced) {
-                                primaryLabel = 'Submit to Meta';
-                                primaryHandler = () => syncTemplate(row);
-                                primaryTitle = 'Submit template to Meta';
-                              } else if (isPending) {
-                                primaryLabel = 'Refresh';
-                                primaryHandler = () => syncTemplate(row);
-                                primaryTitle = 'Refresh status from Meta';
-                              } else if (isRejected) {
-                                primaryLabel = 'View Rejection';
-                                primaryHandler = () => openPreview(row, 'preview');
-                                primaryTitle = 'View rejection reason';
-                              } else if (isSyncFailed) {
-                                primaryLabel = 'Retry Sync';
-                                primaryHandler = () => syncTemplate(row);
-                                primaryTitle = 'Retry synchronization with Meta';
-                              } else if (isInactive) {
-                                primaryLabel = 'Activate';
-                                primaryHandler = () => toggleTemplate(row);
-                                primaryTitle = 'Activate template';
-                              } else {
-                                // default fallback
-                                primaryLabel = 'Sync';
-                                primaryHandler = () => syncTemplate(row);
-                                primaryTitle = 'Sync with Meta';
-                              }
-
-                              return (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={primaryDisabled}
-                                  onClick={primaryHandler}
-                                  className="h-8 px-2 text-xs font-semibold text-emerald-700"
-                                  title={primaryTitle}
-                                >
-                                  <FontAwesomeIcon icon={primaryIcon} className={`mr-1 ${primaryDisabled ? 'animate-spin' : ''}`} />
-                                  {primaryDisabled ? 'Syncing' : primaryLabel}
-                                </Button>
-                              );
-                            })()}
-                            {/* View Action (secondary) */}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openPreview(row, 'preview')}
-                              className="h-8 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-emerald-700"
-                              title="Preview template"
-                            >
-                              <FontAwesomeIcon icon={faEye} className="mr-1 text-slate-400" />
-                              View
-                            </Button>
-                            {/* More Actions Dropdown */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon-sm" className="h-8 w-8" aria-label="More actions">
-                                  <MoreHorizontal className="size-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" side="bottom" className="w-56">
-                                <DropdownMenuItem onSelect={() => openPreview(row, 'test')}>
-                                  <FontAwesomeIcon icon={faPaperPlane} className="mr-2 text-emerald-500" />
-                                  Test Template
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setEditing({ row, duplicate: false })}>
-                                  <FontAwesomeIcon icon={faPenToSquare} className="mr-2" />
-                                  Edit Template
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setEditing({ row, duplicate: true })}>
-                                  <FontAwesomeIcon icon={faCopy} className="mr-2" />
-                                  Duplicate Template
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => toggleTemplate(row)}>
-                                  <FontAwesomeIcon icon={row.isLocalActive ? faToggleOff : faToggleOn} className="mr-2" />
-                                  {row.isLocalActive ? 'Deactivate' : 'Activate'}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => toast.info('Sync history view not implemented') }>
-                                  <FontAwesomeIcon icon={faClock} className="mr-2" />
-                                  View Sync History
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
+                        <td className="sticky right-0 z-10 bg-white group-hover:bg-slate-50/80 px-4 py-3.5 text-right whitespace-nowrap shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]">
+                          <TemplateRowActions
+                            row={row}
+                            statusInfo={statusInfo}
+                            syncingId={syncingId}
+                            openPreview={openPreview}
+                            syncTemplate={syncTemplate}
+                            toggleTemplate={toggleTemplate}
+                            setEditing={setEditing}
+                            setDeletingTemplate={setDeletingTemplate}
+                          />
                         </td>
                       </tr>
                     );
@@ -1096,42 +1307,17 @@ export function MetaTemplatesAll() {
                   </button>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
-                  <Button type="button" variant="outline" size="sm" className="flex-1 text-xs border-emerald-200 text-emerald-700" disabled={syncingId === row.id} onClick={() => syncTemplate(row)}>
-                    <FontAwesomeIcon icon={faRotate} className={`mr-1 ${syncingId === row.id ? 'animate-spin' : ''}`} />
-                    {syncingId === row.id ? 'Syncing' : statusInfo.label === 'Not Synced' ? 'Submit to Meta' : statusInfo.label === 'Sync Failed' ? 'Retry Sync' : 'Sync'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs border-slate-200"
-                    onClick={() => openPreview(row, 'preview')}
-                  >
-                    <FontAwesomeIcon icon={faEye} className="mr-1 text-slate-400" />
-                    Preview
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs border-emerald-200 text-emerald-700 bg-emerald-50/50"
-                    onClick={() => openPreview(row, 'test')}
-                  >
-                    <FontAwesomeIcon icon={faPaperPlane} className="mr-1 text-emerald-600" />
-                    Test Send
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setEditing({ row, duplicate: false })}>Edit</Button>
-                  <Button type="button" variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setEditing({ row, duplicate: true })}>Duplicate</Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="flex-1 text-xs text-slate-600"
-                    onClick={() => toggleTemplate(row)}
-                  >
-                    {row.isLocalActive ? 'Deactivate' : 'Activate'}
-                  </Button>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
+                  <TemplateRowActions
+                    row={row}
+                    statusInfo={statusInfo}
+                    syncingId={syncingId}
+                    openPreview={openPreview}
+                    syncTemplate={syncTemplate}
+                    toggleTemplate={toggleTemplate}
+                    setEditing={setEditing}
+                    setDeletingTemplate={setDeletingTemplate}
+                  />
                 </div>
               </article>
             );
@@ -1386,6 +1572,31 @@ export function MetaTemplatesAll() {
             </div>
           </aside>
         </div>
+      )}
+
+      {/* ── Delete Confirmation Dialog ──────────────────────── */}
+      {deletingTemplate && (
+        <ConfirmDialog
+          open={Boolean(deletingTemplate)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeletingTemplate(null);
+              setDeleteReason('');
+            }
+          }}
+          title={`Delete "${deletingTemplate.name || deletingTemplate.templateName}"?`}
+          description="Are you sure you want to delete this template from Meta and archive the local CRM record? This action cannot be undone."
+          confirmLabel={isDeleting ? 'Deleting…' : 'Delete Template'}
+          variant="destructive"
+          loading={isDeleting}
+          onConfirm={handleDeleteTemplate}
+          note={{
+            label: 'Deletion reason (optional for audit log)',
+            value: deleteReason,
+            onChange: setDeleteReason,
+            placeholder: 'e.g., Obsolete or replaced with new promotional template',
+          }}
+        />
       )}
     </div>
   );
