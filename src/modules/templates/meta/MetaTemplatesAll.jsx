@@ -893,10 +893,68 @@ export function MetaTemplatesAll() {
                         {/* Actions Column */}
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
-                            <Button type="button" variant="ghost" size="sm" disabled={syncingId === row.id} onClick={() => syncTemplate(row)} className="h-8 px-2 text-xs font-semibold text-emerald-700" title={statusInfo.label === 'Not Synced' ? 'Check Meta, then submit if missing' : 'Refresh status from Meta'}>
-                              <FontAwesomeIcon icon={faRotate} className={`mr-1 ${syncingId === row.id ? 'animate-spin' : ''}`} />
-                              {syncingId === row.id ? 'Syncing' : statusInfo.label === 'Not Synced' ? 'Submit to Meta' : statusInfo.label === 'Sync Failed' ? 'Retry Sync' : 'Sync'}
-                            </Button>
+                            {/* Primary Action */}
+                            {(() => {
+                              const isNotSynced = statusInfo.label === 'Not Synced' || !row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_');
+                              const isSyncFailed = statusInfo.label === 'Sync Failed';
+                              const isApproved = statusInfo.label === 'Approved';
+                              const isPending = statusInfo.label === 'Pending';
+                              const isRejected = statusInfo.label === 'Rejected';
+                              const isInactive = !row.isLocalActive;
+                              // Determine primary button props
+                              let primaryLabel = '';
+                              let primaryIcon = faRotate;
+                              let primaryHandler = () => {};
+                              let primaryDisabled = syncingId === row.id;
+                              let primaryTitle = '';
+
+                              if (isApproved) {
+                                primaryLabel = 'Sync';
+                                primaryHandler = () => syncTemplate(row);
+                                primaryTitle = 'Sync with Meta';
+                              } else if (isNotSynced) {
+                                primaryLabel = 'Submit to Meta';
+                                primaryHandler = () => syncTemplate(row);
+                                primaryTitle = 'Submit template to Meta';
+                              } else if (isPending) {
+                                primaryLabel = 'Refresh';
+                                primaryHandler = () => syncTemplate(row);
+                                primaryTitle = 'Refresh status from Meta';
+                              } else if (isRejected) {
+                                primaryLabel = 'View Rejection';
+                                primaryHandler = () => openPreview(row, 'preview');
+                                primaryTitle = 'View rejection reason';
+                              } else if (isSyncFailed) {
+                                primaryLabel = 'Retry Sync';
+                                primaryHandler = () => syncTemplate(row);
+                                primaryTitle = 'Retry synchronization with Meta';
+                              } else if (isInactive) {
+                                primaryLabel = 'Activate';
+                                primaryHandler = () => toggleTemplate(row);
+                                primaryTitle = 'Activate template';
+                              } else {
+                                // default fallback
+                                primaryLabel = 'Sync';
+                                primaryHandler = () => syncTemplate(row);
+                                primaryTitle = 'Sync with Meta';
+                              }
+
+                              return (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={primaryDisabled}
+                                  onClick={primaryHandler}
+                                  className="h-8 px-2 text-xs font-semibold text-emerald-700"
+                                  title={primaryTitle}
+                                >
+                                  <FontAwesomeIcon icon={primaryIcon} className={`mr-1 ${primaryDisabled ? 'animate-spin' : ''}`} />
+                                  {primaryDisabled ? 'Syncing' : primaryLabel}
+                                </Button>
+                              );
+                            })()}
+                            {/* View Action (secondary) */}
                             <Button
                               type="button"
                               variant="ghost"
@@ -908,32 +966,36 @@ export function MetaTemplatesAll() {
                               <FontAwesomeIcon icon={faEye} className="mr-1 text-slate-400" />
                               View
                             </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openPreview(row, 'test')}
-                              className="h-8 px-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                              title="Test send to a phone"
-                            >
-                              <FontAwesomeIcon icon={faPaperPlane} className="mr-1 text-emerald-500" />
-                              Test
-                            </Button>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing({ row, duplicate: false })} className="h-8 px-2 text-xs text-[#163A2E]">Edit</Button>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing({ row, duplicate: true })} className="h-8 px-2 text-xs text-[#163A2E]">Duplicate</Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleTemplate(row)}
-                              className={`h-8 px-2.5 text-xs font-semibold ${
-                                row.isLocalActive
-                                  ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                                  : 'text-emerald-700 hover:bg-emerald-50'
-                              }`}
-                            >
-                              {row.isLocalActive ? 'Deactivate' : 'Activate'}
-                            </Button>
+                            {/* More Actions Dropdown */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon-sm" className="h-8 w-8" aria-label="More actions">
+                                  <MoreHorizontal className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" side="bottom" className="w-56">
+                                <DropdownMenuItem onSelect={() => openPreview(row, 'test')}>
+                                  <FontAwesomeIcon icon={faPaperPlane} className="mr-2 text-emerald-500" />
+                                  Test Template
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setEditing({ row, duplicate: false })}>
+                                  <FontAwesomeIcon icon={faPenToSquare} className="mr-2" />
+                                  Edit Template
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setEditing({ row, duplicate: true })}>
+                                  <FontAwesomeIcon icon={faCopy} className="mr-2" />
+                                  Duplicate Template
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => toggleTemplate(row)}>
+                                  <FontAwesomeIcon icon={row.isLocalActive ? faToggleOff : faToggleOn} className="mr-2" />
+                                  {row.isLocalActive ? 'Deactivate' : 'Activate'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => toast.info('Sync history view not implemented') }>
+                                  <FontAwesomeIcon icon={faClock} className="mr-2" />
+                                  View Sync History
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </td>
                       </tr>
