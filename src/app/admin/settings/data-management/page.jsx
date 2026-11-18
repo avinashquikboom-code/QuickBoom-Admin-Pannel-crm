@@ -349,7 +349,7 @@ export default function DataManagementPage() {
                       const reasonText = protectedReference
                         ? 'Protected role/designation reference; leave Designations out of this reset or resolve the link through authorized role management.'
                         : otherTenant
-                          ? `${otherTenant.toLocaleString()} cross-tenant reference${otherTenant === 1 ? '' : 's'} must be resolved by that tenant; this reset will not modify them.${eligibleSameTenant && item.resolutionModule ? ` Select ${item.resolutionModule.name} to include ${eligibleSameTenant.toLocaleString()} same-tenant record${eligibleSameTenant === 1 ? '' : 's'}.` : ''}`
+                          ? `${otherTenant.toLocaleString()} cross-tenant reference${otherTenant === 1 ? '' : 's'} belong to other tenant-owned records. The administrator of each owning tenant must resolve the employee link; this reset will leave those records unchanged.${eligibleSameTenant && item.resolutionModule ? ` Select ${item.resolutionModule.name} to include ${eligibleSameTenant.toLocaleString()} same-tenant record${eligibleSameTenant === 1 ? '' : 's'}.` : ''}`
                           : item.policy === 'cascade' && !item.includedInSelectedModule
                             ? `Select ${item.resolutionModule?.name || 'the eligible module'} to include these same-tenant records.`
                             : 'This dependency must be resolved before execution.';
