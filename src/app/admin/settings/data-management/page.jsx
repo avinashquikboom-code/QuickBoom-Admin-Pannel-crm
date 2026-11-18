@@ -158,12 +158,12 @@ export default function DataManagementPage() {
       }
       const nonzeroModules = selected
         .map((id) => refreshedOverview.modules?.find((item) => item.id === id) || { id, name: id, records: null })
-        .filter((item) => item.records !== 0);
+        .filter((item) => item.records !== (item.id === 'designations' ? Number(resetResult.preservedCounts?.designation || 0) : 0));
       if (nonzeroModules.length) {
         toast.error(`The reset committed, but fresh module counts are not zero for: ${nonzeroModules.map((item) => item.name).join(', ')}. Review the table counts and history.`);
         return;
       }
-      toast.success(`Reset complete: ${resetResult.recordsDeleted} records deleted; selected modules now show zero records.`);
+      toast.success(`Reset complete: ${resetResult.recordsDeleted} deleted; ${resetResult.recordsPreserved || 0} protected records preserved. Counts verified after commit.`);
     } catch (err) {
       toast.error(suiteError(err));
     } finally {
@@ -196,7 +196,7 @@ export default function DataManagementPage() {
   const previewExpired = !preview?.expiresAt || new Date(preview.expiresAt).getTime() <= clock;
   const warnings = preview?.dependencyWarnings || [];
   const blockers = warnings.filter((item) => item.blocking);
-  const resolvedDependencies = warnings.filter((item) => Number(item.resolvedRecords || 0) > 0 || (!item.blocking && item.records > 0));
+  const resolvedDependencies = warnings.filter((item) => !item.preserved && (Number(item.resolvedRecords || 0) > 0 || (!item.blocking && item.records > 0)));
   const unresolvedDependencies = warnings.filter((item) => item.blocking || Number(item.unresolvedRecords || 0) > 0);
   const roles = [authUser?.role, authUser?.accountType, ...(Array.isArray(authUser?.roles) ? authUser.roles : [])]
     .map((role) => String(role || '').trim().toUpperCase().replace(/[\s-]+/g, '_'));
@@ -322,14 +322,18 @@ export default function DataManagementPage() {
             {preview && (
               <Panel>
                 <h2 className="font-semibold">Reset preview</h2>
-                <p className="mt-1 text-sm text-[#718078]">{Number(preview.estimatedRecords || 0).toLocaleString()} eligible records across {preview.tables?.length || 0} unique tables.</p>
+                <p className="mt-1 text-sm text-[#718078]">{Number(preview.totalEligibleRecords ?? preview.estimatedRecords ?? 0).toLocaleString()} eligible for deletion · {Number(preview.totalPreservedRecords || 0).toLocaleString()} preserved · {preview.tables?.length || 0} unique tables.</p>
                 <p className="mt-3 text-sm font-medium">Selected modules</p>
                 <ul className="mt-1 space-y-1 text-sm">{(preview.modules || []).map((item) => <li key={item.id} className="flex justify-between gap-3"><span>{item.name}</span><span>{Number(item.records || 0).toLocaleString()} module records</span></li>)}</ul>
                 <p className="mt-3 text-xs text-[#718078]">The eligible total below counts each selected table once; module subtotals can overlap.</p>
                 <ul className="mt-3 max-h-48 space-y-1 overflow-auto text-sm">
-                  {(preview.tables || []).map((table) => <li key={table.model} className="flex justify-between gap-3"><span>{table.label}</span><span>{table.records}</span></li>)}
+                  {(preview.tables || []).map((table) => <li key={table.model} className="flex justify-between gap-3"><span>{table.label}{table.preservedRecords ? ` (${table.preservedRecords} preserved)` : ''}</span><span>{Number(table.eligibleRecords ?? table.records).toLocaleString()} eligible · {Number(table.records).toLocaleString()} total</span></li>)}
                 </ul>
                 <p className="mt-3 text-xs text-[#718078]">{(preview.dependencies || []).join(' ')}</p>
+                {!!preview.preservation?.length && <div className="mt-3 rounded-xl border border-[#D8DEE8] bg-[#F7F8FA] p-3">
+                  <p className="text-sm font-semibold text-[#344054]">Preserved records</p>
+                  <ul className="mt-1 space-y-2 text-xs text-[#475467]">{preview.preservation.map((item) => <li key={`preserved-${item.model}`}><span className="font-semibold">{item.label}: {Number(item.records).toLocaleString()} protected records remain.</span> {item.reason}{item.roleOwnership ? <><span className="block">Ownership: {item.roleOwnership.system} system, {item.roleOwnership.tenant} current tenant, {item.roleOwnership.otherTenant} other tenant. Types: {Object.entries(item.roleTypes || {}).map(([type, count]) => `${type} ${count}`).join(', ') || 'not classified'}.</span><ul className="mt-1 list-inside list-disc">{(item.roles || []).map((role) => <li key={role.id}>#{role.id} {role.name} · {role.type} · {role.owner}</li>)}</ul></> : null}</li>)}</ul>
+                </div>}
                 {!!preview.dependencyWarnings?.length && <div className="mt-3 space-y-3">
                   {resolvedDependencies.length > 0 && <div className="rounded-xl border border-[#B7DCC4] bg-[#F1F8F3] p-3">
                     <p className="text-sm font-semibold text-[#24613D]">Same-tenant dependencies handled by this reset</p>
@@ -575,7 +579,7 @@ function QuickActions({ busy, latest, onBackup, onDownload, onHistory }) {
   );
 }
 function Result({ result }) {
-  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}{result.verified ? ' · Database verification passed' : ''}. Records: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}{result.preRestoreBackupId ? ` · Pre-restore backup: ${result.preRestoreBackupId}` : ''}</p>{result.verified && result.countsAfter ? <div className="mt-3"><p className="text-sm font-medium">Remaining records after commit</p><ul className="mt-1 grid gap-1 text-sm text-[#718078] sm:grid-cols-2">{Object.entries(result.countsAfter).map(([table, count]) => <li key={table} className="flex justify-between gap-3"><span>{table}</span><span className={count === 0 ? 'font-semibold text-[#247047]' : 'font-semibold text-[#DC2626]'}>{count}</span></li>)}</ul></div> : null}{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
+  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}{result.verified ? ' · Database verification passed' : ''}. Deleted: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}{result.recordsPreserved ? ` · Preserved: ${result.recordsPreserved}` : ''}{result.preRestoreBackupId ? ` · Pre-restore backup: ${result.preRestoreBackupId}` : ''}</p>{result.verified && result.countsAfter ? <div className="mt-3"><p className="text-sm font-medium">Remaining records after commit</p><ul className="mt-1 grid gap-1 text-sm text-[#718078] sm:grid-cols-2">{Object.entries(result.countsAfter).map(([table, count]) => { const expectedPreserved = table === 'designation' ? Number(result.preservedCounts?.designation || 0) : 0; const verifiedCount = count === expectedPreserved; return <li key={table} className="flex justify-between gap-3"><span>{table}{table === 'designation' && count > 0 ? ' (protected links preserved)' : ''}</span><span className={verifiedCount ? 'font-semibold text-[#247047]' : 'font-semibold text-[#DC2626]'}>{count}</span></li>; })}</ul></div> : null}{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
 }
 function dataOf(response) {
   if (response && typeof response === 'object' && response.data && !Array.isArray(response.data)) return response.data;
