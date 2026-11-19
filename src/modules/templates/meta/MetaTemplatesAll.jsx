@@ -808,7 +808,6 @@ export function MetaTemplatesAll() {
       <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
         <nav aria-label="Template sections" className="flex flex-wrap gap-2 border-b border-[#E2E8E5] pb-3 text-sm font-medium">
           <Link href="/admin/sections/email-templates" className="rounded-md px-3 py-2 text-[#718078] hover:bg-slate-50">Email Templates</Link>
-          <span aria-current="page" className="rounded-md bg-[#163A2E] px-3 py-2 text-white">WhatsApp Templates</span>
           <Link href="/admin/settings/notifications" className="rounded-md px-3 py-2 text-[#718078] hover:bg-slate-50">Notification Settings</Link>
         </nav>
         {/* Navigation Tabs */}
