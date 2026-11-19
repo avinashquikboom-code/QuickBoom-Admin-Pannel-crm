@@ -90,6 +90,10 @@ export async function deleteDepartment(id: number): Promise<string> {
   const result = z.object({ message: z.string(), deactivated: z.boolean().optional(), deleted: z.boolean().optional() }).parse(response.data);
   return result.message;
 }
+export async function bulkDeleteDepartments(ids: number[]): Promise<{ message: string; deletedCount?: number; deactivatedCount?: number }> {
+  const response = await api.post<unknown, { data: { message: string; deletedCount?: number; deactivatedCount?: number } }>('/departments/bulk-delete', { ids }, config);
+  return (response as any).data || response;
+}
 export async function listDepartmentHeads(search: string, page: number, signal?: AbortSignal) {
   const response = await api.get<unknown, unknown>('/employees', {
     ...config, signal, params: { search, page, limit: 30 },

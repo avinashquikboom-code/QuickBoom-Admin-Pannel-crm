@@ -337,6 +337,7 @@ export function saveContact(values, id) {
 }
 
 export const removeContact = (id) => api.delete(`/contacts/${id}`);
+export const bulkDeleteContacts = (ids, permanent = true) => api.post('/contacts/bulk-delete', { ids, permanent });
 
 export async function loadCompanies(params = {}) {
   const [list, metrics] = await Promise.all([api.get('/companies', { params }), api.get('/companies/metrics')]);
@@ -360,6 +361,7 @@ export function saveCompany(values, id) {
 }
 
 export const removeCompany = (id) => api.delete(`/companies/${id}`);
+export const bulkDeleteCompanies = (ids, permanent = true) => api.post('/companies/bulk-delete', { ids, permanent });
 
 export async function loadVisits(params = {}) {
   const [list, metrics] = await Promise.all([api.get('/visits', { params }), api.get('/visits/metrics')]);
@@ -407,6 +409,7 @@ export function saveTask(values, id) {
 
 export const taskHistory = async (id) => listFrom(await api.get(`/tasks/${id}/history`));
 export const removeTask = (id) => api.delete(`/tasks/${id}`);
+export const bulkDeleteTasks = (ids, permanent = true) => api.post('/tasks/bulk-delete', { ids, permanent });
 
 export async function loadLeadLimits() {
   const [employees, roles] = await Promise.all([

@@ -19,8 +19,12 @@ import { toast } from '@/hooks/use-toast';
 import { getSectionConfig } from '@/config/admin-sections';
 import { StageManagement } from './StageManagement';
 import { loadOffices } from '@/modules/hrm/hrm-api';
+import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
+import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
 import {
   MASTER_MODULES,
+  bulkDeleteDesignations,
+  bulkDeleteMasterItems,
   downloadCsv,
   loadDepartments,
   loadDesignation,
@@ -118,6 +122,9 @@ function MasterCatalog({ slug, config }) {
   const [editing, setEditing] = React.useState(null);
   const [viewing, setViewing] = React.useState(null);
   const [pendingDelete, setPendingDelete] = React.useState(null);
+  const [selectedRows, setSelectedRows] = React.useState([]);
+  const [selectionResetToken, setSelectionResetToken] = React.useState(0);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState(emptyMasterForm());
   const debouncedQuery = useDebounced(query, 300);
@@ -207,6 +214,25 @@ function MasterCatalog({ slug, config }) {
     }
   };
 
+  const confirmBulkDelete = async () => {
+    if (!selectedRows.length || saving) return;
+    setSaving(true);
+    try {
+      const ids = selectedRows.map((r) => r.id);
+      const res = await bulkDeleteMasterItems(ids);
+      const count = res?.data?.deletedCount ?? res?.deletedCount ?? ids.length;
+      toast.success(`${count} ${config.singular.toLowerCase()}${count > 1 ? 's' : ''} permanently deleted`);
+      setSelectedRows([]);
+      setSelectionResetToken((v) => v + 1);
+      setBulkDeleteOpen(false);
+      setRefresh((v) => v + 1);
+    } catch (err) {
+      toast.error(masterError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const exportRows = () => {
     if (!filtered.length) {
       toast.error('There are no records to export');
@@ -262,9 +288,37 @@ function MasterCatalog({ slug, config }) {
     >
       {error ? <ErrorState message={error} onRetry={() => setRefresh((value) => value + 1)} /> : null}
       {!error && !loading && filtered.length === 0 ? <EmptyState query={debouncedQuery} tab={tab} title={config.title} /> : null}
+      {selectedRows.length > 0 && (
+        <div className="mb-3">
+          <AdminBulkSelectionToolbar
+            count={selectedRows.length}
+            noun={config.singular.toLowerCase()}
+            onClear={() => {
+              setSelectedRows([]);
+              setSelectionResetToken((v) => v + 1);
+            }}
+          >
+            <AdminBulkDeleteButton
+              count={selectedRows.length}
+              onClick={() => setBulkDeleteOpen(true)}
+              loading={saving}
+            />
+          </AdminBulkSelectionToolbar>
+        </div>
+      )}
       <RecordCards rows={filtered} config={config} metric={(row) => catalogMetricText(slug, row)} onView={setViewing} onEdit={openEdit} onDelete={setPendingDelete} />
       <div className={filtered.length ? 'hidden md:block' : 'hidden'}>
-        <DataTable columns={columns} data={filtered} hideSearch isLoading={loading} emptyState="" pageSize={10} />
+        <DataTable
+          columns={columns}
+          data={filtered}
+          enableRowSelection
+          onSelectionChange={setSelectedRows}
+          selectionResetToken={selectionResetToken}
+          hideSearch
+          isLoading={loading}
+          emptyState=""
+          pageSize={10}
+        />
       </div>
       <ItemDrawer
         open={drawerOpen}
@@ -288,7 +342,22 @@ function MasterCatalog({ slug, config }) {
         <DescriptionField form={form} setForm={setForm} />
       </ItemDrawer>
       <ViewDrawer record={viewing} onClose={() => setViewing(null)} onEdit={openEdit} config={config} lines={viewing ? catalogViewLines(slug, viewing) : []} />
-      <ConfirmDialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(null); }} title={`Delete ${config.singular}?`} description={`Delete “${pendingDelete?.name || ''}”? This calls the master delete endpoint.`} confirmLabel="Delete" variant="destructive" onConfirm={confirmDelete} />
+      <PermanentDeleteDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        recordName={pendingDelete?.name || pendingDelete?.code}
+        noun={config.singular.toLowerCase()}
+        loading={saving}
+        onConfirm={confirmDelete}
+      />
+      <PermanentDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        count={selectedRows.length}
+        noun={config.singular.toLowerCase()}
+        loading={saving}
+        onConfirm={confirmBulkDelete}
+      />
     </ScreenFrame>
   );
 }
@@ -307,6 +376,9 @@ function DesignationsScreen({ config }) {
   const [editing, setEditing] = React.useState(null);
   const [viewing, setViewing] = React.useState(null);
   const [pendingDelete, setPendingDelete] = React.useState(null);
+  const [selectedRows, setSelectedRows] = React.useState([]);
+  const [selectionResetToken, setSelectionResetToken] = React.useState(0);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState(emptyDesignationForm());
   const debouncedQuery = useDebounced(query, 350);
@@ -390,6 +462,25 @@ function DesignationsScreen({ config }) {
     }
   };
 
+  const confirmBulkDelete = async () => {
+    if (!selectedRows.length || saving) return;
+    setSaving(true);
+    try {
+      const ids = selectedRows.map((r) => r.id);
+      const res = await bulkDeleteDesignations(ids);
+      const count = res?.data?.deletedCount ?? res?.deletedCount ?? ids.length;
+      toast.success(`${count} designation${count > 1 ? 's' : ''} deleted`);
+      setSelectedRows([]);
+      setSelectionResetToken((v) => v + 1);
+      setBulkDeleteOpen(false);
+      setRefresh((v) => v + 1);
+    } catch (err) {
+      toast.error(masterError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const columns = React.useMemo(() => [
     nameColumn(config),
     codeColumn(),
@@ -442,6 +533,24 @@ function DesignationsScreen({ config }) {
     >
       {error ? <ErrorState message={error} onRetry={() => setRefresh((value) => value + 1)} /> : null}
       {!error && !loading && rows.length === 0 ? <EmptyState query={debouncedQuery} tab={tab} title="Designations" /> : null}
+      {selectedRows.length > 0 && (
+        <div className="mb-3">
+          <AdminBulkSelectionToolbar
+            count={selectedRows.length}
+            noun="designations"
+            onClear={() => {
+              setSelectedRows([]);
+              setSelectionResetToken((v) => v + 1);
+            }}
+          >
+            <AdminBulkDeleteButton
+              count={selectedRows.length}
+              onClick={() => setBulkDeleteOpen(true)}
+              loading={saving}
+            />
+          </AdminBulkSelectionToolbar>
+        </div>
+      )}
       <RecordCards
         rows={rows}
         config={config}
@@ -451,7 +560,17 @@ function DesignationsScreen({ config }) {
         onDelete={setPendingDelete}
       />
       <div className={rows.length ? 'hidden md:block' : 'hidden'}>
-        <DataTable columns={columns} data={rows} hideSearch isLoading={loading} emptyState="" pageSize={20} />
+        <DataTable
+          columns={columns}
+          data={rows}
+          enableRowSelection
+          onSelectionChange={setSelectedRows}
+          selectionResetToken={selectionResetToken}
+          hideSearch
+          isLoading={loading}
+          emptyState=""
+          pageSize={20}
+        />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
         <span>Page {page} of {totalPages} · {total} records</span>
@@ -489,7 +608,24 @@ function DesignationsScreen({ config }) {
         ['CRM mobile', viewing.crmMobileAccess ? 'Yes' : 'No'],
         ['Status', viewing.status],
       ] : []} />
-      <ConfirmDialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(null); }} title="Delete designation?" description={`Delete “${pendingDelete?.name || ''}”? Assigned employees may cause the server to deactivate it instead.`} confirmLabel="Delete" variant="destructive" onConfirm={confirmDelete} />
+      <PermanentDeleteDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        recordName={pendingDelete?.name || pendingDelete?.code}
+        noun="designation"
+        warningNote="Assigned employees will prevent permanent deletion and cause the server to deactivate it instead."
+        loading={saving}
+        onConfirm={confirmDelete}
+      />
+      <PermanentDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        count={selectedRows.length}
+        noun="designation"
+        warningNote="Designations with assigned employees will be deactivated to protect employee records."
+        loading={saving}
+        onConfirm={confirmBulkDelete}
+      />
     </ScreenFrame>
   );
 }
