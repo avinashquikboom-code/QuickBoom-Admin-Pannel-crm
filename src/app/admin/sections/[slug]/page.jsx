@@ -14,6 +14,8 @@ import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { KpiGrid } from '@/components/common/KpiCard';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
+import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
 import {
     DataTable,
     DataTableColumnHeader,
@@ -30,7 +32,7 @@ import { toast } from '@/hooks/use-toast';
 import { getSectionConfig } from '@/config/admin-sections';
 import { hrmError, loadOffices, loadTeams, removeOffice, removeTeam, saveOffice, saveTeam } from '@/modules/hrm/hrm-api';
 import { isLiveMasterSlug, MasterManagement } from '@/modules/master/MasterManagement';
-import { loadLeaveTypes, removeLeaveType } from '@/modules/master/master-api';
+import { bulkDeleteLeaveTypes, loadLeaveTypes, removeLeaveType } from '@/modules/master/master-api';
 import { TemplateManagement } from '@/modules/templates/TemplateManagement';
 import { SubscriptionPlans } from '@/modules/subscription/SubscriptionPlans';
 
@@ -89,6 +91,10 @@ function SectionPageContent() {
     // Delete confirmation state
     const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
     const [recordToDelete, setRecordToDelete] = React.useState(null);
+    const [selectedRows, setSelectedRows] = React.useState([]);
+    const [selectionResetToken, setSelectionResetToken] = React.useState(0);
+    const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+    const [bulkDeleting, setBulkDeleting] = React.useState(false);
 
     // Form fields
     const [formName, setFormName] = React.useState('');
@@ -196,6 +202,30 @@ function SectionPageContent() {
             setRecordToDelete(null);
         } catch (err) {
             toast.error(hrmError(err));
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!selectedRows.length || bulkDeleting) return;
+        setBulkDeleting(true);
+        try {
+            const ids = selectedRows.map((r) => r.id);
+            if (slug === 'leave-types') {
+                const res = await bulkDeleteLeaveTypes(ids);
+                const count = res?.data?.deletedCount ?? res?.deletedCount ?? ids.length;
+                toast.success(`${count} leave types permanently deleted`);
+                setRecords((prev) => prev.filter((r) => !ids.includes(r.id)));
+            } else {
+                setRecords((prev) => prev.filter((r) => !ids.includes(r.id)));
+                toast.success(`${ids.length} ${config.singular.toLowerCase()}${ids.length > 1 ? 's' : ''} removed`);
+            }
+            setSelectedRows([]);
+            setSelectionResetToken((v) => v + 1);
+            setBulkDeleteOpen(false);
+        } catch (err) {
+            toast.error(hrmError(err));
+        } finally {
+            setBulkDeleting(false);
         }
     };
 
@@ -463,10 +493,31 @@ function SectionPageContent() {
                 />
             </div>
 
+            {/* Bulk Selection Toolbar */}
+            {selectedRows.length > 0 && (
+                <AdminBulkSelectionToolbar
+                    count={selectedRows.length}
+                    noun={config.singular.toLowerCase()}
+                    onClear={() => {
+                        setSelectedRows([]);
+                        setSelectionResetToken((v) => v + 1);
+                    }}
+                >
+                    <AdminBulkDeleteButton
+                        count={selectedRows.length}
+                        onClick={() => setBulkDeleteOpen(true)}
+                        loading={bulkDeleting}
+                    />
+                </AdminBulkSelectionToolbar>
+            )}
+
             {/* Standardized TanStack React Table */}
             <DataTable
                 columns={columns}
                 data={tabFilteredRecords}
+                enableRowSelection
+                onSelectionChange={setSelectedRows}
+                selectionResetToken={selectionResetToken}
                 searchKey="name"
                 searchPlaceholder={`Search ${config.title.toLowerCase()} by name, code or lead...`}
                 filterColumn="status"
@@ -652,15 +703,22 @@ function SectionPageContent() {
             </FormDrawer>
 
             {/* Confirm Delete Alert Dialog */}
-            <ConfirmDialog
+            <PermanentDeleteDialog
                 open={confirmDeleteOpen}
                 onOpenChange={setConfirmDeleteOpen}
-                title={`Delete ${config.singular}?`}
-                description={`Are you sure you want to delete "${recordToDelete?.name}"? Associated operational links will need to be reallocated.`}
-                confirmLabel="Yes, Delete"
-                cancelLabel="Cancel"
-                variant="destructive"
+                recordName={recordToDelete?.name}
+                noun={config.singular.toLowerCase()}
+                warningNote={slug === 'leave-types' ? 'Leave types cannot be deleted if any employee leave balances or requests reference them.' : undefined}
                 onConfirm={handleConfirmDelete}
+            />
+            <PermanentDeleteDialog
+                open={bulkDeleteOpen}
+                onOpenChange={setBulkDeleteOpen}
+                count={selectedRows.length}
+                noun={config.singular.toLowerCase()}
+                warningNote={slug === 'leave-types' ? 'Leave types cannot be deleted if referenced by employee records or requests.' : undefined}
+                loading={bulkDeleting}
+                onConfirm={handleBulkDelete}
             />
         </div>
     );

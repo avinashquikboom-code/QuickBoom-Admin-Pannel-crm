@@ -19,12 +19,16 @@ import { readSession } from '@/lib/auth/admin-session';
 import { useAuthStore } from '../../../lib/store';
 import { isUserAdmin } from '../../../lib/access-control';
 import { DepartmentDrawer } from './DepartmentDrawer';
-import { apiError, changeDepartmentStatus, deleteDepartment, exportDepartments, listDepartments, type Department } from './department-api';
+import { apiError, bulkDeleteDepartments, changeDepartmentStatus, deleteDepartment, exportDepartments, listDepartments, type Department } from './department-api';
+import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
+import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
 
 const DepartmentTable = DataTable as unknown as React.ComponentType<{
   columns: ColumnDef<Department>[];
   data: Department[];
   enableRowSelection: boolean;
+  onSelectionChange?: (rows: Department[]) => void;
+  selectionResetToken?: number;
   isLoading: boolean;
   searchPlaceholder: string;
   emptyState: React.ReactNode;
@@ -44,6 +48,29 @@ const StatusTabs = SegmentedTabs as React.ComponentType<{
   onChange: (value: string) => void;
   ariaLabel?: string;
   className?: string;
+}>;
+const DeleteDialog = PermanentDeleteDialog as unknown as React.ComponentType<{
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title?: string;
+  recordName?: string;
+  count?: number;
+  noun?: string;
+  warningNote?: string;
+  loading?: boolean;
+  onConfirm: () => void | Promise<void>;
+}>;
+const BulkToolbar = AdminBulkSelectionToolbar as unknown as React.ComponentType<{
+  count: number;
+  noun?: string;
+  children: React.ReactNode;
+  onClear: () => void;
+}>;
+const BulkDeleteBtn = AdminBulkDeleteButton as unknown as React.ComponentType<{
+  count?: number;
+  label?: string;
+  loading?: boolean;
+  onClick: () => void;
 }>;
 
 type Filter = 'all' | 'active' | 'inactive' | 'archived';
@@ -73,6 +100,9 @@ export function DepartmentsScreen() {
   const [sessionUser, setSessionUser] = React.useState<unknown>(null);
   const [drawer, setDrawer] = React.useState<{ id: number | null; mode: 'create' | 'edit' | 'view' } | null>(null);
   const [confirmation, setConfirmation] = React.useState<Confirmation | null>(null);
+  const [selectedDepartments, setSelectedDepartments] = React.useState<Department[]>([]);
+  const [selectionResetToken, setSelectionResetToken] = React.useState(0);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [mutating, setMutating] = React.useState(false);
   const mutationLock = React.useRef(false);
   const [actionError, setActionError] = React.useState('');
@@ -141,6 +171,33 @@ export function DepartmentsScreen() {
       setRefresh((value) => value + 1);
     } catch (err) {
       setActionError(apiError(err));
+    } finally {
+      mutationLock.current = false;
+      setMutating(false);
+    }
+  }
+
+  async function confirmBulkDelete() {
+    if (!selectedDepartments.length || mutationLock.current || !canManage) return;
+    mutationLock.current = true;
+    setMutating(true);
+    setActionError('');
+    try {
+      const ids = selectedDepartments.map((d) => d.id);
+      const res = await bulkDeleteDepartments(ids);
+      const deleted = res?.deletedCount ?? ids.length;
+      const deactivated = res?.deactivatedCount ?? 0;
+      let msg = `${deleted} department(s) permanently deleted.`;
+      if (deactivated > 0) {
+        msg += ` ${deactivated} department(s) with active employees deactivated.`;
+      }
+      toast.success(msg);
+      setSelectedDepartments([]);
+      setSelectionResetToken((v) => v + 1);
+      setBulkDeleteOpen(false);
+      setRefresh((v) => v + 1);
+    } catch (err) {
+      toast.error(apiError(err));
     } finally {
       mutationLock.current = false;
       setMutating(false);
@@ -332,6 +389,22 @@ export function DepartmentsScreen() {
             </SelectContent>
           </Select>
         </div>
+        {selectedDepartments.length > 0 && canManage && (
+          <BulkToolbar
+            count={selectedDepartments.length}
+            noun="departments"
+            onClear={() => {
+              setSelectedDepartments([]);
+              setSelectionResetToken((v) => v + 1);
+            }}
+          >
+            <BulkDeleteBtn
+              count={selectedDepartments.length}
+              onClick={() => setBulkDeleteOpen(true)}
+              loading={mutating}
+            />
+          </BulkToolbar>
+        )}
         {error ? (
           <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-6">
             <h3 className="font-semibold text-rose-800">Unable to load departments</h3>
@@ -344,6 +417,8 @@ export function DepartmentsScreen() {
             columns={columns}
             data={filtered}
             enableRowSelection
+            onSelectionChange={(selected) => setSelectedDepartments(selected)}
+            selectionResetToken={selectionResetToken}
             isLoading={loading}
             searchPlaceholder="Search departments or codes…"
             emptyState={filter === 'archived' ? (
@@ -378,18 +453,36 @@ export function DepartmentsScreen() {
         />
       )}
 
-      <Dialog open={!!confirmation} onOpenChange={(open: boolean) => { if (!open && !mutationLock.current) setConfirmation(null); }}>
+      <DeleteDialog
+        open={Boolean(confirmation && confirmation.action === 'delete')}
+        onOpenChange={(open: boolean) => { if (!open && !mutationLock.current) setConfirmation(null); }}
+        recordName={confirmation?.record?.name}
+        noun="department"
+        warningNote="If employees are assigned, the department will be set to Inactive instead. Otherwise it will be permanently deleted and linked designations will be unassigned."
+        loading={mutating}
+        onConfirm={confirmAction}
+      />
+
+      <DeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        count={selectedDepartments.length}
+        noun="department"
+        warningNote="Departments with active employees will be set to Inactive to preserve employee organizational history."
+        loading={mutating}
+        onConfirm={confirmBulkDelete}
+      />
+
+      <Dialog open={Boolean(confirmation && confirmation.action !== 'delete')} onOpenChange={(open: boolean) => { if (!open && !mutationLock.current) setConfirmation(null); }}>
         <DialogContent className="sm:max-w-md" showCloseButton={!mutating}>
           <DialogHeader className="pr-5">
             <DialogTitle className="text-lg">
-              {confirmation?.action === 'delete' ? 'Delete department?' : confirmation?.action === 'archive' ? 'Archive department?' : 'Change department status?'}
+              {confirmation?.action === 'archive' ? 'Archive department?' : 'Change department status?'}
             </DialogTitle>
             <DialogDescription className="leading-relaxed">
-              {confirmation?.action === 'delete'
-                ? `Delete “${confirmation.record.name}”? If employees are assigned, the department will be set to Inactive instead. Otherwise it will be permanently deleted and linked designations will be unassigned.`
-                : confirmation?.action === 'archive'
-                  ? `“${confirmation.record.name}” cannot be archived. The department API only supports Active and Inactive.`
-                  : `Set “${confirmation?.record.name}” to ${confirmation?.record.isActive ? 'Inactive' : 'Active'}?`}
+              {confirmation?.action === 'archive'
+                ? `“${confirmation.record.name}” cannot be archived. The department API only supports Active and Inactive.`
+                : `Set “${confirmation?.record.name}” to ${confirmation?.record.isActive ? 'Inactive' : 'Active'}?`}
             </DialogDescription>
           </DialogHeader>
           {actionError && <p role="alert" className="text-sm text-rose-600">{actionError}</p>}
@@ -399,7 +492,7 @@ export function DepartmentsScreen() {
             </Button>
             {confirmation?.action !== 'archive' && (
               <Button
-                className={confirmation?.action === 'delete' ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-[#1FC45B] text-white hover:bg-[#169F4D]'}
+                className="bg-[#1FC45B] text-white hover:bg-[#169F4D]"
                 disabled={mutating}
                 onClick={confirmAction}
               >

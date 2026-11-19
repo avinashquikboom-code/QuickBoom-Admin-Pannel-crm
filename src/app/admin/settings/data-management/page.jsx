@@ -405,6 +405,7 @@ export default function DataManagementPage() {
                         <span className="rounded-full bg-[#E3F2E9] px-2 py-0.5 font-medium text-[#1E5636]">
                           {item.willSetNull ? 'Cleared (Set Null) · Records Intact' : item.includedInSelectedModule ? 'Deleted with Selected Module' : 'Safe for Reset'}
                         </span>
+                        {item.diagnosticRecordIds?.length > 0 && <span className="w-full text-[11px] text-[#718078]">Same-tenant Salary Structure IDs: {item.diagnosticRecordIds.map((id) => `#${id}`).join(', ')}</span>}
                       </li>
                     ))}</ul>
                   </div>}
@@ -454,6 +455,7 @@ export default function DataManagementPage() {
                             <div><span className="block text-[11px] text-[#718078]">Unresolved</span><span className="font-semibold text-[#DC2626]">{unresolved.toLocaleString()}</span></div>
                           </div>
                           <div className="mt-2 space-y-1 border-t border-[#F0E4D2] pt-2">
+                            {item.diagnosticRecordIds?.length > 0 && <p><strong className="text-[#78350F]">Same-tenant Salary Structure IDs:</strong> {item.diagnosticRecordIds.map((id) => `#${id}`).join(', ')}</p>}
                             <p><strong className="text-[#78350F]">Reason:</strong> {reason}</p>
                             {owningTenantInfo && <p><strong className="text-[#78350F]">Owning Tenant:</strong> {owningTenantInfo}</p>}
                             <p><strong className="text-[#163A2E]">Recommended Action:</strong> {action}</p>

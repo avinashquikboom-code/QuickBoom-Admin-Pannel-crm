@@ -103,6 +103,7 @@ export function saveMasterItem(slug, values, existing) {
 }
 
 export const removeMasterItem = (id) => api.delete(`/master/items/${id}`);
+export const bulkDeleteMasterItems = (ids) => api.post('/master/items/bulk-delete', { ids });
 
 export async function loadDesignations(params) {
   const payload = await api.get('/designations', { params });
@@ -132,6 +133,7 @@ export function saveDesignation(values, id) {
 }
 
 export const removeDesignation = (id) => api.delete(`/designations/${id}`);
+export const bulkDeleteDesignations = (ids) => api.post('/designations/bulk-delete', { ids });
 
 export async function loadDepartments() {
   const rows = [];
@@ -215,3 +217,4 @@ export async function loadLeaveTypes() {
 }
 
 export const removeLeaveType = (id) => api.delete(`/leaves/types/${id}`);
+export const bulkDeleteLeaveTypes = (ids) => api.post('/leaves/types/bulk-delete', { ids });

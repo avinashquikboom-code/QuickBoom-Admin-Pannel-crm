@@ -36,6 +36,9 @@ export function DataTable({
     hideSearch = false,
     pageSize = 10,
     enableRowSelection = false,
+    onSelectionChange,
+    selectionResetToken = 0,
+    bulkActions,
     className,
     caption,
 }) {
@@ -45,11 +48,50 @@ export function DataTable({
     const [rowSelection, setRowSelection] = React.useState({});
     const [globalFilter, setGlobalFilter] = React.useState('');
 
+    React.useEffect(() => {
+        setRowSelection({});
+    }, [selectionResetToken]);
+
+    const resolvedColumns = React.useMemo(() => {
+        if (!enableRowSelection) return columns;
+        if (columns.some((c) => c.id === '__select' || c.id === 'select')) return columns;
+        return [
+            {
+                id: '__select',
+                enableSorting: false,
+                enableHiding: false,
+                header: ({ table }) => (
+                    <input
+                        type="checkbox"
+                        aria-label="Select all rows on current page"
+                        checked={table.getIsAllPageRowsSelected()}
+                        ref={(el) => {
+                            if (el) el.indeterminate = table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected();
+                        }}
+                        onChange={(e) => table.toggleAllPageRowsSelected(e.target.checked)}
+                        className="size-4 rounded border-slate-300 accent-[#163A2E] cursor-pointer"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <input
+                        type="checkbox"
+                        aria-label="Select row"
+                        checked={row.getIsSelected()}
+                        onChange={(e) => row.toggleSelected(e.target.checked)}
+                        className="size-4 rounded border-slate-300 accent-[#163A2E] cursor-pointer"
+                    />
+                ),
+                meta: { className: 'w-10 px-3', headClassName: 'w-10 px-3' },
+            },
+            ...columns,
+        ];
+    }, [columns, enableRowSelection]);
+
     // TanStack table instance
     // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
-        columns,
+        columns: resolvedColumns,
         state: {
             sorting,
             columnVisibility,
@@ -75,6 +117,13 @@ export function DataTable({
             },
         },
     });
+
+    React.useEffect(() => {
+        if (onSelectionChange) {
+            const selected = table.getSelectedRowModel().flatRows.map((r) => r.original);
+            onSelectionChange(selected);
+        }
+    }, [rowSelection, table, onSelectionChange]);
 
     return (
         <div className={cn('min-w-0 max-w-full space-y-4 rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden', className)}>

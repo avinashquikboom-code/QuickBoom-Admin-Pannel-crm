@@ -90,6 +90,11 @@ export async function deleteEmployee(id) {
   return res?.data || res;
 }
 
+export async function bulkDeleteEmployees(ids) {
+  const res = await api.post('/employees/bulk-delete', { ids });
+  return res?.data || res;
+}
+
 export async function deactivateEmployee(id) {
   const res = await api.post(`/employees/${id}/deactivate`);
   return res?.data || res;

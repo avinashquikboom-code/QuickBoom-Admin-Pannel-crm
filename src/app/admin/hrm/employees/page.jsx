@@ -9,12 +9,13 @@ import { EmployeeRegistrationWizard } from '@/modules/hrm/components/employees/w
 import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
 import { faUserPlus } from '@fortawesome/free-solid-svg-icons';
-import { activateEmployee, createEmployee, deactivateEmployee, deleteEmployee, hrmError, loadEmployees, loadOffices, loadShifts, sessionCanAction, updateEmployee } from '@/modules/hrm/hrm-api';
+import { activateEmployee, bulkDeleteEmployees, createEmployee, deactivateEmployee, deleteEmployee, hrmError, loadEmployees, loadOffices, loadShifts, sessionCanAction, updateEmployee } from '@/modules/hrm/hrm-api';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
 import { loadDepartments, loadDesignations } from '@/modules/master/master-api';
 export default function EmployeesPage() {
     const [employees, setEmployees] = React.useState([]);
@@ -299,28 +300,29 @@ export default function EmployeesPage() {
           setRefresh((value) => value + 1);
         }}
       />
-      <ConfirmDialog
+      <PermanentDeleteDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        variant="destructive"
-        title="Delete selected employees"
-        description={`Are you sure you want to delete ${selected.length} selected employees? Employees with financial or attendance history will be archived and removed from the active directory; employees without history will be permanently deleted.`}
-        confirmLabel="Delete"
+        count={selected.length}
+        noun="employee"
+        warningNote="Employees with financial, attendance, or payroll history will be archived to protect legal records; employees without history will be permanently deleted."
+        loading={saving}
         onConfirm={async () => {
-          setBulkDeleteOpen(false);
-          const rows = selected;
-          let done = 0;
-          for (const employee of rows) {
-            try {
-              await deleteEmployee(employee.recordId);
-              done += 1;
-            } catch (err) {
-              toast.error(hrmError(err));
-            }
+          setSaving(true);
+          try {
+            const ids = selected.map((e) => e.recordId);
+            const res = await bulkDeleteEmployees(ids);
+            const count = res?.deletedCount ?? res?.archivedCount ?? ids.length;
+            toast.success(`Successfully processed ${count} employee records.`);
+            setBulkDeleteOpen(false);
+            setSelected([]);
+            setSelectionReset((value) => value + 1);
+            setRefresh((value) => value + 1);
+          } catch (err) {
+            toast.error(hrmError(err));
+          } finally {
+            setSaving(false);
           }
-          toast.success(`${done} employees processed successfully.`);
-          setSelectionReset((value) => value + 1);
-          setRefresh((value) => value + 1);
         }}
       />
       <EmployeeRegistrationWizard
