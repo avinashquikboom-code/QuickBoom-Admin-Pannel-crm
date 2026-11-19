@@ -11,7 +11,6 @@ import { faEnvelope } from '@fortawesome/free-regular-svg-icons';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
 export function EmployeeTable({
     employees,
-    managers = [],
     onSelectEmployee,
     onEditEmployee,
     onToggleStatus,
@@ -63,13 +62,6 @@ export function EmployeeTable({
             {emp.department}
           </span>
         </div>),
-        },
-        {
-            header: 'Reporting Manager',
-            cell: (emp) => {
-                const manager = managers.find((person) => person.recordId === emp.managerId);
-                return manager ? `${manager.name} · ${manager.id}` : emp.managerId ? 'Unavailable' : 'Unassigned';
-            },
         },
         {
             header: 'Contact Info',

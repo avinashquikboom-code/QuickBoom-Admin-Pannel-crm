@@ -10,7 +10,7 @@ const EMPLOYMENT_TYPES = ['Full-Time', 'Part-Time', 'Contract', 'Intern', 'Tempo
 const EMPLOYEE_STATUSES = ['Active', 'Probation', 'Notice Period', 'On Leave', 'Inactive'];
 const WORK_MODES = ['Office', 'Hybrid', 'Remote'];
 
-export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts = [], assignmentError, designations = [], designationError, designationLoading, departments = [], managers = [], organizationError, organizationLoading }) {
+export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts = [], assignmentError, designations = [], designationError, designationLoading, departments = [], organizationError, organizationLoading }) {
   const store = useEmployeeWizardStore();
   const [errors, setErrors] = useState({});
 
@@ -31,7 +31,6 @@ export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts =
     fields.jobTitle,
     fields.department,
     store.employeeStatus,
-    store.reportingManager,
     store.workLocation,
     store.officeBranch,
     store.workMode,
@@ -126,10 +125,6 @@ export function Step2EmploymentInfo({ onValidationChange, offices = [], shifts =
               <select className="h-9 w-full rounded-md border px-2 text-xs" value={store.departmentId} disabled={organizationLoading || Boolean(organizationError)} onChange={(e) => { const item = departments.find((row) => String(row.id) === e.target.value); store.updateFields({ departmentId: e.target.value, department: item?.name || '' }); }}><option value="">{organizationLoading ? 'Loading departments...' : departments.length ? 'Select department' : 'No departments available'}</option>{departments.map((row) => <option key={row.id} value={String(row.id)}>{row.name}</option>)}</select>
             </FormField>
           </div>
-          <FormField label="Reporting Manager" error={organizationError}>
-            <select className="h-9 w-full rounded-md border px-2 text-xs" value={store.reportingManagerId} disabled={organizationLoading || Boolean(organizationError)} onChange={(e) => { const item = managers.find((row) => String(row.recordId) === e.target.value); store.updateFields({ reportingManagerId: e.target.value, reportingManager: item ? `${item.name} · ${item.id}` : '' }); }}><option value="">{organizationLoading ? 'Loading employees...' : 'Unassigned'}</option>{managers.filter((row) => row.status === 'active').map((row) => <option key={row.recordId} value={String(row.recordId)}>{row.name} · {row.id}</option>)}</select>
-          </FormField>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <InputField
               label="Work Location"

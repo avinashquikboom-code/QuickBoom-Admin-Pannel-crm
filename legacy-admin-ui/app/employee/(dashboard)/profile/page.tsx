@@ -250,7 +250,6 @@ export default function EmployeeProfilePage() {
   // ── Derived Work Information ───────────────────────────────────────────────
   const joiningDateStr = formatDate(profile?.joiningDate || profile?.dateOfJoining);
   const employmentType = formatEmploymentType(profile?.employmentType || profile?.employeeType);
-  const reportingManager = profile?.manager || profile?.reportingManager?.name || '—';
   const workLocation = branchName;
   const noticePeriod = profile?.noticePeriod || profile?.noticePeriodDays ? `${profile.noticePeriod || profile.noticePeriodDays} Days` : '15 Days';
 
@@ -639,11 +638,6 @@ export default function EmployeeProfilePage() {
                 <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                   {employmentType}
                 </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-slate-50/80 rounded-xl border border-slate-100">
-                <span className="font-bold text-slate-500">Reporting Manager</span>
-                <span className="font-black text-slate-900">{reportingManager}</span>
               </div>
 
               <div className="flex items-start justify-between gap-3 p-3 bg-slate-50/80 rounded-xl border border-slate-100">

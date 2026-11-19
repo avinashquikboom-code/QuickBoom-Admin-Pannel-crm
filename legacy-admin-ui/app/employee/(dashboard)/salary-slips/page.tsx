@@ -790,14 +790,6 @@ export default function SalarySlipsPage() {
                       </p>
                     </div>
 
-                    <div>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
-                        Reporting Manager
-                      </span>
-                      <p className="text-xs sm:text-sm font-bold text-slate-900 mt-0.5 truncate">
-                        {profile?.manager || profile?.reportingManager || 'Direct Reporting'}
-                      </p>
-                    </div>
                   </div>
                 </div>
               )}
