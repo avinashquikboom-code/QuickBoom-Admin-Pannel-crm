@@ -8,46 +8,52 @@ import {
   IndianRupee,
   Handshake,
   TrendingUp,
+  TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AnimatedCounter } from './AnimatedCounter';
 
 export function KpiCards({ summary, leads, customers, deals, loading }) {
   const cards = [
     {
       id: 'employees',
       title: 'Total Employees',
-      value: summary?.workforce?.total ?? 0,
+      value: Number(summary?.workforce?.total ?? 0),
       note: `${summary?.workforce?.active ?? 0} active staff`,
       icon: Users,
       badge: 'Workforce',
-      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
-      iconBg: 'bg-emerald-50 text-emerald-600',
-      accentColor: 'from-emerald-500/10 to-transparent',
+      badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
+      iconBg: 'bg-emerald-50 text-emerald-700',
+      accentColor: 'from-emerald-700 to-emerald-900',
+      borderHover: 'hover:border-emerald-300',
     },
     {
       id: 'leads',
       title: 'Active Leads',
-      value: leads?.total ?? 0,
+      value: Number(leads?.total ?? 0),
       note: `${leads?.new ?? 0} new · ${leads?.converted ?? 0} won`,
       icon: Target,
       badge: 'CRM Pipeline',
-      badgeColor: 'bg-blue-50 text-blue-700 border-blue-200/60',
-      iconBg: 'bg-blue-50 text-blue-600',
-      accentColor: 'from-blue-500/10 to-transparent',
+      badgeColor: 'bg-blue-50 text-blue-800 border-blue-200/80',
+      iconBg: 'bg-blue-50 text-blue-700',
+      accentColor: 'from-blue-600 to-blue-800',
+      borderHover: 'hover:border-blue-300',
     },
     {
       id: 'customers',
       title: 'Total Customers',
-      value: customers?.totalCustomers ?? 0,
+      value: Number(customers?.totalCustomers ?? customers?.total ?? 0),
       note: `${customers?.activeCustomers ?? 0} active accounts`,
       icon: Building2,
       badge: 'Clients',
-      badgeColor: 'bg-teal-50 text-teal-700 border-teal-200/60',
-      iconBg: 'bg-teal-50 text-teal-600',
-      accentColor: 'from-teal-500/10 to-transparent',
+      badgeColor: 'bg-teal-50 text-teal-800 border-teal-200/80',
+      iconBg: 'bg-teal-50 text-teal-700',
+      accentColor: 'from-teal-600 to-teal-800',
+      borderHover: 'hover:border-teal-300',
     },
     {
       id: 'revenue',
@@ -57,20 +63,22 @@ export function KpiCards({ summary, leads, customers, deals, loading }) {
       note: `${summary?.revenue?.invoicesCount ?? 0} invoices paid`,
       icon: IndianRupee,
       badge: 'Financials',
-      badgeColor: 'bg-brand-light text-brand-dark border-brand/20',
-      iconBg: 'bg-brand text-white',
-      accentColor: 'from-brand/15 to-transparent',
+      badgeColor: 'bg-emerald-100/70 text-emerald-900 border-emerald-300/80',
+      iconBg: 'bg-[#163A2E] text-white',
+      accentColor: 'from-[#163A2E] to-[#0D231B]',
+      borderHover: 'hover:border-[#163A2E]',
     },
     {
       id: 'deals',
       title: 'Open Deals',
-      value: deals?.open ?? 0,
+      value: Number(deals?.open ?? 0),
       note: `Pipeline: ₹${Number(deals?.pipelineValue ?? 0).toLocaleString('en-IN')}`,
       icon: Handshake,
       badge: `${deals?.won ?? 0} won`,
-      badgeColor: 'bg-purple-50 text-purple-700 border-purple-200/60',
-      iconBg: 'bg-purple-50 text-purple-600',
-      accentColor: 'from-purple-500/10 to-transparent',
+      badgeColor: 'bg-purple-50 text-purple-800 border-purple-200/80',
+      iconBg: 'bg-purple-50 text-purple-700',
+      accentColor: 'from-purple-600 to-purple-800',
+      borderHover: 'hover:border-purple-300',
     },
   ];
 
@@ -101,27 +109,28 @@ export function KpiCards({ summary, leads, customers, deals, loading }) {
         return (
           <div
             key={card.id}
-            style={{ animationDelay: `${idx * 60}ms` }}
+            style={{ animationDelay: `${idx * 50}ms` }}
             className={cn(
-              'group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:border-slate-300 hover:shadow-md animate-in fade-in slide-in-from-bottom-2'
+              'group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md animate-in fade-in slide-in-from-bottom-2',
+              card.borderHover
             )}
           >
-            {/* Top subtle gradient highlight */}
+            {/* Top forest-green accent gradient stripe */}
             <div
               className={cn(
-                'absolute inset-x-0 top-0 h-1 bg-gradient-to-r',
+                'absolute inset-x-0 top-0 h-1 bg-gradient-to-r opacity-90 transition-opacity group-hover:opacity-100',
                 card.accentColor
               )}
             />
 
             <div>
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   {card.title}
                 </p>
                 <div
                   className={cn(
-                    'flex size-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 shadow-2xs',
+                    'flex size-9 shrink-0 items-center justify-center rounded-xl shadow-2xs transition-transform duration-300 group-hover:scale-105',
                     card.iconBg
                   )}
                 >
@@ -130,12 +139,18 @@ export function KpiCards({ summary, leads, customers, deals, loading }) {
               </div>
 
               <div className="mt-2.5">
-                <AnimatedMetric value={card.value} currency={card.currency} />
+                <p className="truncate text-2xl sm:text-[26px] font-extrabold tracking-tight text-slate-900">
+                  <AnimatedCounter
+                    value={card.value}
+                    prefix={card.currency ? '₹' : ''}
+                    showIndicator={true}
+                  />
+                </p>
               </div>
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
-              <p className="truncate text-xs font-medium text-slate-500">
+              <p className="truncate text-xs font-medium text-slate-500" title={card.note}>
                 {card.note}
               </p>
               <span
@@ -152,39 +167,4 @@ export function KpiCards({ summary, leads, customers, deals, loading }) {
       })}
     </div>
   );
-}
-
-function AnimatedMetric({ value, currency }) {
-  const [displayValue, setDisplayValue] = React.useState(Number(value) || 0);
-  const [direction, setDirection] = React.useState(0);
-  const previous = React.useRef(Number(value) || 0);
-  React.useEffect(() => {
-    const next = Number(value) || 0;
-    const start = previous.current;
-    if (next === start) return;
-    setDirection(next > start ? 1 : -1);
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) {
-      setDisplayValue(next);
-      previous.current = next;
-      return;
-    }
-    let frame;
-    const began = performance.now();
-    const duration = 650;
-    const tick = (now) => {
-      const progress = Math.min(1, (now - began) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(start + (next - start) * eased);
-      if (progress < 1) frame = requestAnimationFrame(tick);
-      else previous.current = next;
-    };
-    frame = requestAnimationFrame(tick);
-    const reset = setTimeout(() => setDirection(0), 1400);
-    return () => { cancelAnimationFrame(frame); clearTimeout(reset); };
-  }, [value]);
-  const formatted = Math.round(displayValue).toLocaleString('en-IN');
-  return <p className={`truncate text-2xl sm:text-[26px] font-extrabold tracking-tight transition-colors duration-500 ${direction > 0 ? 'text-emerald-700' : direction < 0 ? 'text-rose-700' : 'text-slate-900'}`} aria-label={currency ? `₹${formatted}` : formatted}>
-    {currency ? '₹' : ''}{formatted}{direction !== 0 && <span className="ml-1 inline-flex align-middle" aria-label={direction > 0 ? 'Increased' : 'Decreased'}>{direction > 0 ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}</span>}
-  </p>;
 }

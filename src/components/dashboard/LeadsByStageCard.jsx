@@ -6,6 +6,7 @@ import { Target, Layers, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AnimatedCounter } from './AnimatedCounter';
 
 const STAGE_CONFIG = [
   { key: 'new', name: 'New', color: '#3B82F6' },
@@ -29,7 +30,6 @@ export function LeadsByStageCard({ leads, loading }) {
       }));
     }
 
-    // Map from default lead metrics keys
     return [
       { name: 'New', count: Number(leads?.new ?? 0), color: '#3B82F6' },
       { name: 'Connected', count: Number(leads?.contacted ?? 0), color: '#10B981' },
@@ -40,10 +40,9 @@ export function LeadsByStageCard({ leads, loading }) {
     ];
   }, [leads]);
 
-  // If total is 0, provide placeholder slice for clean donut rendering
   const displayData = React.useMemo(() => {
     if (totalLeads === 0) {
-      return [{ name: 'No Active Leads', count: 1, color: '#E2E8F0' }];
+      return [{ name: 'No Active Leads', count: 1, color: '#E2E8F0', isEmpty: true }];
     }
     return chartData.filter((item) => item.count > 0);
   }, [totalLeads, chartData]);
@@ -55,134 +54,126 @@ export function LeadsByStageCard({ leads, loading }) {
           <Skeleton className="h-5 w-32 rounded-md" />
           <Skeleton className="h-4 w-16 rounded-md" />
         </div>
-        <Skeleton className="size-48 rounded-full mx-auto my-auto" />
-        <div className="space-y-2 mt-4">
-          <Skeleton className="h-3 w-full rounded-md" />
-          <Skeleton className="h-3 w-4/5 rounded-md" />
+        <div className="flex justify-center my-auto">
+          <Skeleton className="size-48 rounded-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-slate-300 transition-all duration-300">
+    <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-emerald-950/20 transition-all duration-300">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-              <Target className="size-4" />
-            </span>
+        <div className="flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-50 text-[#163A2E]">
+            <Layers className="size-4" />
+          </span>
+          <div>
             <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
               Leads by Stage
             </h2>
+            <p className="text-xs text-slate-500">Pipeline conversion distribution</p>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Pipeline conversion distribution
-          </p>
         </div>
+
         <Link
           href="/admin/crm/leads"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-dark transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-[#163A2E] hover:underline"
         >
-          View Leads
-          <ArrowUpRight className="size-3.5" />
+          View all <ArrowUpRight className="size-3.5" />
         </Link>
       </div>
 
-      {/* Donut Chart with Center Counter */}
-      <div className="relative my-3 flex items-center justify-center h-[200px] w-full">
+      {/* Donut Chart with Center Total Counter */}
+      <div className="relative my-2 flex h-48 sm:h-52 w-full items-center justify-center">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Tooltip
-              content={({ active, payload }) => {
-                if (active && payload && payload.length && totalLeads > 0) {
-                  const data = payload[0].payload;
-                  const pct = totalLeads > 0 ? Math.round((data.count / totalLeads) * 100) : 0;
-                  return (
-                    <div className="rounded-xl border border-slate-200/90 bg-white/95 p-2.5 shadow-lg backdrop-blur-md">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="size-2.5 rounded-full"
-                          style={{ backgroundColor: data.color }}
-                        />
-                        <p className="text-xs font-bold text-slate-800">{data.name}</p>
-                      </div>
-                      <p className="text-xs font-semibold text-slate-600 mt-1">
-                        {data.count} Leads ({pct}%)
-                      </p>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
             <Pie
               data={displayData}
               cx="50%"
               cy="50%"
-              innerRadius={58}
-              outerRadius={86}
+              innerRadius={65}
+              outerRadius={88}
               paddingAngle={totalLeads > 0 ? 3 : 0}
               dataKey="count"
+              isAnimationActive={true}
               animationDuration={800}
             >
               {displayData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.color}
+                  className="transition-all duration-300 hover:opacity-85 focus:outline-none"
+                />
               ))}
             </Pie>
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const item = payload[0]?.payload;
+                if (item?.isEmpty) return null;
+                const percentage =
+                  totalLeads > 0 ? ((item.count / totalLeads) * 100).toFixed(1) : 0;
+                return (
+                  <div className="rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-xs p-2.5 shadow-md">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="size-2.5 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-xs font-bold text-slate-800">{item.name}</span>
+                    </div>
+                    <p className="mt-1 text-sm font-extrabold text-slate-900">
+                      {item.count} leads ({percentage}%)
+                    </p>
+                  </div>
+                );
+              }}
+            />
           </PieChart>
         </ResponsiveContainer>
 
-        {/* Center Text Overlay */}
+        {/* Center Total Counter */}
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-none">
-            {totalLeads}
-          </span>
-          <span className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Total Leads
-          </span>
+          </p>
+          <p className="text-2xl sm:text-3xl font-extrabold text-[#163A2E]">
+            <AnimatedCounter value={totalLeads} />
+          </p>
         </div>
       </div>
 
-      {/* Stage Progress Legend List */}
-      <div className="space-y-2 border-t border-slate-100 pt-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {chartData.map((item) => {
-            const count = item.count;
-            const pct = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
-            return (
-              <div
-                key={item.name}
-                className="flex flex-col rounded-lg bg-slate-50/80 p-2 border border-slate-100"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span
-                      className="size-2 rounded-full shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="truncate font-medium text-slate-700">
-                      {item.name}
-                    </span>
-                  </div>
-                  <span className="font-bold text-slate-900 shrink-0 ml-1">
-                    {count}
-                  </span>
-                </div>
-                <div className="mt-1.5 h-1.5 w-full rounded-full bg-slate-200/70 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: item.color,
-                    }}
-                  />
-                </div>
+      {/* Interactive Legend with counts & percentages */}
+      <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+        {chartData.map((stage) => {
+          const pct = totalLeads > 0 ? Math.round((stage.count / totalLeads) * 100) : 0;
+          return (
+            <div
+              key={stage.name}
+              className="flex items-center justify-between rounded-lg p-1.5 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: stage.color }}
+                />
+                <span className="truncate text-xs font-medium text-slate-600">
+                  {stage.name}
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="font-bold text-slate-900">{stage.count}</span>
+                <span className="text-[10px] text-slate-400">({pct}%)</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
