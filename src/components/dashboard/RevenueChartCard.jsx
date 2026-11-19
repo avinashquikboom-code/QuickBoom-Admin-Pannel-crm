@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, Calendar, IndianRupee, FileCheck, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, IndianRupee, FileCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimatedCounter } from './AnimatedCounter';
 
@@ -43,7 +43,6 @@ export function RevenueChartCard({ summary, invoices = [], dateFrom, dateTo, loa
     });
 
     if (revenueMap.size === 0 && totalRevenue > 0) {
-      // Create representative distributed series over the last 7 intervals if no individual itemized invoice rows
       const days = 7;
       const now = new Date();
       const points = [];
@@ -61,7 +60,6 @@ export function RevenueChartCard({ summary, invoices = [], dateFrom, dateTo, loa
     }
 
     if (revenueMap.size === 0) {
-      // Return subtle baseline points so the chart renders gracefully
       const now = new Date();
       return Array.from({ length: 6 }).map((_, i) => {
         const d = new Date(now);
@@ -88,23 +86,28 @@ export function RevenueChartCard({ summary, invoices = [], dateFrom, dateTo, loa
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs h-[420px]">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
+      <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs h-[460px]">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 min-h-[56px]">
+          <div className="space-y-1">
             <Skeleton className="h-5 w-36 rounded-md" />
-            <Skeleton className="h-4 w-48 rounded-md" />
+            <Skeleton className="h-3.5 w-48 rounded-md" />
           </div>
-          <Skeleton className="h-8 w-32 rounded-xl" />
+          <Skeleton className="h-8 w-28 rounded-xl" />
         </div>
-        <Skeleton className="h-[280px] w-full rounded-xl mt-4" />
+        <div className="mt-4 grid grid-cols-3 gap-3 border-b border-slate-100 pb-4">
+          <Skeleton className="h-[74px] rounded-xl" />
+          <Skeleton className="h-[74px] rounded-xl" />
+          <Skeleton className="h-[74px] rounded-xl" />
+        </div>
+        <Skeleton className="h-[250px] w-full rounded-xl mt-4" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-emerald-950/20 transition-all duration-300">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+    <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-emerald-950/20 transition-all duration-300 h-full">
+      {/* Header (min-h-[56px] matching LeadsByStageCard) */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3 min-h-[56px]">
         <div>
           <div className="flex items-center gap-2">
             <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-50 text-[#163A2E]">
@@ -121,8 +124,8 @@ export function RevenueChartCard({ summary, invoices = [], dateFrom, dateTo, loa
         </div>
 
         {/* Quick Period Aggregates */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-100/80 bg-emerald-50/40 px-3 py-1.5">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-xl border border-emerald-100/80 bg-emerald-50/40 px-3 py-1.5">
             <span className="text-[11px] font-medium text-slate-500">Total Period:</span>
             <span className="text-sm font-extrabold text-[#163A2E]">
               <AnimatedCounter value={totalRevenue} prefix="₹" />
@@ -131,40 +134,40 @@ export function RevenueChartCard({ summary, invoices = [], dateFrom, dateTo, loa
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 border-b border-slate-100 pb-4">
-        <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-2.5 sm:p-3">
+      {/* 3 Metrics Boxes (h-[74px] matching LeadsByStageCard) */}
+      <div className="mt-4 grid grid-cols-3 gap-2.5 sm:gap-3 border-b border-slate-100 pb-4">
+        <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-2.5 sm:p-3 h-[74px] flex flex-col justify-between">
           <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
             <IndianRupee className="size-3 text-slate-400" /> Total Invoiced
           </p>
-          <p className="mt-1 text-base sm:text-lg font-bold text-slate-900">
+          <p className="mt-0.5 text-base sm:text-lg font-bold text-slate-900">
             ₹{totalRevenue.toLocaleString('en-IN')}
           </p>
         </div>
-        <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-2.5 sm:p-3">
+        <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-2.5 sm:p-3 h-[74px] flex flex-col justify-between">
           <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
             <FileCheck className="size-3 text-slate-400" /> Paid Invoices
           </p>
-          <p className="mt-1 text-base sm:text-lg font-bold text-slate-900">
+          <p className="mt-0.5 text-base sm:text-lg font-bold text-slate-900">
             <AnimatedCounter value={invoicesCount} />
           </p>
         </div>
-        <div className="col-span-2 sm:col-span-1 rounded-xl bg-slate-50/70 border border-slate-100 p-2.5 sm:p-3">
+        <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-2.5 sm:p-3 h-[74px] flex flex-col justify-between">
           <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
             <TrendingUp className="size-3 text-slate-400" /> Avg Ticket Size
           </p>
-          <p className="mt-1 text-base sm:text-lg font-bold text-slate-900">
+          <p className="mt-0.5 text-base sm:text-lg font-bold text-slate-900">
             ₹{avgInvoiceValue.toLocaleString('en-IN')}
           </p>
         </div>
       </div>
 
-      {/* Recharts Area Chart with Deep Forest Green Theme */}
-      <div className="mt-4 h-[260px] sm:h-[300px] w-full min-w-0">
+      {/* Recharts Area Chart */}
+      <div className="mt-4 flex-1 h-[270px] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
-            margin={{ top: 12, right: 12, left: -18, bottom: 0 }}
+            margin={{ top: 10, right: 10, left: -18, bottom: 0 }}
           >
             <defs>
               <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">

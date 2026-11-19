@@ -70,6 +70,18 @@ export const validateCapture = (id) => api.post(`/data-capture/${id}/validate`);
 export const rejectCapture = (id, reason) => api.post(`/data-capture/${id}/reject`, { reason });
 export const createLeadFromCapture = (id) => api.post(`/data-capture/${id}/create-lead`, {});
 
+function csvForm(file, mapping, employeeId) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('mapping', JSON.stringify(mapping));
+  if (employeeId != null) form.append('employeeId', String(employeeId));
+  return form;
+}
+
+export const validateCsvLeadImport = (file, mapping) => api.post('/data-capture/csv/validate', csvForm(file, mapping), { headers: { 'Content-Type': 'multipart/form-data' } });
+export const importCsvLeads = (file, mapping, employeeId) => api.post('/data-capture/csv/import', csvForm(file, mapping, employeeId), { headers: { 'Content-Type': 'multipart/form-data' } });
+export const previewCsvLeadFile = (file) => api.post('/data-capture/csv/preview', csvForm(file, {}), { headers: { 'Content-Type': 'multipart/form-data' } });
+
 export function extractPlaces(values) {
   return api.post('/data-capture/extract', {
     keyword: values.keyword || undefined,
