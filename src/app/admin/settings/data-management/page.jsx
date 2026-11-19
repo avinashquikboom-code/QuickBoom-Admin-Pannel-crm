@@ -97,7 +97,10 @@ export default function DataManagementPage() {
   React.useEffect(() => { reload(); }, [reload]);
 
   React.useEffect(() => {
-    if (!selected.length || scope !== 'selected' || loading || error) return;
+    if (!selected.length || scope !== 'selected' || loading || error) {
+      if (!selected.length && scope === 'selected') setPreview(null);
+      return;
+    }
     let active = true;
     const timer = setTimeout(async () => {
       try {
@@ -344,24 +347,70 @@ export default function DataManagementPage() {
                 {!!preview.dependencyWarnings?.length && <div className="mt-3 space-y-3">
                   {resolvedDependencies.length > 0 && <div className="rounded-xl border border-[#B7DCC4] bg-[#F1F8F3] p-3">
                     <p className="text-sm font-semibold text-[#24613D]">Same-tenant dependencies handled by this reset</p>
-                    <ul className="mt-1 space-y-1 text-xs text-[#315B40]">{resolvedDependencies.map((item) => <li key={`resolved-${item.module}-${item.model}`}>{item.label}: {Number(item.resolvedRecords || (!item.blocking ? item.records : 0)).toLocaleString()} same-tenant references{item.willSetNull ? ' will be cleared while the protected records remain' : item.includedInSelectedModule ? ' will be deleted by the selected module' : ' are safe for this reset'}.</li>)}</ul>
+                    <ul className="mt-1 space-y-1 text-xs text-[#315B40]">{resolvedDependencies.map((item) => (
+                      <li key={`resolved-${item.module}-${item.model}`} className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D4EBDC] py-1 last:border-0">
+                        <span>
+                          <strong className="font-semibold">{item.label}</strong> ({item.resolutionModule?.name || item.module}): {Number(item.resolvedRecords || (!item.blocking ? item.records : 0)).toLocaleString()} same-tenant references
+                        </span>
+                        <span className="rounded-full bg-[#E3F2E9] px-2 py-0.5 font-medium text-[#1E5636]">
+                          {item.willSetNull ? 'Cleared (Set Null) · Records Intact' : item.includedInSelectedModule ? 'Deleted with Selected Module' : 'Safe for Reset'}
+                        </span>
+                      </li>
+                    ))}</ul>
                   </div>}
-                  {unresolvedDependencies.length > 0 && <div className="rounded-xl border border-[#F3D4A6] bg-[#FFFAF0] p-3">
-                    <p className="text-sm font-semibold text-[#92400E]">Unresolved blockers</p>
-                    <ul className="mt-1 space-y-1 text-xs text-[#78350F]">{unresolvedDependencies.map((item) => {
-                      const protectedReference = item.policy === 'protected' || /protected/i.test(item.label || '');
-                      const otherTenant = Number(item.crossTenantRecords || 0);
-                      const unresolvedCount = Number(item.unresolvedRecords ?? (otherTenant ? otherTenant : item.records));
-                      const eligibleSameTenant = Math.max(0, Number(item.records || 0) - otherTenant);
-                      const reasonText = protectedReference
-                        ? 'Protected role/designation reference; leave Designations out of this reset or resolve the link through authorized role management.'
-                        : otherTenant
-                          ? `${otherTenant.toLocaleString()} cross-tenant reference${otherTenant === 1 ? '' : 's'} belong to other tenant-owned records. The administrator of each owning tenant must resolve the employee link; this reset will leave those records unchanged.${eligibleSameTenant && item.resolutionModule ? ` Select ${item.resolutionModule.name} to include ${eligibleSameTenant.toLocaleString()} same-tenant record${eligibleSameTenant === 1 ? '' : 's'}.` : ''}`
+                  {unresolvedDependencies.length > 0 && <div className="rounded-xl border border-[#F3D4A6] bg-[#FFFAF0] p-4">
+                    <div className="flex items-center gap-2">
+                      <FontAwesomeIcon icon={faTriangleExclamation} className="size-4 text-[#92400E]" />
+                      <p className="text-sm font-semibold text-[#92400E]">Unresolved blockers ({unresolvedDependencies.length})</p>
+                    </div>
+                    <p className="mt-1 text-xs text-[#78350F]">The following dependencies prevent data reset. Resolve all blocking items to enable execution.</p>
+                    <div className="mt-3 space-y-3">{unresolvedDependencies.map((item) => {
+                      const total = Number(item.records || 0);
+                      const crossTenant = Number(item.crossTenantRecords || 0);
+                      const sameTenant = Number(item.sameTenantRecords ?? Math.max(0, total - crossTenant));
+                      const resolved = Number(item.resolvedRecords || 0);
+                      const unresolved = Number(item.unresolvedRecords ?? (crossTenant || Math.max(0, total - resolved)));
+                      const moduleName = item.resolutionModule?.name || item.module || item.parent || 'System';
+                      const isProtected = item.policy === 'protected' || /protected/i.test(item.label || '');
+                      const reason = item.reason || (isProtected
+                        ? 'Protected system record; excluded from deletion to prevent orphaned data or security violations.'
+                        : crossTenant > 0
+                          ? `${crossTenant.toLocaleString()} cross-tenant reference${crossTenant === 1 ? '' : 's'} belong to other tenant-owned records.`
                           : item.policy === 'cascade' && !item.includedInSelectedModule
-                            ? `Select ${item.resolutionModule?.name || 'the eligible module'} to include these same-tenant records.`
-                            : 'This dependency must be resolved before execution.';
-                      return <li key={`blocked-${item.module}-${item.model}`}>{item.label}: {unresolvedCount.toLocaleString()} unresolved of {Number(item.records).toLocaleString()}{otherTenant ? ` (${otherTenant.toLocaleString()} cross-tenant)` : ''}. {reasonText}</li>;
-                    })}</ul>
+                            ? `Dependent records in ${moduleName} are not selected for deletion.`
+                            : 'Unresolved dependency requires administrative action.');
+                      const action = item.recommendedAction || (isProtected
+                        ? 'Leave the protected module out of this reset or manage references through authorized administrative tools.'
+                        : crossTenant > 0
+                          ? 'The administrator of each owning tenant must reassign or remove the employee reference; this reset will leave those records unchanged.'
+                          : item.policy === 'cascade' && !item.includedInSelectedModule
+                            ? `Select the checkbox for ${item.resolutionModule?.name || moduleName} to include and delete these dependent records together.`
+                            : 'Resolve all dependent references before executing reset.');
+                      const owningTenantInfo = item.owningTenantInfo || (crossTenant > 0 ? 'Other Tenant Accounts' : null);
+
+                      return (
+                        <div key={`blocked-${item.module}-${item.model}`} className="rounded-lg border border-[#E5C38E] bg-white p-3 text-xs shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0E4D2] pb-2">
+                            <span className="font-semibold text-[#172B24]">{item.label}</span>
+                            <span className="rounded-full bg-[#FEF3C7] px-2.5 py-0.5 font-medium text-[#92400E]">
+                              Module: {moduleName}
+                            </span>
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5 text-[#475467]">
+                            <div><span className="block text-[11px] text-[#718078]">Total References</span><span className="font-semibold text-[#172B24]">{total.toLocaleString()}</span></div>
+                            <div><span className="block text-[11px] text-[#718078]">Same-Tenant</span><span className="font-medium text-[#163A2E]">{sameTenant.toLocaleString()}</span></div>
+                            <div><span className="block text-[11px] text-[#718078]">Cross-Tenant</span><span className="font-medium text-[#DC2626]">{crossTenant.toLocaleString()}</span></div>
+                            <div><span className="block text-[11px] text-[#718078]">Resolved</span><span className="font-medium text-[#16A34A]">{resolved.toLocaleString()}</span></div>
+                            <div><span className="block text-[11px] text-[#718078]">Unresolved</span><span className="font-semibold text-[#DC2626]">{unresolved.toLocaleString()}</span></div>
+                          </div>
+                          <div className="mt-2 space-y-1 border-t border-[#F0E4D2] pt-2">
+                            <p><strong className="text-[#78350F]">Reason:</strong> {reason}</p>
+                            {owningTenantInfo && <p><strong className="text-[#78350F]">Owning Tenant:</strong> {owningTenantInfo}</p>}
+                            <p><strong className="text-[#163A2E]">Recommended Action:</strong> {action}</p>
+                          </div>
+                        </div>
+                      );
+                    })}</div>
                   </div>}
                 </div>}
               </Panel>
