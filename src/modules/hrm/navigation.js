@@ -1,4 +1,4 @@
-import { faBell, faBuilding, faBullseye, faClock, faIndianRupeeSign, faGauge, faLocationDot, faMugHot, faPeopleGroup, faPercent, faSackDollar, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
+import { faBuilding, faBullseye, faClock, faIndianRupeeSign, faGauge, faLocationDot, faMugHot, faPeopleGroup, faPercent, faSackDollar, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
 import { faCalendar, faCalendarCheck, faCalendarXmark, faFileLines } from '@fortawesome/free-regular-svg-icons';
 export const navigation = [
         {
@@ -16,11 +16,6 @@ export const navigation = [
             name: 'Attendance',
             href: '/admin/hrm/attendance',
             icon: faCalendarCheck,
-        },
-        {
-            name: 'Late Mark Reports',
-            href: '/admin/hrm/late-mark-reports',
-            icon: faClock,
         },
         {
             name: 'Break Management',
@@ -92,11 +87,6 @@ export const navigation = [
             name: 'Remote Work',
             href: '/admin/hrm/remote-work',
             icon: faCalendar,
-        },
-        {
-            name: 'Announcements',
-            href: '/admin/hrm/announcements',
-            icon: faBell,
         },
         {
             name: 'Geo Tracking',

@@ -11,10 +11,12 @@ import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { cancelCampaign, loadCampaigns, loadCampaignSummary, loadIntegrations, loadNotificationHistory, removeCampaign, resendCampaign, saveCampaign, suiteError, uploadCampaignImage } from '@/modules/suite/suite-api';
 import { loadCustomers, personName } from '@/modules/crm/crm-api';
 import { loadEmployees } from '@/modules/hrm/hrm-api';
+import AnnouncementsPage from '@/app/admin/hrm/announcements/page';
 import { toast } from '@/hooks/use-toast';
 
 const TABS = [
   ['campaigns', 'Campaigns'],
+  ['announcements', 'Announcements'],
   ['delivery', 'Delivery settings'],
   ['history', 'History'],
 ];
@@ -75,9 +77,10 @@ export default function NotificationsPage() {
   };
 
   return <div className="max-w-none min-w-0 w-full space-y-4">
-    <PageHeader title="Notifications & Campaigns" description="Create, manage, schedule and deliver campaigns across the channels this notification API supports." actions={<Button onClick={openForm}>Create campaign</Button>} />
+    <PageHeader title="Notifications & Campaigns" description="Create and manage campaigns, company announcements, delivery settings, and notification history." actions={tab === 'campaigns' ? <Button onClick={openForm}>Create campaign</Button> : null} />
     <div className="flex flex-wrap gap-2">{TABS.map(([key, label]) => <Button key={key} size="sm" variant={tab === key ? 'default' : 'outline'} onClick={() => setTab(key)}>{label}</Button>)}</div>
     {tab === 'campaigns' && <Campaigns rows={rows} summary={summary} loading={loading} error={error} query={query} setQuery={setQuery} onRetry={() => setRefresh((value) => value + 1)} onChanged={() => setRefresh((value) => value + 1)} />}
+    {tab === 'announcements' && <AnnouncementsPage />}
     {tab === 'delivery' && <Delivery integrations={integrations} />}
     {tab === 'history' && <History rows={history} loading={loading} error={error} query={historyQuery} setQuery={setHistoryQuery} onRetry={() => setRefresh((value) => value + 1)} />}
     <FormDrawer open={open} onOpenChange={setOpen} title="Create campaign" description="Images are uploaded to the existing notification storage. Drafts are not sent." showFooter={false} size="lg">
