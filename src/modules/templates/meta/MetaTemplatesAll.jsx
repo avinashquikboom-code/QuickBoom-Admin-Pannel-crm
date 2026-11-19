@@ -806,10 +806,6 @@ export function MetaTemplatesAll() {
 
       {/* ── Navigation Tabs & Filter Toolbar ──────────────────────── */}
       <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-        <nav aria-label="Template sections" className="flex flex-wrap gap-2 border-b border-[#E2E8E5] pb-3 text-sm font-medium">
-          <Link href="/admin/sections/email-templates" className="rounded-md px-3 py-2 text-[#718078] hover:bg-slate-50">Email Templates</Link>
-          <Link href="/admin/settings/notifications" className="rounded-md px-3 py-2 text-[#718078] hover:bg-slate-50">Notification Settings</Link>
-        </nav>
         {/* Navigation Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-sm no-scrollbar">
           {LIST_TABS.map((tab) => {

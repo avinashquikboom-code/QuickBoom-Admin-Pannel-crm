@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Calendar, RotateCw, Filter, Sparkles, ChevronDown } from 'lucide-react';
+import { Calendar, RotateCw, Filter, Sparkles, Radio, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { useAuthStore } from '../../../lib/store';
@@ -14,6 +14,8 @@ export function DashboardHeader({
   onDateChange,
   onRefresh,
   loading,
+  liveState = 'live',
+  lastUpdated = null,
 }) {
   const authUser = useAuthStore((state) => state.user);
   const [sessionUser, setSessionUser] = React.useState(null);
@@ -46,6 +48,15 @@ export function DashboardHeader({
     });
   }, []);
 
+  const presets = [
+    { key: 'Today', label: 'Today' },
+    { key: '7D', label: 'Last 7 Days' },
+    { key: '30D', label: 'Last 30 Days' },
+    { key: 'Month', label: 'This Month' },
+    { key: 'Last Month', label: 'Last Month' },
+    { key: 'Custom', label: 'Custom' },
+  ];
+
   const handlePreset = (preset) => {
     setActivePreset(preset);
     const now = new Date();
@@ -73,29 +84,54 @@ export function DashboardHeader({
       const fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const toDate = new Date(now.getFullYear(), now.getMonth(), 0);
       onDateChange(fromDate.toISOString().split('T')[0], toDate.toISOString().split('T')[0]);
-    } else if (preset === 'Year') {
-      setShowCustomRange(false);
-      const fromDate = new Date(now.getFullYear(), 0, 1);
-      onDateChange(fromDate.toISOString().split('T')[0], to);
     } else if (preset === 'Custom') {
       setShowCustomRange((prev) => !prev);
     }
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50/50 to-emerald-50/20 p-4 sm:p-6 shadow-xs">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-[#F7F9F8] to-emerald-50/30 p-4 sm:p-6 shadow-xs">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        {/* Left: Greeting & Date */}
-        <div className="min-w-0 space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-brand-light text-brand-dark">
-              <Sparkles className="size-4 text-brand-dark" />
+        {/* Left: Greeting, Date & Live Badge */}
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-100/70 text-[#163A2E]">
+              <Sparkles className="size-4 text-[#163A2E]" />
             </span>
-            <h1 className="truncate text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-              {greeting}, <span className="text-brand-dark">{adminName}</span>
+            <h1 className="truncate text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+              {greeting}, <span className="text-[#163A2E]">{adminName}</span>
             </h1>
+
+            {/* Live Indicator Pill */}
+            <div
+              className={cn(
+                'ml-1 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold tracking-wide',
+                liveState === 'live'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
+                  : liveState === 'reconnecting'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200/80'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              )}
+            >
+              <span
+                className={cn(
+                  'size-2 rounded-full',
+                  liveState === 'live'
+                    ? 'bg-emerald-500 animate-pulse'
+                    : liveState === 'reconnecting'
+                    ? 'bg-amber-500 animate-ping'
+                    : 'bg-slate-400'
+                )}
+              />
+              {liveState === 'live'
+                ? 'Live Updates Active'
+                : liveState === 'reconnecting'
+                ? 'Reconnecting...'
+                : 'Offline'}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-500">
+
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span className="flex items-center gap-1.5 font-medium text-slate-600">
               <Calendar className="size-3.5 text-slate-400" />
               {todayStr}
@@ -104,45 +140,54 @@ export function DashboardHeader({
             <span className="truncate text-slate-500">
               QB Suite Executive Management Dashboard
             </span>
+            {lastUpdated && (
+              <>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="text-[11px] text-slate-400">
+                  Last synced: {lastUpdated.toLocaleTimeString()}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Right: Date Filter & Actions */}
+        {/* Right: Date Filter Presets & Refresh Action */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Quick Presets */}
-          <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
-            {['Today', '7D', '30D', 'Month', 'Last Month', 'Custom'].map((preset) => {
-              const isSelected = activePreset === preset;
+          {/* Quick Filter Presets */}
+          <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs overflow-x-auto max-w-full">
+            {presets.map((preset) => {
+              const isSelected = activePreset === preset.key;
               return (
                 <button
-                  key={preset}
+                  key={preset.key}
                   type="button"
-                  onClick={() => handlePreset(preset)}
+                  onClick={() => handlePreset(preset.key)}
                   className={cn(
-                    'rounded-lg px-2.5 py-1 text-xs font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    'rounded-lg px-2.5 py-1 text-xs font-semibold transition-all duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#163A2E]',
                     isSelected
-                      ? 'bg-brand text-white shadow-xs'
+                      ? 'bg-[#163A2E] text-white shadow-xs'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   )}
                 >
-                  {preset}
+                  {preset.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Refresh Button */}
+          {/* Manual Refresh Button */}
           <Button
             variant="outline"
             size="sm"
             onClick={onRefresh}
             disabled={loading}
-            className="h-8 gap-1.5 rounded-xl border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-brand-dark transition-all duration-200 active:scale-95"
+            className="h-8 gap-1.5 rounded-xl border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-[#163A2E] transition-all duration-200 active:scale-95"
+            title="Refresh live dashboard metrics"
           >
             <RotateCw
-              className={cn('size-3.5 text-slate-500', loading && 'animate-spin text-brand')}
+              className={cn('size-3.5 text-slate-500', loading && 'animate-spin text-[#163A2E]')}
             />
-            <span className="hidden sm:inline">Refresh</span>
+            <span className="hidden sm:inline">Sync</span>
           </Button>
         </div>
       </div>

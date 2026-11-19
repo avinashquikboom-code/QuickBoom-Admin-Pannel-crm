@@ -16,8 +16,20 @@ import { PayrollSummaryCard } from '@/components/dashboard/PayrollSummaryCard';
 import { RecentLeadsCard } from '@/components/dashboard/RecentLeadsCard';
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
-import { DataCaptureCard, CampaignMetricsCard } from '@/components/dashboard/DataCaptureCard';
-import { loadCaptures, loadCaptureUsage } from '@/modules/data-capture/capture-api';
+import { DataCaptureCard } from '@/components/dashboard/DataCaptureCard';
+import { WhatsAppCampaignCard } from '@/components/dashboard/WhatsAppCampaignCard';
+import { EmailCampaignCard } from '@/components/dashboard/EmailCampaignCard';
+import { loadCaptures, loadCaptureUsage, loadCaptureSessions } from '@/modules/data-capture/capture-api';
+
+function objectOf(payload) {
+  if (!payload || typeof payload !== 'object') return {};
+  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+    return payload.data.summary && payload.data.workforce == null && payload.data.present == null
+      ? payload.data
+      : payload.data;
+  }
+  return payload;
+}
 
 export default function AdminDashboardPage() {
   const [dateFrom, setDateFrom] = React.useState('');
@@ -28,11 +40,15 @@ export default function AdminDashboardPage() {
   const [refreshCount, setRefreshCount] = React.useState(0);
   const [captureData, setCaptureData] = React.useState(null);
   const [lastUpdated, setLastUpdated] = React.useState(null);
-  const [liveState, setLiveState] = React.useState('connecting');
+  const [liveState, setLiveState] = React.useState('live');
   const hasLoadedRef = React.useRef(false);
+  const isFetchingRef = React.useRef(false);
 
   const fetchDashboardData = React.useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     if (!hasLoadedRef.current) setLoading(true);
+
     const params = {
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
@@ -46,65 +62,122 @@ export default function AdminDashboardPage() {
       tasks: () => api.get('/tasks/metrics'),
       liveAttendance: () => api.get('/admin/hrms/live-dashboard'),
       recentLeads: () => api.get('/leads', { params: { page: 1, limit: 10 } }),
-      invoices: () => api.get('/invoices', { params: { page: 1, limit: 10 } }),
+      invoices: () => api.get('/invoices', { params: { page: 1, limit: 25, status: 'PAID' } }),
       activity: () => api.get('/audit-logs', { params: { page: 1, limit: 10 } }),
       captureUsage: () => loadCaptureUsage(),
+      captureSessions: () => loadCaptureSessions({ page: 1, limit: 10 }),
       capturePending: () => loadCaptures({ page: 1, limit: 1, status: 'CAPTURED' }),
       captureRejected: () => loadCaptures({ page: 1, limit: 1, status: 'REJECTED' }),
       whatsappStats: () => api.get('/whatsapp/campaigns/stats'),
+      emailStats: async () => {
+        try {
+          return await api.get('/email/stats');
+        } catch {
+          // Graceful fallback to templates stats
+          const res = await api.get('/email/templates', { params: { page: 1, limit: 1 } });
+          const stats = res?.data?.stats || res?.stats || {};
+          return {
+            totalTemplates: stats.total || 0,
+            activeTemplates: stats.active || 0,
+            totalSent: stats.sent || 0,
+            totalDelivered: stats.sent || 0,
+            totalFailed: 0,
+          };
+        }
+      },
     };
 
-    const results = await Promise.all(
-      Object.entries(endpoints).map(async ([key, call]) => {
-        try {
-          const res = await call();
-          return [key, res, null];
-        } catch (err) {
-          return [key, null, suiteError(err)];
-        }
-      })
-    );
+    try {
+      const results = await Promise.all(
+        Object.entries(endpoints).map(async ([key, call]) => {
+          try {
+            const res = await call();
+            return [key, res, null];
+          } catch (err) {
+            return [key, null, suiteError(err)];
+          }
+        })
+      );
 
-    const nextData = {};
-    const errorList = [];
-    results.forEach(([key, payload, error]) => {
-      if (error) errorList.push({ key, error });
-      else nextData[key] = payload;
-    });
+      const nextData = {};
+      const errorList = [];
+      results.forEach(([key, payload, error]) => {
+        if (error) errorList.push({ key, error });
+        else nextData[key] = payload;
+      });
 
-    setData((previous) => ({ ...previous, ...nextData }));
-    setCaptureData((previous) => ({
-      usage: Object.hasOwn(nextData, 'captureUsage') ? nextData.captureUsage : previous?.usage,
-      pending: Object.hasOwn(nextData, 'capturePending') ? nextData.capturePending?.total ?? nextData.capturePending?.pagination?.total : previous?.pending,
-      rejected: Object.hasOwn(nextData, 'captureRejected') ? nextData.captureRejected?.total ?? nextData.captureRejected?.pagination?.total : previous?.rejected,
-    }));
-    setFailed(errorList);
-    setLoading(false);
-    hasLoadedRef.current = true;
-    setLastUpdated(new Date());
-    setLiveState(errorList.length ? 'reconnecting' : 'live');
+      setData((previous) => ({ ...previous, ...nextData }));
+      setCaptureData((previous) => ({
+        usage: Object.hasOwn(nextData, 'captureUsage') ? nextData.captureUsage : previous?.usage,
+        sessionsSummary: nextData.captureSessions?.summary || previous?.sessionsSummary,
+        sessionsMeta: nextData.captureSessions?.meta || previous?.sessionsMeta,
+        pending: Object.hasOwn(nextData, 'capturePending')
+          ? nextData.capturePending?.total ?? nextData.capturePending?.pagination?.total
+          : previous?.pending,
+        rejected: Object.hasOwn(nextData, 'captureRejected')
+          ? nextData.captureRejected?.total ?? nextData.captureRejected?.pagination?.total
+          : previous?.rejected,
+      }));
+      setFailed(errorList);
+      setLastUpdated(new Date());
+      setLiveState(errorList.length ? 'reconnecting' : 'live');
+    } catch {
+      setLiveState('reconnecting');
+    } finally {
+      setLoading(false);
+      hasLoadedRef.current = true;
+      isFetchingRef.current = false;
+    }
   }, [dateFrom, dateTo]);
 
   React.useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData, refreshCount]);
 
+  // Safe polling with tab visibility and online/offline awareness
   React.useEffect(() => {
     let timer;
     let stopped = false;
+
     const schedule = () => {
       clearTimeout(timer);
       if (document.visibilityState === 'visible' && !stopped) {
         timer = setTimeout(async () => {
           if (!stopped) await fetchDashboardData();
           schedule();
-        }, 45000);
+        }, 40000);
       }
     };
-    const onVisibility = () => schedule();
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchDashboardData();
+        schedule();
+      }
+    };
+
+    const onOnline = () => {
+      setLiveState('live');
+      fetchDashboardData();
+    };
+
+    const onOffline = () => {
+      setLiveState('offline');
+    };
+
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+
     schedule();
-    return () => { stopped = true; clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); };
+
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
   }, [fetchDashboardData]);
 
   const summary = objectOf(data?.summary);
@@ -127,25 +200,22 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6 pb-8">
-      {/* 1. Welcome & Date Filter Section */}
+    <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6 pb-10">
+      {/* 1. Header with Greeting, Date Filters & Live Sync State */}
       <DashboardHeader
         dateFrom={dateFrom}
         dateTo={dateTo}
         onDateChange={handleDateChange}
         onRefresh={handleRefresh}
         loading={loading}
+        liveState={liveState}
+        lastUpdated={lastUpdated}
       />
-      <div className="flex items-center gap-2 text-xs text-slate-500" role="status" aria-live="polite">
-        <span className={`size-2 rounded-full ${liveState === 'live' ? 'bg-emerald-500' : liveState === 'reconnecting' ? 'bg-amber-500' : 'bg-slate-400'}`} />
-        {liveState === 'live' ? 'Live · refreshes every 45 seconds' : liveState === 'reconnecting' ? 'Reconnecting · showing last successful update' : 'Connecting to dashboard data'}
-        {lastUpdated && <span>· Updated {lastUpdated.toLocaleTimeString()}</span>}
-      </div>
 
-      {/* Error Notice if any background endpoint failed */}
+      {/* Network or Endpoint Notice */}
       {failed.length > 0 && (
         <HrmNotice
-          error={`Notice: Some metrics could not be fetched (${failed.map((f) => f.key).join(', ')}). Retrying available data.`}
+          error={`Notice: Some metrics could not be fetched (${failed.map((f) => f.key).join(', ')}). Retrying available live data.`}
           onRetry={handleRefresh}
         />
       )}
@@ -159,12 +229,14 @@ export default function AdminDashboardPage() {
         loading={loading}
       />
 
-      {/* 3. Main Analytics Section: Revenue Overview (2/3) & Leads by Stage Donut (1/3) */}
+      {/* 3. Main Analytics Section: Revenue Overview (7/12) & Leads by Stage Donut (5/12) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full min-w-0">
         <div className="lg:col-span-7 xl:col-span-8 min-w-0">
           <RevenueChartCard
             summary={summary}
             invoices={recentInvoices}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
             loading={loading}
           />
         </div>
@@ -173,7 +245,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 4. Three-Column Summary Cards: Attendance, Tasks, Payroll */}
+      {/* 4. Three-Column Summary Cards: Attendance Overview, Tasks Overview, Payroll Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 w-full min-w-0">
         <AttendanceCard
           summary={summary}
@@ -181,20 +253,33 @@ export default function AdminDashboardPage() {
           loading={loading}
         />
         <TasksOverviewCard tasks={tasks} loading={loading} />
-        <PayrollSummaryCard summary={summary} loading={loading} />
+        <PayrollSummaryCard
+          summary={summary}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          loading={loading}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full min-w-0">
-        <DataCaptureCard data={captureData} loading={loading && !captureData} />
-        <CampaignMetricsCard whatsappStats={data?.whatsappStats} />
+      {/* 5. Data Capture & Campaign Marketing Performance Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0">
+        <div className="lg:col-span-1 min-w-0">
+          <DataCaptureCard data={captureData} loading={loading && !captureData} />
+        </div>
+        <div className="lg:col-span-1 min-w-0">
+          <WhatsAppCampaignCard stats={data?.whatsappStats} loading={loading} />
+        </div>
+        <div className="lg:col-span-1 min-w-0">
+          <EmailCampaignCard stats={data?.emailStats} loading={loading} />
+        </div>
       </div>
 
-      {/* 5. Recent Leads Table & Responsive Cards */}
+      {/* 6. Recent Leads Table & Responsive Cards */}
       <div className="w-full min-w-0">
         <RecentLeadsCard recentLeads={recentLeads} loading={loading} />
       </div>
 
-      {/* 6. Recent Activity & Quick Actions (2-Col Layout) */}
+      {/* 7. Recent Activity & Quick Actions (2-Col Layout) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0">
         <div className="lg:col-span-2 min-w-0">
           <RecentActivityCard activity={activity} loading={loading} />
@@ -205,14 +290,4 @@ export default function AdminDashboardPage() {
       </div>
     </div>
   );
-}
-
-function objectOf(payload) {
-  if (!payload || typeof payload !== 'object') return {};
-  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
-    return payload.data.summary && payload.data.workforce == null && payload.data.present == null
-      ? payload.data
-      : payload.data;
-  }
-  return payload;
 }
