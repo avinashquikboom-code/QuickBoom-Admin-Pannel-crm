@@ -5,6 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
+import { MessageSquare, Mail } from 'lucide-react';
 import {
     faBriefcase,
     faBullhorn,
@@ -28,10 +29,11 @@ import {
     aiSocialNavigation,
     contentNavigation,
     dataCaptureNavigation,
+    emailMarketingNavigation,
     influencerNavigation,
     masterNavigation,
     settingsNavigation,
-    templatesNavigation,
+    whatsAppMarketingNavigation,
 } from '@/modules/sidebar/extra-navigation';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { useSidebarStore } from '@/hooks/use-sidebar-store';
@@ -46,7 +48,8 @@ const groups = [
     { name: 'Data Capture', icon: faBullseye, items: dataCaptureNavigation },
     { name: 'CRM', icon: faUser, items: crm },
     { name: 'Customers', icon: faFileLines, items: customer },
-    { name: 'Templates', icon: faClone, items: templatesNavigation },
+    { name: 'WhatsApp Marketing', icon: MessageSquare, items: whatsAppMarketingNavigation },
+    { name: 'Email Marketing', icon: Mail, items: emailMarketingNavigation },
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
     { name: 'Content Management', icon: faVideo, items: contentNavigation },
@@ -62,6 +65,15 @@ function isActive(item, pathname) {
 function itemActive(item, pathname) {
     if (item.children) return item.children.some((child) => isActive(child, pathname));
     return isActive(item, pathname);
+}
+
+function SidebarIcon({ icon, size = 16, className }) {
+    if (!icon) return null;
+    if (typeof icon === 'object' && icon.prefix && icon.iconName) {
+        return <FontAwesomeIcon icon={icon} size={size} className={className} />;
+    }
+    const IconComponent = icon;
+    return <IconComponent size={size} className={cn('shrink-0', className)} />;
 }
 
 function NavLink({ item, pathname, collapsed, onNavigate }) {
@@ -81,10 +93,10 @@ function NavLink({ item, pathname, collapsed, onNavigate }) {
             )}
         >
             {item.icon && (
-                <FontAwesomeIcon
+                <SidebarIcon
                     icon={item.icon}
                     size={16}
-                    className={cn('shrink-0', active ? 'text-brand-dark' : 'text-slate-400 group-hover:text-slate-600')}
+                    className={cn('shrink-0 transition-colors', active ? 'text-brand-dark' : 'text-slate-400 group-hover:text-slate-600')}
                 />
             )}
             {!collapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
@@ -136,15 +148,25 @@ function NavExpandableItem({ item, pathname, collapsed, onNavigate }) {
                 )}
             >
                 {item.icon ? (
-                    <FontAwesomeIcon icon={item.icon} size={16} className={cn('shrink-0', parentActive ? 'text-brand-dark' : 'text-slate-400')} />
+                    <SidebarIcon icon={item.icon} size={16} className={cn('shrink-0', parentActive ? 'text-brand-dark' : 'text-slate-400')} />
                 ) : null}
                 <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform', open && 'rotate-180')} />
+                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform duration-200', open && 'rotate-180')} />
             </button>
-            <div id={contentId} hidden={!open} className="ml-3 space-y-0.5 border-l border-slate-200 pl-2">
-                {item.children.map((child) => (
-                    <NavLink key={child.href} item={child} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
-                ))}
+            <div
+                id={contentId}
+                className={cn(
+                    'grid transition-all duration-200 ease-in-out',
+                    open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                )}
+            >
+                <div className="overflow-hidden">
+                    <div className="ml-3 space-y-0.5 border-l border-slate-200 py-1 pl-2">
+                        {item.children.map((child) => (
+                            <NavLink key={child.href} item={child} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -174,7 +196,7 @@ function FlatLink({ group, pathname, collapsed, onNavigate }) {
             )}
         >
             <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', active ? 'bg-white/15 text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
-                <FontAwesomeIcon icon={group.icon} size={14} />
+                <SidebarIcon icon={group.icon} size={14} />
             </span>
             {!collapsed && (
                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
@@ -209,18 +231,31 @@ function NavGroup({ group, pathname, collapsed, onNavigate }) {
                 onClick={() => setOpen((value) => !value)}
                 aria-expanded={open}
                 aria-controls={contentId}
-                className={cn('flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-brand-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand', containsActive ? 'text-brand-dark' : 'text-slate-600')}
+                className={cn(
+                    'flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-brand-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    containsActive ? 'text-brand-dark' : 'text-slate-600'
+                )}
             >
                 <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', containsActive ? 'bg-brand text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
-                    <FontAwesomeIcon icon={group.icon} size={14} />
+                    <SidebarIcon icon={group.icon} size={14} />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
                     {group.name}
                 </span>
-                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform', open && 'rotate-180')} />
+                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform duration-200', open && 'rotate-180')} />
             </button>
-            <div id={contentId} hidden={!open} className="ml-6 space-y-0.5 border-l border-slate-200 py-1 pl-3">
-                <NavItems items={group.items} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
+            <div
+                id={contentId}
+                className={cn(
+                    'grid transition-all duration-200 ease-in-out',
+                    open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+                )}
+            >
+                <div className="overflow-hidden">
+                    <div className="ml-6 space-y-0.5 border-l border-slate-200 py-1 pl-3">
+                        <NavItems items={group.items} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
+                    </div>
+                </div>
             </div>
         </section>
     );

@@ -66,6 +66,7 @@ export default function DataManagementPage() {
   const [importPreview, setImportPreview] = React.useState(null);
   const [importCsv, setImportCsv] = React.useState('');
   const [importConfirmation, setImportConfirmation] = React.useState('');
+  const [customerBreakdownOpen, setCustomerBreakdownOpen] = React.useState(true);
 
   const reload = React.useCallback(async () => {
     setLoading(true);
@@ -340,6 +341,55 @@ export default function DataManagementPage() {
                   {(preview.tables || []).map((table) => <li key={table.model} className="flex justify-between gap-3"><span>{table.label}{table.preservedRecords ? ` (${table.preservedRecords} preserved)` : ''}</span><span>{Number(table.eligibleRecords ?? table.records).toLocaleString()} eligible · {Number(table.records).toLocaleString()} total</span></li>)}
                 </ul>
                 <p className="mt-3 text-xs text-[#718078]">{(preview.dependencies || []).join(' ')}</p>
+                {preview.customerBreakdown && (selected.includes('customers') || selected.includes('sales-crm')) && (
+                  <div className="mt-4 rounded-xl border border-[#B7DCC4] bg-[#F7FAF8] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-[#163A2E]">Customer Data Reset Breakdown</p>
+                        <p className="text-xs text-[#527063]">Detailed record breakdown across customer business entities and lifecycle stages</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCustomerBreakdownOpen((open) => !open)}
+                        className="rounded-lg border border-[#C5D8CD] bg-white px-3 py-1 text-xs font-semibold text-[#163A2E] shadow-sm hover:bg-[#EEF5F1]"
+                      >
+                        {customerBreakdownOpen ? 'Collapse breakdown ▲' : 'Expand breakdown ▼'}
+                      </button>
+                    </div>
+                    {customerBreakdownOpen && (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {Object.entries(preview.customerBreakdown).map(([key, category]) => (
+                          <div key={key} className="rounded-lg border border-[#DCE8E1] bg-white p-3 text-xs shadow-sm">
+                            <div className="flex items-center justify-between border-b border-[#E8F0EC] pb-2">
+                              <span className="font-semibold text-[#172B24]">{category.label}</span>
+                              <span className="rounded-full bg-[#EBF3EE] px-2 py-0.5 text-[11px] font-medium text-[#2E6047]">
+                                {Number(category.eligible || 0).toLocaleString()} eligible
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[11px] text-[#718078]">{category.description}</p>
+                            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[#475467]">
+                              <div className="rounded bg-[#F8FAF9] p-1.5">
+                                <span className="block text-[10px] text-[#718078]">Total</span>
+                                <span className="font-semibold text-[#172B24]">{Number(category.total || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="rounded bg-[#F0FDF4] p-1.5">
+                                <span className="block text-[10px] text-[#16A34A]">Eligible</span>
+                                <span className="font-semibold text-[#16A34A]">{Number(category.eligible || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="rounded bg-[#FEF2F2] p-1.5">
+                                <span className="block text-[10px] text-[#DC2626]">Preserved</span>
+                                <span className="font-semibold text-[#DC2626]">{Number(category.preserved || 0).toLocaleString()}</span>
+                              </div>
+                            </div>
+                            {category.details && (
+                              <p className="mt-2 text-[11px] font-medium text-[#527063]">{category.details}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {!!preview.preservation?.length && <div className="mt-3 rounded-xl border border-[#D8DEE8] bg-[#F7F8FA] p-3">
                   <p className="text-sm font-semibold text-[#344054]">Preserved records</p>
                   <ul className="mt-1 space-y-2 text-xs text-[#475467]">{preview.preservation.map((item) => <li key={`preserved-${item.model}`}><span className="font-semibold">{item.label}: {Number(item.records).toLocaleString()} protected records remain.</span> {item.reason}{item.roleOwnership ? <><span className="block">Ownership: {item.roleOwnership.system} system, {item.roleOwnership.tenant} current tenant, {item.roleOwnership.otherTenant} other tenant. Types: {Object.entries(item.roleTypes || {}).map(([type, count]) => `${type} ${count}`).join(', ') || 'not classified'}.</span><ul className="mt-1 list-inside list-disc">{(item.roles || []).map((role) => <li key={role.id}>#{role.id} {role.name} · {role.type} · {role.owner}</li>)}</ul></> : null}</li>)}</ul>
@@ -635,7 +685,35 @@ function QuickActions({ busy, latest, onBackup, onDownload, onHistory }) {
   );
 }
 function Result({ result }) {
-  return <Panel><h2 className="font-semibold">Operation {result.operationId}</h2><p className="mt-1 text-sm">Status: {result.status}{result.verified ? ' · Database verification passed' : ''}. Deleted: {result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0}{result.recordsPreserved ? ` · Preserved: ${result.recordsPreserved}` : ''}{result.preRestoreBackupId ? ` · Pre-restore backup: ${result.preRestoreBackupId}` : ''}</p>{result.verified && result.countsAfter ? <div className="mt-3"><p className="text-sm font-medium">Remaining records after commit</p><ul className="mt-1 grid gap-1 text-sm text-[#718078] sm:grid-cols-2">{Object.entries(result.countsAfter).map(([table, count]) => { const expectedPreserved = table === 'designation' ? Number(result.preservedCounts?.designation || 0) : 0; const verifiedCount = count === expectedPreserved; return <li key={table} className="flex justify-between gap-3"><span>{table}{table === 'designation' && count > 0 ? ' (protected links preserved)' : ''}</span><span className={verifiedCount ? 'font-semibold text-[#247047]' : 'font-semibold text-[#DC2626]'}>{count}</span></li>; })}</ul></div> : null}{result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}</Panel>;
+  return (
+    <Panel>
+      <h2 className="font-semibold text-[#172B24]">Operation {result.operationId}</h2>
+      <p className="mt-1 text-sm text-[#475467]">
+        Status: <span className="font-semibold text-[#16A34A]">{result.status}</span>
+        {result.verified ? ' · Database verification passed' : ''}. Deleted: {Number(result.recordsDeleted ?? result.recordsRestored ?? result.recordsCreated ?? 0).toLocaleString()} records
+        {result.recordsPreserved ? ` · Preserved: ${Number(result.recordsPreserved).toLocaleString()}` : ''}
+        {result.preRestoreBackupId ? ` · Pre-restore backup: ${result.preRestoreBackupId}` : ''}
+      </p>
+      {result.verified && result.countsAfter ? (
+        <div className="mt-3">
+          <p className="text-sm font-medium text-[#172B24]">Remaining records after commit</p>
+          <ul className="mt-1 grid gap-1 text-sm text-[#718078] sm:grid-cols-2">
+            {Object.entries(result.countsAfter).map(([table, count]) => {
+              const expectedPreserved = table === 'designation' ? Number(result.preservedCounts?.designation || 0) : 0;
+              const verifiedCount = count === expectedPreserved;
+              return (
+                <li key={table} className="flex justify-between gap-3">
+                  <span>{table}{table === 'designation' && count > 0 ? ' (protected links preserved)' : ''}</span>
+                  <span className={verifiedCount ? 'font-semibold text-[#247047]' : 'font-semibold text-[#DC2626]'}>{count}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+      {result.failures?.length ? <p className="mt-2 text-sm text-[#DC2626]">{result.failures.join(' ')}</p> : null}
+    </Panel>
+  );
 }
 function dataOf(response) {
   if (response && typeof response === 'object' && response.data && !Array.isArray(response.data)) return response.data;
