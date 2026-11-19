@@ -75,7 +75,7 @@ export function CsvLeadImportDialog({ open, onOpenChange, onImported }) {
     if (!file || !validation || !employeeId) { toast.error('Select an active employee and validate the CSV first.'); return; }
     if (!validation.readyToImport) { toast.error('There are no valid non-duplicate rows to import.'); return; }
     const employee = employees.find((row) => String(row.recordId) === employeeId);
-    const confirmed = window.confirm(`Import ${validation.readyToImport} valid lead(s) from ${file.name} and assign them to ${employee?.name || 'the selected employee'}? ${validation.duplicateRows} duplicate(s) will be skipped.`);
+    const confirmed = window.confirm(`Confirm CSV import\nFile: ${file.name}\nTotal rows: ${validation.totalRows}\nValid rows: ${validation.validRows}\nDuplicate rows: ${validation.duplicateRows}\nInvalid rows: ${validation.invalidRows}\nExpected leads to import: ${validation.readyToImport}\nAssigned employee: ${employee?.name || 'the selected employee'} (${employee?.employeeCode || employee?.recordId})`);
     if (!confirmed) return;
     setBusy('import');
     try {
