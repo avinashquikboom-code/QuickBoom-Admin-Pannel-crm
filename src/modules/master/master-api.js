@@ -38,6 +38,20 @@ export const MASTER_MODULES = {
     metricLabel: 'Transactions',
     categoryLabel: 'Settlement type',
   },
+  'expense-categories': {
+    type: 'EXPENSE_CATEGORY',
+    path: '/master/expense-categories',
+    metricKey: 'count',
+    metricLabel: 'Claims count',
+    categoryLabel: 'Category',
+  },
+  'task-status': {
+    type: 'TASK_STATUS',
+    path: '/master/task-statuses',
+    metricKey: 'count',
+    metricLabel: 'Tasks count',
+    categoryLabel: 'Category',
+  },
 };
 
 export async function loadMasterItems(slug) {

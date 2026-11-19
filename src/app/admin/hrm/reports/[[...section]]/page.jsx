@@ -6,11 +6,13 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
 import { generateHrmReports, hrmError, hrmReportDownload, loadHrmReportDashboard, loadHrmReportSettings, retryHrmDelivery, saveHrmReportSettings } from '@/modules/hrm/hrm-api';
+import LateMarkReportsPage from '@/app/admin/hrm/late-mark-reports/page';
 
 const sections = [
   ['dashboard', 'Dashboard'],
   ['automated', 'Automated Reports'],
   ['attendance', 'Attendance Reports'],
+  ['late-marks', 'Late Mark Reports'],
   ['leave-balance', 'Leave Balance Reports'],
   ['salary', 'Salary Reports'],
   ['commission', 'Commission Reports'],
@@ -52,7 +54,9 @@ export default function HrmReportsPage() {
       .catch((err) => setError(hrmError(err)));
   }, [month, year]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (section !== 'late-marks') load(); }, [load, section]);
+
+  if (section === 'late-marks') return <LateMarkReportsPage />;
 
   const generate = async (send) => {
     try {

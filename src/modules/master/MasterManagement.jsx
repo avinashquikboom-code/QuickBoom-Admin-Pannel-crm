@@ -35,7 +35,17 @@ import {
   saveMasterItem,
 } from './master-api';
 
-const LIVE = ['employee-types', 'designations', 'leave-policies', 'work-types', 'loan-types', 'payment-methods', 'stage-management'];
+const LIVE = [
+  'employee-types',
+  'designations',
+  'leave-policies',
+  'work-types',
+  'loan-types',
+  'payment-methods',
+  'stage-management',
+  'expense-categories',
+  'task-status',
+];
 
 export function isLiveMasterSlug(slug) {
   return LIVE.includes(slug);
