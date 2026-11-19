@@ -28,45 +28,9 @@ export const navigation = [
             icon: faClock,
         },
         {
-            name: 'Expense Claims',
-            href: '/admin/hrm/expense-claims',
-            icon: faIndianRupeeSign,
-            tag: 'PAYROLL',
-        },
-        {
             name: 'Leave Management',
             href: '/admin/hrm/leaves',
             icon: faCalendarXmark,
-        },
-        {
-            name: 'Payroll',
-            href: '/admin/hrm/payroll',
-            icon: faWallet,
-            tag: 'PAYROLL',
-            children: [
-                {
-                    name: 'Salary Management',
-                    href: '/admin/hrm/payroll',
-                    icon: faWallet,
-                    matchExact: true,
-                },
-                {
-                    name: 'Salary Slips',
-                    href: '/admin/hrm/salary-slips',
-                    icon: faFileLines,
-                },
-                {
-                    name: 'Employee Penalty & Deductions',
-                    href: '/admin/hrm/deductions',
-                    icon: faIndianRupeeSign,
-                },
-            ],
-        },
-        {
-            name: 'Target Salary',
-            href: '/admin/hrm/salary-targets',
-            icon: faBullseye,
-            tag: 'PAYROLL',
         },
         {
             name: 'Office Management',
@@ -77,11 +41,6 @@ export const navigation = [
             name: 'Team Management',
             href: '/admin/sections/team-management',
             icon: faPeopleGroup,
-        },
-        {
-            name: 'Shifts',
-            href: '/admin/hrm/shifts',
-            icon: faClock,
         },
         {
             name: 'Remote Work',
@@ -95,21 +54,19 @@ export const navigation = [
             tag: 'GEO_TRACKING',
         },
         {
-            name: 'Commissions',
-            href: '/admin/hrm/commissions',
-            icon: faPercent,
-            tag: 'PAYROLL',
-        },
-        {
-            name: 'Commission Wallet',
-            href: '/admin/hrm/commission-wallet',
+            name: 'Payroll',
+            href: '/admin/hrm/payroll',
             icon: faWallet,
             tag: 'PAYROLL',
-        },
-        {
-            name: 'Loans',
-            href: '/admin/hrm/loans',
-            icon: faSackDollar,
-            tag: 'PAYROLL',
+            children: [
+                { name: 'Salary Management', href: '/admin/hrm/payroll', icon: faWallet, matchExact: true },
+                { name: 'Salary Slips', href: '/admin/hrm/salary-slips', icon: faFileLines },
+                { name: 'Employee Penalty & Deductions', href: '/admin/hrm/deductions', icon: faIndianRupeeSign },
+                { name: 'Expense Claims', href: '/admin/hrm/expense-claims', icon: faIndianRupeeSign },
+                { name: 'Target Salary', href: '/admin/hrm/salary-targets', icon: faBullseye },
+                { name: 'Loans', href: '/admin/hrm/loans', icon: faSackDollar },
+                { name: 'Shifts', href: '/admin/hrm/shifts', icon: faClock },
+                { name: 'Commissions', href: '/admin/hrm/commissions', icon: faPercent },
+            ],
         },
     ];

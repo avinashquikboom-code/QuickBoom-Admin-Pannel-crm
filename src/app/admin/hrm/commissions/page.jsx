@@ -12,10 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { hrmError, loadCommissionConfigs, loadCommissions, loadEmployees, saveDesignationCommission, saveEmployeeCommission, sessionCan, updateCommissionStatus } from '@/modules/hrm/hrm-api';
+import CommissionWalletPage from '@/app/admin/hrm/commission-wallet/page';
 
 const inr = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(value) || 0);
 
 export default function CommissionsPage() {
+  const [tab, setTab] = React.useState('commissions');
   const [rows, setRows] = React.useState([]);
   const [summary, setSummary] = React.useState({});
   const [configs, setConfigs] = React.useState({ designations: [], employees: [] });
@@ -86,8 +88,11 @@ export default function CommissionsPage() {
     { header: 'Date', cell: (row) => String(row.createdAt || '').slice(0, 10) },
   ];
 
+  if (tab === 'wallet') return <div className="space-y-4"><div className="flex gap-2"><Button variant="outline" onClick={() => setTab('commissions')}>Commissions</Button><Button onClick={() => setTab('wallet')}>Commission Wallet</Button></div><CommissionWalletPage /></div>;
+
   return (
     <div className="max-w-none min-w-0 w-full space-y-6">
+      <div className="flex gap-2"><Button onClick={() => setTab('commissions')}>Commissions</Button><Button variant="outline" onClick={() => setTab('wallet')}>Commission Wallet</Button></div>
       <PageHeader title="Commissions" description="Commission records and rates are read from the commission service. Amounts are not calculated in the browser." actions={canManage ? <Button onClick={() => setConfigOpen(true)}>Employee rate</Button> : null} />
       <HrmStats items={[
         { label: 'Total', value: inr(summary.totalCommission) },
