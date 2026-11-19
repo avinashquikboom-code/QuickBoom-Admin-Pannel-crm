@@ -9,6 +9,7 @@ import {
   Handshake,
   TrendingUp,
   ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,7 +52,8 @@ export function KpiCards({ summary, leads, customers, deals, loading }) {
     {
       id: 'revenue',
       title: 'Revenue (₹)',
-      value: `₹${Number(summary?.revenue?.totalRevenue ?? 0).toLocaleString('en-IN')}`,
+      value: Number(summary?.revenue?.totalRevenue ?? 0),
+      currency: true,
       note: `${summary?.revenue?.invoicesCount ?? 0} invoices paid`,
       icon: IndianRupee,
       badge: 'Financials',
@@ -128,9 +130,7 @@ export function KpiCards({ summary, leads, customers, deals, loading }) {
               </div>
 
               <div className="mt-2.5">
-                <p className="truncate text-2xl sm:text-[26px] font-extrabold tracking-tight text-slate-900 group-hover:text-brand-dark transition-colors">
-                  {card.value}
-                </p>
+                <AnimatedMetric value={card.value} currency={card.currency} />
               </div>
             </div>
 
@@ -152,4 +152,39 @@ export function KpiCards({ summary, leads, customers, deals, loading }) {
       })}
     </div>
   );
+}
+
+function AnimatedMetric({ value, currency }) {
+  const [displayValue, setDisplayValue] = React.useState(Number(value) || 0);
+  const [direction, setDirection] = React.useState(0);
+  const previous = React.useRef(Number(value) || 0);
+  React.useEffect(() => {
+    const next = Number(value) || 0;
+    const start = previous.current;
+    if (next === start) return;
+    setDirection(next > start ? 1 : -1);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
+      setDisplayValue(next);
+      previous.current = next;
+      return;
+    }
+    let frame;
+    const began = performance.now();
+    const duration = 650;
+    const tick = (now) => {
+      const progress = Math.min(1, (now - began) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(start + (next - start) * eased);
+      if (progress < 1) frame = requestAnimationFrame(tick);
+      else previous.current = next;
+    };
+    frame = requestAnimationFrame(tick);
+    const reset = setTimeout(() => setDirection(0), 1400);
+    return () => { cancelAnimationFrame(frame); clearTimeout(reset); };
+  }, [value]);
+  const formatted = Math.round(displayValue).toLocaleString('en-IN');
+  return <p className={`truncate text-2xl sm:text-[26px] font-extrabold tracking-tight transition-colors duration-500 ${direction > 0 ? 'text-emerald-700' : direction < 0 ? 'text-rose-700' : 'text-slate-900'}`} aria-label={currency ? `₹${formatted}` : formatted}>
+    {currency ? '₹' : ''}{formatted}{direction !== 0 && <span className="ml-1 inline-flex align-middle" aria-label={direction > 0 ? 'Increased' : 'Decreased'}>{direction > 0 ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}</span>}
+  </p>;
 }
