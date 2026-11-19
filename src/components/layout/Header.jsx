@@ -18,6 +18,7 @@ import { logoutAdmin } from '@/lib/auth/admin-login';
 import { readSession } from '@/lib/auth/admin-session';
 import { adminProfile } from '@/lib/auth/admin-profile';
 import { useSidebarStore } from '@/hooks/use-sidebar-store';
+import { loadAnnouncements } from '@/modules/hrm/hrm-api';
 export function Header() {
     const router = useRouter();
     const [sessionUser, setSessionUser] = React.useState(null);
@@ -39,7 +40,7 @@ export function Header() {
     }, []);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
-    const notifications = [
+    const sampleNotifications = [
         {
             id: 1,
             title: 'New Overtime Request',
@@ -62,6 +63,23 @@ export function Header() {
             unread: false,
         },
     ];
+    const [announcements, setAnnouncements] = React.useState([]);
+    React.useEffect(() => {
+        let active = true;
+        loadAnnouncements({ status: 'PUBLISHED', limit: 5, page: 1 })
+            .then((result) => { if (active) setAnnouncements(result.rows || []); })
+            .catch(() => { if (active) setAnnouncements([]); });
+        return () => { active = false; };
+    }, []);
+    const announcementNotifications = announcements.map((announcement) => ({
+        id: `announcement-${announcement.id}`,
+        title: announcement.title || 'Company announcement',
+        time: announcement.publishAt ? new Date(announcement.publishAt).toLocaleDateString() : 'Announcement',
+        desc: announcement.description || 'A new company announcement is available.',
+        unread: false,
+        href: '/admin/hrm/announcements',
+    }));
+    const notifications = [...announcementNotifications, ...sampleNotifications];
     const handleSearchSubmit = (e) => {
         e.preventDefault();
         if (!searchQuery.trim())
@@ -188,7 +206,7 @@ export function Header() {
               </button>
             </div>
             <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-              {notifications.map((n) => (<div key={n.id} className={`p-3 text-xs hover:bg-slate-50/80 transition-colors ${n.unread ? 'bg-brand-light/30' : ''}`}>
+              {notifications.map((n) => (<Link href={n.href || '/admin/hrm/announcements'} key={n.id} className={`block p-3 text-xs hover:bg-slate-50/80 transition-colors ${n.unread ? 'bg-brand-light/30' : ''}`}>
                   <div className="flex items-center justify-between font-medium text-slate-900">
                     <span className="flex items-center gap-1.5">
                       {n.unread && (<span className="size-1.5 rounded-full bg-brand shrink-0"/>)}
@@ -197,7 +215,7 @@ export function Header() {
                     <span className="text-[10px] text-slate-400">{n.time}</span>
                   </div>
                   <p className="mt-1 text-slate-500 leading-relaxed">{n.desc}</p>
-                </div>))}
+                </Link>))}
             </div>
             <div className="p-2 border-t border-slate-100 text-center bg-slate-50/40 rounded-b-xl">
               <Link href="/hrm/announcements" className="text-xs font-semibold text-brand hover:text-brand-dark">

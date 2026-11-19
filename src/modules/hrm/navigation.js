@@ -44,11 +44,6 @@ export const navigation = [
             icon: faCalendarXmark,
         },
         {
-            name: 'Reports & Notifications',
-            href: '/admin/hrm/reports',
-            icon: faFileLines,
-        },
-        {
             name: 'Payroll',
             href: '/admin/hrm/payroll',
             icon: faWallet,
