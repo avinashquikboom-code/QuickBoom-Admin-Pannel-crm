@@ -16,6 +16,8 @@ import { PayrollSummaryCard } from '@/components/dashboard/PayrollSummaryCard';
 import { RecentLeadsCard } from '@/components/dashboard/RecentLeadsCard';
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
+import { DataCaptureCard, CampaignMetricsCard } from '@/components/dashboard/DataCaptureCard';
+import { loadCaptures, loadCaptureUsage } from '@/modules/data-capture/capture-api';
 
 export default function AdminDashboardPage() {
   const [dateFrom, setDateFrom] = React.useState('');
@@ -24,9 +26,13 @@ export default function AdminDashboardPage() {
   const [failed, setFailed] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshCount, setRefreshCount] = React.useState(0);
+  const [captureData, setCaptureData] = React.useState(null);
+  const [lastUpdated, setLastUpdated] = React.useState(null);
+  const [liveState, setLiveState] = React.useState('connecting');
+  const hasLoadedRef = React.useRef(false);
 
   const fetchDashboardData = React.useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     const params = {
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
@@ -42,6 +48,10 @@ export default function AdminDashboardPage() {
       recentLeads: () => api.get('/leads', { params: { page: 1, limit: 10 } }),
       invoices: () => api.get('/invoices', { params: { page: 1, limit: 10 } }),
       activity: () => api.get('/audit-logs', { params: { page: 1, limit: 10 } }),
+      captureUsage: () => loadCaptureUsage(),
+      capturePending: () => loadCaptures({ page: 1, limit: 1, status: 'CAPTURED' }),
+      captureRejected: () => loadCaptures({ page: 1, limit: 1, status: 'REJECTED' }),
+      whatsappStats: () => api.get('/whatsapp/campaigns/stats'),
     };
 
     const results = await Promise.all(
@@ -58,18 +68,44 @@ export default function AdminDashboardPage() {
     const nextData = {};
     const errorList = [];
     results.forEach(([key, payload, error]) => {
-      nextData[key] = payload;
       if (error) errorList.push({ key, error });
+      else nextData[key] = payload;
     });
 
-    setData(nextData);
+    setData((previous) => ({ ...previous, ...nextData }));
+    setCaptureData((previous) => ({
+      usage: Object.hasOwn(nextData, 'captureUsage') ? nextData.captureUsage : previous?.usage,
+      pending: Object.hasOwn(nextData, 'capturePending') ? nextData.capturePending?.total ?? nextData.capturePending?.pagination?.total : previous?.pending,
+      rejected: Object.hasOwn(nextData, 'captureRejected') ? nextData.captureRejected?.total ?? nextData.captureRejected?.pagination?.total : previous?.rejected,
+    }));
     setFailed(errorList);
     setLoading(false);
+    hasLoadedRef.current = true;
+    setLastUpdated(new Date());
+    setLiveState(errorList.length ? 'reconnecting' : 'live');
   }, [dateFrom, dateTo]);
 
   React.useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData, refreshCount]);
+
+  React.useEffect(() => {
+    let timer;
+    let stopped = false;
+    const schedule = () => {
+      clearTimeout(timer);
+      if (document.visibilityState === 'visible' && !stopped) {
+        timer = setTimeout(async () => {
+          if (!stopped) await fetchDashboardData();
+          schedule();
+        }, 45000);
+      }
+    };
+    const onVisibility = () => schedule();
+    document.addEventListener('visibilitychange', onVisibility);
+    schedule();
+    return () => { stopped = true; clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); };
+  }, [fetchDashboardData]);
 
   const summary = objectOf(data?.summary);
   const leads = objectOf(data?.leads);
@@ -78,7 +114,7 @@ export default function AdminDashboardPage() {
   const tasks = objectOf(data?.tasks);
   const liveAttendance = objectOf(data?.liveAttendance);
   const recentLeads = rowsOf(data?.recentLeads);
-  const invoices = objectOf(data?.invoices);
+  const recentInvoices = rowsOf(data?.invoices);
   const activity = rowsOf(data?.activity);
 
   const handleDateChange = (from, to) => {
@@ -100,6 +136,11 @@ export default function AdminDashboardPage() {
         onRefresh={handleRefresh}
         loading={loading}
       />
+      <div className="flex items-center gap-2 text-xs text-slate-500" role="status" aria-live="polite">
+        <span className={`size-2 rounded-full ${liveState === 'live' ? 'bg-emerald-500' : liveState === 'reconnecting' ? 'bg-amber-500' : 'bg-slate-400'}`} />
+        {liveState === 'live' ? 'Live · refreshes every 45 seconds' : liveState === 'reconnecting' ? 'Reconnecting · showing last successful update' : 'Connecting to dashboard data'}
+        {lastUpdated && <span>· Updated {lastUpdated.toLocaleTimeString()}</span>}
+      </div>
 
       {/* Error Notice if any background endpoint failed */}
       {failed.length > 0 && (
@@ -123,7 +164,7 @@ export default function AdminDashboardPage() {
         <div className="lg:col-span-7 xl:col-span-8 min-w-0">
           <RevenueChartCard
             summary={summary}
-            invoices={invoices}
+            invoices={recentInvoices}
             loading={loading}
           />
         </div>
@@ -141,6 +182,11 @@ export default function AdminDashboardPage() {
         />
         <TasksOverviewCard tasks={tasks} loading={loading} />
         <PayrollSummaryCard summary={summary} loading={loading} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full min-w-0">
+        <DataCaptureCard data={captureData} loading={loading && !captureData} />
+        <CampaignMetricsCard whatsappStats={data?.whatsappStats} />
       </div>
 
       {/* 5. Recent Leads Table & Responsive Cards */}

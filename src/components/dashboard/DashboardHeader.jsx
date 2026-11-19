@@ -68,6 +68,11 @@ export function DashboardHeader({
       setShowCustomRange(false);
       const fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
       onDateChange(fromDate.toISOString().split('T')[0], to);
+    } else if (preset === 'Last Month') {
+      setShowCustomRange(false);
+      const fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const toDate = new Date(now.getFullYear(), now.getMonth(), 0);
+      onDateChange(fromDate.toISOString().split('T')[0], toDate.toISOString().split('T')[0]);
     } else if (preset === 'Year') {
       setShowCustomRange(false);
       const fromDate = new Date(now.getFullYear(), 0, 1);
@@ -84,7 +89,7 @@ export function DashboardHeader({
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <span className="flex size-7 items-center justify-center rounded-lg bg-brand-light text-brand-dark">
-              <Sparkles className="size-4 text-brand-dark animate-pulse" />
+              <Sparkles className="size-4 text-brand-dark" />
             </span>
             <h1 className="truncate text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
               {greeting}, <span className="text-brand-dark">{adminName}</span>
@@ -106,7 +111,7 @@ export function DashboardHeader({
         <div className="flex flex-wrap items-center gap-2">
           {/* Quick Presets */}
           <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
-            {['Today', '7D', '30D', 'Month', 'Custom'].map((preset) => {
+            {['Today', '7D', '30D', 'Month', 'Last Month', 'Custom'].map((preset) => {
               const isSelected = activePreset === preset;
               return (
                 <button

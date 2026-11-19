@@ -10,51 +10,27 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, IndianRupee, Calendar, ArrowUpRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { TrendingUp, Calendar } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function RevenueChartCard({ summary, invoices, loading }) {
-  const [activeTab, setActiveTab] = React.useState('30D');
-
   const totalRevenue = Number(summary?.revenue?.totalRevenue ?? 0);
   const invoicesCount = Number(summary?.revenue?.invoicesCount ?? 0);
 
-  // Generate date points based on activeTab and live invoice data
   const chartData = React.useMemo(() => {
-    const days = activeTab === '7D' ? 7 : activeTab === '30D' ? 30 : activeTab === '90D' ? 90 : 12;
-    const isMonthly = activeTab === '1Y';
-    const points = [];
-
-    const now = new Date();
-
-    if (isMonthly) {
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthLabel = d.toLocaleDateString('en-US', { month: 'short' });
-        points.push({
-          date: monthLabel,
-          revenue: i === 0 ? totalRevenue : 0,
-        });
-      }
-    } else {
-      for (let i = days - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dayLabel = d.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        });
-        // Distribute revenue on matching day if available, else 0
-        points.push({
-          date: dayLabel,
-          revenue: i === 0 ? totalRevenue : 0,
-        });
-      }
-    }
-
-    return points;
-  }, [activeTab, totalRevenue]);
+    const byDay = new Map();
+    (Array.isArray(invoices) ? invoices : []).forEach((invoice) => {
+      if (String(invoice.status || '').toUpperCase() !== 'PAID' || !invoice.issueDate) return;
+      const day = new Date(invoice.issueDate);
+      if (Number.isNaN(day.getTime())) return;
+      const key = day.toISOString().slice(0, 10);
+      byDay.set(key, (byDay.get(key) || 0) + Number(invoice.totalAmount || 0));
+    });
+    return [...byDay.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([key, revenue]) => ({
+      date: new Date(`${key}T00:00:00`).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
+      revenue,
+    }));
+  }, [invoices]);
 
   if (loading) {
     return (
@@ -85,11 +61,11 @@ export function RevenueChartCard({ summary, invoices, loading }) {
             </h2>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-slate-500">
-            Total invoiced and reconciled cashflow trend
+            Paid invoice amounts by issue date from the latest 10 invoice records
           </p>
         </div>
 
-        {/* Metrics & Interval Tabs */}
+        {/* Period summary */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="text-right hidden sm:block">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -100,29 +76,12 @@ export function RevenueChartCard({ summary, invoices, loading }) {
             </p>
           </div>
 
-          <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
-            {['7D', '30D', '90D', '1Y'].map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'rounded-lg px-2.5 py-1 text-xs font-semibold transition-all duration-200',
-                  activeTab === tab
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
       {/* Main Chart Area */}
       <div className="mt-4 h-[280px] sm:h-[300px] w-full min-w-0">
-        <ResponsiveContainer width="100%" height="100%">
+        {chartData.length ? <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
             margin={{ top: 15, right: 10, left: -20, bottom: 0 }}
@@ -175,16 +134,17 @@ export function RevenueChartCard({ summary, invoices, loading }) {
               fill="url(#revenueGradient)"
               dot={{ r: 3, fill: '#163A2E', strokeWidth: 2, stroke: '#FFFFFF' }}
               activeDot={{ r: 5, fill: '#163A2E', stroke: '#FFFFFF', strokeWidth: 2 }}
+              isAnimationActive
             />
           </AreaChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer> : <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 text-center text-sm text-slate-500">No paid invoice records are available in the latest 10 invoices.</div>}
       </div>
 
       {/* Footer info */}
       <div className="mt-3 flex flex-wrap items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
         <span className="flex items-center gap-1.5 font-medium">
           <Calendar className="size-3.5 text-slate-400" />
-          Showing {chartData.length} timeline data points
+          {chartData.length} paid invoice dates in the latest 10 invoices
         </span>
         <span className="font-semibold text-slate-700">
           {invoicesCount} Total Invoices Reconciled
