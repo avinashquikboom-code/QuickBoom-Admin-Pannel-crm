@@ -63,11 +63,11 @@ const routeRegistry = {
     'loan-types': { category: 'MASTER MANAGEMENT', title: 'Loan Types', icon: faMoneyBill },
     'payment-methods': { category: 'MASTER MANAGEMENT', title: 'Payment Methods', icon: faCreditCard },
 
-    // Data Capture & Templates
+    // Marketing & Templates
     'data-capture': { category: 'DATA CAPTURE ENGINE', title: 'Data Capture', icon: faDatabase },
     'usage-quota': { category: 'DATA CAPTURE ENGINE', title: 'Usage & Quotas', icon: faChartBar },
-    'email-templates': { category: 'TEMPLATES & ASSETS', title: 'Email Templates', icon: faEnvelope },
-    'meta-templates': { category: 'TEMPLATES & ASSETS', title: 'Meta Templates', icon: faMessage },
+    'email-templates': { category: 'EMAIL MARKETING', title: 'Email Templates', icon: faEnvelope },
+    'meta-templates': { category: 'WHATSAPP MARKETING', title: 'WhatsApp Templates', icon: faMessage },
     'stage-notifications': { category: 'TEMPLATES & ASSETS', title: 'Stage Notifications', icon: faDiagramProject },
 
     // AI & Social

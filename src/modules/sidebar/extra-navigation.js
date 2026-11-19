@@ -1,3 +1,4 @@
+import { MessageSquare, Mail, Layers, PlusCircle, Megaphone, FileText } from 'lucide-react';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { faCalendar } from '@fortawesome/free-regular-svg-icons';
 import {
@@ -62,17 +63,24 @@ export const operationsNavigation = [
     { name: 'Orders', href: '/admin/sections/orders', icon: faCartShopping },
 ];
 
+export const whatsAppMarketingNavigation = [
+    { name: 'All Templates', href: '/admin/sections/meta-templates', icon: Layers, matchExact: true },
+    { name: 'Add Single Template', href: '/admin/sections/meta-templates/create', icon: PlusCircle },
+    { name: 'Campaigns', href: '/admin/sections/meta-templates/campaigns', icon: Megaphone },
+];
+
+export const emailMarketingNavigation = [
+    { name: 'Email Templates', href: '/admin/sections/email-templates', icon: FileText },
+];
+
+/** @deprecated Replaced by whatsAppMarketingNavigation and emailMarketingNavigation */
 export const templatesNavigation = [
-    { name: 'Email Templates', href: '/admin/sections/email-templates', icon: faEnvelope },
+    ...emailMarketingNavigation,
     {
         name: 'Meta Templates',
         href: '/admin/sections/meta-templates',
-        icon: faMessage,
-        children: [
-            { name: 'All Templates', href: '/admin/sections/meta-templates', icon: faLayerGroup },
-            { name: 'Add Single Template', href: '/admin/sections/meta-templates/create', icon: faPlus },
-            { name: 'Campaigns', href: '/admin/sections/meta-templates/campaigns', icon: faBullhorn },
-        ],
+        icon: MessageSquare,
+        children: whatsAppMarketingNavigation,
     },
 ];
 
