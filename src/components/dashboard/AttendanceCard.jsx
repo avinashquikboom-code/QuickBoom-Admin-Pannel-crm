@@ -9,7 +9,6 @@ import {
   CalendarOff,
   ArrowUpRight,
   Radio,
-  MapPin,
   Laptop,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -34,17 +33,17 @@ export function AttendanceCard({ summary, liveAttendance, loading }) {
       ? Math.round((present / total) * 100)
       : att.presentRate
       ? Math.round(Number(String(att.presentRate).replace('%', '')))
-      : 0;
+      : 100;
 
   if (loading) {
     return (
-      <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs h-[360px]">
+      <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs h-[370px]">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <Skeleton className="h-5 w-36 rounded-md" />
           <Skeleton className="h-4 w-16 rounded-md" />
         </div>
         <Skeleton className="h-14 w-full rounded-xl my-4" />
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <Skeleton className="h-16 rounded-xl" />
           <Skeleton className="h-16 rounded-xl" />
           <Skeleton className="h-16 rounded-xl" />
@@ -55,10 +54,10 @@ export function AttendanceCard({ summary, liveAttendance, loading }) {
   }
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-emerald-950/20 transition-all duration-300">
+    <div className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-emerald-950/20 transition-all duration-300 h-full">
       {/* Header */}
       <div>
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 h-11">
           <div className="flex items-center gap-2">
             <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-50 text-[#163A2E]">
               <Clock className="size-4" />
@@ -79,7 +78,7 @@ export function AttendanceCard({ summary, liveAttendance, loading }) {
         </div>
 
         {/* Big Percentage Bar Banner */}
-        <div className="mt-4 rounded-xl border border-emerald-100/80 bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-emerald-50/20 p-3 sm:p-3.5">
+        <div className="mt-4 rounded-xl border border-emerald-100/80 bg-gradient-to-r from-emerald-50/50 via-teal-50/30 to-emerald-50/20 p-3 sm:p-3.5 min-h-[92px] flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800">
@@ -109,42 +108,42 @@ export function AttendanceCard({ summary, liveAttendance, loading }) {
 
         {/* 4 Attendance Stat Blocks */}
         <div className="mt-3 grid grid-cols-2 gap-2.5 sm:gap-3">
-          <div className="rounded-xl border border-emerald-100/60 bg-emerald-50/30 p-2.5 sm:p-3">
+          <div className="rounded-xl border border-emerald-100/60 bg-emerald-50/30 p-2.5 sm:p-3 h-[74px] flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-emerald-800">Present</span>
               <UserCheck className="size-3.5 text-emerald-600" />
             </div>
-            <p className="mt-1 text-lg sm:text-xl font-bold text-emerald-950">
+            <p className="mt-1 text-base sm:text-lg font-bold text-emerald-950">
               <AnimatedCounter value={present} />
             </p>
           </div>
 
-          <div className="rounded-xl border border-amber-100/60 bg-amber-50/30 p-2.5 sm:p-3">
+          <div className="rounded-xl border border-amber-100/60 bg-amber-50/30 p-2.5 sm:p-3 h-[74px] flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-amber-800">On Leave</span>
               <CalendarOff className="size-3.5 text-amber-600" />
             </div>
-            <p className="mt-1 text-lg sm:text-xl font-bold text-amber-950">
+            <p className="mt-1 text-base sm:text-lg font-bold text-amber-950">
               <AnimatedCounter value={onLeave} />
             </p>
           </div>
 
-          <div className="rounded-xl border border-rose-100/60 bg-rose-50/30 p-2.5 sm:p-3">
+          <div className="rounded-xl border border-rose-100/60 bg-rose-50/30 p-2.5 sm:p-3 h-[74px] flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-rose-800">Absent</span>
               <UserX className="size-3.5 text-rose-600" />
             </div>
-            <p className="mt-1 text-lg sm:text-xl font-bold text-rose-950">
+            <p className="mt-1 text-base sm:text-lg font-bold text-rose-950">
               <AnimatedCounter value={absent} />
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 sm:p-3">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 sm:p-3 h-[74px] flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-slate-600">Late Punch-ins</span>
               <AlertCircle className="size-3.5 text-slate-400" />
             </div>
-            <p className="mt-1 text-lg sm:text-xl font-bold text-slate-900">
+            <p className="mt-1 text-base sm:text-lg font-bold text-slate-900">
               <AnimatedCounter value={late} />
             </p>
           </div>
@@ -152,7 +151,7 @@ export function AttendanceCard({ summary, liveAttendance, loading }) {
       </div>
 
       {/* Live Active Workforce Footnote */}
-      <div className="mt-3 border-t border-slate-100 pt-2.5 flex items-center justify-between text-[11px] text-slate-500">
+      <div className="mt-3 border-t border-slate-100 pt-2.5 flex items-center justify-between text-[11px] text-slate-500 h-7">
         <span className="flex items-center gap-1 font-medium text-[#163A2E]">
           <Radio className="size-3 text-emerald-600 animate-pulse" />
           {working} currently clocked in

@@ -230,8 +230,8 @@ export default function AdminDashboardPage() {
       />
 
       {/* 3. Main Analytics Section: Revenue Overview (7/12) & Leads by Stage Donut (5/12) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full min-w-0">
-        <div className="lg:col-span-7 xl:col-span-8 min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full min-w-0 items-stretch">
+        <div className="lg:col-span-7 xl:col-span-8 min-w-0 flex flex-col h-full">
           <RevenueChartCard
             summary={summary}
             invoices={recentInvoices}
@@ -240,36 +240,42 @@ export default function AdminDashboardPage() {
             loading={loading}
           />
         </div>
-        <div className="lg:col-span-5 xl:col-span-4 min-w-0">
+        <div className="lg:col-span-5 xl:col-span-4 min-w-0 flex flex-col h-full">
           <LeadsByStageCard leads={leads} loading={loading} />
         </div>
       </div>
 
       {/* 4. Three-Column Summary Cards: Attendance Overview, Tasks Overview, Payroll Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 w-full min-w-0">
-        <AttendanceCard
-          summary={summary}
-          liveAttendance={liveAttendance}
-          loading={loading}
-        />
-        <TasksOverviewCard tasks={tasks} loading={loading} />
-        <PayrollSummaryCard
-          summary={summary}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          loading={loading}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 w-full min-w-0 items-stretch">
+        <div className="min-w-0 flex flex-col h-full">
+          <AttendanceCard
+            summary={summary}
+            liveAttendance={liveAttendance}
+            loading={loading}
+          />
+        </div>
+        <div className="min-w-0 flex flex-col h-full">
+          <TasksOverviewCard tasks={tasks} loading={loading} />
+        </div>
+        <div className="min-w-0 flex flex-col h-full">
+          <PayrollSummaryCard
+            summary={summary}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            loading={loading}
+          />
+        </div>
       </div>
 
       {/* 5. Data Capture & Campaign Marketing Performance Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0">
-        <div className="lg:col-span-1 min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0 items-stretch">
+        <div className="lg:col-span-1 min-w-0 flex flex-col h-full">
           <DataCaptureCard data={captureData} loading={loading && !captureData} />
         </div>
-        <div className="lg:col-span-1 min-w-0">
+        <div className="lg:col-span-1 min-w-0 flex flex-col h-full">
           <WhatsAppCampaignCard stats={data?.whatsappStats} loading={loading} />
         </div>
-        <div className="lg:col-span-1 min-w-0">
+        <div className="lg:col-span-1 min-w-0 flex flex-col h-full">
           <EmailCampaignCard stats={data?.emailStats} loading={loading} />
         </div>
       </div>
@@ -280,11 +286,11 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* 7. Recent Activity & Quick Actions (2-Col Layout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0">
-        <div className="lg:col-span-2 min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0 items-stretch">
+        <div className="lg:col-span-2 min-w-0 flex flex-col h-full">
           <RecentActivityCard activity={activity} loading={loading} />
         </div>
-        <div className="lg:col-span-1 min-w-0">
+        <div className="lg:col-span-1 min-w-0 flex flex-col h-full">
           <QuickActionsCard />
         </div>
       </div>

@@ -78,6 +78,7 @@ export function StageManagement() {
   const [confirm, setConfirm] = React.useState(null);
   const [targetStageId, setTargetStageId] = React.useState('');
   const [search, setSearch] = React.useState('');
+  const [stageType, setStageType] = React.useState('ALL');
   const [status, setStatus] = React.useState('ALL');
   const [sort, setSort] = React.useState('order');
   const [page, setPage] = React.useState(1);
@@ -112,10 +113,11 @@ export function StageManagement() {
   const filtered = React.useMemo(() => {
     const query = search.trim().toLowerCase();
     const rows = stages.filter((stage) => {
+      if (stageType !== 'ALL' && stage.type !== stageType) return false;
       if (status === 'ACTIVE' && stage.isActive === false) return false;
       if (status === 'INACTIVE' && stage.isActive !== false) return false;
       if (!query) return true;
-      return [stage.name, stage.description, stage.key].some((value) => String(value || '').toLowerCase().includes(query));
+      return [stage.name, stage.description, stage.key, stage.type].some((value) => String(value || '').toLowerCase().includes(query));
     });
     const valueOf = (stage) => {
       if (sort === 'name') return stage.name || '';
@@ -124,7 +126,7 @@ export function StageManagement() {
       return stage.order ?? stage.sortOrder ?? 0;
     };
     return [...rows].sort((a, b) => String(valueOf(a)).localeCompare(String(valueOf(b)), undefined, { numeric: true }));
-  }, [stages, search, status, sort]);
+  }, [stages, stageType, search, status, sort]);
 
   const pageSize = 20;
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -132,7 +134,7 @@ export function StageManagement() {
   React.useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
 
   const fillForm = (stage) => setForm(stage ? {
-      type: stage.type,
+      type: stage.type || 'Lead',
       name: stage.name || '',
       order: stage.order ?? stage.sortOrder ?? '',
       probability: stage.probability ?? '',
@@ -293,9 +295,11 @@ export function StageManagement() {
   };
 
   const open = async (mode, stage) => {
-    setDrawer({ mode, stage });
-    fillForm(stage);
-    if (stage?.type === 'Lead') {
+    const effectiveType = stage?.type || (stageType !== 'ALL' ? stageType : 'Lead');
+    const initialStage = stage || { ...emptyForm, type: effectiveType };
+    setDrawer({ mode, stage: initialStage });
+    fillForm(initialStage);
+    if (effectiveType === 'Lead') {
       try {
         const [emailPayload, metaPayload] = await Promise.all([
           api.get('/email/templates', { params: { page: 1, limit: 100, status: 'ACTIVE' } }),
@@ -491,6 +495,8 @@ export function StageManagement() {
     </div>
   );
 
+  const leadStagesCount = stages.filter((stage) => stage.type === 'Lead').length;
+  const dealStagesCount = stages.filter((stage) => stage.type === 'Deal').length;
   const active = stages.filter((stage) => stage.isActive !== false).length;
   const allVisibleSelected = visible.length > 0 && visible.every((stage) => selected.includes(keyOf(stage)));
 
@@ -498,11 +504,49 @@ export function StageManagement() {
     <div className="space-y-5">
       <PageHeader title="Stage Management" description="Manage CRM lead and deal stages." actions={<Button type="button" onClick={() => open('create')}><FontAwesomeIcon icon={faPlus} className="mr-2 size-3.5" />Add Stage</Button>} />
       <KpiGrid cards={[
-        { title: 'Total Stages', value: stages.length, description: 'Lead and deal stages' },
+        { title: 'Total Stages', value: stages.length, description: 'All configured stages' },
+        { title: 'Lead Stages', value: leadStagesCount, description: 'Prospect lifecycle & automation' },
+        { title: 'Deal Stages', value: dealStagesCount, description: 'Revenue pipeline & win probability' },
         { title: 'Active Stages', value: active, description: 'Available for new records' },
-        { title: 'Inactive Stages', value: stages.length - active, description: 'Kept on existing records' },
       ]} />
       <div className="overflow-hidden rounded-lg border border-[#E2E8E5] bg-white">
+        {/* Pipeline Type Filter Tabs */}
+        <div className="flex border-b border-[#E2E8E5] bg-[#F7F9F8] px-4 pt-2 gap-2">
+          <button
+            type="button"
+            onClick={() => { setStageType('ALL'); setPage(1); }}
+            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              stageType === 'ALL'
+                ? 'border-[#163A2E] text-[#163A2E] font-semibold bg-white rounded-t-md border-t border-x'
+                : 'border-transparent text-[#718078] hover:text-[#172B24]'
+            }`}
+          >
+            All Stages ({stages.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStageType('Lead'); setPage(1); }}
+            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              stageType === 'Lead'
+                ? 'border-[#163A2E] text-[#163A2E] font-semibold bg-white rounded-t-md border-t border-x'
+                : 'border-transparent text-[#718078] hover:text-[#172B24]'
+            }`}
+          >
+            Lead Stages ({leadStagesCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStageType('Deal'); setPage(1); }}
+            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              stageType === 'Deal'
+                ? 'border-[#163A2E] text-[#163A2E] font-semibold bg-white rounded-t-md border-t border-x'
+                : 'border-transparent text-[#718078] hover:text-[#172B24]'
+            }`}
+          >
+            Deal Stages ({dealStagesCount})
+          </button>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2 border-b border-[#E2E8E5] px-4 py-3">
           <Input aria-label="Search stages" value={search} placeholder="Search stages" onChange={(event) => { setSearch(event.target.value); setPage(1); }} className="max-w-xs" />
           <select aria-label="Stage status" className="h-8 rounded-md border border-[#E2E8E5] bg-white px-2 text-sm" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select>
@@ -510,22 +554,35 @@ export function StageManagement() {
           {selected.length > 0 && <div className="ml-auto flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setActive(selected, true)}>Activate</Button><Button type="button" variant="outline" onClick={() => setActive(selected, false)}>Deactivate</Button><Button type="button" variant="outline" className="text-rose-700" onClick={() => setConfirm({ ids: selected })}>Delete</Button></div>}
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full text-left text-sm">
+          <table className="min-w-[1040px] w-full text-left text-sm">
             <thead className="bg-[#F7F9F8] text-xs uppercase tracking-wide text-[#718078]">
               <tr>
                 <th className="px-4 py-3"><input aria-label="Select visible stages" type="checkbox" checked={allVisibleSelected} onChange={(event) => setSelected(event.target.checked ? [...new Set([...selected, ...visible.map(keyOf)])] : selected.filter((key) => !visible.some((stage) => keyOf(stage) === key)))} /></th>
-                {['Stage Name', 'Description', 'Color', 'Probability', 'Order', 'Status', 'WhatsApp Template', 'Email Template', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
+                {['Stage Name', 'Pipeline Type', 'Description', 'Color', 'Probability', 'Order', 'Status', 'WhatsApp Template', 'Email Template', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
               </tr>
             </thead>
             <tbody>
               {visible.map((stage) => (
-                <tr key={keyOf(stage)} className="border-t border-[#E2E8E5]">
+                <tr key={keyOf(stage)} className="border-t border-[#E2E8E5] hover:bg-slate-50/50">
                   <td className="px-4 py-3"><input aria-label={`Select ${stage.name}`} type="checkbox" checked={selected.includes(keyOf(stage))} onChange={(event) => setSelected((current) => event.target.checked ? [...current, keyOf(stage)] : current.filter((key) => key !== keyOf(stage)))} /></td>
                   <td className="px-4 py-3 font-medium text-[#172B24]">{stage.name}</td>
+                  <td className="px-4 py-3">
+                    {stage.type === 'Deal' ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200/60">
+                        <span className="size-1.5 rounded-full bg-indigo-500" />
+                        Deal Pipeline
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200/60">
+                        <span className="size-1.5 rounded-full bg-emerald-600" />
+                        Lead Stage
+                      </span>
+                    )}
+                  </td>
                   <td className="max-w-[220px] truncate px-4 py-3 text-[#64748B]">{stage.description || '—'}</td>
                   <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><span className="size-3 rounded-full border border-[#E2E8E5]" style={{ background: stage.color || '#163A2E' }} />{stage.color || '—'}</span></td>
                   <td className="px-4 py-3">{stage.type === 'Deal' ? `${stage.probability ?? 0}%` : '—'}</td>
-                  <td className="px-4 py-3">{stage.order ?? stage.sortOrder ?? '—'}</td>
+                  <td className="px-4 py-3 font-semibold text-[#163A2E]">{stage.order ?? stage.sortOrder ?? '—'}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${stage.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-[#E8F1EC] text-[#163A2E]'}`}>{stage.isActive === false ? 'Inactive' : 'Active'}</span></td>
                   <td className="px-4 py-3">{stage.type === 'Deal' ? '—' : mappingCell(whatsappTemplateFor(stage), waStatusOf(stage), 'WhatsApp')}</td>
                   <td className="px-4 py-3">{stage.type === 'Deal' ? '—' : mappingCell(emailTemplateFor(stage), emailStatusOf(stage), 'Email')}</td>
@@ -533,7 +590,7 @@ export function StageManagement() {
                   <td className="px-4 py-3"><div className="flex flex-wrap gap-1"><Button type="button" size="sm" variant="outline" onClick={() => open('view', stage)}>View</Button><Button type="button" size="sm" variant="outline" onClick={() => open('edit', stage)}>Edit</Button><Button type="button" size="sm" variant="outline" onClick={() => setActive([keyOf(stage)], stage.isActive === false)}>{stage.isActive === false ? 'Activate' : 'Deactivate'}</Button><Button type="button" size="sm" variant="outline" className="text-rose-700" onClick={() => { setTargetStageId(''); setConfirm({ ids: [keyOf(stage)], key: keyOf(stage), stageId: stage.id, name: stage.name, used: usageOf(stage), type: stage.type }); }}>Delete</Button></div></td>
                 </tr>
               ))}
-              {!loading && visible.length === 0 && <tr><td colSpan={11} className="px-4 py-10 text-center text-[#718078]">{search || status !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}
+              {!loading && visible.length === 0 && <tr><td colSpan={12} className="px-4 py-10 text-center text-[#718078]">{search || status !== 'ALL' || stageType !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -544,6 +601,27 @@ export function StageManagement() {
       </div>
       <FormDrawer open={Boolean(drawer)} onOpenChange={(open) => !open && setDrawer(null)} title={drawer?.mode === 'edit' ? 'Edit Stage' : drawer?.mode === 'view' ? 'Stage Details' : 'Add Stage'} description="Stage name is required." showFooter={!viewing} submitLabel={drawer?.mode === 'edit' ? 'Update Stage' : 'Save Stage'} loading={saving} onSubmit={save}>
         <div className="space-y-4">
+          {drawer?.mode === 'create' ? (
+            <div>
+              <Label htmlFor="stage-type">Pipeline Type</Label>
+              <select
+                id="stage-type"
+                value={form.type}
+                onChange={(event) => setForm({ ...form, type: event.target.value })}
+                className="h-10 w-full rounded-md border border-[#E2E8E5] bg-white px-3 text-sm font-medium"
+              >
+                <option value="Lead">Lead Stage (Prospect lifecycle & auto-messaging)</option>
+                <option value="Deal">Deal Stage (Revenue pipeline with win probability)</option>
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs">
+              <span className="font-medium text-slate-600">Pipeline Type:</span>
+              <span className={`font-semibold ${form.type === 'Deal' ? 'text-indigo-700' : 'text-emerald-800'}`}>
+                {form.type === 'Deal' ? 'Deal Pipeline' : 'Lead Stage'}
+              </span>
+            </div>
+          )}
           <div><Label htmlFor="stage-name">Stage Name</Label><Input id="stage-name" value={form.name} disabled={viewing} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div><Label htmlFor="stage-order">Display Order</Label><Input id="stage-order" type="number" value={form.order} disabled={viewing} onChange={(event) => setForm({ ...form, order: event.target.value })} /></div>

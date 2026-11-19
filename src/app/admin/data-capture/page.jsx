@@ -15,6 +15,7 @@ import { sessionCanAction } from '@/modules/hrm/hrm-api';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
 import { captureError, captureGaps, createCapture, loadCaptureUsage, loadCaptures, rejectCapture, removeCapture, deleteCaptures, sessionCan, updateCapture, validateCapture } from '@/modules/data-capture/capture-api';
+import { CsvLeadImportDialog } from '@/modules/data-capture/CsvLeadImportDialog';
 
 const STATUSES = ['CAPTURED', 'VALIDATED', 'REJECTED', 'DUPLICATE', 'LEAD_CREATED'];
 const blank = { businessName: '', category: '', phone: '', email: '', website: '', address: '', source: 'GOOGLE_PLACES', notes: '' };
@@ -23,6 +24,7 @@ export default function DataCapturePage() {
   const [leadOpen, setLeadOpen] = React.useState(false);
   const [canAddLead, setCanAddLead] = React.useState(false);
   const [canDelete, setCanDelete] = React.useState(false);
+  const [canImportCsv, setCanImportCsv] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const deleteBusy = React.useRef(false);
   const [confirmation, setConfirmation] = React.useState(null);
@@ -30,9 +32,10 @@ export default function DataCapturePage() {
   const [allowed, setAllowed] = React.useState(false);
   const [usage, setUsage] = React.useState({});
   const [extractOpen, setExtractOpen] = React.useState(false);
+  const [csvImportOpen, setCsvImportOpen] = React.useState(false);
   const [selectedPlaces, setSelectedPlaces] = React.useState(null);
   const [refresh, setRefresh] = React.useState(0);
-  React.useEffect(() => { setAllowed(sessionCan('DATA_CAPTURE')); setCanAddLead(sessionCan('LEADS') || sessionCan('CRM')); setCanDelete(sessionCanAction('DATA_CAPTURE', 'DELETE')); }, []);
+  React.useEffect(() => { setAllowed(sessionCan('DATA_CAPTURE')); setCanAddLead(sessionCan('LEADS') || sessionCan('CRM')); setCanDelete(sessionCanAction('DATA_CAPTURE', 'DELETE')); setCanImportCsv(sessionCanAction('DATA_CAPTURE', 'EDIT') && sessionCanAction('LEADS', 'CREATE')); }, []);
   React.useEffect(() => { loadCaptureUsage().then(setUsage).catch(() => setUsage({})); }, [refresh]);
   const load = React.useCallback((query) => loadCaptures({ page: query.page, limit: 20, search: query.search || undefined, status: query.status || undefined, source: query.source || undefined, category: query.category || undefined }), []);
 
@@ -55,7 +58,7 @@ export default function DataCapturePage() {
         {allowed && selected.some(eligible) && <Button disabled={deleting} onClick={() => { setSelectedPlaces(selected.filter(eligible)); setExtractOpen(true); }}>Import Selected ({selected.filter(eligible).length})</Button>}
         <span className="text-xs">Selection applies to the current page.</span>
       </AdminBulkSelectionToolbar>} canCreate={false} load={load} blank={blank}
-      extraHeaderActions={<>{canAddLead && <Button onClick={() => setLeadOpen(true)}>Add Lead</Button>}{allowed && <Button onClick={() => { setSelectedPlaces(null); setExtractOpen(true); }}><FontAwesomeIcon icon={faMagnifyingGlass} className="mr-2 size-4" />Find Leads from Google</Button>}</>}
+      extraHeaderActions={<>{canAddLead && <Button onClick={() => setLeadOpen(true)}>Add Lead</Button>}{canImportCsv && <Button variant="outline" onClick={() => setCsvImportOpen(true)}>Import CSV</Button>}{allowed && <Button onClick={() => { setSelectedPlaces(null); setExtractOpen(true); }}><FontAwesomeIcon icon={faMagnifyingGlass} className="mr-2 size-4" />Find Leads from Google</Button>}</>}
       gap={{ title: 'Dates, sources, and export', detail: `${captureGaps.dates} ${captureGaps.sources} ${captureGaps.export}` }}
       stats={() => [{ label: 'Captured records', value: usage.totalLeadsCaptured }, { label: 'Validated', value: usage.validatedCount }, { label: 'Converted to leads', value: usage.convertedCount }, { label: 'Extractions', value: usage.totalExtractions }]}
       filters={[{ key: 'status', label: 'All statuses', options: STATUSES.map((value) => ({ value, label: value })) }, { key: 'source', label: 'All sources', options: [{ value: 'GOOGLE_PLACES', label: 'Google Places' }] }]}
@@ -85,6 +88,7 @@ export default function DataCapturePage() {
     <ConfirmDialog open={Boolean(confirmation)} onOpenChange={(open) => { if (!open && !deleteBusy.current) setConfirmation(null); }} title={confirmation?.single ? 'Delete captured record?' : `Delete ${confirmation?.rows.length || 0} selected captured records?`} description={`${confirmation?.single ? confirmation.rows[0].businessName || `Capture #${confirmation.rows[0].id}` : `${confirmation?.rows.length || 0} captured records selected`}. Imported or protected captures will be skipped. CRM Leads will remain untouched.`} variant="destructive" confirmLabel={deleting ? 'Deleting…' : 'Delete'} onConfirm={confirmDelete} />
     <ManualLeadDrawer open={leadOpen} onOpenChange={setLeadOpen} />
     <GooglePlacesPanel open={extractOpen} onOpenChange={setExtractOpen} initialPlaces={selectedPlaces} onImported={() => setRefresh((value) => value + 1)} />
+    <CsvLeadImportDialog open={csvImportOpen} onOpenChange={setCsvImportOpen} onImported={() => setRefresh((value) => value + 1)} />
   </>;
 }
 
