@@ -10,7 +10,7 @@ import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
 import { faIndianRupeeSign, faLocationDot, faPhone, faUser, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
 import { faCalendar, faEnvelope } from '@fortawesome/free-regular-svg-icons';
-export function EmployeeDetail({ employee, manager, open, onOpenChange, }) {
+export function EmployeeDetail({ employee, open, onOpenChange, }) {
     if (!employee)
         return null;
     return (<Sheet open={open} onOpenChange={onOpenChange}>
@@ -86,7 +86,6 @@ export function EmployeeDetail({ employee, manager, open, onOpenChange, }) {
               Employment Details
             </h4>
             <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 space-y-2 text-xs">
-              <div className="flex items-center justify-between"><span className="text-slate-500">Reporting manager</span><span className="font-semibold text-slate-900">{manager ? `${manager.name} · ${manager.id}` : employee.managerId ? 'Unavailable' : 'Unassigned'}</span></div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-slate-500">
                   <FontAwesomeIcon icon={faUsers} className="size-4 text-brand shrink-0"/>

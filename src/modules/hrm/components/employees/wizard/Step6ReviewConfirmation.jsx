@@ -155,7 +155,6 @@ export function Step6ReviewConfirmation({ onEdit }) {
               <DetailRow label="Department" value={data.employment.department} />
               <DetailRow label="Employee Status" value={data.employment.employeeStatus} />
               <DetailRow label="Work Mode" value={data.employment.workMode} />
-              <DetailRow label="Reporting Manager" value={data.employment.reportingManager} />
               <DetailRow label="Work Location" value={data.employment.workLocation} />
               <DetailRow label="Office / Branch" value={data.employment.officeBranch} />
             </div>
