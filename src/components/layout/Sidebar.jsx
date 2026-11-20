@@ -317,9 +317,9 @@ function SidebarContent({ className = '', onNavigate }) {
                         <Image
                             src="/logo.png"
                             alt="QB Suite Logo"
-                            width={160}
-                            height={48}
-                            className="h-10 w-auto max-h-11 max-w-[175px] object-contain"
+                            width={220}
+                            height={125}
+                            className="h-14 w-auto max-h-14 max-w-[220px] object-contain"
                             priority
                         />
                     </div>
