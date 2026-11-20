@@ -67,38 +67,44 @@ export function DataCaptureCard({ data, loading }) {
         {/* 4 Metric Tiles (1x4 grid on desktop) */}
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
           <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 sm:p-3 h-[76px] flex flex-col justify-between">
-            <p className="text-[11px] font-medium text-slate-500">Total Captured</p>
-            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900">
+            <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1 min-w-0">
+              <Database className="size-3 text-slate-400 shrink-0" />
+              <span className="truncate" title="Total Captured">Captured</span>
+            </p>
+            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
               <AnimatedCounter value={captured} />
             </p>
             <span className="text-[10px] text-slate-400 truncate">All discovery runs</span>
           </div>
 
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-2.5 sm:p-3 h-[76px] flex flex-col justify-between">
-            <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1">
-              <CheckCircle2 className="size-3 text-emerald-600" /> Processed
+            <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1 min-w-0">
+              <CheckCircle2 className="size-3 text-emerald-600 shrink-0" />
+              <span className="truncate">Processed</span>
             </p>
-            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-emerald-900">
+            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-emerald-900 leading-tight">
               <AnimatedCounter value={processed} />
             </p>
             <span className="text-[10px] text-emerald-700/80 truncate">Imported to leads</span>
           </div>
 
           <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-2.5 sm:p-3 h-[76px] flex flex-col justify-between">
-            <p className="text-[11px] font-medium text-amber-800 flex items-center gap-1">
-              <Clock className="size-3 text-amber-600" /> Pending
+            <p className="text-[11px] font-medium text-amber-800 flex items-center gap-1 min-w-0">
+              <Clock className="size-3 text-amber-600 shrink-0" />
+              <span className="truncate">Pending</span>
             </p>
-            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-amber-900">
+            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-amber-900 leading-tight">
               <AnimatedCounter value={pending} />
             </p>
             <span className="text-[10px] text-amber-700/80 truncate">Awaiting validation</span>
           </div>
 
           <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-2.5 sm:p-3 h-[76px] flex flex-col justify-between">
-            <p className="text-[11px] font-medium text-rose-800 flex items-center gap-1">
-              <XCircle className="size-3 text-rose-600" /> Rejected
+            <p className="text-[11px] font-medium text-rose-800 flex items-center gap-1 min-w-0">
+              <XCircle className="size-3 text-rose-600 shrink-0" />
+              <span className="truncate">Rejected</span>
             </p>
-            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-rose-900">
+            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-rose-900 leading-tight">
               <AnimatedCounter value={rejected} />
             </p>
             <span className="text-[10px] text-rose-700/80 truncate">Filtered out</span>
