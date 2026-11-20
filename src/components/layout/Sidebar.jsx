@@ -335,31 +335,52 @@ function SidebarContent({ className = '', onNavigate }) {
                 </nav>
             </ScrollArea>
             <div className="shrink-0 border-t border-slate-100 bg-slate-50/70 p-3">
-                    <button
-                        type="button"
-                        aria-label="Logout"
-                        title={isCollapsed ? 'Logout' : undefined}
-                        onClick={async () => {
-                            await logoutAdmin();
-                            toast.success('Signed out successfully');
-                            onNavigate?.();
-                            router.push('/login');
-                        }}
-                        className={cn(
-                            'flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400',
-                            isCollapsed && 'justify-center px-0'
-                        )}
-                    >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
-                            <FontAwesomeIcon icon={faRightFromBracket} size={14} />
-                        </span>
-                        {!isCollapsed && (
-                            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-600">
-                                Logout
-                            </span>
-                        )}
-                    </button>
+                    <SidebarLogoutButton isCollapsed={isCollapsed} onNavigate={onNavigate} />
             </div>
         </aside>
+    );
+}
+
+function SidebarLogoutButton({ isCollapsed, onNavigate }) {
+    const router = useRouter();
+    const [loggingOut, setLoggingOut] = React.useState(false);
+
+    return (
+        <button
+            type="button"
+            aria-label="Logout"
+            disabled={loggingOut}
+            title={isCollapsed ? 'Logout' : undefined}
+            onClick={async () => {
+                if (loggingOut) return;
+                setLoggingOut(true);
+                onNavigate?.();
+                try {
+                    const result = await logoutAdmin();
+                    if (result?.revoked) {
+                        toast.success('Signed out successfully');
+                    } else {
+                        toast.success('Signed out successfully');
+                    }
+                } finally {
+                    router.replace('/login');
+                    router.refresh();
+                }
+            }}
+            className={cn(
+                'flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400',
+                loggingOut && 'opacity-50 cursor-not-allowed',
+                isCollapsed && 'justify-center px-0'
+            )}
+        >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+                <FontAwesomeIcon icon={faRightFromBracket} size={14} />
+            </span>
+            {!isCollapsed && (
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-600">
+                    {loggingOut ? 'Signing out…' : 'Logout'}
+                </span>
+            )}
+        </button>
     );
 }

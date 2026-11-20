@@ -1,5 +1,6 @@
 const TOKEN_KEY = 'qb_admin_token';
 const USER_KEY = 'qb_admin_user';
+const REFRESH_KEY = 'qb_admin_refresh_token';
 const REMEMBER_KEY = 'qb_admin_remember';
 
 function storage(remember) {
@@ -9,16 +10,21 @@ function storage(remember) {
   return remember ? window.localStorage : window.sessionStorage;
 }
 
-export function persistSession({ token, user, remember }) {
+export function persistSession({ token, refreshToken, user, remember }) {
   if (typeof window === 'undefined' || !token) {
     return;
   }
   const encodedUser = user ? JSON.stringify(user) : null;
   const primary = storage(remember);
   primary?.setItem(TOKEN_KEY, token);
+  if (refreshToken) primary?.setItem(REFRESH_KEY, refreshToken);
   if (encodedUser) primary?.setItem(USER_KEY, encodedUser);
   // localStorage is shared by new tabs. sessionStorage alone is not.
   window.localStorage.setItem(TOKEN_KEY, token);
+  if (refreshToken) {
+    window.localStorage.setItem(REFRESH_KEY, refreshToken);
+    window.localStorage.setItem('refreshToken', refreshToken);
+  }
   if (encodedUser) {
     window.localStorage.setItem(USER_KEY, encodedUser);
     window.localStorage.setItem('user', encodedUser);
@@ -36,9 +42,21 @@ export function clearSession() {
   }
   window.sessionStorage.removeItem(TOKEN_KEY);
   window.sessionStorage.removeItem(USER_KEY);
+  window.sessionStorage.removeItem(REFRESH_KEY);
+  window.sessionStorage.removeItem('accessToken');
+  window.sessionStorage.removeItem('refreshToken');
+  window.sessionStorage.removeItem('token');
+  window.sessionStorage.removeItem('user');
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(USER_KEY);
+  window.localStorage.removeItem(REFRESH_KEY);
   window.localStorage.removeItem(REMEMBER_KEY);
+  window.localStorage.removeItem('accessToken');
+  window.localStorage.removeItem('refreshToken');
+  window.localStorage.removeItem('token');
+  window.localStorage.removeItem('user');
+  window.localStorage.removeItem('quikboom-next-auth-storage');
+  window.dispatchEvent(new Event('qb-admin-session-cleared'));
 }
 
 export function readSession() {
@@ -48,10 +66,15 @@ export function readSession() {
   const remember = window.localStorage.getItem(REMEMBER_KEY) === '1';
   const store = storage(remember) || window.sessionStorage;
   let token = store.getItem(TOKEN_KEY) || window.localStorage.getItem(TOKEN_KEY);
+  let refreshToken = store.getItem(REFRESH_KEY) || window.localStorage.getItem(REFRESH_KEY);
   let rawUser = store.getItem(USER_KEY) || window.localStorage.getItem(USER_KEY);
 
   if (!token) {
     token = window.localStorage.getItem('accessToken') || window.localStorage.getItem('token');
+  }
+
+  if (!refreshToken) {
+    refreshToken = window.localStorage.getItem('refreshToken');
   }
 
   if (!rawUser) {
@@ -69,6 +92,9 @@ export function readSession() {
         if (!token && parsed?.state?.token) {
           token = parsed.state.token;
         }
+        if (!refreshToken && parsed?.state?.refreshToken) {
+          refreshToken = parsed.state.refreshToken;
+        }
       }
     } catch {}
   }
@@ -79,11 +105,12 @@ export function readSession() {
   try {
     return {
       token,
+      refreshToken: refreshToken || null,
       user: rawUser ? JSON.parse(rawUser) : null,
       remember,
     };
   } catch {
-    return { token, user: null, remember };
+    return { token, refreshToken: refreshToken || null, user: null, remember };
   }
 }
 
