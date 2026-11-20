@@ -105,12 +105,21 @@ export async function activateEmployee(id) {
   return res?.data || res;
 }
 
-export async function loadLiveDashboard(date) {
-  const payload = await api.get('/admin/hrms/live-dashboard', { params: date ? { date } : {} });
+export async function loadLiveDashboard(date, period) {
+  const params = {};
+  if (date) params.date = date;
+  if (period) params.period = period;
+  const payload = await api.get('/admin/hrms/live-dashboard', { params });
   const body = payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
   const employees = Array.isArray(body?.employees) ? body.employees : [];
   return {
     summary: body?.summary || {},
+    departments: Array.isArray(body?.departments) ? body.departments : [],
+    birthdays: Array.isArray(body?.birthdays) ? body.birthdays : [],
+    onLeaveToday: Array.isArray(body?.onLeaveToday) ? body.onLeaveToday : [],
+    remoteToday: Array.isArray(body?.remoteToday) ? body.remoteToday : [],
+    recentActivities: Array.isArray(body?.recentActivities) ? body.recentActivities : [],
+    periodAttendance: body?.periodAttendance || null,
     offices: Array.isArray(body?.offices) ? body.offices : [],
     records: employees.map((employee) => ({
       employeeName: personName(employee),
