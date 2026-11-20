@@ -39,7 +39,7 @@ export function WhatsAppCampaignCard({ stats, loading }) {
           <Skeleton className="h-5 w-44 rounded-md" />
           <Skeleton className="h-4 w-16 rounded-md" />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-4">
+        <div className="grid grid-cols-2 gap-2.5 my-4">
           <Skeleton className="h-20 rounded-xl" />
           <Skeleton className="h-20 rounded-xl" />
           <Skeleton className="h-20 rounded-xl" />
@@ -77,7 +77,7 @@ export function WhatsAppCampaignCard({ stats, loading }) {
         </div>
 
         {/* 4 Metric Tiles (1x4 grid on desktop) */}
-        <div className="mt-4 grid min-w-0 grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+        <div className="mt-4 grid min-w-0 grid-cols-2 gap-2.5 sm:gap-3">
           <div className="flex min-w-0 min-h-[92px] flex-col justify-start gap-1.5 rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 sm:p-3">
             <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1 min-w-0">
               <Send className="size-3 text-slate-400 shrink-0" />
