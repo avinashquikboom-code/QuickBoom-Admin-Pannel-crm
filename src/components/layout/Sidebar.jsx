@@ -304,14 +304,14 @@ function SidebarContent({ className = '', onNavigate }) {
                 )}
             >
                 {isCollapsed ? (
-                    <div className="flex size-14 shrink-0 items-center justify-center">
+                    <div className="flex size-16 shrink-0 items-center justify-center">
                         <Image
                             src="/app_logo.png"
                             alt="Quik symbol"
-                            width={54}
-                            height={54}
-                            style={{ width: '54px', height: '54px', objectFit: 'contain' }}
-                            className="size-[54px] shrink-0 rounded-xl object-contain object-center"
+                            width={62}
+                            height={62}
+                            style={{ width: '70px', height: '70px', objectFit: 'contain' }}
+                            className="size-[70px] shrink-0 rounded-xl object-contain object-center"
                             priority
                         />
                     </div>
