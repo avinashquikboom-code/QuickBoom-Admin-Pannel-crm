@@ -103,7 +103,7 @@ export function KpiCards({ summary, leads, customers, deals, loading }) {
   }
 
   return (
-      <div className="grid min-w-0 grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
