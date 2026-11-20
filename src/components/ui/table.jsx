@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { TruncatedText } from "@/components/common/TruncatedText";
 
 function Table({ className, ...props }) {
     return (
@@ -70,12 +71,17 @@ function TableHead({ className, ...props }) {
 }
 
 function TableCell({ className, ...props }) {
+    const child = typeof props.children === 'string'
+        ? <TruncatedText value={props.children} />
+        : props.children;
     return (
         <td
             data-slot="table-cell"
             className={cn("p-4 align-middle whitespace-nowrap text-xs text-slate-700 [&:has([role=checkbox])]:pr-0", className)}
             {...props}
-        />
+        >
+            {child}
+        </td>
     );
 }
 
