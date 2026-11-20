@@ -8,6 +8,7 @@ import { Button } from '@/components/common/Button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
 import { faCheckCircle, faPaperclip, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { faEyeSlash } from '@fortawesome/free-regular-svg-icons';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 export function AnnouncementList({ announcements, onEdit, onDelete, onTogglePublish, }) {
     return (<div className="space-y-3.5">
       {announcements.map((ann) => (<Card key={ann.id} className={`border bg-white transition-all duration-200 shadow-2xs hover:shadow-xs ${ann.isImportant ? 'border-rose-200/80 bg-rose-50/20' : 'border-slate-200/90'}`}>
@@ -72,17 +73,18 @@ export function AnnouncementList({ announcements, onEdit, onDelete, onTogglePubl
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-1.5 self-end sm:self-start shrink-0 pt-1">
-                <Button size="sm" variant="outline" onClick={() => onTogglePublish(ann)} className="h-7.5 px-2 text-xs border-slate-200 text-slate-600 hover:text-slate-900">
-                  {ann.isPublished ? 'Unpublish' : 'Publish'}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => onEdit(ann)} className="h-7.5 px-2 text-xs border-slate-200 text-slate-600 hover:text-brand-dark">
-                  <FontAwesomeIcon icon={faPen} className="size-3.5"/>
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => onDelete(ann)} className="h-7.5 px-2 text-xs border-slate-200 text-slate-600 hover:text-rose-600 hover:bg-rose-50">
-                  <FontAwesomeIcon icon={faTrash} className="size-3.5"/>
-                </Button>
+              {/* More Actions Menu */}
+              <div className="self-end sm:self-start shrink-0 pt-1">
+                <AdminRowActions
+                  record={ann}
+                  recordName={ann.title}
+                  onToggleStatus={() => onTogglePublish(ann)}
+                  statusLabel={ann.isPublished ? 'Unpublish Announcement' : 'Publish Announcement'}
+                  onEdit={() => onEdit(ann)}
+                  editLabel="Edit Announcement"
+                  onDelete={() => onDelete(ann)}
+                  deleteLabel="Delete Announcement"
+                />
               </div>
             </div>
           </CardContent>

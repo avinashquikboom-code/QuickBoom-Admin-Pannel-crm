@@ -90,11 +90,7 @@ export default function SalarySlipsPage() {
             header: 'Actions',
             className: 'text-right',
             cell: (r) => (
-                <div className="flex items-center justify-end gap-1">
-                    <Button size="sm" variant="outline" onClick={() => setActiveSlip(r)} className="h-7.5 px-2.5 border-slate-200 text-slate-700 hover:text-emerald-800 hover:bg-emerald-50 text-xs rounded-lg">
-                        <FontAwesomeIcon icon={faFileLines} className="size-3.5 mr-1 text-slate-400"/>
-                        View Slip
-                    </Button>
+                <div className="flex items-center justify-end">
                     <AdminRowActions
                         record={r}
                         recordName={`${r.employeeName}'s payslip`}

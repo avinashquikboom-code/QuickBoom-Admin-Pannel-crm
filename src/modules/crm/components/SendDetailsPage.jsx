@@ -27,6 +27,7 @@ import { Badge } from '@/components/common/Badge';
 import { Input } from '@/components/common/Input';
 import { Textarea } from '@/components/common/Textarea';
 import { toast } from 'sonner';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 import {
   loadSendDetailsDocuments,
   updateSendDetailsDocument,
@@ -578,19 +579,28 @@ export default function SendDetailsPage() {
                         {new Date(record.createdAt).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={() => setDetailId(detailId === record.id ? null : record.id)}>Details</Button>
-                        {(record.whatsappStatus === 'FAILED' || record.emailStatus === 'FAILED' || ((record.whatsappStatus === 'SKIPPED' || record.emailStatus === 'SKIPPED') && (record.whatsappError || record.emailError))) && (
-                          <Button
-                            onClick={() => handleRetry(record.id)}
-                            disabled={retryingId === record.id}
-                            variant="outline"
-                            size="sm"
-                            className="text-xs gap-1 border-rose-300 text-rose-700 hover:bg-rose-50"
-                          >
-                            <FontAwesomeIcon icon={faRotate} className={retryingId === record.id ? 'animate-spin' : ''} />
-                            Retry
-                          </Button>
-                        )}
+                        <AdminRowActions
+                          record={record}
+                          recordName={`Lead #${record.leadId} delivery`}
+                          onView={() => setDetailId(detailId === record.id ? null : record.id)}
+                          viewLabel={detailId === record.id ? 'Hide Details' : 'View Details'}
+                          actions={
+                            (record.whatsappStatus === 'FAILED' ||
+                              record.emailStatus === 'FAILED' ||
+                              ((record.whatsappStatus === 'SKIPPED' || record.emailStatus === 'SKIPPED') &&
+                                (record.whatsappError || record.emailError)))
+                              ? [
+                                  {
+                                    id: 'retry',
+                                    label: 'Retry Delivery',
+                                    icon: faRotate,
+                                    disabled: retryingId === record.id,
+                                    onClick: () => handleRetry(record.id),
+                                  },
+                                ]
+                              : []
+                          }
+                        />
                       </td>
                     </tr>
                     {detailId === record.id && (

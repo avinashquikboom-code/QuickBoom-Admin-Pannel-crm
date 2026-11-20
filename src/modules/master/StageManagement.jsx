@@ -11,6 +11,7 @@ import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { Textarea } from '@/components/common/Textarea';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 import { toast } from '@/hooks/use-toast';
 import api from '../../../lib/api';
 import { bulkDealStages, crmError, loadDealStage, loadDealStages, loadLeadStage, loadLeadStages, reassignDealStage, reassignLeadStage, removeDealStage, removeLeadStage, saveDealStage, saveLeadStage } from '@/modules/crm/crm-api';
@@ -589,7 +590,31 @@ export function StageManagement() {
                   <td className="px-4 py-3">{stage.type === 'Deal' ? '—' : mappingCell(whatsappTemplateFor(stage), waStatusOf(stage), 'WhatsApp')}</td>
                   <td className="px-4 py-3">{stage.type === 'Deal' ? '—' : mappingCell(emailTemplateFor(stage), emailStatusOf(stage), 'Email')}</td>
                   <td className="px-4 py-3 text-[#64748B]">{stage.createdAt ? new Date(stage.createdAt).toLocaleDateString('en-IN') : '—'}</td>
-                  <td className="px-4 py-3"><div className="flex flex-wrap gap-1"><Button type="button" size="sm" variant="outline" onClick={() => open('view', stage)}>View</Button><Button type="button" size="sm" variant="outline" onClick={() => open('edit', stage)}>Edit</Button><Button type="button" size="sm" variant="outline" onClick={() => setActive([keyOf(stage)], stage.isActive === false)}>{stage.isActive === false ? 'Activate' : 'Deactivate'}</Button><Button type="button" size="sm" variant="outline" className="text-rose-700" onClick={() => { setTargetStageId(''); setConfirm({ ids: [keyOf(stage)], key: keyOf(stage), stageId: stage.id, name: stage.name, used: usageOf(stage), type: stage.type }); }}>Delete</Button></div></td>
+                  <td className="px-4 py-3 text-right">
+                    <AdminRowActions
+                      record={stage}
+                      recordName={stage.name}
+                      onView={() => open('view', stage)}
+                      viewLabel="View Stage Details"
+                      onEdit={() => open('edit', stage)}
+                      editLabel="Edit Stage"
+                      onToggleStatus={() => setActive([keyOf(stage)], stage.isActive === false)}
+                      statusLabel={stage.isActive === false ? 'Activate Stage' : 'Deactivate Stage'}
+                      onDelete={() => {
+                        setTargetStageId('');
+                        setConfirm({
+                          ids: [keyOf(stage)],
+                          key: keyOf(stage),
+                          stageId: stage.id,
+                          name: stage.name,
+                          used: usageOf(stage),
+                          type: stage.type,
+                        });
+                      }}
+                      deleteLabel="Delete Stage"
+                      confirmDelete={false}
+                    />
+                  </td>
                 </tr>
               ))}
               {!loading && visible.length === 0 && <tr><td colSpan={12} className="px-4 py-10 text-center text-[#718078]">{search || status !== 'ALL' || stageType !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}

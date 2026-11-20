@@ -91,11 +91,7 @@ export function PayrollTable({ records, onViewPayslip, onMarkPaid, }) {
             header: 'Actions',
             className: 'text-right',
             cell: (rec) => (
-                <div className="flex items-center justify-end gap-1">
-                    <Button size="sm" variant="outline" onClick={() => onViewPayslip(rec)} className="h-7.5 px-2.5 border-slate-200 text-slate-700 hover:text-emerald-800 hover:bg-emerald-50 text-xs rounded-lg">
-                        <FontAwesomeIcon icon={faFileLines} className="size-3.5 mr-1 text-slate-400"/>
-                        Payslip
-                    </Button>
+                <div className="flex items-center justify-end">
                     <AdminRowActions
                         record={rec}
                         recordName={rec.employeeName}
