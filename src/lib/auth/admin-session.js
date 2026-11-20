@@ -19,7 +19,10 @@ export function persistSession({ token, user, remember }) {
   if (encodedUser) primary?.setItem(USER_KEY, encodedUser);
   // localStorage is shared by new tabs. sessionStorage alone is not.
   window.localStorage.setItem(TOKEN_KEY, token);
-  if (encodedUser) window.localStorage.setItem(USER_KEY, encodedUser);
+  if (encodedUser) {
+    window.localStorage.setItem(USER_KEY, encodedUser);
+    window.localStorage.setItem('user', encodedUser);
+  }
   if (remember) {
     window.localStorage.setItem(REMEMBER_KEY, '1');
   } else {
@@ -44,8 +47,32 @@ export function readSession() {
   }
   const remember = window.localStorage.getItem(REMEMBER_KEY) === '1';
   const store = storage(remember) || window.sessionStorage;
-  const token = store.getItem(TOKEN_KEY) || window.localStorage.getItem(TOKEN_KEY);
-  const rawUser = store.getItem(USER_KEY) || window.localStorage.getItem(USER_KEY);
+  let token = store.getItem(TOKEN_KEY) || window.localStorage.getItem(TOKEN_KEY);
+  let rawUser = store.getItem(USER_KEY) || window.localStorage.getItem(USER_KEY);
+
+  if (!token) {
+    token = window.localStorage.getItem('accessToken') || window.localStorage.getItem('token');
+  }
+
+  if (!rawUser) {
+    rawUser = window.localStorage.getItem('user');
+  }
+
+  if (!rawUser) {
+    try {
+      const authStorage = window.localStorage.getItem('quikboom-next-auth-storage');
+      if (authStorage) {
+        const parsed = JSON.parse(authStorage);
+        if (parsed?.state?.user) {
+          rawUser = JSON.stringify(parsed.state.user);
+        }
+        if (!token && parsed?.state?.token) {
+          token = parsed.state.token;
+        }
+      }
+    } catch {}
+  }
+
   if (!token) {
     return null;
   }
@@ -67,8 +94,17 @@ export function getAuthToken() {
 // Update only the active authenticated account; keep credentials and remember mode.
 export function updateSessionUser(user) {
   const session = readSession();
-  if (!session || !user || (session.user?.id && String(session.user.id) !== String(user.id))) return;
-  const store = storage(session.remember);
-  store.setItem(USER_KEY, JSON.stringify(user));
+  if (!session || !user) return;
+  if (session.user?.id && user?.id && String(session.user.id) !== String(user.id)) return;
+
+  const encoded = JSON.stringify(user);
+  try {
+    const store = storage(session.remember);
+    store?.setItem(USER_KEY, encoded);
+    window.localStorage.setItem(USER_KEY, encoded);
+    window.sessionStorage.setItem(USER_KEY, encoded);
+    window.localStorage.setItem('user', encoded);
+  } catch {}
+
   window.dispatchEvent(new Event('qb-admin-profile-updated'));
 }

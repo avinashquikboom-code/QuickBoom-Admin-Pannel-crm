@@ -15,19 +15,42 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar'
 import { Badge } from '@/components/common/Badge';
 import { toast } from '@/hooks/use-toast';
 import { logoutAdmin } from '@/lib/auth/admin-login';
-import { readSession } from '@/lib/auth/admin-session';
+import { readSession, updateSessionUser } from '@/lib/auth/admin-session';
 import { adminProfile } from '@/lib/auth/admin-profile';
 import { useSidebarStore } from '@/hooks/use-sidebar-store';
 import { loadAnnouncements } from '@/modules/hrm/hrm-api';
+import api from '../../../lib/api';
 export function Header() {
     const router = useRouter();
     const [sessionUser, setSessionUser] = React.useState(null);
     React.useEffect(() => {
-        const update = () => setSessionUser(readSession()?.user ?? null);
+        let active = true;
+        const update = () => {
+            const current = readSession()?.user ?? null;
+            if (active) setSessionUser(current);
+        };
         update();
         window.addEventListener('storage', update);
         window.addEventListener('qb-admin-profile-updated', update);
-        return () => { window.removeEventListener('storage', update); window.removeEventListener('qb-admin-profile-updated', update); };
+
+        const session = readSession();
+        if (session?.token) {
+            api.get('/auth/profile', { qbAdminSession: true })
+                .then((res) => {
+                    const record = res?.data ?? res;
+                    if (active && record?.id) {
+                        setSessionUser(record);
+                        updateSessionUser(record);
+                    }
+                })
+                .catch(() => {});
+        }
+
+        return () => {
+            active = false;
+            window.removeEventListener('storage', update);
+            window.removeEventListener('qb-admin-profile-updated', update);
+        };
     }, []);
     const profile = adminProfile(sessionUser);
     const toggleCollapsed = useSidebarStore((s) => s.toggleCollapsed);
