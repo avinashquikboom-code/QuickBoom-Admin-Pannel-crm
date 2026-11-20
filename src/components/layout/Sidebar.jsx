@@ -85,7 +85,7 @@ function NavLink({ item, pathname, collapsed, onNavigate }) {
             aria-current={active ? 'page' : undefined}
             title={collapsed ? item.name : undefined}
             className={cn(
-                'group flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'group flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer select-none',
                 collapsed && 'justify-center px-0',
                 active
                     ? 'bg-brand-light text-brand-dark font-semibold'
@@ -96,17 +96,17 @@ function NavLink({ item, pathname, collapsed, onNavigate }) {
                 <SidebarIcon
                     icon={item.icon}
                     size={16}
-                    className={cn('shrink-0 transition-colors', active ? 'text-brand-dark' : 'text-slate-400 group-hover:text-slate-600')}
+                    className={cn('shrink-0 transition-colors pointer-events-none', active ? 'text-brand-dark' : 'text-slate-400 group-hover:text-slate-600')}
                 />
             )}
-            {!collapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
+            {!collapsed && <span className="min-w-0 flex-1 truncate pointer-events-none">{item.name}</span>}
             {!collapsed && item.tag && (
-                <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-wide', active ? 'bg-white/70 text-brand-dark' : 'bg-slate-100 text-slate-400')}>
+                <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-wide pointer-events-none', active ? 'bg-white/70 text-brand-dark' : 'bg-slate-100 text-slate-400')}>
                     {item.tag}
                 </span>
             )}
             {!collapsed && item.badge && !item.tag && (
-                <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold', active ? 'bg-white/70 text-brand-dark' : 'bg-amber-100 text-amber-700')}>
+                <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold pointer-events-none', active ? 'bg-white/70 text-brand-dark' : 'bg-amber-100 text-amber-700')}>
                     {item.badge}
                 </span>
             )}
@@ -143,30 +143,24 @@ function NavExpandableItem({ item, pathname, collapsed, onNavigate }) {
                 aria-expanded={open}
                 aria-controls={contentId}
                 className={cn(
-                    'flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    'flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer select-none',
                     parentActive ? 'bg-brand-light/70 text-brand-dark' : 'text-slate-600 hover:bg-brand-light/80',
                 )}
             >
                 {item.icon ? (
-                    <SidebarIcon icon={item.icon} size={16} className={cn('shrink-0', parentActive ? 'text-brand-dark' : 'text-slate-400')} />
+                    <SidebarIcon icon={item.icon} size={16} className={cn('shrink-0 pointer-events-none', parentActive ? 'text-brand-dark' : 'text-slate-400')} />
                 ) : null}
-                <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform duration-200', open && 'rotate-180')} />
+                <span className="min-w-0 flex-1 truncate pointer-events-none">{item.name}</span>
+                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform duration-200 pointer-events-none', open && 'rotate-180')} />
             </button>
             <div
                 id={contentId}
-                className={cn(
-                    'grid transition-all duration-200 ease-in-out',
-                    open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-                )}
+                hidden={!open}
+                className={cn('ml-3 space-y-0.5 border-l border-slate-200 py-1 pl-2', !open && 'hidden')}
             >
-                <div className="overflow-hidden">
-                    <div className="ml-3 space-y-0.5 border-l border-slate-200 py-1 pl-2">
-                        {item.children.map((child) => (
-                            <NavLink key={child.href} item={child} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
-                        ))}
-                    </div>
-                </div>
+                {item.children.map((child) => (
+                    <NavLink key={child.href} item={child} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
+                ))}
             </div>
         </div>
     );
@@ -190,16 +184,16 @@ function FlatLink({ group, pathname, collapsed, onNavigate }) {
             aria-current={active ? 'page' : undefined}
             title={collapsed ? group.name : undefined}
             className={cn(
-                'flex min-h-11 items-center gap-3 rounded-xl p-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                'flex min-h-11 items-center gap-3 rounded-xl p-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer select-none',
                 collapsed && 'justify-center px-0',
                 active ? 'bg-brand text-primary-foreground' : 'text-slate-600 hover:bg-brand-light/80'
             )}
         >
-            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', active ? 'bg-white/15 text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
+            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg pointer-events-none', active ? 'bg-white/15 text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
                 <SidebarIcon icon={group.icon} size={14} />
             </span>
             {!collapsed && (
-                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold pointer-events-none">
                     {group.name}
                 </span>
             )}
@@ -232,30 +226,24 @@ function NavGroup({ group, pathname, collapsed, onNavigate }) {
                 aria-expanded={open}
                 aria-controls={contentId}
                 className={cn(
-                    'flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-brand-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    'flex min-h-11 w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-brand-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer select-none',
                     containsActive ? 'text-brand-dark' : 'text-slate-600'
                 )}
             >
-                <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', containsActive ? 'bg-brand text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
+                <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg pointer-events-none', containsActive ? 'bg-brand text-primary-foreground' : 'bg-slate-100 text-slate-500')}>
                     <SidebarIcon icon={group.icon} size={14} />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold pointer-events-none">
                     {group.name}
                 </span>
-                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform duration-200', open && 'rotate-180')} />
+                <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform duration-200 pointer-events-none', open && 'rotate-180')} />
             </button>
             <div
                 id={contentId}
-                className={cn(
-                    'grid transition-all duration-200 ease-in-out',
-                    open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-                )}
+                hidden={!open}
+                className={cn('ml-6 space-y-0.5 border-l border-slate-200 py-1 pl-3', !open && 'hidden')}
             >
-                <div className="overflow-hidden">
-                    <div className="ml-6 space-y-0.5 border-l border-slate-200 py-1 pl-3">
-                        <NavItems items={group.items} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
-                    </div>
-                </div>
+                <NavItems items={group.items} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
             </div>
         </section>
     );
@@ -297,7 +285,7 @@ function SidebarContent({ className = '', onNavigate }) {
                 onClick={onNavigate}
                 aria-label="QB Suite dashboard"
                 className={cn(
-                    'flex min-h-20 items-center border-b border-slate-100 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand',
+                    'flex min-h-20 items-center border-b border-slate-100 px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand',
                     isCollapsed ? 'justify-center px-0' : 'gap-3'
                 )}
             >
@@ -314,9 +302,9 @@ function SidebarContent({ className = '', onNavigate }) {
                     <Image
                         src="/logo.png"
                         alt="QuickBoom logo"
-                        width={180}
-                        height={50}
-                        className="h-11 w-auto max-h-12 max-w-[210px] object-contain"
+                        width={512}
+                        height={291}
+                        className="h-14 w-auto max-h-16 max-w-[200px] object-contain drop-shadow-xs"
                         priority
                     />
                 )}

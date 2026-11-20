@@ -72,40 +72,44 @@ export function EmailCampaignCard({ stats, loading }) {
         {/* 4 Metric Tiles (1x4 grid on desktop) */}
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
           <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 sm:p-3 h-[76px] flex flex-col justify-between">
-            <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
-              <Send className="size-3 text-slate-400" /> Sent
+            <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1 min-w-0">
+              <Send className="size-3 text-slate-400 shrink-0" />
+              <span className="truncate">Sent</span>
             </p>
-            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900">
+            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
               <AnimatedCounter value={sent} />
             </p>
             <span className="text-[10px] text-slate-400 truncate">SMTP dispatched</span>
           </div>
 
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-2.5 sm:p-3 h-[76px] flex flex-col justify-between">
-            <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1">
-              <CheckCircle2 className="size-3 text-emerald-600" /> Delivered
+            <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1 min-w-0">
+              <CheckCircle2 className="size-3 text-emerald-600 shrink-0" />
+              <span className="truncate">Delivered</span>
             </p>
-            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-emerald-900">
+            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-emerald-900 leading-tight">
               <AnimatedCounter value={delivered} />
             </p>
             <span className="text-[10px] text-emerald-700/80 truncate">Accepted by relay</span>
           </div>
 
           <div className="rounded-xl border border-slate-100 bg-slate-50/40 p-2.5 sm:p-3 h-[76px] flex flex-col justify-between">
-            <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
-              <Eye className="size-3 text-slate-400" /> Opened
+            <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1 min-w-0">
+              <Eye className="size-3 text-slate-400 shrink-0" />
+              <span className="truncate">Opened</span>
             </p>
-            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900">
+            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
               {hasOpenTracking ? <AnimatedCounter value={data.totalOpened ?? 0} /> : '—'}
             </p>
             <span className="text-[10px] text-slate-400 truncate">Pixel needed</span>
           </div>
 
           <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-2.5 sm:p-3 h-[76px] flex flex-col justify-between">
-            <p className="text-[11px] font-medium text-rose-800 flex items-center gap-1">
-              <AlertCircle className="size-3 text-rose-600" /> Failed
+            <p className="text-[11px] font-medium text-rose-800 flex items-center gap-1 min-w-0">
+              <AlertCircle className="size-3 text-rose-600 shrink-0" />
+              <span className="truncate">Failed</span>
             </p>
-            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-rose-900">
+            <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-rose-900 leading-tight">
               <AnimatedCounter value={failed} />
             </p>
             <span className="text-[10px] text-rose-700/80 truncate">SMTP rejected</span>

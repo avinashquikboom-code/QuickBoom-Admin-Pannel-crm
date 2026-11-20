@@ -3,13 +3,14 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faSpinner, faBuilding } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
 import { apiError, departmentFormSchema, getDepartment, saveDepartment, type Department, type DepartmentFormValues } from './department-api';
 
@@ -23,8 +24,19 @@ export function DepartmentDrawer({ id, mode, onClose, onSaved }: {
   const savingRef = React.useRef(false);
   const [error, setError] = React.useState('');
   const [retry, setRetry] = React.useState(0);
+  const [confirmClose, setConfirmClose] = React.useState(false);
+  const opener = React.useRef<HTMLElement | null>(null);
   const form = useForm<DepartmentFormValues>({ defaultValues: { name: '', code: '', description: '', headId: null, isActive: true } });
   const { reset } = form;
+  React.useEffect(() => {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => opener.current?.focus();
+  }, []);
+  const requestClose = React.useCallback(() => {
+    if (savingRef.current) return;
+    if (!readOnly && form.formState.isDirty) setConfirmClose(true);
+    else onClose();
+  }, [form.formState.isDirty, onClose, readOnly]);
   React.useEffect(() => {
     if (id === null) return;
     const controller = new AbortController();
@@ -63,15 +75,18 @@ export function DepartmentDrawer({ id, mode, onClose, onSaved }: {
   const blocked = saving || loading || (id !== null && !record);
   const fieldClass = 'h-11 rounded-xl border-slate-200 bg-white text-sm shadow-none';
   return (
-    <Sheet open onOpenChange={(open: boolean) => { if (!open && !savingRef.current) onClose(); }}>
-      <SheetContent side="right" showCloseButton={!saving} className="h-full gap-0 overflow-hidden bg-white p-0 data-[side=right]:!w-full data-[side=right]:!max-w-none data-[side=right]:sm:!w-[440px] data-[side=right]:sm:!max-w-[440px]">
+    <Sheet open onOpenChange={(open: boolean) => { if (!open) requestClose(); }}>
+      <SheetContent side="right" showCloseButton={!saving} className="h-full gap-0 overflow-hidden bg-white p-0 data-[side=right]:!w-full data-[side=right]:!max-w-none data-[side=right]:sm:!w-[68vw] data-[side=right]:sm:!max-w-[68vw] data-[side=right]:lg:!w-[520px] data-[side=right]:lg:!max-w-[520px]">
         <SheetHeader className="border-b border-slate-100 bg-white px-5 py-5 pr-12 sm:px-6">
-          <SheetTitle className="text-lg font-semibold text-[#172033]">{mode === 'create' ? 'Add Department' : readOnly ? 'Department Details' : 'Edit Department'}</SheetTitle>
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-[#169F4D]"><FontAwesomeIcon icon={faBuilding} size={undefined} label={undefined} className="size-4" /></span>
+            <SheetTitle className="text-lg font-semibold text-[#172033]">{mode === 'create' ? 'Create Department' : readOnly ? 'Department Details' : 'Edit Department'}</SheetTitle>
+          </div>
           <SheetDescription className="mt-1 text-sm text-slate-500">{mode === 'create' ? 'Create a new department and assign organizational details.' : readOnly ? 'Department information returned by the directory.' : 'Update the department and its organizational details.'}</SheetDescription>
         </SheetHeader>
         <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-            {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}{!record && id !== null && <Button type="button" variant="outline" className="mt-2" onClick={() => setRetry((v) => v + 1)}>Retry</Button>}</div>}
+            {error && <div role="alert" className="animate-in fade-in slide-in-from-top-1 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}{!record && id !== null && <Button type="button" variant="outline" className="mt-2" onClick={() => setRetry((v) => v + 1)}>Retry</Button>}</div>}
             {loading ? <div role="status" aria-label="Loading department" className="space-y-6">{[1, 2, 3, 4].map((n) => <Skeleton key={n} className="h-16 w-full rounded-xl" />)}</div> : (
               <fieldset disabled={blocked || readOnly} className="space-y-5">
                 <Field className="gap-2">
@@ -119,11 +134,23 @@ export function DepartmentDrawer({ id, mode, onClose, onSaved }: {
             )}
           </div>
           <div className="sticky bottom-0 flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 bg-white px-5 py-4 sm:px-6">
-            <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-200 px-5" disabled={saving} onClick={onClose}>{readOnly ? 'Close' : 'Cancel'}</Button>
+            <Button type="button" variant="outline" className="h-11 rounded-xl border-slate-200 px-5" disabled={saving} onClick={requestClose}>{readOnly ? 'Close' : 'Cancel'}</Button>
             {!readOnly && <Button type="submit" disabled={blocked} className="h-11 rounded-xl bg-[#16A34A] px-5 text-white hover:bg-[#15803D]">{saving && <FontAwesomeIcon size={undefined} label={undefined} icon={faSpinner} className="size-4 animate-spin" />}{saving ? 'Saving…' : mode === 'create' ? 'Create Department' : 'Save Changes'}</Button>}
           </div>
         </form>
       </SheetContent>
+      <Dialog open={confirmClose} onOpenChange={setConfirmClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Discard unsaved changes?</DialogTitle>
+            <DialogDescription>Your department changes have not been saved.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmClose(false)}>Keep editing</Button>
+            <Button type="button" className="bg-[#123D2D] text-white" onClick={() => { setConfirmClose(false); onClose(); }}>Discard changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
