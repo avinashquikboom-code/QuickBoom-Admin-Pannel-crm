@@ -169,9 +169,21 @@ export function getPersistedAuthSession() {
   if (!isEmployeeRoute && !activeStore._hasHydrated && !session.token) {
     try {
       session = {
-        token: localStorage.getItem('accessToken') || localStorage.getItem('token'),
-        refreshToken: localStorage.getItem('refreshToken'),
-        user: JSON.parse(localStorage.getItem('user') || 'null'),
+        token:
+          localStorage.getItem('qb_admin_token') ||
+          sessionStorage.getItem('qb_admin_token') ||
+          localStorage.getItem('accessToken') ||
+          localStorage.getItem('token'),
+        refreshToken:
+          localStorage.getItem('qb_admin_refresh_token') ||
+          sessionStorage.getItem('qb_admin_refresh_token') ||
+          localStorage.getItem('refreshToken'),
+        user: JSON.parse(
+          localStorage.getItem('qb_admin_user') ||
+          sessionStorage.getItem('qb_admin_user') ||
+          localStorage.getItem('user') ||
+          'null'
+        ),
       };
     } catch {}
   }
@@ -231,9 +243,16 @@ async function clearAdminBrowserSession() {
   try {
     localStorage.removeItem('qb_admin_token');
     localStorage.removeItem('qb_admin_user');
+    localStorage.removeItem('qb_admin_refresh_token');
     localStorage.removeItem('qb_admin_remember');
     sessionStorage.removeItem('qb_admin_token');
     sessionStorage.removeItem('qb_admin_user');
+    sessionStorage.removeItem('qb_admin_refresh_token');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('quikboom-next-auth-storage');
   } catch {
     // Storage can be unavailable in private-mode or test fixtures.
   }
@@ -333,6 +352,15 @@ async function refreshCurrentSession(): Promise<string> {
       // 1. Update in-memory auth store and localStorage
       authStore.updateTokens(newAccessToken, newRefreshToken);
       try {
+        if (!isEmployeeRoute) {
+          localStorage.setItem('qb_admin_token', newAccessToken);
+          sessionStorage.setItem('qb_admin_token', newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('qb_admin_refresh_token', newRefreshToken);
+            sessionStorage.setItem('qb_admin_refresh_token', newRefreshToken);
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
+        }
         const storageKey = isEmployeeRoute ? 'qb-employee-auth-storage' : 'quikboom-next-auth-storage';
         const raw = localStorage.getItem(storageKey);
         const parsed = raw ? JSON.parse(raw) : null;
@@ -582,6 +610,16 @@ api.interceptors.response.use(
     return response.data;
   },
   async (error) => {
+    // Silently ignore canceled requests (e.g. from component unmounting or AbortController)
+    if (
+      (typeof (axios as any)?.isCancel === 'function' && (axios as any).isCancel(error)) ||
+      error?.name === 'CanceledError' ||
+      error?.code === 'ERR_CANCELED' ||
+      error?.message === 'canceled'
+    ) {
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config;
     // Current login has no refresh token; let the screen surface the API error.
     if (originalRequest?.qbAdminSession) return Promise.reject(error);
@@ -638,12 +676,15 @@ api.interceptors.response.use(
       !isAuthUrl &&
       typeof window !== 'undefined'
     ) {
-      // The retry already carried a freshly issued token, so this 401 belongs to
-      // the endpoint (the API also answers 401 for a missing customer context),
-      // not to the session. A dead session is logged out by the refresh failure.
-      const message = getErrorMessage(error);
-      if (typeof message === 'string' && message !== '[object Event]' && message !== '[object Object]') {
-        toast.error(message, { id: message });
+      const isEmployeeRoute = isEmployeePortalRoute();
+      const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
+      const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
+
+      if (!isEmployeeRoute) await clearAdminBrowserSession();
+      authStore.logout();
+      if (typeof window !== 'undefined' && window.location.pathname !== loginRoute) {
+        toast.error('Your session has expired. Please sign in again.', { id: 'session-expired' });
+        window.location.href = loginRoute;
       }
       return Promise.reject(error);
     }

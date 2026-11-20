@@ -19,10 +19,10 @@ function extractAuth(body) {
   return { token, refreshToken, user };
 }
 
-function sessionCookie(request, remember) {
+function sessionCookie(request, remember, token) {
   const forwarded = request.headers.get('x-forwarded-proto');
   const secure = forwarded ? forwarded.split(',')[0].trim() === 'https' : new URL(request.url).protocol === 'https:';
-  const parts = ['qb_admin_session=1', 'Path=/', 'HttpOnly', 'SameSite=Lax'];
+  const parts = [`qb_admin_session=${encodeURIComponent(token)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax'];
   if (secure) parts.push('Secure');
   if (remember) parts.push(`Max-Age=${THIRTY_DAYS}`);
   return parts.join('; ');
@@ -44,24 +44,39 @@ export async function POST(request) {
     return Response.json({ message: 'Email and password are required.' }, { status: 400 });
   }
 
-  const apiBase = (
-    process.env.API_BASE_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    'https://api.qbapp.online/api/v1'
-  ).replace(/\/$/, '');
+  const candidateBases = Array.from(new Set([
+    process.env.API_BASE_URL,
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+    process.env.NEXT_PUBLIC_API_URL,
+    'http://localhost:3000/api/v1',
+    'https://api.qbapp.online/api/v1',
+  ].filter(Boolean).map(url => url.replace(/\/$/, ''))));
 
   let upstream;
-  try {
-    upstream = await fetch(`${apiBase}/auth/admin/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ email, password }),
-      cache: 'no-store',
-    });
-  } catch {
+  let lastError;
+
+  for (const apiBase of candidateBases) {
+    try {
+      upstream = await fetch(`${apiBase}/auth/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email, password }),
+        cache: 'no-store',
+      });
+      if (upstream) {
+        lastError = null;
+        break;
+      }
+    } catch (err) {
+      lastError = err;
+      continue;
+    }
+  }
+
+  if (!upstream) {
+    console.error('[API_AUTH_LOGIN_ERROR] All upstream candidates failed:', lastError);
     return Response.json(
-      { message: 'Authentication service is unavailable. Please try again.' },
+      { message: 'Authentication service is unavailable. Please verify the backend service is running.' },
       { status: 503 },
     );
   }
@@ -101,7 +116,7 @@ export async function POST(request) {
   });
 
   if (token) {
-    response.headers.append('Set-Cookie', sessionCookie(request, remember));
+    response.headers.append('Set-Cookie', sessionCookie(request, remember, token));
   }
 
   return response;

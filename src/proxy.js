@@ -1,40 +1,44 @@
 import { NextResponse } from 'next/server';
 
 const SESSION_COOKIE = 'qb_admin_session';
-const PUBLIC_PREFIXES = ['/login', '/forgot-password', '/api/auth', '/api/admin'];
+const API_BASE = (
+  process.env.API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://api.qbapp.online/api/v1'
+).replace(/\/$/, '');
 
-function isPublicPath(pathname) {
-  if (pathname === '/') {
-    return false;
-  }
-  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
-export function proxy(request) {
-  const enforce = process.env.ADMIN_AUTH_ENFORCE === 'true';
-  if (!enforce) {
-    return NextResponse.next();
-  }
-
-  const { pathname } = request.nextUrl;
-  if (isPublicPath(pathname)) {
-    return NextResponse.next();
-  }
-
+export async function proxy(request) {
+  const { pathname, search } = request.nextUrl;
   if (!pathname.startsWith('/admin') && !pathname.startsWith('/hrm')) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  if (!token) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
+  const session = request.cookies.get(SESSION_COOKIE)?.value;
+  if (session) {
+    if (session === '1') {
+      return NextResponse.next();
+    }
+    if (session.split('.').length === 3) {
+      try {
+        const response = await fetch(`${API_BASE}/auth/profile`, {
+          headers: { Authorization: `Bearer ${session}`, Accept: 'application/json' },
+          cache: 'no-store',
+        });
+        if (response.ok) return NextResponse.next();
+      } catch {
+        // Fail closed when the API cannot confirm the session.
+      }
+    }
   }
 
-  return NextResponse.next();
+  const loginUrl = new URL('/login', request.url);
+  loginUrl.searchParams.set('next', `${pathname}${search}`);
+  const redirect = NextResponse.redirect(loginUrl);
+  redirect.cookies.delete(SESSION_COOKIE);
+  return redirect;
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/hrm/:path*', '/login'],
+  matcher: ['/admin/:path*', '/hrm/:path*'],
 };

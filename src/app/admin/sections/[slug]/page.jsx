@@ -51,7 +51,10 @@ function SectionRoute() {
     if (slug === 'subscription-plans') return <SubscriptionPlans />;
     if (isLiveMasterSlug(slug)) return <MasterManagement slug={slug} />;
     if (['email-templates', 'stage-notifications'].includes(slug)) return <TemplateManagement slug={slug} />;
-    return <SectionPageContent />;
+    // This route serves many sidebar destinations under one dynamic segment.
+    // Keying by slug prevents React from preserving the previous section's local
+    // table/form state when Next navigates between two slugs.
+    return <SectionPageContent key={slug} />;
 }
 
 function SectionPageContent() {

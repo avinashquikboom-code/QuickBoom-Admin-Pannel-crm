@@ -86,6 +86,7 @@ export async function loginAdmin(payload) {
   const user = normalizeAdminUser(data.user, payload.email);
   persistSession({
     token: data.token,
+    refreshToken: data.refreshToken || null,
     user,
     remember: Boolean(payload.remember),
   });
@@ -119,13 +120,57 @@ function normalizeAdminUser(user, email) {
 
 export { clearSession } from './admin-session';
 
+let logoutRequest;
+
 export async function logoutAdmin() {
-  try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-  } finally {
-    const { clearSession } = await import('./admin-session');
-    clearSession();
-    const { useAuthStore } = await import('../../../lib/store');
-    useAuthStore.getState().logout();
-  }
+  if (logoutRequest) return logoutRequest;
+  logoutRequest = (async () => {
+    const [{ readSession, clearSession }, { useAuthStore }] = await Promise.all([
+      import('./admin-session'),
+      import('../../../lib/store'),
+    ]);
+    const session = readSession();
+    const token = session?.token || (typeof window !== 'undefined' ? window.localStorage.getItem('qb_admin_token') || window.localStorage.getItem('accessToken') : null);
+    const refreshToken = useAuthStore.getState().refreshToken || session?.refreshToken ||
+      (typeof window !== 'undefined' ? window.localStorage.getItem('qb_admin_refresh_token') || window.localStorage.getItem('refreshToken') || window.sessionStorage.getItem('refreshToken') : null);
+    let revoked = false;
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify({ refreshToken, accessToken: token }),
+      });
+      const data = await response.json().catch(() => ({}));
+      revoked = response.ok && (data?.revoked === true || data?.success === true);
+    } catch {
+      // Local state is still cleared below when the server is unreachable.
+    } finally {
+      clearSession();
+      useAuthStore.getState().logout();
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('qb_admin_token');
+          localStorage.removeItem('qb_admin_user');
+          localStorage.removeItem('qb_admin_refresh_token');
+          localStorage.removeItem('qb_admin_remember');
+          sessionStorage.removeItem('qb_admin_token');
+          sessionStorage.removeItem('qb_admin_user');
+          sessionStorage.removeItem('qb_admin_refresh_token');
+          localStorage.removeItem('token');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          localStorage.removeItem('quikboom-next-auth-storage');
+        } catch {}
+      }
+      logoutRequest = undefined;
+    }
+    return { revoked };
+  })();
+  return logoutRequest;
 }

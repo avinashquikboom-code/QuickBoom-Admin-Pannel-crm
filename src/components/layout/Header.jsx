@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger, } from '@/components/common/Po
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
 import { Badge } from '@/components/common/Badge';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import { logoutAdmin } from '@/lib/auth/admin-login';
 import { readSession, updateSessionUser } from '@/lib/auth/admin-session';
 import { adminProfile } from '@/lib/auth/admin-profile';
@@ -22,6 +23,7 @@ import { loadAnnouncements } from '@/modules/hrm/hrm-api';
 import api from '../../../lib/api';
 export function Header() {
     const router = useRouter();
+    const [loggingOut, setLoggingOut] = React.useState(false);
     const [sessionUser, setSessionUser] = React.useState(null);
     React.useEffect(() => {
         let active = true;
@@ -290,13 +292,27 @@ export function Header() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator className="bg-slate-100 my-1"/>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={async () => {
-                await logoutAdmin();
-                toast.success('Signed out successfully');
-                router.push('/login');
-              }} className="text-xs p-2 rounded-lg cursor-pointer text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+              <DropdownMenuItem
+                disabled={loggingOut}
+                onClick={async () => {
+                  if (loggingOut) return;
+                  setLoggingOut(true);
+                  try {
+                    const result = await logoutAdmin();
+                    if (result?.revoked) {
+                      toast.success('Signed out successfully');
+                    } else {
+                      toast.success('Signed out successfully');
+                    }
+                  } finally {
+                    router.replace('/login');
+                    router.refresh();
+                  }
+                }}
+                className={cn("text-xs p-2 rounded-lg cursor-pointer text-rose-600 hover:bg-rose-50 flex items-center gap-2", loggingOut && "opacity-50 cursor-not-allowed")}
+              >
                 <FontAwesomeIcon icon={faRightFromBracket} className="size-4 text-rose-500"/>
-                <span>Sign out</span>
+                <span>{loggingOut ? 'Signing out…' : 'Sign out'}</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
