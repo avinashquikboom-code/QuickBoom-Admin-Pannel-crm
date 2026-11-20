@@ -60,7 +60,7 @@ export default function DealsRoute() {
   React.useEffect(() => {
     setAllowed(sessionCan('DEAL') || sessionCan('CRM'));
     setCanDelete(sessionCanAction('DEALS', 'DELETE') || sessionCanAction('DEAL', 'DELETE') || sessionCanAction('CRM', 'DELETE'));
-    loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
+    loadEmployees({ salesOnly: true }).then(setEmployees).catch(() => setEmployees([]));
     loadDealStages(false).then((result) => setStages(result.stages || [])).catch(() => setStages([]));
   }, []);
   const load = React.useCallback((query) => loadDeals({

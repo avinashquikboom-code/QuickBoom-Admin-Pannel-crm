@@ -45,7 +45,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
       let page = 1;
       let totalPages = 1;
       do {
-        const res: any = await api.get('/employees', { signal, params: { bpoOnly: true, status: 'ACTIVE', page, limit: 100 } });
+        const res: any = await api.get('/employees', { signal, params: { salesOnly: true, status: 'ACTIVE', page, limit: 100 } });
         const root = res?.data ?? res;
         const body = root?.data && !Array.isArray(root.data) ? root.data : root;
         const items = Array.isArray(body) ? body : body?.items ?? body?.employees ?? body?.data;
@@ -165,7 +165,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
     ) as unknown as UpdateLeadInput;
     if (canAssign && assignedToId !== (lead.assignedToId ?? null)) {
       if (assignedToId !== null && !assignees.data?.some(employee => employee.id === assignedToId)) {
-        toast.error('Select an available BPO employee');
+        toast.error('Select an available Sales employee');
         return;
       }
       data.assignedToId = assignedToId;
@@ -252,10 +252,10 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
                 );
               })}
             </AdminSelect>
-            {assignees.isFetching && <p role="status" className="text-xs text-slate-500">Loading BPO employees…</p>}
+            {assignees.isFetching && <p role="status" className="text-xs text-slate-500">Loading Sales employees…</p>}
             {assignees.isError && <div role="alert" className="text-xs text-rose-700">{getErrorMessage(assignees.error)} <button type="button" onClick={() => assignees.refetch()}>Retry</button></div>}
             {!assignees.isFetching && !assignees.isError && (!assignees.data || assignees.data.length === 0) && (
-              <p className="text-xs text-amber-700">No active BPO employees available to assign leads.</p>
+              <p className="text-xs text-amber-700">No active Sales employees available to assign leads.</p>
             )}
           </div>}
           <LeadFormFields value={form} onChange={setForm} disabled={busy} />
@@ -355,7 +355,7 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
                 <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <label htmlFor="view-lead-assigned-to" className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                      Assigned To (BPO Team)
+                      Assigned To (Sales Team)
                     </label>
                     {assignMutation.isPending && (
                       <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium" role="status">
@@ -392,17 +392,17 @@ export function LeadDetailsDrawer({ id, onClose, initialAction = 'view' }: {
                     })}
                   </AdminSelect>
                   {assignees.isFetching && (
-                    <p role="status" className="text-xs text-slate-500">Loading BPO employees…</p>
+                    <p role="status" className="text-xs text-slate-500">Loading Sales employees…</p>
                   )}
                   {assignees.isError && (
                     <div role="alert" className="text-xs text-rose-700 flex items-center gap-2">
-                      <span>Failed to load BPO employees: {getErrorMessage(assignees.error)}</span>
+                      <span>Failed to load Sales employees: {getErrorMessage(assignees.error)}</span>
                       <button type="button" className="underline font-semibold" onClick={() => assignees.refetch()}>Retry</button>
                     </div>
                   )}
                   {!assignees.isFetching && !assignees.isError && (!assignees.data || assignees.data.length === 0) && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 font-medium">
-                      No active BPO employees available to handle leads.
+                      No active Sales employees available to handle leads.
                     </div>
                   )}
                 </div>

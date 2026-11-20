@@ -50,7 +50,7 @@ export default function FollowUpsRoute() {
   const [leads, setLeads] = React.useState([]);
   React.useEffect(() => {
     setAllowed(sessionCan('LEADS') || sessionCan('CRM'));
-    loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
+    loadEmployees({ salesOnly: true }).then(setEmployees).catch(() => setEmployees([]));
   }, []);
   const load = React.useCallback(async (query) => {
     const result = await loadLeads({ page: query.page, limit: 100, search: query.search || undefined, assignedToId: query.assignedToId || undefined, followUps: true });

@@ -259,7 +259,7 @@ export function ManualLeadDrawer({ open, onOpenChange }) {
     if (!open) return;
     let active = true;
     setForm({ ...blank }); setError('');
-    Promise.all([loadEmployees({ bpoOnly: true }), loadDepartments(), loadLeads({ page: 1, limit: 1 })]).then(([people, teams, leads]) => {
+    Promise.all([loadEmployees({ salesOnly: true }), loadDepartments(), loadLeads({ page: 1, limit: 1 })]).then(([people, teams, leads]) => {
       if (!active) return;
       setEmployees(people); setDepartments(teams);
       setSources([...new Set([...SOURCE_OPTIONS, ...(leads.sources || []).map((source) => source.name || source.code).filter(Boolean)])]);

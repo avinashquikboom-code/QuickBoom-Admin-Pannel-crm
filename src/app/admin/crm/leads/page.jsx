@@ -66,7 +66,7 @@ export default function LeadsRoute() {
   React.useEffect(() => {
     setAllowed(sessionCan('LEADS') || sessionCan('CRM'));
     setCanDelete(sessionCan('LEADS') || sessionCan('CRM'));
-    loadEmployees({ bpoOnly: true }).then(setEmployees).catch(() => setEmployees([]));
+    loadEmployees({ salesOnly: true }).then(setEmployees).catch(() => setEmployees([]));
     loadDepartments().then(setDepartments).catch(() => setDepartments([]));
     loadLeadStages().then(setStages).catch(() => setStages([]));
   }, []);
@@ -101,7 +101,7 @@ export default function LeadsRoute() {
           { key: 'status', label: 'All stages', options: stages.filter((stage) => stage.isActive !== false).map((stage) => ({ value: stage.key, label: stage.name })) },
           { key: 'priority', label: 'All priorities', options: PRIORITIES.map((item) => ({ value: item, label: item })) },
           { key: 'source', label: 'All sources', options: sourceOptions.map((item) => ({ value: item, label: item })) },
-          { key: 'assignedToId', label: 'All BPO employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
+          { key: 'assignedToId', label: 'All Sales employees', options: employees.map((employee) => ({ value: String(employee.recordId), label: employee.name })) },
           { key: 'from', label: 'From', type: 'date' },
           { key: 'to', label: 'To', type: 'date' },
         ]}
