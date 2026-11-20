@@ -68,7 +68,7 @@ function itemActive(item, pathname) {
 }
 
 function handleSidebarNavigation(event, href, onNavigate, router) {
-    if (!onNavigate || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    if (!onNavigate || (event.button !== undefined && event.button !== 0) || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
     }
 
@@ -279,11 +279,17 @@ function SidebarContent({ className = '', onNavigate }) {
 
     React.useEffect(() => {
         if (onNavigate) return;
+        if (typeof window === 'undefined' || !window.matchMedia) return;
         const tablet = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
         const update = () => { if (tablet.matches) setCollapsed(true); };
         update();
-        tablet.addEventListener('change', update);
-        return () => tablet.removeEventListener('change', update);
+        if (tablet.addEventListener) {
+            tablet.addEventListener('change', update);
+            return () => tablet.removeEventListener('change', update);
+        } else if (tablet.addListener) {
+            tablet.addListener(update);
+            return () => tablet.removeListener(update);
+        }
     }, [setCollapsed, onNavigate]);
 
     return (
@@ -300,16 +306,16 @@ function SidebarContent({ className = '', onNavigate }) {
                 aria-label="Quik dashboard"
                 className={cn(
                     'flex w-full items-center border-b border-slate-100 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand select-none',
-                    isCollapsed ? 'min-h-[90px] justify-center px-0' : 'min-h-[105px] justify-start px-2.5 sm:px-3'
+                    isCollapsed ? 'min-h-[90px] justify-center px-0' : cn('min-h-[90px] justify-start px-3.5 sm:px-4', onNavigate && 'pr-12')
                 )}
             >
                 {isCollapsed ? (
-                    <div className="flex size-16 shrink-0 items-center justify-center">
+                    <div className="flex size-[70px] shrink-0 items-center justify-center">
                         <Image
                             src="/app_logo.png"
                             alt="Quik symbol"
-                            width={62}
-                            height={62}
+                            width={70}
+                            height={70}
                             style={{ width: '70px', height: '70px', objectFit: 'contain' }}
                             className="size-[70px] shrink-0 rounded-xl object-contain object-center"
                             priority
@@ -321,7 +327,10 @@ function SidebarContent({ className = '', onNavigate }) {
                         alt="Quik Logo"
                         width={260}
                         height={148}
-                        className="w-full h-auto max-w-[260px] object-contain"
+                        className={cn(
+                            'h-auto object-contain',
+                            onNavigate ? 'w-[175px] max-w-[175px]' : 'w-full max-w-[260px]'
+                        )}
                         style={{ objectPosition: 'left center' }}
                         priority
                     />
