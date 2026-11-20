@@ -49,7 +49,7 @@ export function DataTable({
     const [globalFilter, setGlobalFilter] = React.useState('');
 
     React.useEffect(() => {
-        setRowSelection({});
+        setRowSelection((prev) => (Object.keys(prev).length === 0 ? prev : {}));
     }, [selectionResetToken]);
 
     const resolvedColumns = React.useMemo(() => {
@@ -118,12 +118,21 @@ export function DataTable({
         },
     });
 
+    const onSelectionChangeRef = React.useRef(onSelectionChange);
+    onSelectionChangeRef.current = onSelectionChange;
+
+    const isFirstRender = React.useRef(true);
     React.useEffect(() => {
-        if (onSelectionChange) {
-            const selected = table.getSelectedRowModel().flatRows.map((r) => r.original);
-            onSelectionChange(selected);
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            if (Object.keys(rowSelection).length === 0) return;
         }
-    }, [rowSelection, table, onSelectionChange]);
+        if (typeof onSelectionChangeRef.current === 'function') {
+            const selected = table.getSelectedRowModel().flatRows.map((r) => r.original);
+            onSelectionChangeRef.current(selected);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rowSelection]);
 
     return (
         <div className={cn('min-w-0 max-w-full space-y-4 rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden', className)}>

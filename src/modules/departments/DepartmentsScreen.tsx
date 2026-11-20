@@ -469,7 +469,7 @@ export function DepartmentsScreen() {
             columns={columns}
             data={filtered}
             enableRowSelection
-            onSelectionChange={(selected) => setSelectedDepartments(selected)}
+            onSelectionChange={setSelectedDepartments}
             selectionResetToken={selectionResetToken}
             isLoading={loading}
             searchPlaceholder="Search departments or codes…"
