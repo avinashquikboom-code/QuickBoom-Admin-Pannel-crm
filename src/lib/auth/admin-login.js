@@ -102,18 +102,19 @@ export async function loginAdmin(payload) {
 function normalizeAdminUser(user, email) {
   const role = user?.role || user?.roleType || '';
   const fullName = user?.fullName || user?.name || [user?.firstName, user?.middleName, user?.lastName].filter(Boolean).join(' ') || '';
+  const isSuperOrAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
   return {
     id: user?.id,
     email: user?.email || email,
     firstName: user?.firstName || '',
     middleName: user?.middleName || '',
     lastName: user?.lastName || '',
-    fullName: fullName || (role === 'SUPER_ADMIN' ? 'Super Admin' : ''),
-    name: fullName || (role === 'SUPER_ADMIN' ? 'Super Admin' : ''),
+    fullName: fullName || (isSuperOrAdmin ? 'Super Admin' : ''),
+    name: fullName || (isSuperOrAdmin ? 'Super Admin' : ''),
     avatar: user?.avatar || null,
     phone: user?.phone || null,
     customerId: user?.customerId ?? user?.customer?.id ?? null,
-    role,
+    role: isSuperOrAdmin ? 'SUPER_ADMIN' : role,
     roles: Array.isArray(user?.roles) && user.roles.length ? user.roles : (role ? [role] : []),
   };
 }
