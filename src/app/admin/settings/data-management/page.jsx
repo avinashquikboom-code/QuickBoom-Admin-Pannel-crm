@@ -443,9 +443,24 @@ export default function DataManagementPage() {
                         <div key={`blocked-${item.module}-${item.model}`} className="rounded-lg border border-[#E5C38E] bg-white p-3 text-xs shadow-sm">
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0E4D2] pb-2">
                             <span className="font-semibold text-[#172B24]">{item.label}</span>
-                            <span className="rounded-full bg-[#FEF3C7] px-2.5 py-0.5 font-medium text-[#92400E]">
-                              Module: {moduleName}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full bg-[#FEF3C7] px-2.5 py-0.5 font-medium text-[#92400E]">
+                                Module: {moduleName}
+                              </span>
+                              {item.resolutionModule?.id && !selected.includes(item.resolutionModule.id) && (
+                                <button
+                                  type="button"
+                                  className="rounded-md border border-[#92400E] bg-[#FFFBEB] px-2.5 py-1 text-xs font-semibold text-[#92400E] hover:bg-[#FDE68A] transition-colors shadow-xs"
+                                  onClick={() => {
+                                    setScope('selected');
+                                    setPreview(null);
+                                    setSelected((curr) => [...new Set([...curr, item.resolutionModule.id])]);
+                                  }}
+                                >
+                                  Include {item.resolutionModule.name}
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5 text-[#475467]">
                             <div><span className="block text-[11px] text-[#718078]">Total References</span><span className="font-semibold text-[#172B24]">{total.toLocaleString()}</span></div>
