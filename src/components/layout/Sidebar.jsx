@@ -297,32 +297,31 @@ function SidebarContent({ className = '', onNavigate }) {
             <Link
                 href="/admin/dashboard"
                 onClick={(event) => handleSidebarNavigation(event, '/admin/dashboard', onNavigate, router)}
-                aria-label="QB Suite dashboard"
+                aria-label="Quik dashboard"
                 className={cn(
-                    'flex min-h-32 items-center border-b border-slate-100 px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand',
-                    isCollapsed ? 'justify-center px-0' : 'gap-3'
+                    'flex w-full items-center border-b border-slate-100 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand select-none',
+                    isCollapsed ? 'min-h-[90px] justify-center px-0' : 'min-h-[105px] justify-start px-2.5 sm:px-3'
                 )}
             >
                 {isCollapsed ? (
                     <Image
                         src="/app_logo.png"
-                        alt="QB Suite app logo"
+                        alt="Quik app logo"
                         width={36}
                         height={36}
-                        className="size-9 shrink-0 rounded-xl object-contain"
+                        className="size-9 shrink-0 rounded-xl object-contain object-center"
                         priority
                     />
                 ) : (
-                    <div className="flex items-center gap-2.5">
-                        <Image
-                            src="/logo.png"
-                            alt="QB Suite Logo"
-                            width={260}
-                            height={148}
-                            className="h-24 w-auto max-h-24 max-w-[260px] object-contain"
-                            priority
-                        />
-                    </div>
+                    <Image
+                        src="/logo.png"
+                        alt="Quik Logo"
+                        width={260}
+                        height={148}
+                        className="w-full h-auto max-w-[260px] object-contain"
+                        style={{ objectPosition: 'left center' }}
+                        priority
+                    />
                 )}
             </Link>
 
