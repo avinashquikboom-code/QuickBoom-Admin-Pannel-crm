@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faBuilding, faPlus, faDownload, faRotate, faEllipsis, faEye, faPenToSquare, faTrash, faToggleOn, faBoxArchive, faUsers, faCheck, faCircleMinus, type IconDefinition } from '@fortawesome/free-solid-svg-icons';
+import { faBuilding, faPlus, faDownload, faRotate, faEllipsis, faEye, faPenToSquare, faTrash, faToggleOn, faBoxArchive, faUsers, faCheck, faCircleMinus, faCalendar, faEyeSlash, type IconDefinition } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
 import { readSession } from '@/lib/auth/admin-session';
 import { useAuthStore } from '../../../lib/store';
@@ -89,6 +89,39 @@ function MobileLabel({ children }: { children: React.ReactNode }) {
   return <span className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-slate-400 md:hidden">{children}</span>;
 }
 
+function AnimatedMetric({ value, loading }: { value: number | string; loading: boolean }) {
+  const [display, setDisplay] = React.useState<number | string>(value);
+  const [highlight, setHighlight] = React.useState(false);
+  const previous = React.useRef<number | string>(value);
+  React.useEffect(() => {
+    if (loading || typeof value !== 'number' || typeof previous.current !== 'number' || previous.current === value) {
+      setDisplay(value);
+      previous.current = value;
+      return;
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplay(value);
+    } else {
+      const start = previous.current;
+      const duration = 420;
+      const startedAt = performance.now();
+      let frame = 0;
+      const step = (now: number) => {
+        const progress = Math.min(1, (now - startedAt) / duration);
+        setDisplay(Math.round(start + (value - start) * progress));
+        if (progress < 1) frame = requestAnimationFrame(step);
+      };
+      frame = requestAnimationFrame(step);
+      setHighlight(true);
+      const timer = window.setTimeout(() => setHighlight(false), 700);
+      previous.current = value;
+      return () => { cancelAnimationFrame(frame); window.clearTimeout(timer); };
+    }
+    previous.current = value;
+  }, [value, loading]);
+  return <span className={`inline-block rounded-md transition-colors duration-300 motion-reduce:transition-none ${highlight ? 'bg-emerald-50 text-[#169F4D]' : ''}`}>{loading ? '—' : display}</span>;
+}
+
 export function DepartmentsScreen() {
   const [records, setRecords] = React.useState<Department[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -106,6 +139,7 @@ export function DepartmentsScreen() {
   const [mutating, setMutating] = React.useState(false);
   const mutationLock = React.useRef(false);
   const [actionError, setActionError] = React.useState('');
+  const [visibleColumns, setVisibleColumns] = React.useState({ code: true, employeesCount: true, isActive: true, createdAt: true });
 
   React.useEffect(() => {
     setSessionUser(readSession()?.user ?? null);
@@ -185,13 +219,10 @@ export function DepartmentsScreen() {
     try {
       const ids = selectedDepartments.map((d) => d.id);
       const res = await bulkDeleteDepartments(ids);
-      const deleted = res?.deletedCount ?? ids.length;
-      const deactivated = res?.deactivatedCount ?? 0;
-      let msg = `${deleted} department(s) permanently deleted.`;
-      if (deactivated > 0) {
-        msg += ` ${deactivated} department(s) with active employees deactivated.`;
+      toast.success(res.message || 'Department deletion request completed.');
+      if (res.blockedDetails?.length) {
+        toast.error(res.blockedDetails.map((item) => `#${item.id}: ${item.reason}`).join('\n'));
       }
-      toast.success(msg);
       setSelectedDepartments([]);
       setSelectionResetToken((v) => v + 1);
       setBulkDeleteOpen(false);
@@ -254,6 +285,7 @@ export function DepartmentsScreen() {
     },
     {
       accessorKey: 'code',
+      meta: { className: visibleColumns.code ? '' : 'hidden', headClassName: visibleColumns.code ? '' : 'hidden' },
       header: ({ column }) => <DataTableColumnHeader column={column} title="Department Code" className="" />,
       cell: ({ row }) => (
         <>
@@ -266,6 +298,7 @@ export function DepartmentsScreen() {
     },
     {
       accessorKey: 'employeesCount',
+      meta: { className: visibleColumns.employeesCount ? '' : 'hidden', headClassName: visibleColumns.employeesCount ? '' : 'hidden' },
       header: ({ column }) => <DataTableColumnHeader column={column} title="Employees" className="" />,
       cell: ({ row }) => (
         <>
@@ -278,6 +311,7 @@ export function DepartmentsScreen() {
     },
     {
       accessorKey: 'isActive',
+      meta: { className: visibleColumns.isActive ? '' : 'hidden', headClassName: visibleColumns.isActive ? '' : 'hidden' },
       header: ({ column }) => <DataTableColumnHeader column={column} title="Status" className="" />,
       cell: ({ row }) => (
         <>
@@ -285,6 +319,12 @@ export function DepartmentsScreen() {
           <Status active={row.original.isActive} />
         </>
       ),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Created Date" className="" />,
+      cell: ({ row }) => <><MobileLabel>Created Date</MobileLabel><span className="text-xs text-slate-600">{new Date(row.original.createdAt).toLocaleDateString()}</span></>,
+      meta: { className: visibleColumns.createdAt ? '' : 'hidden', headClassName: visibleColumns.createdAt ? '' : 'hidden' },
     },
     {
       id: 'actions',
@@ -318,7 +358,7 @@ export function DepartmentsScreen() {
       ),
       meta: { className: 'max-md:col-span-2 max-md:flex max-md:justify-end max-md:border-t max-md:border-slate-100' },
     },
-  ], [ask, canManage, mutating, loading]);
+  ], [ask, canManage, mutating, loading, visibleColumns]);
 
   const countLabel = (value: number) => (loading || error ? '—' : value);
   const tabs = [
@@ -360,14 +400,16 @@ export function DepartmentsScreen() {
         )}
       />
 
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none">
       <StatsGrid
         cards={[
-          { title: 'Total Departments', value: countLabel(counts.all), description: 'Records returned by the department API', icon: faBuilding },
-          { title: 'Active', value: countLabel(counts.active), description: 'Currently operational', icon: faCheck, iconColor: 'text-[#169F4D]', iconBg: 'border-[#5EC269]/20 bg-[#E8F8EE]' },
-          { title: 'Inactive', value: countLabel(counts.inactive), description: 'Marked inactive', icon: faCircleMinus, iconColor: 'text-slate-500', iconBg: 'border-slate-200 bg-slate-50' },
-          { title: 'Employees', value: countLabel(counts.employees), description: 'Assigned across listed departments', icon: faUsers },
+          { title: 'Total Departments', value: <AnimatedMetric value={counts.all} loading={loading || !!error} />, description: 'Records returned by the department API', icon: faBuilding },
+          { title: 'Active Departments', value: <AnimatedMetric value={counts.active} loading={loading || !!error} />, description: 'Currently operational', icon: faCheck, iconColor: 'text-[#169F4D]', iconBg: 'border-[#5EC269]/20 bg-[#E8F8EE]' },
+          { title: 'Inactive Departments', value: <AnimatedMetric value={counts.inactive} loading={loading || !!error} />, description: 'Marked inactive', icon: faCircleMinus, iconColor: 'text-slate-500', iconBg: 'border-slate-200 bg-slate-50' },
+          { title: 'Total Assigned Employees', value: <AnimatedMetric value={counts.employees} loading={loading || !!error} />, description: 'Assigned across listed departments', icon: faUsers },
         ]}
       />
+      </div>
 
       <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-3 sm:flex-row sm:items-center sm:justify-between">
         <StatusTabs tabs={tabs} value={filter} onChange={(value) => setFilter(value as Filter)} ariaLabel="Department status" className="max-w-full" />
@@ -378,6 +420,16 @@ export function DepartmentsScreen() {
       </div>
 
       <section aria-label="Department results" aria-busy={loading} className="min-w-0 space-y-3">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" className="h-8 gap-2 bg-white text-xs"><Icon icon={faEyeSlash} className="size-3" /> Columns</Button>} />
+            <DropdownMenuContent align="end" className="w-48 bg-white">
+              {([['code', 'Department Code'], ['employeesCount', 'Employees'], ['isActive', 'Status'], ['createdAt', 'Created Date']] as const).map(([key, label]) => (
+                <DropdownMenuCheckboxItem key={key} checked={visibleColumns[key]} onCheckedChange={(checked: any) => setVisibleColumns((current) => ({ ...current, [key]: Boolean(checked) }))}>{label}</DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <div className="md:hidden">
           <Select value={mobileSort} onValueChange={(value: string | null) => { if (value) setMobileSort(value); }}>
             <SelectTrigger aria-label="Sort departments" className="w-full bg-white"><SelectValue className="" /></SelectTrigger>

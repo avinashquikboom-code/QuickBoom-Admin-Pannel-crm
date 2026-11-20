@@ -32,10 +32,10 @@ function DialogContent({ className, children, showCloseButton = true, overlayCla
       </DialogPrimitive.Popup>
     </DialogPortal>);
 }
-function DialogHeader({ className, ...props }) {
+function DialogHeader({ className = "", ...props }) {
     return (<div data-slot="dialog-header" className={cn("flex flex-col gap-2", className)} {...props}/>);
 }
-function DialogFooter({ className, showCloseButton = false, children, ...props }) {
+function DialogFooter({ className = "", showCloseButton = false, children, ...props }) {
     return (<div data-slot="dialog-footer" className={cn("-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end", className)} {...props}>
       {children}
       {showCloseButton && (<DialogPrimitive.Close render={<Button variant="outline"/>}>
@@ -43,10 +43,10 @@ function DialogFooter({ className, showCloseButton = false, children, ...props }
         </DialogPrimitive.Close>)}
     </div>);
 }
-function DialogTitle({ className, ...props }) {
+function DialogTitle({ className = "", ...props }) {
     return (<DialogPrimitive.Title data-slot="dialog-title" className={cn("font-heading text-base leading-none font-medium", className)} {...props}/>);
 }
-function DialogDescription({ className, ...props }) {
+function DialogDescription({ className = "", ...props }) {
     return (<DialogPrimitive.Description data-slot="dialog-description" className={cn("text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground", className)} {...props}/>);
 }
 export { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger, };

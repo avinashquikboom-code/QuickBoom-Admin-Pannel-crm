@@ -27,7 +27,7 @@ const buttonVariants = cva("group/button inline-flex shrink-0 items-center justi
         size: "default",
     },
 });
-function Button({ className, variant = "default", size = "default", ...props }) {
+function Button({ className = "", variant = "default", size = "default", ...props }) {
     return (<ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props}/>);
 }
 export { Button, buttonVariants };

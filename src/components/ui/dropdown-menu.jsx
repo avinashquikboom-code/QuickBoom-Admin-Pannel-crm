@@ -32,16 +32,16 @@ function DropdownMenuItem({ className, inset, variant = "default", ...props }) {
 function DropdownMenuSub({ ...props }) {
     return <MenuPrimitive.SubmenuRoot data-slot="dropdown-menu-sub" {...props}/>;
 }
-function DropdownMenuSubTrigger({ className, inset, children, ...props }) {
+function DropdownMenuSubTrigger({ className = "", inset = false, children, ...props }) {
     return (<MenuPrimitive.SubmenuTrigger data-slot="dropdown-menu-sub-trigger" data-inset={inset} className={cn("flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-7 data-popup-open:bg-accent data-popup-open:text-accent-foreground data-open:bg-accent data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4", className)} {...props}>
       {children}
       <FontAwesomeIcon icon={faChevronRight} className="ml-auto"/>
     </MenuPrimitive.SubmenuTrigger>);
 }
-function DropdownMenuSubContent({ align = "start", alignOffset = -3, side = "right", sideOffset = 0, className, ...props }) {
+function DropdownMenuSubContent({ align = "start", alignOffset = -3, side = "right", sideOffset = 0, className = "", ...props }) {
     return (<DropdownMenuContent data-slot="dropdown-menu-sub-content" className={cn("w-auto min-w-[96px] rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className)} align={align} alignOffset={alignOffset} side={side} sideOffset={sideOffset} {...props}/>);
 }
-function DropdownMenuCheckboxItem({ className, children, checked, inset, ...props }) {
+function DropdownMenuCheckboxItem({ className = "", children, checked = false, inset = false, ...props }) {
     return (<MenuPrimitive.CheckboxItem data-slot="dropdown-menu-checkbox-item" data-inset={inset} className={cn("relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4", className)} checked={checked} {...props}>
       <span className="pointer-events-none absolute right-2 flex items-center justify-center" data-slot="dropdown-menu-checkbox-item-indicator">
         <MenuPrimitive.CheckboxItemIndicator>
@@ -54,7 +54,7 @@ function DropdownMenuCheckboxItem({ className, children, checked, inset, ...prop
 function DropdownMenuRadioGroup({ ...props }) {
     return (<MenuPrimitive.RadioGroup data-slot="dropdown-menu-radio-group" {...props}/>);
 }
-function DropdownMenuRadioItem({ className, children, inset, ...props }) {
+function DropdownMenuRadioItem({ className = "", children, inset = false, ...props }) {
     return (<MenuPrimitive.RadioItem data-slot="dropdown-menu-radio-item" data-inset={inset} className={cn("relative flex cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4", className)} {...props}>
       <span className="pointer-events-none absolute right-2 flex items-center justify-center" data-slot="dropdown-menu-radio-item-indicator">
         <MenuPrimitive.RadioItemIndicator>
