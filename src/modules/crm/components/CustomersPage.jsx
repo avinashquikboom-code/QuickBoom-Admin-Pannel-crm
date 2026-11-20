@@ -17,7 +17,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Label } from '@/components/common/Label';
 import { mockContacts } from '@/modules/crm/services/mock-data';
 import { toast } from 'sonner';
-import { TruncatedText } from '@/components/common/TruncatedText';
 export default function CustomersPage() {
     const [contacts, setContacts] = React.useState(mockContacts);
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -110,14 +109,14 @@ export default function CustomersPage() {
         <div className="overflow-x-auto">
           <DataTable hideToolbar data={filtered} columns={[
 { header: 'Contact', cell: (c) => <>
-                    <div className="min-w-0 max-w-[14rem] break-words"><TruncatedText value={c.name} className="block max-w-full truncate" /></div>
-                    <div className="min-w-0 max-w-[14rem] break-words text-[11px] text-slate-400"><TruncatedText value={c.email} className="block max-w-full truncate" /></div>
+                    <div>{c.name}</div>
+                    <div className="text-[11px] text-slate-400">{c.email}</div>
                   </> },
 { header: 'Organization', cell: (c) => <>
-                    <div className="min-w-0 max-w-[14rem] break-words font-semibold text-slate-800"><TruncatedText value={c.company} className="block max-w-full truncate" /></div>
-                    <div className="min-w-0 max-w-[14rem] break-words text-[11px] text-slate-500"><TruncatedText value={c.role} className="block max-w-full truncate" /></div>
+                    <div className="font-semibold text-slate-800">{c.company}</div>
+                    <div className="text-[11px] text-slate-500">{c.role}</div>
                   </> },
-{ header: 'Location', cell: (c) => <div className="min-w-0 max-w-[14rem] break-words"><TruncatedText value={c.location} className="block max-w-full truncate" /></div> },
+{ header: 'Location', cell: (c) => <>{c.location}</> },
 { header: 'Closed Deals', cell: (c) => <>{c.dealsCount}</> },
 { header: 'Revenue', cell: (c) => <>{currency.format(c.totalRevenue)}</> },
 { header: 'Status', cell: (c) => <>
