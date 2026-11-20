@@ -78,7 +78,7 @@ export function StageManagement() {
   const [confirm, setConfirm] = React.useState(null);
   const [targetStageId, setTargetStageId] = React.useState('');
   const [search, setSearch] = React.useState('');
-  const [stageType, setStageType] = React.useState('ALL');
+  const [stageType, setStageType] = React.useState('Lead');
   const [status, setStatus] = React.useState('ALL');
   const [sort, setSort] = React.useState('order');
   const [page, setPage] = React.useState(1);
@@ -123,7 +123,9 @@ export function StageManagement() {
       if (sort === 'name') return stage.name || '';
       if (sort === 'status') return stage.isActive === false ? 'Inactive' : 'Active';
       if (sort === 'created') return stage.createdAt || '';
-      return stage.order ?? stage.sortOrder ?? 0;
+      const typePrefix = stage.type === 'Deal' ? '2' : '1';
+      const orderNum = String(stage.order ?? stage.sortOrder ?? 0).padStart(5, '0');
+      return `${typePrefix}_${orderNum}`;
     };
     return [...rows].sort((a, b) => String(valueOf(a)).localeCompare(String(valueOf(b)), undefined, { numeric: true }));
   }, [stages, stageType, search, status, sort]);
@@ -514,17 +516,6 @@ export function StageManagement() {
         <div className="flex border-b border-[#E2E8E5] bg-[#F7F9F8] px-4 pt-2 gap-2">
           <button
             type="button"
-            onClick={() => { setStageType('ALL'); setPage(1); }}
-            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              stageType === 'ALL'
-                ? 'border-[#163A2E] text-[#163A2E] font-semibold bg-white rounded-t-md border-t border-x'
-                : 'border-transparent text-[#718078] hover:text-[#172B24]'
-            }`}
-          >
-            All Stages ({stages.length})
-          </button>
-          <button
-            type="button"
             onClick={() => { setStageType('Lead'); setPage(1); }}
             className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
               stageType === 'Lead'
@@ -544,6 +535,17 @@ export function StageManagement() {
             }`}
           >
             Deal Stages ({dealStagesCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStageType('ALL'); setPage(1); }}
+            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              stageType === 'ALL'
+                ? 'border-[#163A2E] text-[#163A2E] font-semibold bg-white rounded-t-md border-t border-x'
+                : 'border-transparent text-[#718078] hover:text-[#172B24]'
+            }`}
+          >
+            All Stages ({stages.length})
           </button>
         </div>
 
