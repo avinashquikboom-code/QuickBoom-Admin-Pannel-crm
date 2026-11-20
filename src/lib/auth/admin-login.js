@@ -100,11 +100,17 @@ export async function loginAdmin(payload) {
 
 function normalizeAdminUser(user, email) {
   const role = user?.role || user?.roleType || '';
+  const fullName = user?.fullName || user?.name || [user?.firstName, user?.middleName, user?.lastName].filter(Boolean).join(' ') || '';
   return {
     id: user?.id,
     email: user?.email || email,
     firstName: user?.firstName || '',
+    middleName: user?.middleName || '',
     lastName: user?.lastName || '',
+    fullName: fullName || (role === 'SUPER_ADMIN' ? 'Super Admin' : ''),
+    name: fullName || (role === 'SUPER_ADMIN' ? 'Super Admin' : ''),
+    avatar: user?.avatar || null,
+    phone: user?.phone || null,
     customerId: user?.customerId ?? user?.customer?.id ?? null,
     role,
     roles: Array.isArray(user?.roles) && user.roles.length ? user.roles : (role ? [role] : []),

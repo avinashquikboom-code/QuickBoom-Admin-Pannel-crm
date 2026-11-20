@@ -289,24 +289,19 @@ function SidebarContent({ className = '', onNavigate }) {
                     isCollapsed ? 'justify-center px-0' : 'gap-3'
                 )}
             >
-                {isCollapsed ? (
-                    <Image
-                        src="/app_logo.png"
-                        alt="QB Suite app logo"
-                        width={40}
-                        height={40}
-                        className="size-10 shrink-0 rounded-xl object-contain"
-                        priority
-                    />
-                ) : (
-                    <Image
-                        src="/logo.png"
-                        alt="QuickBoom logo"
-                        width={512}
-                        height={291}
-                        className="h-14 w-auto max-h-16 max-w-[200px] object-contain drop-shadow-xs"
-                        priority
-                    />
+                <Image
+                    src="/app_logo.png"
+                    alt="QB Suite app logo"
+                    width={40}
+                    height={40}
+                    className="size-10 shrink-0 rounded-xl object-contain"
+                    priority
+                />
+                {!isCollapsed && (
+                    <div className="min-w-0">
+                        <p className="text-lg font-bold leading-tight tracking-tight text-slate-900">QB Suite</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Admin Panel</p>
+                    </div>
                 )}
             </Link>
 
