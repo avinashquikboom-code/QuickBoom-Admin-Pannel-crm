@@ -24,3 +24,15 @@ test('handles null, undefined, empty, and custom limits', () => {
   assert.equal(truncateWords(''), '');
   assert.equal(truncateWords('a b c', 2), 'a b...');
 });
+
+test('customer and company names follow the 10-word limit at 5, 10, 11, and 20 words', () => {
+  for (const field of ['Customer', 'Company']) {
+    for (const count of [5, 10, 11, 20]) {
+      const value = Array.from({ length: count }, (_, index) => `${field}${index + 1}`).join(' ');
+      const expected = count <= 10
+        ? value
+        : `${Array.from({ length: 10 }, (_, index) => `${field}${index + 1}`).join(' ')}...`;
+      assert.equal(truncateWords(value), expected, `${field} with ${count} words`);
+    }
+  }
+});
