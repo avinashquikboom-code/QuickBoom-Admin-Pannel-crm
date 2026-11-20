@@ -11,11 +11,17 @@ export function adminProfile(user) {
 
   const isSuperAdmin =
     role.toLowerCase().includes('super admin') ||
+    role.toLowerCase() === 'admin' ||
     roleName.toUpperCase() === 'SUPER_ADMIN' ||
-    (Array.isArray(user?.roles) && user.roles.some((r) => String(r?.name || r?.type || r).toUpperCase() === 'SUPER_ADMIN'));
+    roleName.toUpperCase() === 'ADMIN' ||
+    (Array.isArray(user?.roles) && user.roles.some((r) => {
+      const val = String(r?.name || r?.type || r).toUpperCase();
+      return val === 'SUPER_ADMIN' || val === 'ADMIN';
+    })) ||
+    user?.customerId == null;
 
   if (isSuperAdmin) {
-    if (!role) role = 'Super Admin';
+    if (!role || role.toLowerCase() === 'admin') role = 'Super Admin';
     if (!name || name === 'Account') name = 'Super Admin';
   } else if (!name) {
     name = email || 'Account';

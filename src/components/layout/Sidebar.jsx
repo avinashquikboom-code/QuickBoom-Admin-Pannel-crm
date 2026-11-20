@@ -315,7 +315,7 @@ function SidebarContent({ className = '', onNavigate }) {
             {!isCollapsed && (
                 <div className="flex items-center justify-between px-5 pb-2 pt-5">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Workspace</p>
-                    <span className="rounded-md bg-brand-light px-2 py-1 text-[10px] font-semibold text-brand-dark">Admin</span>
+                    <span className="rounded-md bg-brand-light px-2 py-1 text-[10px] font-semibold text-brand-dark">Super Admin</span>
                 </div>
             )}
             <ScrollArea className="min-h-0 flex-1">
