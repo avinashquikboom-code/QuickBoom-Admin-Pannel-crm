@@ -332,9 +332,56 @@ export default function DataManagementPage() {
             </Panel>
             {preview && (
               <Panel>
-                <h2 className="font-semibold">Reset preview</h2>
+                <h2 className="font-semibold text-lg text-[#172B24]">Reset preview</h2>
                 <p className="mt-1 text-sm text-[#718078]">{Number(preview.totalEligibleRecords ?? preview.estimatedRecords ?? 0).toLocaleString()} eligible for deletion · {Number(preview.totalPreservedRecords || 0).toLocaleString()} preserved · {preview.tables?.length || 0} unique tables.</p>
-                <p className="mt-3 text-sm font-medium">Selected modules</p>
+
+                {/* Protected System Records (Always Preserved) */}
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200/60 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <FontAwesomeIcon icon={faShieldHalved} className="size-4 text-emerald-700" />
+                      <h3 className="text-sm font-bold text-emerald-950">Protected System Records</h3>
+                    </div>
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                      Non-Selectable · Always Preserved
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-emerald-800/90 leading-relaxed">
+                    The following system authentication records, admin credentials, and access control models are strictly excluded from all data reset operations and cannot be modified or deleted:
+                  </p>
+                  <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-200/80 bg-white p-3 text-xs shadow-2xs">
+                      <div>
+                        <p className="font-bold text-slate-900">Super Admin account</p>
+                        <p className="text-[11px] text-slate-500">Master account & administrative access</p>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Protected</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-200/80 bg-white p-3 text-xs shadow-2xs">
+                      <div>
+                        <p className="font-bold text-slate-900">Admin credentials</p>
+                        <p className="text-[11px] text-slate-500">Email, password hash & recovery security</p>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Protected</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-200/80 bg-white p-3 text-xs shadow-2xs">
+                      <div>
+                        <p className="font-bold text-slate-900">Authentication records</p>
+                        <p className="text-[11px] text-slate-500">Sessions, refresh tokens & JWT tokens</p>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Protected</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-200/80 bg-white p-3 text-xs shadow-2xs">
+                      <div>
+                        <p className="font-bold text-slate-900">Roles and permissions</p>
+                        <p className="text-[11px] text-slate-500">System RBAC permissions & access rules</p>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Protected</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="mt-4 text-sm font-medium">Selected modules</p>
                 <ul className="mt-1 space-y-1 text-sm">{(preview.modules || []).map((item) => <li key={item.id} className="flex justify-between gap-3"><span>{item.name}</span><span>{Number(item.records || 0).toLocaleString()} module records</span></li>)}</ul>
                 <p className="mt-3 text-xs text-[#718078]">The eligible total below counts each selected table once; module subtotals can overlap.</p>
                 <ul className="mt-3 max-h-48 space-y-1 overflow-auto text-sm">

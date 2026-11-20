@@ -67,9 +67,9 @@ export function DataCaptureCard({ data, loading }) {
         {/* 4 Metric Tiles (1x4 grid on desktop) */}
         <div className="mt-4 grid min-w-0 grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
           <div className="flex min-w-0 min-h-[92px] flex-col justify-start gap-1.5 rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 sm:p-3">
-            <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1 min-w-0">
+            <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5 min-w-0">
               <Database className="size-3 text-slate-400 shrink-0" />
-              <span className="min-w-0 break-words leading-tight" title="Total Captured">Captured</span>
+              <span className="truncate" title="Total Captured">Captured</span>
             </p>
             <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
               <AnimatedCounter value={captured} />
@@ -78,9 +78,9 @@ export function DataCaptureCard({ data, loading }) {
           </div>
 
           <div className="flex min-w-0 min-h-[92px] flex-col justify-start gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50/40 p-2.5 sm:p-3">
-            <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1 min-w-0">
+            <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1.5 min-w-0">
               <CheckCircle2 className="size-3 text-emerald-600 shrink-0" />
-              <span className="min-w-0 break-words leading-tight">Processed</span>
+              <span className="truncate">Processed</span>
             </p>
             <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-emerald-900 leading-tight">
               <AnimatedCounter value={processed} />
@@ -89,9 +89,9 @@ export function DataCaptureCard({ data, loading }) {
           </div>
 
           <div className="flex min-w-0 min-h-[92px] flex-col justify-start gap-1.5 rounded-xl border border-amber-100 bg-amber-50/40 p-2.5 sm:p-3">
-            <p className="text-[11px] font-medium text-amber-800 flex items-center gap-1 min-w-0">
+            <p className="text-[11px] font-medium text-amber-800 flex items-center gap-1.5 min-w-0">
               <Clock className="size-3 text-amber-600 shrink-0" />
-              <span className="min-w-0 break-words leading-tight">Pending</span>
+              <span className="truncate">Pending</span>
             </p>
             <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-amber-900 leading-tight">
               <AnimatedCounter value={pending} />
@@ -100,9 +100,9 @@ export function DataCaptureCard({ data, loading }) {
           </div>
 
           <div className="flex min-w-0 min-h-[92px] flex-col justify-start gap-1.5 rounded-xl border border-rose-100 bg-rose-50/40 p-2.5 sm:p-3">
-            <p className="text-[11px] font-medium text-rose-800 flex items-center gap-1 min-w-0">
+            <p className="text-[11px] font-medium text-rose-800 flex items-center gap-1.5 min-w-0">
               <XCircle className="size-3 text-rose-600 shrink-0" />
-              <span className="min-w-0 break-words leading-tight">Rejected</span>
+              <span className="truncate">Rejected</span>
             </p>
             <p className="mt-0.5 text-lg sm:text-xl font-extrabold text-rose-900 leading-tight">
               <AnimatedCounter value={rejected} />
