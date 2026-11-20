@@ -299,7 +299,7 @@ function SidebarContent({ className = '', onNavigate }) {
                 onClick={(event) => handleSidebarNavigation(event, '/admin/dashboard', onNavigate, router)}
                 aria-label="QB Suite dashboard"
                 className={cn(
-                    'flex min-h-20 items-center border-b border-slate-100 px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand',
+                    'flex min-h-32 items-center border-b border-slate-100 px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand',
                     isCollapsed ? 'justify-center px-0' : 'gap-3'
                 )}
             >
@@ -317,9 +317,9 @@ function SidebarContent({ className = '', onNavigate }) {
                         <Image
                             src="/logo.png"
                             alt="QB Suite Logo"
-                            width={220}
-                            height={125}
-                            className="h-14 w-auto max-h-14 max-w-[220px] object-contain"
+                            width={260}
+                            height={148}
+                            className="h-24 w-auto max-h-24 max-w-[260px] object-contain"
                             priority
                         />
                     </div>
