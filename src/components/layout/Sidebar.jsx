@@ -67,6 +67,18 @@ function itemActive(item, pathname) {
     return isActive(item, pathname);
 }
 
+function handleSidebarNavigation(event, href, onNavigate, router) {
+    if (!onNavigate || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+    }
+
+    // Start App Router navigation before closing the mobile drawer. Closing the
+    // Sheet can unmount its Link during the click and otherwise swallow the route.
+    event.preventDefault();
+    router.push(href);
+    onNavigate();
+}
+
 function SidebarIcon({ icon, size = 16, className }) {
     if (!icon) return null;
     if (typeof icon === 'object' && icon.prefix && icon.iconName) {
@@ -77,11 +89,12 @@ function SidebarIcon({ icon, size = 16, className }) {
 }
 
 function NavLink({ item, pathname, collapsed, onNavigate }) {
+    const router = useRouter();
     const active = isActive(item, pathname);
     return (
         <Link
             href={item.href}
-            onClick={onNavigate}
+            onClick={(event) => handleSidebarNavigation(event, item.href, onNavigate, router)}
             aria-current={active ? 'page' : undefined}
             title={collapsed ? item.name : undefined}
             className={cn(
@@ -176,11 +189,12 @@ function NavItems({ items, pathname, collapsed, onNavigate }) {
     );
 }
 function FlatLink({ group, pathname, collapsed, onNavigate }) {
+    const router = useRouter();
     const active = isActive(group, pathname);
     return (
         <Link
             href={group.href}
-            onClick={onNavigate}
+            onClick={(event) => handleSidebarNavigation(event, group.href, onNavigate, router)}
             aria-current={active ? 'page' : undefined}
             title={collapsed ? group.name : undefined}
             className={cn(
@@ -282,7 +296,7 @@ function SidebarContent({ className = '', onNavigate }) {
         >
             <Link
                 href="/admin/dashboard"
-                onClick={onNavigate}
+                onClick={(event) => handleSidebarNavigation(event, '/admin/dashboard', onNavigate, router)}
                 aria-label="QB Suite dashboard"
                 className={cn(
                     'flex min-h-20 items-center border-b border-slate-100 px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand',
