@@ -62,6 +62,7 @@ import { toast } from '@/hooks/use-toast';
 import { downloadCsv, envelope, pageOf, Pager, rowsOf } from '../template-shared';
 import { MetaTemplateDetails, WhatsAppPreview } from './meta-shared';
 import { MetaTemplateEdit } from './MetaTemplateEdit';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 
 const LIST_TABS = [
   { label: 'All Templates', value: 'ALL' },
@@ -271,113 +272,69 @@ function TemplateRowActions({
       break;
   }
 
-  const PrimaryIcon = primary.icon;
-  const SecondaryIcon = secondary.icon;
-
   return (
-    <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-      {/* Primary Action Button */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isSyncing}
-            onClick={primary.onClick}
-            className="h-8 px-2.5 text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 border-emerald-200 transition-colors shadow-2xs rounded-lg whitespace-nowrap"
-          >
-            <PrimaryIcon className={`mr-1.5 h-3.5 w-3.5 shrink-0 ${isSyncing ? 'animate-spin text-emerald-700' : 'text-emerald-600'}`} />
-            {isSyncing ? 'Syncing…' : primary.label}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          <p>{primary.title}</p>
-        </TooltipContent>
-      </Tooltip>
-
-      {/* Secondary Action Button */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={isSyncing}
-            onClick={secondary.onClick}
-            className="h-8 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg whitespace-nowrap"
-          >
-            <SecondaryIcon className="mr-1 h-3.5 w-3.5 text-slate-400 shrink-0" />
-            {secondary.label}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          <p>{secondary.title}</p>
-        </TooltipContent>
-      </Tooltip>
-
-      {/* More Actions Dropdown */}
-      <DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-lg shrink-0"
-                aria-label={`More actions for ${row?.name || 'template'}`}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p>More actions</p>
-          </TooltipContent>
-        </Tooltip>
-
-        <DropdownMenuContent align="end" side="bottom" className="w-52 bg-white shadow-lg border border-slate-200 rounded-xl">
-          <DropdownMenuItem onClick={() => openPreview(row, 'test')}>
-            <Send className="mr-2 h-4 w-4 text-emerald-600" />
-            Test Template
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setEditing({ row, duplicate: false })}>
-            <Pencil className="mr-2 h-4 w-4 text-slate-500" />
-            Edit Template
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setEditing({ row, duplicate: true })}>
-            <Copy className="mr-2 h-4 w-4 text-slate-500" />
-            Duplicate Template
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => toggleTemplate(row)}>
-            <Power className="mr-2 h-4 w-4 text-slate-500" />
-            {isLocalActive ? 'Deactivate' : 'Activate'}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => {
+    <div className="flex items-center justify-end">
+      <AdminRowActions
+        record={row}
+        recordName={row?.name || 'template'}
+        disabled={isSyncing}
+        actions={[
+          {
+            id: 'sync',
+            label: isSyncing ? 'Syncing…' : primary.label,
+            icon: faRotate,
+            disabled: isSyncing,
+            onClick: primary.onClick,
+          },
+          {
+            id: 'preview',
+            label: secondary.label,
+            icon: faEye,
+            onClick: secondary.onClick,
+          },
+          {
+            id: 'test',
+            label: 'Test Template',
+            icon: faPaperPlane,
+            onClick: () => openPreview(row, 'test'),
+          },
+          {
+            id: 'edit',
+            label: 'Edit Template',
+            onClick: () => setEditing({ row, duplicate: false }),
+          },
+          {
+            id: 'duplicate',
+            label: 'Duplicate Template',
+            icon: faCopy,
+            onClick: () => setEditing({ row, duplicate: true }),
+          },
+          {
+            id: 'status',
+            label: isLocalActive ? 'Deactivate' : 'Activate',
+            onClick: () => toggleTemplate(row),
+          },
+          {
+            id: 'history',
+            label: 'View Sync History',
+            onClick: () => {
               if (row?.lastSyncedAt) {
                 toast.info(`Last synced with Meta: ${new Date(row.lastSyncedAt).toLocaleString()}`);
               } else {
                 toast.info('This template has never been synced with Meta.');
               }
               openPreview(row, 'details');
-            }}
-          >
-            <History className="mr-2 h-4 w-4 text-slate-500" />
-            View Sync History
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            disabled={isDeleting}
-            onClick={() => setDeletingTemplate(row)}
-            className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
-          >
-            <Trash2 className="mr-2 h-4 w-4 text-rose-500" />
-            {isDeleting ? 'Deleting…' : deletePending ? 'Retry Delete' : 'Delete Template'}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            },
+          },
+          {
+            id: 'delete',
+            label: isDeleting ? 'Deleting…' : deletePending ? 'Retry Delete' : 'Delete Template',
+            variant: 'destructive',
+            disabled: isDeleting,
+            onClick: () => setDeletingTemplate(row),
+          },
+        ]}
+      />
     </div>
   );
 }

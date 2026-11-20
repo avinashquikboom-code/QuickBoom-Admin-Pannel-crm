@@ -3,6 +3,7 @@ import * as React from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/common/Button';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 import {
   exportLateReport,
   hrmError,
@@ -156,7 +157,21 @@ export default function LateMarkReportsPage() {
                 <td className="px-3 py-2">{item.recipients || '—'}</td>
                 <td className="px-3 py-2">{item.status}{item.failureReason ? <div className="text-xs text-rose-700">{item.failureReason}</div> : null}</td>
                 <td className="px-3 py-2">{item.sentAt ? new Date(item.sentAt).toLocaleString() : '—'}</td>
-                <td className="px-3 py-2">{item.status !== 'SENT' ? <Button variant="outline" onClick={() => retryLateReport(item.id).then(load)}>Retry</Button> : null}</td>
+                <td className="px-3 py-2 text-right">
+                  {item.status !== 'SENT' ? (
+                    <AdminRowActions
+                      record={item}
+                      recordName={`${item.kind} report`}
+                      actions={[
+                        {
+                          id: 'retry',
+                          label: 'Retry Report Delivery',
+                          onClick: () => retryLateReport(item.id).then(load),
+                        },
+                      ]}
+                    />
+                  ) : null}
+                </td>
               </tr>
             ))}
           </tbody>

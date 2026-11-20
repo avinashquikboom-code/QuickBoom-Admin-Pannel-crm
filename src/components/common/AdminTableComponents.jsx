@@ -296,11 +296,11 @@ export function AdminMobileRecordCard({
  */
 export const AdminStatusBadge = StatusBadge;
 
-import { AdminRowActions } from '@/components/common/AdminRowActions';
-export { AdminRowActions };
+import { AdminRowActions, MoreActionsMenu } from '@/components/common/AdminRowActions';
+export { AdminRowActions, MoreActionsMenu };
 
 /**
- * 8. AdminTableActions - Standard compact row actions
+ * 8. AdminTableActions - Standard three-dot More Actions dropdown
  */
 export function AdminTableActions({
     row,
@@ -314,66 +314,31 @@ export function AdminTableActions({
     customActions = [],
     moreActions = [],
     actions = [],
-    useDropdownOnly = false,
+    useDropdownOnly = true,
+    permissions,
+    disabled = false,
+    className,
 }) {
-    if (useDropdownOnly || moreActions.length > 0 || actions.length > 0) {
-        return (
-            <div className="flex items-center justify-end">
-                <AdminRowActions
-                    row={row}
-                    record={record}
-                    recordName={recordName}
-                    onView={onView}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onToggleStatus={onToggleStatus}
-                    onArchive={onArchive}
-                    customActions={[...customActions, ...moreActions]}
-                    actions={actions}
-                />
-            </div>
-        );
-    }
+    const combinedCustom = Array.isArray(customActions)
+        ? [...customActions, ...moreActions]
+        : [...moreActions];
 
     return (
-        <div className="flex items-center justify-end gap-1">
-            {onView && (
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={onView}
-                    title="View details"
-                    className="h-8 w-8 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
-                >
-                    <FontAwesomeIcon icon={faEye} className="size-3.5" />
-                    <span className="sr-only">View</span>
-                </Button>
-            )}
-            {onEdit && (
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={onEdit}
-                    title="Edit record"
-                    className="h-8 w-8 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
-                >
-                    <FontAwesomeIcon icon={faPen} className="size-3.5" />
-                    <span className="sr-only">Edit</span>
-                </Button>
-            )}
-            {onDelete && (
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={onDelete}
-                    title="Delete record"
-                    className="h-8 w-8 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer"
-                >
-                    <FontAwesomeIcon icon={faTrashCan} className="size-3.5" />
-                    <span className="sr-only">Delete</span>
-                </Button>
-            )}
-            {customActions}
+        <div className={cn('flex items-center justify-end', className)}>
+            <AdminRowActions
+                row={row}
+                record={record}
+                recordName={recordName}
+                permissions={permissions}
+                disabled={disabled}
+                onView={onView}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onToggleStatus={onToggleStatus}
+                onArchive={onArchive}
+                customActions={combinedCustom}
+                actions={actions}
+            />
         </div>
     );
 }

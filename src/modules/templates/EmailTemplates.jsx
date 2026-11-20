@@ -28,6 +28,7 @@ import {
 } from './template-shared';
 import { EmailRichTextEditor } from './EmailRichTextEditor';
 import { EmailTemplatePreviewDialog } from './EmailTemplatePreviewDialog';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 
 const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE', 'ARCHIVED'];
 
@@ -272,20 +273,16 @@ export function EmailTemplates() {
               <td className="px-3 py-3">
                 <StatusBadge row={row} />
               </td>
-              <td className="whitespace-nowrap px-3 py-3">
-                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-[#163A2E]" onClick={() => openEdit(row)}>
-                  Edit
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-[#163A2E]"
+              <td className="whitespace-nowrap px-3 py-3 text-right">
+                <AdminRowActions
+                  record={row}
+                  recordName={row.name}
+                  onEdit={() => openEdit(row)}
+                  editLabel="Edit Template"
+                  onToggleStatus={() => toggleRowStatus(row)}
+                  statusLabel={row.deletedAt ? 'Restore Template' : row.isActive ? 'Deactivate Template' : 'Activate Template'}
                   disabled={togglingId === row.id}
-                  onClick={() => toggleRowStatus(row)}
-                >
-                  {row.deletedAt ? 'Restore' : row.isActive ? 'Deactivate' : 'Activate'}
-                </Button>
+                />
               </td>
             </tr>
           )}

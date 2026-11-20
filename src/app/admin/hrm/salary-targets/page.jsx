@@ -184,7 +184,31 @@ export default function SalaryTargetsPage() {
                   <td className="px-3 py-3"><Badge className={row.targetStatus === 'ACHIEVED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}>{row.targetStatus === 'ACHIEVED' ? 'Achieved' : 'Not achieved'}</Badge></td>
                   <td className="px-3 py-3">{formatCurrency(row.eligibleSalary)}<div className="text-xs text-slate-500">Full {formatCurrency(row.fullSalary)} · Below {formatCurrency(row.belowTargetSalary)}</div></td>
                   <td className="px-3 py-3">{row.payrollLocked ? 'Payroll locked' : row.reviewStatus}</td>
-                  <td className="px-3 py-3"><div className="flex items-center gap-2"><AdminRowActions record={row} disabled={saving} onView={permissions.VIEW ? setDetail : undefined} onEdit={permissions.EDIT && canChange(row) ? openForm : undefined} onDelete={permissions.DELETE && canChange(row) ? (item) => setConfirmRows([item]) : undefined} confirmDelete={false} />{permissions.APPROVE && row.reviewStatus !== 'APPROVED' && !row.payrollLocked && <Button size="sm" variant="outline" disabled={saving} onClick={() => approve(row)}>Approve</Button>}</div></td>
+                  <td className="px-3 py-3 text-right">
+                    <AdminRowActions
+                      record={row}
+                      recordName={row.employeeName}
+                      disabled={saving}
+                      onView={permissions.VIEW ? setDetail : undefined}
+                      viewLabel="View Assignment"
+                      onEdit={permissions.EDIT && canChange(row) ? openForm : undefined}
+                      editLabel="Edit Assignment"
+                      customActions={
+                        permissions.APPROVE && row.reviewStatus !== 'APPROVED' && !row.payrollLocked
+                          ? [
+                              {
+                                id: 'approve',
+                                label: 'Approve Target',
+                                onClick: () => approve(row),
+                              },
+                            ]
+                          : []
+                      }
+                      onDelete={permissions.DELETE && canChange(row) ? (item) => setConfirmRows([item]) : undefined}
+                      deleteLabel="Delete Target"
+                      confirmDelete={false}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

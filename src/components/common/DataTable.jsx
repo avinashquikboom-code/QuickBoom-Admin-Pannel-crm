@@ -145,12 +145,14 @@ function DataTableContent({
                             row={row}
                             actions={[
                                 ...rowActions.map((action) => ({
+                                    id: action.id || action.label,
                                     label: action.label,
                                     icon: action.icon,
                                     confirm: action.confirm,
                                     disabled: action.disabled,
                                     variant: action.variant || (action.label?.toLowerCase().includes('delete') ? 'destructive' : undefined),
-                                    onClick: () => action.onSelect(row.original),
+                                    separator: action.separator,
+                                    onClick: () => (action.onClick ? action.onClick(row.original) : action.onSelect?.(row.original)),
                                 })),
                             ]}
                         />

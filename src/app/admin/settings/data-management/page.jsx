@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { suiteError } from '@/modules/suite/suite-api';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 import {
   createDataBackup,
   downloadDataBackup,
@@ -575,15 +576,34 @@ export default function DataManagementPage() {
                       <td>{formatBytes(item.size)}</td>
                       <td>{stamp(item.createdAt)}</td>
                       <td>{item.createdBy}</td>
-                      <td className="space-x-2 py-2 text-right">
-                        <button type="button" className="font-medium text-[#163A2E]" onClick={() => run('verify', () => verifyDataBackup(item.id))}>Verify</button>
-                        <button type="button" className="font-medium text-[#163A2E]" onClick={() => saveFile(() => downloadDataBackup(item.id), `qb-backup-${item.id}.json.gz`)}>Download</button>
-                        <button type="button" className="font-medium text-[#163A2E]" onClick={() => run('restore-preview', async () => {
-                          const response = await previewDataRestore(item.id);
-                          setRestoreId(item.id);
-                          setRestorePreview(dataOf(response));
-                          return response;
-                        })}>Restore</button>
+                      <td className="py-2 text-right">
+                        <AdminRowActions
+                          record={item}
+                          recordName={item.name}
+                          actions={[
+                            {
+                              id: 'verify',
+                              label: 'Verify Backup',
+                              onClick: () => run('verify', () => verifyDataBackup(item.id)),
+                            },
+                            {
+                              id: 'download',
+                              label: 'Download Backup',
+                              onClick: () => saveFile(() => downloadDataBackup(item.id), `qb-backup-${item.id}.json.gz`),
+                            },
+                            {
+                              id: 'restore',
+                              label: 'Restore from Backup',
+                              onClick: () =>
+                                run('restore-preview', async () => {
+                                  const response = await previewDataRestore(item.id);
+                                  setRestoreId(item.id);
+                                  setRestorePreview(dataOf(response));
+                                  return response;
+                                }),
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   ))}

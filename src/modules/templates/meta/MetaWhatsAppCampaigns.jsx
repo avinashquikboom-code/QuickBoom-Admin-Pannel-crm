@@ -33,6 +33,7 @@ import { toast } from '@/hooks/use-toast';
 import { envelope, Field, pageOf, Pager, rowsOf, downloadCsv } from '../template-shared';
 import { WhatsAppPreview } from './meta-shared';
 import { loadLeadStages } from '@/modules/crm/crm-api';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 
 const WIZARD_STEPS = [
   { id: 'details', label: 'Details', short: 'Details', step: 1 },
@@ -760,34 +761,34 @@ export function MetaWhatsAppCampaigns() {
                         <span className="text-xs text-slate-400"> / {row.recipientCount ?? 0}</span>
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {['DRAFT', 'SCHEDULED'].includes(row.status) && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={isActionLoading}
-                              onClick={() => launch(row.id)}
-                              className="h-8 px-2.5 text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
-                            >
-                              <FontAwesomeIcon icon={faPlay} className="mr-1 text-[10px]" />
-                              Launch
-                            </Button>
-                          )}
-                          {!['COMPLETED', 'FAILED', 'CANCELLED'].includes(row.status) && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={isActionLoading}
-                              onClick={() => cancel(row.id)}
-                              className="h-8 px-2.5 text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
-                            >
-                              <FontAwesomeIcon icon={faBan} className="mr-1 text-[10px]" />
-                              Cancel
-                            </Button>
-                          )}
-                        </div>
+                        <AdminRowActions
+                          record={row}
+                          recordName={row.name}
+                          disabled={isActionLoading}
+                          actions={[
+                            ...(['DRAFT', 'SCHEDULED'].includes(row.status)
+                              ? [
+                                  {
+                                    id: 'launch',
+                                    label: 'Launch Campaign',
+                                    icon: faPlay,
+                                    onClick: () => launch(row.id),
+                                  },
+                                ]
+                              : []),
+                            ...(!['COMPLETED', 'FAILED', 'CANCELLED'].includes(row.status)
+                              ? [
+                                  {
+                                    id: 'cancel',
+                                    label: 'Cancel Campaign',
+                                    icon: faBan,
+                                    variant: 'destructive',
+                                    onClick: () => cancel(row.id),
+                                  },
+                                ]
+                              : []),
+                          ]}
+                        />
                       </td>
                     </tr>
                   );

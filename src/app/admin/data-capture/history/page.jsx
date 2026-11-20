@@ -15,6 +15,7 @@ import {
   retryFailedCapture,
 } from '@/modules/data-capture/capture-api';
 import { toast } from '@/hooks/use-toast';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 
 const EMPTY = { search: '', source: '', category: '', location: '', capturedBy: '', status: '', dateFrom: '', dateTo: '' };
 
@@ -178,7 +179,14 @@ export default function CaptureHistoryPage() {
                   <td className="px-3 py-2">{row.capturedBy || '—'}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{when(row.captureDate)}</td>
                   <td className="px-3 py-2"><Status value={row.status} /></td>
-                  <td className="px-3 py-2"><button type="button" className="font-semibold text-[#163A2E]" onClick={() => openSession(row)}>View Details</button></td>
+                  <td className="px-3 py-2 text-right">
+                    <AdminRowActions
+                      record={row}
+                      recordName={row.captureName || `Capture #${row.id}`}
+                      onView={() => openSession(row)}
+                      viewLabel="View Session Details"
+                    />
+                  </td>
                 </tr>
               ))}
               {!rows.length && <tr><td colSpan={9} className="px-3 py-8 text-center text-slate-500">No capture sessions match these filters.</td></tr>}

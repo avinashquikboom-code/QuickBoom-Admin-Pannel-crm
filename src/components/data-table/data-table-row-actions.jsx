@@ -10,4 +10,9 @@ export function DataTableRowActions(props) {
 export function AdminRowActions(props) {
     return <AdminRowActionsBase {...props} />;
 }
+
+export function MoreActionsMenu(props) {
+    return <AdminRowActionsBase {...props} />;
+}
+
 export default DataTableRowActions;

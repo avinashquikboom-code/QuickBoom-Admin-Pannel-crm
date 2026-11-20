@@ -21,6 +21,7 @@ import {
   Field,
   TemplateTable,
 } from './template-shared';
+import { AdminRowActions } from '@/components/common/AdminRowActions';
 
 export function TemplateManagement({ slug }) {
   if (slug === 'stage-notifications') return <StageNotifications />;
@@ -108,7 +109,14 @@ function StageNotifications() {
           <td className="px-3 py-3">{emailStageTemplateStatus(stage)}{stage.emailTemplate?.name ? ` · ${stage.emailTemplate.name}` : ''}</td>
           <td className="px-3 py-3">{whatsappStageTemplateStatus(stage)}{stage.whatsappTemplate?.name ? ` · ${stage.whatsappTemplate.name}` : ''}</td>
           <td className="px-3 py-3">{stage.isActive ? 'Active' : 'Inactive'}</td>
-          <td className="px-3 py-3"><button type="button" className="text-[#163A2E]" onClick={() => setForm({ ...stage, emailTemplateId: stage.emailTemplateId || stage.emailTemplate?.id || '', whatsappTemplateId: stage.whatsappTemplateId || stage.whatsappTemplate?.id || '' })}>Edit</button></td>
+          <td className="px-3 py-3 text-right">
+            <AdminRowActions
+              record={stage}
+              recordName={stage.name}
+              onEdit={() => setForm({ ...stage, emailTemplateId: stage.emailTemplateId || stage.emailTemplate?.id || '', whatsappTemplateId: stage.whatsappTemplateId || stage.whatsappTemplate?.id || '' })}
+              editLabel="Edit Notifications"
+            />
+          </td>
         </tr>
       )} />
       <FormDrawer open={Boolean(form)} onOpenChange={(open) => { if (!open) setForm(null); }} title="Stage notification" loading={saving} onSubmit={save}>
