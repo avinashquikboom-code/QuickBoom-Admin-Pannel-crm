@@ -296,21 +296,29 @@ function SidebarContent({ className = '', onNavigate }) {
                 href="/admin/dashboard"
                 onClick={onNavigate}
                 aria-label="QB Suite dashboard"
-                className={cn('flex min-h-20 items-center gap-3 border-b border-slate-100 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand', isCollapsed && 'justify-center px-0')}
+                className={cn(
+                    'flex min-h-20 items-center border-b border-slate-100 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand',
+                    isCollapsed ? 'justify-center px-0' : 'gap-3'
+                )}
             >
-                <Image
-                    src="/app_logo.png"
-                    alt="QB Suite app logo"
-                    width={40}
-                    height={40}
-                    className="size-10 shrink-0 rounded-xl object-contain"
-                    priority
-                />
-                {!isCollapsed && (
-                    <div className="min-w-0">
-                        <p className="text-lg font-bold leading-tight tracking-tight text-slate-900">QB Suite</p>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Admin Panel</p>
-                    </div>
+                {isCollapsed ? (
+                    <Image
+                        src="/app_logo.png"
+                        alt="QB Suite app logo"
+                        width={40}
+                        height={40}
+                        className="size-10 shrink-0 rounded-xl object-contain"
+                        priority
+                    />
+                ) : (
+                    <Image
+                        src="/logo.png"
+                        alt="QuickBoom logo"
+                        width={180}
+                        height={50}
+                        className="h-11 w-auto max-h-12 max-w-[210px] object-contain"
+                        priority
+                    />
                 )}
             </Link>
 
