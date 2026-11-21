@@ -354,8 +354,9 @@ export default function IntegrationsPage() {
       const safePayload = row.provider === 'ELEVENLABS'
         ? { ...payload, config: { ...(row.config || {}), ...(payload.config || {}) } }
         : payload;
+      const { isEnabled, ...connectionTestPayload } = safePayload;
       // Test first for validation
-      const testRes = await testIntegration(row.provider, safePayload);
+      const testRes = await testIntegration(row.provider, connectionTestPayload);
       const body =
         testRes?.data && typeof testRes.data === 'object' && !Array.isArray(testRes.data)
           ? testRes.data
@@ -368,7 +369,7 @@ export default function IntegrationsPage() {
         return;
       }
 
-      await saveIntegration(row.provider, { ...safePayload, isEnabled: payload.isEnabled !== false });
+      await saveIntegration(row.provider, { ...safePayload, isEnabled: isEnabled !== false });
       setActiveRow(null);
       setRefresh((v) => v + 1);
       toast.success(`${row.displayName || row.provider} saved and verified successfully!`);
