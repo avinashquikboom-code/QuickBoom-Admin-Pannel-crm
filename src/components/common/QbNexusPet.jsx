@@ -7,12 +7,6 @@ import {
   Send,
   Minimize2,
   Maximize2,
-  ChevronRight,
-  TrendingUp,
-  Users,
-  Target,
-  CheckCircle2,
-  HelpCircle,
   RotateCcw,
   Mic,
   MicOff,
@@ -95,6 +89,7 @@ export function QbNexusPet() {
   const [speakReplies, setSpeakReplies] = React.useState(true);
   const [fallbackRecording, setFallbackRecording] = React.useState(false);
   const [blinking, setBlinking] = React.useState(false);
+  const [pageVisible, setPageVisible] = React.useState(true);
   const messagesEndRef = React.useRef(null);
   const recognitionRef = React.useRef(null);
   const mediaRecorderRef = React.useRef(null);
@@ -102,12 +97,16 @@ export function QbNexusPet() {
   const mediaChunksRef = React.useRef([]);
   const fallbackTimerRef = React.useRef(null);
   const activityTimerRef = React.useRef(null);
+  const voiceTimersRef = React.useRef(new Set());
+  const mountedRef = React.useRef(false);
+  const speechRef = React.useRef(null);
   const enabledRef = React.useRef(false);
   const modeRef = React.useRef('wake');
   const commandRef = React.useRef('');
-  const petState = voiceState === 'ERROR' ? 'ERROR' : voiceState === 'WAKE_DETECTED' ? 'WAKE_DETECTED' : voiceState === 'LISTENING' ? 'LISTENING' : voiceState === 'SPEAKING' ? 'SPEAKING' : voiceState === 'SUCCESS' ? 'SUCCESS' : isTyping ? 'THINKING' : 'IDLE';
+  const petState = voiceError || voiceState === 'ERROR' ? 'ERROR' : voiceState === 'WAKE_DETECTED' ? 'WAKE_DETECTED' : voiceState === 'LISTENING' ? 'LISTENING' : voiceState === 'SPEAKING' ? 'SPEAKING' : voiceState === 'SUCCESS' ? 'SUCCESS' : voiceState === 'PROCESSING' || isTyping ? 'THINKING' : 'IDLE';
 
   React.useEffect(() => {
+    mountedRef.current = true;
     if (petState !== 'IDLE') { setBlinking(false); return undefined; }
     let blinkTimer;
     let reopenTimer;
@@ -171,28 +170,36 @@ export function QbNexusPet() {
 
   React.useEffect(() => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    setPageVisible(document.visibilityState === 'visible');
     setRecognitionSupported(Boolean(Recognition));
     setVoiceEnabled(localStorage.getItem('qb-nexus-voice-enabled') === 'true');
     setSpeakReplies(localStorage.getItem('qb-nexus-speak-replies') !== 'false');
     const onVisibility = () => {
-      if (document.visibilityState !== 'visible') stopRecognition();
+      setPageVisible(document.visibilityState === 'visible');
+      if (document.visibilityState !== 'visible') {
+        stopRecognition();
+        stopFallbackRecorder(false);
+        setVoiceState((state) => state === 'LISTENING' ? 'IDLE' : state);
+      }
       else if (enabledRef.current) startRecognition('wake');
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       stopRecognition();
-      stopFallbackRecorder(false);
+      stopFallbackRecorder(false, false);
       clearTimeout(fallbackTimerRef.current);
       clearTimeout(activityTimerRef.current);
-      window.speechSynthesis?.cancel();
+      clearVoiceTimers();
+      stopSpeech();
+      mountedRef.current = false;
     };
   }, []);
 
   React.useEffect(() => {
     enabledRef.current = voiceEnabled && Boolean(token);
     if (!enabledRef.current) {
-      stopRecognition(); stopFallbackRecorder(false); window.speechSynthesis?.cancel(); setVoiceState('IDLE');
+      clearVoiceTimers(); stopRecognition(); stopFallbackRecorder(false); stopSpeech(); setVoiceState('IDLE');
     } else if (recognitionSupported && document.visibilityState === 'visible') startRecognition('wake');
   }, [voiceEnabled, token, recognitionSupported]);
 
@@ -223,7 +230,7 @@ export function QbNexusPet() {
         setOpen(true); setVoiceError(''); setVoiceState('WAKE_DETECTED');
         modeRef.current = 'command';
         stopRecognition();
-        setTimeout(() => { setVoiceState('LISTENING'); startRecognition('command'); }, 250);
+        scheduleVoice(() => { setVoiceState('LISTENING'); startRecognition('command'); }, 250);
       } else if (modeRef.current === 'command' && event.results[event.results.length - 1]?.isFinal) {
         const command = transcript.trim();
         if (command) { commandRef.current = command; stopRecognition(); void handleSendMessage(command, true); }
@@ -233,17 +240,41 @@ export function QbNexusPet() {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setVoiceError('Microphone access was denied. Allow it in browser settings, then try again.');
         setVoiceEnabled(false); localStorage.setItem('qb-nexus-voice-enabled', 'false');
-      } else if (event.error === 'audio-capture') setVoiceError('No microphone was found.');
-      else if (event.error !== 'no-speech' && event.error !== 'aborted') setVoiceError('Voice recognition stopped. Try the microphone button.');
+      } else if (event.error === 'audio-capture') { setVoiceError('No microphone was found.'); setVoiceState('ERROR'); }
+      else if (event.error !== 'no-speech' && event.error !== 'aborted') { setVoiceError('Voice recognition stopped. Try the microphone button.'); setVoiceState('ERROR'); }
     };
     recognition.onend = () => {
       if (recognitionRef.current === recognition) recognitionRef.current = null;
       if (!enabledRef.current || document.visibilityState !== 'visible') return;
-      if (modeRef.current === 'wake') setTimeout(() => startRecognition('wake'), 300);
-      else if (!commandRef.current) setTimeout(() => startRecognition('command'), 300);
+      if (modeRef.current === 'wake') scheduleVoice(() => startRecognition('wake'), 300);
+      else if (!commandRef.current) scheduleVoice(() => startRecognition('command'), 300);
     };
     recognitionRef.current = recognition;
-    try { recognition.start(); } catch { recognitionRef.current = null; }
+    try { recognition.start(); } catch {
+      recognitionRef.current = null;
+      if (mode === 'command') { setVoiceState('ERROR'); setVoiceError('Could not start voice recognition. Check microphone permission and try again.'); }
+    }
+  }
+
+  function scheduleVoice(callback, delay) {
+    if (!mountedRef.current) return null;
+    const timer = setTimeout(() => { voiceTimersRef.current.delete(timer); if (mountedRef.current) callback(); }, delay);
+    voiceTimersRef.current.add(timer);
+    return timer;
+  }
+
+  function clearVoiceTimers() {
+    voiceTimersRef.current.forEach((timer) => clearTimeout(timer));
+    voiceTimersRef.current.clear();
+  }
+
+  function cancelVoiceTimer(timer) {
+    if (timer) { clearTimeout(timer); voiceTimersRef.current.delete(timer); }
+  }
+
+  function stopSpeech() {
+    if (speechRef.current) { speechRef.current.onstart = null; speechRef.current.onend = null; speechRef.current.onerror = null; speechRef.current = null; }
+    window.speechSynthesis?.cancel();
   }
 
   async function enableVoice() {
@@ -255,15 +286,17 @@ export function QbNexusPet() {
       enabledRef.current = true;
       localStorage.setItem('qb-nexus-voice-enabled', 'true');
       setVoiceEnabled(true); setOpen(true);
+      return true;
     } catch (error) {
       setVoiceError(error?.name === 'NotFoundError' ? 'No microphone was found.' : error?.message === 'secure-context' ? 'Microphone permission requires a secure browser connection.' : 'Microphone permission was denied. Chat remains available.');
       setVoiceState('ERROR');
+      return false;
     }
   }
 
   function startManualMic() {
     if (!recognitionSupported) { void startFallbackRecording(); return; }
-    if (!voiceEnabled) { void enableVoice().then(() => setTimeout(() => { setVoiceState('LISTENING'); startRecognition('command'); }, 180)); return; }
+    if (!voiceEnabled) { void enableVoice().then((granted) => { if (granted) scheduleVoice(() => { setVoiceState('LISTENING'); startRecognition('command'); }, 180); }); return; }
     setVoiceError(''); setVoiceState('LISTENING'); startRecognition('command');
   }
 
@@ -272,8 +305,8 @@ export function QbNexusPet() {
     try {
       if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error('unsupported');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
       mediaStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
       mediaChunksRef.current = [];
       mediaRecorderRef.current = recorder;
       recorder.ondataavailable = (event) => { if (event.data?.size) mediaChunksRef.current.push(event.data); };
@@ -307,12 +340,13 @@ export function QbNexusPet() {
       }, 30_000);
       setFallbackRecording(true); setVoiceState('LISTENING'); setOpen(true);
     } catch (error) {
+      stopFallbackRecorder(false);
       setVoiceState('ERROR');
       setVoiceError(error?.name === 'NotAllowedError' ? 'Microphone access was denied. Allow it in browser settings, then try again.' : error?.name === 'NotFoundError' ? 'No microphone was found.' : error?.message === 'unsupported' ? 'Manual recording is unavailable here. Type your question instead.' : 'Could not start the microphone. Check browser permissions and try again.');
     }
   }
 
-  function stopFallbackRecorder(upload = true) {
+  function stopFallbackRecorder(upload = true, updateUi = true) {
     clearTimeout(fallbackTimerRef.current);
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== 'inactive') {
@@ -322,27 +356,29 @@ export function QbNexusPet() {
         mediaRecorderRef.current = null;
         mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
-        setFallbackRecording(false);
+        if (updateUi) setFallbackRecording(false);
       }
       try { recorder.stop(); } catch {}
     } else {
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
       mediaRecorderRef.current = null;
-      setFallbackRecording(false);
+      if (updateUi) setFallbackRecording(false);
     }
   }
 
   function stopCommandListening() {
     if (fallbackRecording) { stopFallbackRecorder(true); return; }
+    clearVoiceTimers();
     stopRecognition(); commandRef.current = ''; modeRef.current = 'wake'; setVoiceText(''); setVoiceState('IDLE');
-    if (enabledRef.current) setTimeout(() => startRecognition('wake'), 200);
+    if (enabledRef.current) scheduleVoice(() => startRecognition('wake'), 200);
   }
 
   function cancelVoice() {
+    clearVoiceTimers();
     stopFallbackRecorder(false);
-    stopRecognition(); window.speechSynthesis?.cancel(); commandRef.current = ''; setVoiceText(''); setVoiceState('IDLE');
-    if (enabledRef.current) setTimeout(() => startRecognition('wake'), 200);
+    stopRecognition(); stopSpeech(); commandRef.current = ''; setVoiceText(''); setVoiceState('IDLE');
+    if (enabledRef.current) scheduleVoice(() => startRecognition('wake'), 200);
   }
 
   const handleSendMessage = async (textToSend, fromVoice = false) => {
@@ -359,8 +395,10 @@ export function QbNexusPet() {
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setVoiceError('');
+    stopRecognition();
+    clearVoiceTimers();
     setIsTyping(true);
-    clearTimeout(activityTimerRef.current);
+    cancelVoiceTimer(activityTimerRef.current);
     setVoiceState('PROCESSING');
     try {
       const response = await api.post('/admin/ai/nexus/chat', { message: query });
@@ -369,24 +407,26 @@ export function QbNexusPet() {
       setMessages((prev) => [...prev, botReply]);
       if (fromVoice && speakReplies && window.speechSynthesis) {
         const utterance = new SpeechSynthesisUtterance(replyText);
-        utterance.onstart = () => setVoiceState('SPEAKING');
-        utterance.onend = () => { setVoiceState('SUCCESS'); activityTimerRef.current = setTimeout(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000); };
-        utterance.onerror = () => { setVoiceState('SUCCESS'); activityTimerRef.current = setTimeout(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000); };
+        speechRef.current = utterance;
+        utterance.onstart = () => { if (mountedRef.current) setVoiceState('SPEAKING'); };
+        utterance.onend = () => { speechRef.current = null; setVoiceState('SUCCESS'); activityTimerRef.current = scheduleVoice(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000); };
+        utterance.onerror = () => { speechRef.current = null; setVoiceState('SUCCESS'); activityTimerRef.current = scheduleVoice(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000); };
         window.speechSynthesis.speak(utterance);
       } else {
-        setVoiceState('SUCCESS'); activityTimerRef.current = setTimeout(() => { setVoiceState('IDLE'); if (fromVoice && enabledRef.current) startRecognition('wake'); }, 1000);
+        setVoiceState('SUCCESS'); activityTimerRef.current = scheduleVoice(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000);
       }
     } catch (error) {
       const replyText = error?.response?.data?.message || 'Nexus could not answer right now. Please try again.';
       setMessages((prev) => [...prev, { id: `bot-${Date.now()}`, sender: 'bot', text: replyText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
       setVoiceError(replyText); setVoiceState('ERROR');
-      if (fromVoice && enabledRef.current) setTimeout(() => { setVoiceState('IDLE'); startRecognition('wake'); }, 1500);
+      if (enabledRef.current) scheduleVoice(() => { setVoiceState('IDLE'); startRecognition('wake'); }, 1500);
     } finally { setIsTyping(false); }
   };
 
   function disableVoice() {
+    clearVoiceTimers();
     enabledRef.current = false; setVoiceEnabled(false); localStorage.setItem('qb-nexus-voice-enabled', 'false');
-    stopRecognition(); stopFallbackRecorder(false); window.speechSynthesis?.cancel(); setVoiceState('IDLE'); setVoiceText('');
+    stopRecognition(); stopFallbackRecorder(false); stopSpeech(); setVoiceState('IDLE'); setVoiceText('');
   }
 
   const handleResetChat = () => {
@@ -399,13 +439,37 @@ export function QbNexusPet() {
   const session = readSession();
   const userName = session?.user?.firstName || session?.user?.name || 'Super Admin';
 
+  if (!token) return null;
+
   return (
     <>
+      <style>{`
+        @keyframes qb-nexus-float { 0%,100% { translate: 0 0 } 50% { translate: 0 -3px } }
+        @keyframes qb-nexus-wake { 0%,100% { transform: translateY(0) scale(1) } 35% { transform: translateY(-7px) scale(1.04) } 70% { transform: translateY(1px) scale(.99) } }
+        @keyframes qb-nexus-pulse { 0%,100% { opacity:.28; transform:scale(.94) } 50% { opacity:.8; transform:scale(1.08) } }
+        @keyframes qb-nexus-speak { 0%,100% { transform:scaleY(.75) } 50% { transform:scaleY(1.15) } }
+        @keyframes qb-nexus-particle { 0%,100% { opacity:.25; transform:translateY(1px) } 50% { opacity:1; transform:translateY(-2px) } }
+        .qb-nexus-idle { animation:qb-nexus-float 3.6s ease-in-out infinite }
+        .qb-nexus-waking { animation:qb-nexus-wake .7s ease-out 1 }
+        .qb-nexus-listening-ring { animation:qb-nexus-pulse 1.6s ease-in-out infinite }
+        .qb-nexus-thinking { box-shadow:0 0 0 2px #20c466,0 0 25px rgba(32,196,102,.55),0 16px 38px rgba(23,61,48,.28) }
+        .qb-nexus-error { border-color:#fb923c!important; box-shadow:0 0 20px rgba(251,146,60,.28) }
+        .qb-nexus-antenna { animation:qb-nexus-pulse 2s ease-in-out infinite; transform-origin:32px 7px }
+        .qb-nexus-mouth { animation:qb-nexus-speak .24s ease-in-out infinite; transform-origin:center }
+        .qb-nexus-particles circle { animation:qb-nexus-particle 1.8s ease-in-out infinite }
+        .qb-nexus-particles circle:nth-child(2) { animation-delay:.35s }
+        .qb-nexus-particles circle:nth-child(3) { animation-delay:.7s }
+        .qb-nexus-sparkles { animation:qb-nexus-pulse .65s ease-in-out 3 }
+        .qb-nexus-sparkle-icon { animation:qb-nexus-pulse .55s ease-in-out 3 }
+        .qb-nexus-paused .qb-nexus-listening-ring,.qb-nexus-paused .qb-nexus-antenna,.qb-nexus-paused .qb-nexus-mouth,.qb-nexus-paused .qb-nexus-particles circle,.qb-nexus-paused .qb-nexus-sparkles,.qb-nexus-paused .qb-nexus-voicewave i,.qb-nexus-paused .qb-nexus-online-ping { animation:none!important }
+        .qb-nexus-paused .qb-nexus-sparkle-icon { animation:none!important }
+        @media (prefers-reduced-motion: reduce) { .qb-nexus-idle,.qb-nexus-waking,.qb-nexus-listening-ring,.qb-nexus-antenna,.qb-nexus-mouth,.qb-nexus-particles circle,.qb-nexus-sparkles,.qb-nexus-sparkle-icon,.qb-nexus-online-ping { animation:none!important } .qb-nexus-button { transition:none!important } }
+      `}</style>
       {/* Floating Robot Avatar Button */}
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end">
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-[calc(env(safe-area-inset-right)+1rem)] sm:bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] sm:right-[calc(env(safe-area-inset-right)+1.5rem)] z-40 flex flex-col items-end">
         {/* Welcome Tooltip */}
         {tooltipVisible && !open && (
-          <div className="mb-2 relative max-w-[240px] rounded-2xl bg-white border border-emerald-200/90 p-3 shadow-lg text-xs text-slate-700 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="mb-2 relative max-w-[240px] rounded-2xl bg-white border border-emerald-200/90 p-3 shadow-lg text-xs text-slate-700 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300">
             <button
               onClick={() => setTooltipVisible(false)}
               className="absolute top-1.5 right-1.5 text-slate-400 hover:text-slate-600"
@@ -413,10 +477,7 @@ export function QbNexusPet() {
             >
               <X className="size-3" />
             </button>
-            <div className="flex items-center gap-1.5 font-semibold text-[#173D30] mb-0.5">
-              <span className="size-2 rounded-full bg-[#20C466] animate-ping" />
-              <span>QB Nexus AI</span>
-            </div>
+            <div className="mb-0.5 flex items-center gap-1.5 font-semibold text-[#173D30]"><span className="size-2 rounded-full bg-[#20C466] motion-safe:animate-ping" /><span>Ask QB Nexus</span></div>
             <p className="text-[11px] leading-relaxed text-slate-600">
               Hi {userName}! Need instant insights or data analysis? Click to chat.
             </p>
@@ -429,88 +490,48 @@ export function QbNexusPet() {
         <button
           type="button"
           onClick={() => {
-            setOpen((prev) => !prev);
+            setOpen(true);
+            setMinimized(false);
             setTooltipVisible(false);
           }}
+          onMouseEnter={() => setTooltipVisible(true)}
           aria-label="Open QB Nexus AI Assistant"
-          className={cn('group relative flex size-13 sm:size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#173D30] via-[#123026] to-[#0d221b] text-white shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 border-2 border-emerald-400/40 focus:outline-none focus:ring-4 focus:ring-emerald-400/30', ['WAKE_DETECTED', 'LISTENING', 'PROCESSING', 'SPEAKING'].includes(voiceState) && 'ring-4 ring-[#20C466] ring-offset-2 ring-offset-white')}
+          className={cn('qb-nexus-button group relative flex size-14 sm:size-[68px] lg:size-[76px] items-center justify-center rounded-[22px] border-2 border-[#20C466]/90 bg-gradient-to-br from-[#173D30] via-[#123026] to-[#0d221b] text-white shadow-[0_12px_34px_rgba(23,61,48,.28),0_0_20px_rgba(32,196,102,.28)] transition-all duration-300 hover:scale-[1.06] hover:shadow-[0_14px_40px_rgba(23,61,48,.36),0_0_28px_rgba(32,196,102,.52)] active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2', !pageVisible && 'qb-nexus-paused', pageVisible && petState === 'IDLE' && 'qb-nexus-idle', pageVisible && petState === 'WAKE_DETECTED' && 'qb-nexus-waking', petState === 'LISTENING' && 'ring-4 ring-[#20C466]/70 ring-offset-2 ring-offset-white', petState === 'THINKING' && 'qb-nexus-thinking', petState === 'ERROR' && 'qb-nexus-error')}
         >
-          {/* Pulsing halo */}
-          <span className="absolute -inset-1 rounded-2xl bg-[#20C466]/20 blur-sm group-hover:bg-[#20C466]/40 transition-colors pointer-events-none" />
-
-          {/* Robot SVG Avatar */}
-          <svg
-            className={cn('size-8 sm:size-9 relative z-10 transition-transform group-hover:rotate-3', voiceState === 'SPEAKING' && 'motion-safe:animate-bounce motion-reduce:animate-none', voiceState === 'LISTENING' && 'motion-safe:animate-pulse motion-reduce:animate-none')}
-            viewBox="0 0 64 64"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            {/* Antenna with beacon */}
-            <path d="M32 16V8" stroke="#20C466" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="32" cy="7" r="4" fill="#20C466" className="animate-pulse" />
-
-            {/* Head container */}
-            <rect x="14" y="16" width="36" height="26" rx="8" fill="#FFFFFF" stroke="#173D30" strokeWidth="2.5" />
-
-            {/* Ear sensors */}
-            <rect x="10" y="24" width="4" height="10" rx="2" fill="#20C466" />
-            <rect x="50" y="24" width="4" height="10" rx="2" fill="#20C466" />
-
-            {/* Visor / Screen */}
-            <rect x="18" y="21" width="28" height="15" rx="5" fill="#173D30" />
-
-            {/* Digital Eyes */}
-            <circle cx="26" cy="28.5" r="3" fill="#20C466" className="animate-pulse" />
-            <circle cx="38" cy="28.5" r="3" fill="#20C466" className="animate-pulse" />
-
-            {/* Friendly mouth spark */}
-            <path d="M29 33C30.5 34 33.5 34 35 33" stroke="#20C466" strokeWidth="1.5" strokeLinecap="round" />
-
-            {/* Body */}
-            <path
-              d="M18 43C18 43 20 54 32 54C44 54 46 43 46 43"
-              fill="#FFFFFF"
-              stroke="#173D30"
-              strokeWidth="2.5"
-            />
-
-            {/* Chest Logo Leaf */}
-            <path
-              d="M32 46C30 46 29 48 30 50C32 51 34 49 34 47C34 46.5 33 46 32 46Z"
-              fill="#20C466"
-            />
-          </svg>
+          <span className="pointer-events-none absolute -inset-1 rounded-[25px] bg-[#20C466]/20 blur-md transition-colors group-hover:bg-[#20C466]/40" />
+          {petState === 'LISTENING' && <span className="qb-nexus-listening-ring pointer-events-none absolute inset-1 rounded-full border-2 border-[#20C466]/80" />}
+          {petState === 'WAKE_DETECTED' && <Sparkles className="qb-nexus-sparkle-icon absolute -right-3 -top-3 size-5 text-[#B9F8D2] drop-shadow-[0_0_6px_#20C466]" aria-hidden="true" />}
+          {petState === 'SPEAKING' && <span className="qb-nexus-voicewave absolute -bottom-1 flex h-2.5 items-center gap-1" aria-hidden="true"><i className="h-1 w-1 rounded-full bg-[#20C466] motion-safe:animate-pulse"/><i className="h-2.5 w-1 rounded-full bg-[#20C466] motion-safe:animate-pulse [animation-delay:120ms]"/><i className="h-1.5 w-1 rounded-full bg-[#20C466] motion-safe:animate-pulse [animation-delay:240ms]"/></span>}
+          {petState === 'SUCCESS' && <Sparkles className="absolute -right-2 -top-2 size-4 text-[#B9F8D2] motion-safe:animate-pulse" aria-hidden="true" />}
+          <NexusFace state={petState} blinking={blinking} className={cn('size-11 sm:size-[52px] lg:size-[58px] transition-transform group-hover:rotate-2', !pageVisible && 'qb-nexus-paused')} />
 
           {/* Online badge */}
-          <span className="absolute top-0 right-0 flex size-3.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#20C466] opacity-75" />
-            <span className="relative inline-flex rounded-full size-3.5 bg-[#20C466] border-2 border-white" />
-          </span>
+          <span title={token ? 'QB Nexus online' : 'QB Nexus offline'} className="absolute -right-1 -top-1 flex size-[18px] items-center justify-center rounded-full border-2 border-white bg-white"><span className={cn('relative size-3 rounded-full border border-white', token ? 'bg-[#20C466] shadow-[0_0_10px_#20C466]' : 'bg-slate-400')} />{token && <span className="qb-nexus-online-ping motion-safe:animate-ping absolute size-3 rounded-full bg-[#20C466]/70" />}</span>
         </button>
       </div>
 
       {/* Expandable Assistant Panel */}
-      {open && (
+      {open && !minimized && (
         <div
           role="dialog"
           aria-label="QB Nexus Assistant"
           className={cn(
             'fixed z-50 bg-white shadow-2xl transition-all duration-300 border border-slate-200/90 overflow-hidden flex flex-col',
-            'bottom-0 right-0 w-full sm:bottom-22 sm:right-6 sm:w-[380px] md:w-[400px] sm:rounded-2xl',
-            minimized ? 'h-14 sm:h-14' : 'h-[540px] max-h-[85vh] sm:max-h-[600px]'
+            'bottom-0 right-0 w-full sm:bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] sm:right-[calc(env(safe-area-inset-right)+1.5rem)] sm:w-[380px] md:w-[400px] sm:rounded-2xl',
+            'top-0 h-[100dvh] sm:top-auto sm:h-[min(600px,calc(100dvh-3rem))]'
           )}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-[#173D30] text-white shrink-0 select-none">
             <div className="flex items-center gap-2.5">
               <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/20 text-[#20C466] border border-emerald-400/30">
-                <Bot className="size-4" />
+                <NexusFace state={petState} blinking={blinking} className={cn('size-7', !pageVisible && 'qb-nexus-paused')} />
               </span>
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs font-bold tracking-tight">QB Nexus AI</h3>
-                  <span className="rounded-full bg-emerald-400/20 px-1.5 py-0.2 text-[9px] font-semibold text-emerald-300 border border-emerald-400/30">
-                    {voiceEnabled ? voiceState === 'LISTENING' ? 'Listening' : voiceState === 'PROCESSING' ? 'Thinking' : voiceState === 'SPEAKING' ? 'Speaking' : 'Voice on' : 'Online'}
+                  <span aria-live="polite" className="rounded-full bg-emerald-400/20 px-1.5 py-0.2 text-[9px] font-semibold text-emerald-300 border border-emerald-400/30">
+                    {petState === 'LISTENING' ? 'Listening' : petState === 'PROCESSING' || petState === 'THINKING' ? 'Thinking' : petState === 'SPEAKING' ? 'Speaking' : petState === 'SUCCESS' ? 'Ready' : petState === 'ERROR' ? 'Needs attention' : voiceEnabled ? 'Voice on' : 'Online'}
                   </span>
                 </div>
                 <p className="text-[10px] text-emerald-200/80">Executive AI Copilot</p>
@@ -548,15 +569,14 @@ export function QbNexusPet() {
             </div>
           </div>
 
-          {!minimized && <div className="shrink-0 border-b border-emerald-100 bg-[#F0FAF3] px-3 py-2">
+          <div className="shrink-0 border-b border-emerald-100 bg-[#F0FAF3] px-3 py-2">
             {!voiceEnabled ? <div className="space-y-1.5"><p className="text-[10px] leading-relaxed text-slate-600">Voice wake-up is optional. While enabled, this active tab listens for “Hey Nexus.” Browser speech recognition may process audio; QB Suite does not store recordings.</p><div className="flex items-center justify-between gap-2"><span className="text-[10px] text-slate-500">{recognitionSupported ? 'Wake word available in this browser' : 'Wake word unavailable; manual clips are sent to OpenAI only after you stop.'}</span><button type="button" onClick={enableVoice} className="rounded-lg bg-[#173D30] px-2.5 py-1.5 text-[10px] font-semibold text-white">Enable voice</button></div></div> : <div className="flex items-center justify-between gap-2"><span className="flex min-w-0 items-center gap-2 text-[11px] font-medium text-[#173D30]"><span className="size-2 shrink-0 rounded-full bg-[#20C466]" />{voiceState === 'LISTENING' ? "Yes, I'm listening..." : voiceState === 'WAKE_DETECTED' ? 'Nexus is waking up...' : voiceState === 'PROCESSING' ? 'Nexus is thinking...' : voiceState === 'SPEAKING' ? 'Nexus is speaking...' : voiceState === 'SUCCESS' ? 'Done!' : recognitionSupported ? 'Say “Hey Nexus” to wake me' : 'Tap the mic to speak'}</span>{voiceState === 'LISTENING' && <span className="flex h-4 items-center gap-0.5" aria-label="Microphone active"><i className="h-2 w-0.5 animate-pulse rounded bg-[#20C466]" /><i className="h-4 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:120ms]" /><i className="h-3 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:240ms]" /><i className="h-2 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:80ms]" /></span>}</div>}
             {voiceText && voiceState === 'LISTENING' && <p className="mt-1 truncate text-[10px] text-slate-500">{voiceText}</p>}
-            {voiceError && <p role="alert" className="mt-1 text-[10px] text-rose-700">{voiceError}</p>}
-          </div>}
+            {voiceError && <div role="alert" className="mt-1 flex items-start justify-between gap-2 text-[10px] text-rose-700"><span>{voiceError}</span><button type="button" onClick={() => { setVoiceError(''); setVoiceState('IDLE'); }} className="shrink-0 font-semibold" aria-label="Dismiss voice error">Dismiss</button></div>}
+          </div>
 
           {/* Body when not minimized */}
-          {!minimized && (
-            <>
+          <>
               {/* Message List */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F7F9F8] text-xs">
                 {messages.map((msg) => (
@@ -637,11 +657,10 @@ export function QbNexusPet() {
                 </button>
               </form>
               <div className="flex items-center justify-between border-t border-slate-100 bg-white px-3 py-1.5">
-                <div className="flex items-center gap-2"><button type="button" onClick={() => { const next = !speakReplies; setSpeakReplies(next); localStorage.setItem('qb-nexus-speak-replies', String(next)); if (!next) window.speechSynthesis?.cancel(); }} className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-[#173D30]" aria-label={speakReplies ? 'Mute voice responses' : 'Enable voice responses'}>{speakReplies ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}{speakReplies ? 'Voice response on' : 'Voice response off'}</button>{voiceState === 'SPEAKING' && <button type="button" onClick={cancelVoice} className="text-[10px] font-medium text-rose-600">Interrupt</button>}</div>
+                <div className="flex items-center gap-2"><button type="button" onClick={() => { const next = !speakReplies; setSpeakReplies(next); localStorage.setItem('qb-nexus-speak-replies', String(next)); if (!next) { stopSpeech(); setVoiceState('IDLE'); if (enabledRef.current) scheduleVoice(() => startRecognition('wake'), 200); } }} className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-[#173D30]" aria-label={speakReplies ? 'Mute voice responses' : 'Enable voice responses'}>{speakReplies ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}{speakReplies ? 'Voice response on' : 'Voice response off'}</button>{voiceState === 'SPEAKING' && <button type="button" onClick={cancelVoice} className="text-[10px] font-medium text-rose-600">Interrupt</button>}</div>
                 <div className="flex items-center gap-2">{voiceState !== 'IDLE' && <button type="button" onClick={cancelVoice} className="text-[10px] text-slate-500">Cancel</button>}{voiceEnabled && <button type="button" onClick={disableVoice} className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-rose-600"><MicOff className="size-3" />Turn voice off</button>}</div>
               </div>
-            </>
-          )}
+          </>
         </div>
       )}
     </>

@@ -45,20 +45,18 @@ import { cn } from '@/lib/utils';
 
 const groups = [
     { name: 'Dashboard', icon: faGauge, href: '/admin/dashboard', matchExact: true },
-    { name: 'CRM', icon: faUser, items: crm },
+    { name: 'Master', icon: faDatabase, items: masterNavigation },
     { name: 'HRM', icon: faBriefcase, items: hrm },
-    { name: 'Projects', icon: faIndustry, href: '/admin/production/dashboard' },
     { name: 'Data Capture', icon: faBullseye, items: dataCaptureNavigation },
+    { name: 'CRM', icon: faUser, items: crm },
     { name: 'Customers', icon: faFileLines, items: customer },
     { name: 'WhatsApp Marketing', icon: MessageSquare, items: whatsAppMarketingNavigation },
-    { name: 'Reports', icon: faChartBar, href: '/admin/reports' },
-    { name: 'Integrations', icon: faBolt, href: '/admin/settings/integrations' },
-    { name: 'Master', icon: faDatabase, items: masterNavigation },
-    { name: 'Settings', icon: faGear, items: settingsNavigation },
     { name: 'Email Marketing', icon: Mail, items: emailMarketingNavigation },
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
     { name: 'Content Management', icon: faVideo, items: contentNavigation },
+    { name: 'Reports', icon: faChartBar, href: '/admin/reports' },
+    { name: 'Settings', icon: faGear, items: settingsNavigation },
 ];
 
 function isActive(item, pathname) {
