@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { usePathname } from 'next/navigation';
 import {
   Sparkles,
   X,
@@ -106,7 +107,11 @@ function NexusFace({ state = 'IDLE', blinking = false, className }) {
 
 export function QbNexusPet() {
   const token = useAuthStore((state) => state.token);
+  const pathname = usePathname();
+  const prevPathnameRef = React.useRef(pathname);
+
   const [open, setOpen] = React.useState(false);
+  const openRef = React.useRef(false);
   const [minimized, setMinimized] = React.useState(false);
   const [tooltipVisible, setTooltipVisible] = React.useState(true);
   const [messages, setMessages] = React.useState(INITIAL_MESSAGES);
@@ -133,20 +138,41 @@ export function QbNexusPet() {
   const [fallbackRecording, setFallbackRecording] = React.useState(false);
   const [blinking, setBlinking] = React.useState(false);
   const [pageVisible, setPageVisible] = React.useState(true);
+
   const messagesEndRef = React.useRef(null);
   const recognitionRef = React.useRef(null);
   const mediaRecorderRef = React.useRef(null);
   const mediaStreamRef = React.useRef(null);
+  const audioContextRef = React.useRef(null);
   const mediaChunksRef = React.useRef([]);
   const fallbackTimerRef = React.useRef(null);
   const activityTimerRef = React.useRef(null);
   const voiceTimersRef = React.useRef(new Set());
   const mountedRef = React.useRef(false);
+  const isPermissionRequestPendingRef = React.useRef(false);
   const speechRef = React.useRef(null);
   const enabledRef = React.useRef(false);
   const modeRef = React.useRef('wake');
   const commandRef = React.useRef('');
-  const petState = voiceError || voiceState === 'ERROR' ? 'ERROR' : voiceState === 'WAKE_DETECTED' ? 'WAKE_DETECTED' : voiceState === 'GREETING' ? 'GREETING' : voiceState === 'LISTENING' ? 'LISTENING' : voiceState === 'SPEAKING' ? 'SPEAKING' : voiceState === 'SUCCESS' ? 'SUCCESS' : voiceState === 'PROCESSING' || isTyping ? 'THINKING' : voiceEnabled ? 'STANDBY' : 'IDLE';
+
+  const petState =
+    voiceError || voiceState === 'ERROR' || voiceState === 'PERMISSION_DENIED'
+      ? 'ERROR'
+      : voiceState === 'WAKE_DETECTED'
+      ? 'WAKE_DETECTED'
+      : voiceState === 'GREETING'
+      ? 'GREETING'
+      : voiceState === 'LISTENING'
+      ? 'LISTENING'
+      : voiceState === 'SPEAKING'
+      ? 'SPEAKING'
+      : voiceState === 'REQUESTING_PERMISSION' || voiceState === 'PROCESSING' || isTyping
+      ? 'THINKING'
+      : voiceState === 'SUCCESS'
+      ? 'SUCCESS'
+      : voiceEnabled
+      ? 'STANDBY'
+      : 'IDLE';
 
   React.useEffect(() => {
     mountedRef.current = true;
@@ -211,11 +237,124 @@ export function QbNexusPet() {
     return () => clearTimeout(timer);
   }, []);
 
+  const stopAllVoiceResources = React.useCallback((options = {}) => {
+    const { resetState = true, resetVoiceEnabled = false, keepError = false } = options;
+    isPermissionRequestPendingRef.current = false;
+    clearVoiceTimers();
+    clearTimeout(fallbackTimerRef.current);
+    clearTimeout(activityTimerRef.current);
+
+    // 1. Stop all active audio tracks
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach((track) => {
+          try { track.stop(); } catch {}
+        });
+      } catch {}
+      mediaStreamRef.current = null;
+    }
+
+    // 2. Stop any active MediaRecorder instance
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.onstop = null;
+      recorder.ondataavailable = null;
+      recorder.onerror = null;
+      try {
+        if (recorder.state !== 'inactive') {
+          recorder.stop();
+        }
+      } catch {}
+      mediaRecorderRef.current = null;
+    }
+    mediaChunksRef.current = [];
+    setFallbackRecording(false);
+
+    // 3. Stop speech recognition
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      recognitionRef.current = null;
+      recognition.onresult = null;
+      recognition.onend = null;
+      recognition.onerror = null;
+      try { recognition.abort?.(); } catch {}
+      try { recognition.stop?.(); } catch {}
+    }
+
+    // 4. Close and disconnect any AudioContext
+    if (audioContextRef.current) {
+      try {
+        if (audioContextRef.current.state !== 'closed') {
+          audioContextRef.current.close?.().catch(() => {});
+        }
+      } catch {}
+      audioContextRef.current = null;
+    }
+
+    // 5. Cancel speech synthesis
+    if (speechRef.current) {
+      speechRef.current.onstart = null;
+      speechRef.current.onend = null;
+      speechRef.current.onerror = null;
+      speechRef.current = null;
+    }
+    try { window.speechSynthesis?.cancel?.(); } catch {}
+
+    // 6. Reset states
+    commandRef.current = '';
+    setVoiceText('');
+    if (!keepError) {
+      setVoiceError('');
+    }
+    if (resetVoiceEnabled) {
+      enabledRef.current = false;
+      setVoiceEnabled(false);
+    }
+    if (resetState) {
+      setVoiceState('IDLE');
+    }
+  }, []);
+
+  const handleCloseChat = React.useCallback(() => {
+    stopAllVoiceResources({ resetState: true, resetVoiceEnabled: true });
+    setOpen(false);
+    openRef.current = false;
+    setMinimized(false);
+    setShowVoiceSettings(false);
+  }, [stopAllVoiceResources]);
+
+  // Keep openRef in sync and cleanup on close
+  React.useEffect(() => {
+    openRef.current = open;
+    if (!open) {
+      stopAllVoiceResources({ resetState: true, resetVoiceEnabled: true });
+    }
+  }, [open, stopAllVoiceResources]);
+
+  // Handle Next.js route navigation
+  React.useEffect(() => {
+    if (prevPathnameRef.current !== pathname) {
+      prevPathnameRef.current = pathname;
+      if (openRef.current) {
+        handleCloseChat();
+      }
+    }
+  }, [pathname, handleCloseChat]);
+
+  // Handle logout
+  React.useEffect(() => {
+    if (!token) {
+      handleCloseChat();
+    }
+  }, [token, handleCloseChat]);
+
   React.useEffect(() => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     setPageVisible(document.visibilityState === 'visible');
     setRecognitionSupported(Boolean(Recognition));
-    setVoiceEnabled(localStorage.getItem('qb-nexus-voice-enabled') === 'true');
+    // Voice starts disabled until user explicitly triggers it
+    setVoiceEnabled(false);
+    enabledRef.current = false;
     setSpeakReplies(localStorage.getItem('qb-nexus-speak-replies') !== 'false');
     try {
       const preferences = JSON.parse(localStorage.getItem(VOICE_PREFS_KEY) || '{}');
@@ -236,27 +375,22 @@ export function QbNexusPet() {
     loadVoices();
     window.speechSynthesis?.addEventListener?.('voiceschanged', loadVoices);
     const onVisibility = () => {
-      setPageVisible(document.visibilityState === 'visible');
-      if (document.visibilityState !== 'visible') {
-        stopRecognition();
-        stopFallbackRecorder(false);
-        setVoiceState((state) => state === 'LISTENING' ? 'IDLE' : state);
+      const isVisible = document.visibilityState === 'visible';
+      setPageVisible(isVisible);
+      if (!isVisible) {
+        stopAllVoiceResources({ resetState: true, keepError: true });
+      } else if (openRef.current && enabledRef.current) {
+        startRecognition('wake');
       }
-      else if (enabledRef.current) startRecognition('wake');
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
-      stopRecognition();
-      stopFallbackRecorder(false, false);
-      clearTimeout(fallbackTimerRef.current);
-      clearTimeout(activityTimerRef.current);
-      clearVoiceTimers();
-      stopSpeech();
       mountedRef.current = false;
+      stopAllVoiceResources({ resetState: true, resetVoiceEnabled: true });
       window.speechSynthesis?.removeEventListener?.('voiceschanged', loadVoices);
     };
-  }, []);
+  }, [stopAllVoiceResources]);
 
   React.useEffect(() => {
     if (!preferencesLoaded) return;
@@ -281,62 +415,106 @@ export function QbNexusPet() {
   }
 
   React.useEffect(() => {
-    enabledRef.current = voiceEnabled && Boolean(token);
+    enabledRef.current = open && voiceEnabled && Boolean(token);
     if (!enabledRef.current) {
-      clearVoiceTimers(); stopRecognition(); stopFallbackRecorder(false); stopSpeech(); setVoiceState('IDLE');
-    } else if (recognitionSupported && document.visibilityState === 'visible') startRecognition('wake');
-  }, [voiceEnabled, token, recognitionSupported]);
+      clearVoiceTimers();
+      stopRecognition();
+      stopFallbackRecorder(false);
+      stopSpeech();
+      if (voiceState !== 'PERMISSION_DENIED') {
+        setVoiceState('IDLE');
+      }
+    } else if (recognitionSupported && document.visibilityState === 'visible' && open) {
+      startRecognition('wake');
+    }
+  }, [open, voiceEnabled, token, recognitionSupported]);
 
   function stopRecognition() {
     const recognition = recognitionRef.current;
     recognitionRef.current = null;
     if (recognition) {
-      recognition.onresult = null; recognition.onend = null; recognition.onerror = null;
-      try { recognition.stop(); } catch {}
+      recognition.onresult = null;
+      recognition.onend = null;
+      recognition.onerror = null;
+      try { recognition.abort?.(); } catch {}
+      try { recognition.stop?.(); } catch {}
     }
   }
 
   function startRecognition(mode = 'wake') {
-    if (!enabledRef.current || document.visibilityState !== 'visible') return;
+    if (!openRef.current || !enabledRef.current || document.visibilityState !== 'visible') return;
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) { setRecognitionSupported(false); setVoiceError('Wake-word recognition is unavailable in this browser. Use the microphone button to speak.'); return; }
+    if (!Recognition) {
+      setRecognitionSupported(false);
+      setVoiceError('Wake-word recognition is unavailable in this browser. Use the microphone button to speak.');
+      return;
+    }
     stopRecognition();
     const recognition = new Recognition();
     recognition.lang = navigator.language || 'en-US';
     recognition.continuous = mode === 'wake';
     recognition.interimResults = true;
-    modeRef.current = mode; commandRef.current = '';
+    modeRef.current = mode;
+    commandRef.current = '';
+
     recognition.onresult = (event) => {
+      if (!openRef.current) {
+        stopRecognition();
+        return;
+      }
       let transcript = '';
-      for (let i = event.resultIndex; i < event.results.length; i += 1) transcript += event.results[i][0]?.transcript || '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        transcript += event.results[i][0]?.transcript || '';
+      }
       setVoiceText(transcript.trim());
       if (modeRef.current === 'wake' && /\b(?:(?:hey|hello|okay)\s+)?nexus\b/i.test(transcript)) {
-        setOpen(true); setVoiceError(''); setVoiceState('WAKE_DETECTED');
+        setVoiceError('');
+        setVoiceState('WAKE_DETECTED');
         modeRef.current = 'command';
         stopRecognition();
         scheduleVoice(() => playGreeting(), 180);
       } else if (modeRef.current === 'command' && event.results[event.results.length - 1]?.isFinal) {
         const command = transcript.trim();
-        if (command) { commandRef.current = command; stopRecognition(); void handleSendMessage(command, true); }
+        if (command) {
+          commandRef.current = command;
+          stopRecognition();
+          void handleSendMessage(command, true);
+        }
       }
     };
+
     recognition.onerror = (event) => {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        setVoiceError('Microphone access was denied. Allow it in browser settings, then try again.');
-        setVoiceEnabled(false); localStorage.setItem('qb-nexus-voice-enabled', 'false');
-      } else if (event.error === 'audio-capture') { setVoiceError('No microphone was found.'); setVoiceState('ERROR'); }
-      else if (event.error !== 'no-speech' && event.error !== 'aborted') { setVoiceError('Voice recognition stopped. Try the microphone button.'); setVoiceState('ERROR'); }
+        setMicPermission('denied');
+        setVoiceState('PERMISSION_DENIED');
+        setVoiceError('Microphone access denied. You can continue using text chat.');
+        enabledRef.current = false;
+        setVoiceEnabled(false);
+      } else if (event.error === 'audio-capture') {
+        setVoiceError('No microphone was found. You can continue using text chat.');
+        setVoiceState('ERROR');
+      } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        setVoiceError('Voice recognition stopped. Try the microphone button.');
+        setVoiceState('ERROR');
+      }
     };
+
     recognition.onend = () => {
       if (recognitionRef.current === recognition) recognitionRef.current = null;
-      if (!enabledRef.current || document.visibilityState !== 'visible') return;
+      if (!openRef.current || !enabledRef.current || document.visibilityState !== 'visible') return;
       if (modeRef.current === 'wake') scheduleVoice(() => startRecognition('wake'), 300);
       else if (!commandRef.current) scheduleVoice(() => startRecognition('command'), 300);
     };
+
     recognitionRef.current = recognition;
-    try { recognition.start(); } catch {
+    try {
+      recognition.start();
+    } catch {
       recognitionRef.current = null;
-      if (mode === 'command') { setVoiceState('ERROR'); setVoiceError('Could not start voice recognition. Check microphone permission and try again.'); }
+      if (mode === 'command') {
+        setVoiceState('ERROR');
+        setVoiceError('Could not start voice recognition. Check microphone permission and try again.');
+      }
     }
   }
 
@@ -358,7 +536,7 @@ export function QbNexusPet() {
 
   function stopSpeech() {
     if (speechRef.current) { speechRef.current.onstart = null; speechRef.current.onend = null; speechRef.current.onerror = null; speechRef.current = null; }
-    window.speechSynthesis?.cancel();
+    try { window.speechSynthesis?.cancel?.(); } catch {}
   }
 
   function createUtterance(text) {
@@ -392,59 +570,160 @@ export function QbNexusPet() {
     window.speechSynthesis.speak(utterance);
   }
 
-  async function enableVoice() {
+  async function requestMicrophoneAccess() {
+    if (isPermissionRequestPendingRef.current) return null;
+    isPermissionRequestPendingRef.current = true;
+    setVoiceState('REQUESTING_PERMISSION');
     setVoiceError('');
+
     try {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error('secure-context');
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('secure-context');
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
+      isPermissionRequestPendingRef.current = false;
+
+      // Prevent race conditions: if user closed chat while permission prompt was pending
+      if (!openRef.current || !mountedRef.current) {
+        stream.getTracks().forEach((track) => {
+          try { track.stop(); } catch {}
+        });
+        return null;
+      }
+
       setMicPermission('granted');
-      enabledRef.current = true;
-      localStorage.setItem('qb-nexus-voice-enabled', 'true');
-      setVoiceEnabled(true); setOpen(true);
-      return true;
+      return stream;
     } catch (error) {
-      if (error?.name === 'NotAllowedError') setMicPermission('denied');
-      setVoiceError(error?.name === 'NotFoundError' ? 'No microphone was found.' : error?.message === 'secure-context' ? 'Microphone permission requires a secure browser connection.' : 'Microphone permission was denied. Chat remains available.');
-      setVoiceState('ERROR');
-      return false;
+      isPermissionRequestPendingRef.current = false;
+      if (error?.name === 'NotAllowedError' || error?.name === 'PermissionDeniedError') {
+        setMicPermission('denied');
+        setVoiceState('PERMISSION_DENIED');
+        setVoiceError('Microphone access denied. You can continue using text chat.');
+      } else if (error?.name === 'NotFoundError' || error?.name === 'DevicesNotFoundError') {
+        setVoiceState('ERROR');
+        setVoiceError('No microphone was found. You can continue using text chat.');
+      } else if (error?.message === 'secure-context') {
+        setVoiceState('ERROR');
+        setVoiceError('Microphone requires a secure HTTPS connection. You can continue using text chat.');
+      } else {
+        setVoiceState('ERROR');
+        setVoiceError('Microphone access denied. You can continue using text chat.');
+      }
+      enabledRef.current = false;
+      setVoiceEnabled(false);
+      return null;
     }
   }
 
-  function startManualMic() {
-    if (!recognitionSupported) { void startFallbackRecording(); return; }
-    if (!voiceEnabled) { void enableVoice().then((granted) => { if (granted) scheduleVoice(() => { setVoiceState('LISTENING'); startRecognition('command'); }, 180); }); return; }
-    setVoiceError(''); setVoiceState('LISTENING'); startRecognition('command');
+  async function enableVoice() {
+    setVoiceError('');
+    const stream = await requestMicrophoneAccess();
+    if (!stream) return false;
+
+    // Immediately stop the initial probe stream tracks
+    stream.getTracks().forEach((track) => {
+      try { track.stop(); } catch {}
+    });
+
+    if (!openRef.current || !mountedRef.current) return false;
+
+    enabledRef.current = true;
+    setVoiceEnabled(true);
+    setVoiceState('IDLE');
+    if (recognitionSupported) {
+      startRecognition('wake');
+    }
+    return true;
+  }
+
+  async function handleRetryMic() {
+    setVoiceError('');
+    setVoiceState('IDLE');
+    await enableVoice();
+  }
+
+  async function startManualMic() {
+    if (!openRef.current) return;
+    if (voiceState === 'REQUESTING_PERMISSION') return;
+
+    if (!recognitionSupported) {
+      void startFallbackRecording();
+      return;
+    }
+
+    if (!voiceEnabled) {
+      const granted = await enableVoice();
+      if (granted && openRef.current) {
+        scheduleVoice(() => {
+          if (openRef.current && enabledRef.current) {
+            setVoiceState('LISTENING');
+            startRecognition('command');
+          }
+        }, 180);
+      }
+      return;
+    }
+
+    setVoiceError('');
+    setVoiceState('LISTENING');
+    startRecognition('command');
   }
 
   async function startFallbackRecording() {
     setVoiceError('');
+    const stream = await requestMicrophoneAccess();
+    if (!stream) return;
+
+    if (!openRef.current || !mountedRef.current) {
+      stream.getTracks().forEach((track) => {
+        try { track.stop(); } catch {}
+      });
+      return;
+    }
+
     try {
-      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error('unsupported');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setMicPermission('granted');
+      if (!window.MediaRecorder) throw new Error('unsupported');
       mediaStreamRef.current = stream;
       const recorder = new MediaRecorder(stream);
       mediaChunksRef.current = [];
       mediaRecorderRef.current = recorder;
-      recorder.ondataavailable = (event) => { if (event.data?.size) mediaChunksRef.current.push(event.data); };
+
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) mediaChunksRef.current.push(event.data);
+      };
+
       recorder.onstop = async () => {
         const chunks = mediaChunksRef.current;
         const type = recorder.mimeType || chunks[0]?.type || 'audio/webm';
         const blob = new Blob(chunks, { type });
         mediaChunksRef.current = [];
         mediaRecorderRef.current = null;
-        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-        mediaStreamRef.current = null;
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => {
+            try { track.stop(); } catch {}
+          });
+          mediaStreamRef.current = null;
+        }
         setFallbackRecording(false);
-        if (!blob.size) { setVoiceState('ERROR'); setVoiceError('No audio was captured. Try again.'); return; }
+
+        if (!openRef.current || !mountedRef.current) {
+          return;
+        }
+
+        if (!blob.size) {
+          setVoiceState('IDLE');
+          return;
+        }
+
         setVoiceState('PROCESSING');
         try {
           const form = new FormData();
           form.append('audio', blob, 'nexus-voice.webm');
           form.append('primaryProvider', primaryProvider);
           form.append('fallbackProvider', fallbackProvider);
-          const response = await api.post('/admin/ai/nexus/transcribe', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+          const response = await api.post('/admin/ai/nexus/transcribe', form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
           const transcript = String(response?.data?.data?.text || '').trim();
           if (!transcript) throw new Error('Nexus could not recognize speech in that clip. Try again.');
           setVoiceText(transcript);
@@ -454,16 +733,30 @@ export function QbNexusPet() {
           setVoiceError(error?.response?.data?.message || error?.message || 'Nexus could not transcribe that clip.');
         }
       };
+
       recorder.start();
+      clearTimeout(fallbackTimerRef.current);
       fallbackTimerRef.current = setTimeout(() => {
-        if (recorder.state === 'recording') recorder.stop();
+        if (recorder.state === 'recording') {
+          recorder.stop();
+        }
       }, 30_000);
-      setFallbackRecording(true); setVoiceState('LISTENING'); setOpen(true);
+
+      setFallbackRecording(true);
+      setVoiceState('LISTENING');
     } catch (error) {
-      if (error?.name === 'NotAllowedError') setMicPermission('denied');
-      stopFallbackRecorder(false);
+      stream.getTracks().forEach((track) => {
+        try { track.stop(); } catch {}
+      });
+      mediaStreamRef.current = null;
+      mediaRecorderRef.current = null;
+      setFallbackRecording(false);
       setVoiceState('ERROR');
-      setVoiceError(error?.name === 'NotAllowedError' ? 'Microphone access was denied. Allow it in browser settings, then try again.' : error?.name === 'NotFoundError' ? 'No microphone was found.' : error?.message === 'unsupported' ? 'Manual recording is unavailable here. Type your question instead.' : 'Could not start the microphone. Check browser permissions and try again.');
+      setVoiceError(
+        error?.message === 'unsupported'
+          ? 'Manual recording is unavailable here. Type your question instead.'
+          : 'Could not start the microphone. Check browser permissions and try again.'
+      );
     }
   }
 
@@ -492,14 +785,14 @@ export function QbNexusPet() {
     if (fallbackRecording) { stopFallbackRecorder(true); return; }
     clearVoiceTimers();
     stopRecognition(); commandRef.current = ''; modeRef.current = 'wake'; setVoiceText(''); setVoiceState('IDLE');
-    if (enabledRef.current) scheduleVoice(() => startRecognition('wake'), 200);
+    if (enabledRef.current && openRef.current) scheduleVoice(() => startRecognition('wake'), 200);
   }
 
   function cancelVoice() {
     clearVoiceTimers();
     stopFallbackRecorder(false);
     stopRecognition(); stopSpeech(); commandRef.current = ''; setVoiceText(''); setVoiceState('IDLE');
-    if (enabledRef.current) scheduleVoice(() => startRecognition('wake'), 200);
+    if (enabledRef.current && openRef.current) scheduleVoice(() => startRecognition('wake'), 200);
   }
 
   const handleSendMessage = async (textToSend, fromVoice = false) => {
@@ -605,9 +898,10 @@ export function QbNexusPet() {
   };
 
   function disableVoice() {
-    clearVoiceTimers();
-    enabledRef.current = false; setVoiceEnabled(false); localStorage.setItem('qb-nexus-voice-enabled', 'false');
-    stopRecognition(); stopFallbackRecorder(false); stopSpeech(); setVoiceState('IDLE'); setVoiceText('');
+    stopAllVoiceResources({ resetState: true, resetVoiceEnabled: true });
+    try {
+      localStorage.setItem('qb-nexus-voice-enabled', 'false');
+    } catch {}
   }
 
   const handleResetChat = () => {
@@ -713,7 +1007,25 @@ export function QbNexusPet() {
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs font-bold tracking-tight">QB Nexus AI</h3>
                   <span aria-live="polite" className="rounded-full bg-emerald-400/20 px-1.5 py-0.2 text-[9px] font-semibold text-emerald-300 border border-emerald-400/30">
-                    {petState === 'LISTENING' ? 'Listening' : petState === 'PROCESSING' || petState === 'THINKING' ? 'Thinking' : petState === 'GREETING' ? 'Greeting' : petState === 'SPEAKING' ? 'Speaking' : petState === 'SUCCESS' ? 'Ready' : petState === 'ERROR' ? 'Needs attention' : voiceEnabled ? 'Voice on' : 'Online'}
+                    {voiceState === 'PERMISSION_DENIED'
+                      ? 'Mic Denied'
+                      : voiceState === 'REQUESTING_PERMISSION'
+                      ? 'Requesting Mic'
+                      : petState === 'LISTENING'
+                      ? 'Listening'
+                      : petState === 'PROCESSING' || petState === 'THINKING'
+                      ? 'Thinking'
+                      : petState === 'GREETING'
+                      ? 'Greeting'
+                      : petState === 'SPEAKING'
+                      ? 'Speaking'
+                      : petState === 'SUCCESS'
+                      ? 'Ready'
+                      : petState === 'ERROR'
+                      ? 'Needs attention'
+                      : voiceEnabled
+                      ? 'Voice on'
+                      : 'Online'}
                   </span>
                 </div>
                 <p className="text-[10px] text-emerald-200/80">Executive AI Copilot</p>
@@ -744,7 +1056,7 @@ export function QbNexusPet() {
               </button>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={handleCloseChat}
                 title="Close"
                 className="size-7 rounded-lg text-emerald-200/80 hover:bg-white/10 hover:text-white flex items-center justify-center transition-colors"
                 aria-label="Close"
@@ -755,9 +1067,97 @@ export function QbNexusPet() {
           </div>
 
           <div className="shrink-0 border-b border-emerald-100 bg-[#F0FAF3] px-3 py-2">
-            {!voiceEnabled ? <div className="space-y-1.5"><p className="text-[10px] leading-relaxed text-slate-600">Voice wake-up is optional. While enabled, this active tab listens for “Hey Nexus.” Browser speech recognition may process audio; QB Suite does not store recordings.</p><div className="flex items-center justify-between gap-2"><span className="text-[10px] text-slate-500">{recognitionSupported ? 'Wake word available in this browser' : 'Wake word unavailable; recorded clips use the configured provider after you stop.'}</span><button type="button" onClick={enableVoice} className="rounded-lg bg-[#173D30] px-2.5 py-1.5 text-[10px] font-semibold text-white">Enable voice</button></div></div> : <div className="flex items-center justify-between gap-2"><span className="flex min-w-0 items-center gap-2 text-[11px] font-medium text-[#173D30]"><span className="size-2 shrink-0 rounded-full bg-[#20C466]" />{voiceState === 'LISTENING' ? "Yes, I'm listening..." : voiceState === 'WAKE_DETECTED' ? 'Nexus is waking up...' : voiceState === 'GREETING' ? 'Nexus is greeting you...' : voiceState === 'PROCESSING' ? 'Nexus is thinking...' : voiceState === 'SPEAKING' ? 'Nexus is speaking...' : voiceState === 'SUCCESS' ? 'Done!' : recognitionSupported ? 'Say “Hey Nexus” to wake me' : 'Tap the mic to speak'}</span>{voiceState === 'LISTENING' && <span className="flex h-4 items-center gap-0.5" aria-label="Microphone active"><i className="h-2 w-0.5 animate-pulse rounded bg-[#20C466]" /><i className="h-4 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:120ms]" /><i className="h-3 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:240ms]" /><i className="h-2 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:80ms]" /></span>}</div>}
+            {voiceState === 'PERMISSION_DENIED' ? (
+              <div role="alert" className="flex items-center justify-between gap-2 text-[11px] text-amber-800 bg-amber-50/90 rounded-lg p-2 border border-amber-200">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <MicOff className="size-3.5 text-amber-600 shrink-0" />
+                  <span className="truncate">{voiceError || 'Microphone access denied. You can continue using text chat.'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleRetryMic}
+                    className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700 transition-colors"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setVoiceError(''); setVoiceState('IDLE'); }}
+                    className="text-[10px] text-slate-500 hover:text-slate-700"
+                    aria-label="Dismiss voice alert"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ) : voiceState === 'REQUESTING_PERMISSION' ? (
+              <div className="flex items-center gap-2 text-[11px] text-[#173D30]">
+                <span className="size-2 rounded-full bg-[#20C466] animate-ping" />
+                <span>Requesting microphone access...</span>
+              </div>
+            ) : !voiceEnabled ? (
+              <div className="space-y-1.5">
+                <p className="text-[10px] leading-relaxed text-slate-600">
+                  Voice wake-up is optional. While enabled, this active tab listens for “Hey Nexus.”
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-slate-500">
+                    {recognitionSupported ? 'Wake word available in this browser' : 'Wake word unavailable; click mic to speak'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={enableVoice}
+                    className="rounded-lg bg-[#173D30] hover:bg-[#123026] px-2.5 py-1.5 text-[10px] font-semibold text-white transition-colors"
+                  >
+                    Enable voice
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2 text-[11px] font-medium text-[#173D30]">
+                  <span className="size-2 shrink-0 rounded-full bg-[#20C466]" />
+                  {voiceState === 'LISTENING'
+                    ? "Yes, I'm listening..."
+                    : voiceState === 'WAKE_DETECTED'
+                    ? 'Nexus is waking up...'
+                    : voiceState === 'GREETING'
+                    ? 'Nexus is greeting you...'
+                    : voiceState === 'PROCESSING'
+                    ? 'Nexus is thinking...'
+                    : voiceState === 'SPEAKING'
+                    ? 'Nexus is speaking...'
+                    : voiceState === 'SUCCESS'
+                    ? 'Done!'
+                    : recognitionSupported
+                    ? 'Say “Hey Nexus” to wake me'
+                    : 'Tap the mic to speak'}
+                </span>
+                {voiceState === 'LISTENING' && (
+                  <span className="flex h-4 items-center gap-0.5" aria-label="Microphone active">
+                    <i className="h-2 w-0.5 animate-pulse rounded bg-[#20C466]" />
+                    <i className="h-4 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:120ms]" />
+                    <i className="h-3 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:240ms]" />
+                    <i className="h-2 w-0.5 animate-pulse rounded bg-[#20C466] [animation-delay:80ms]" />
+                  </span>
+                )}
+              </div>
+            )}
             {voiceText && voiceState === 'LISTENING' && <p className="mt-1 truncate text-[10px] text-slate-500">{voiceText}</p>}
-            {voiceError && <div role="alert" className="mt-1 flex items-start justify-between gap-2 text-[10px] text-rose-700"><span>{voiceError}</span><button type="button" onClick={() => { setVoiceError(''); setVoiceState('IDLE'); }} className="shrink-0 font-semibold" aria-label="Dismiss voice error">Dismiss</button></div>}
+            {voiceError && voiceState !== 'PERMISSION_DENIED' && (
+              <div role="alert" className="mt-1 flex items-start justify-between gap-2 text-[10px] text-rose-700">
+                <span>{voiceError}</span>
+                <button
+                  type="button"
+                  onClick={() => { setVoiceError(''); setVoiceState('IDLE'); }}
+                  className="shrink-0 font-semibold"
+                  aria-label="Dismiss voice error"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
           </div>
 
           {showVoiceSettings && <section aria-label="QB Nexus voice settings" className="max-h-[42vh] shrink-0 space-y-2 overflow-y-auto border-b border-emerald-100 bg-white px-3 py-2.5 text-[11px]">
@@ -898,8 +1298,49 @@ export function QbNexusPet() {
                 }}
                 className="p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0"
               >
-                <button type="button" onClick={voiceState === 'LISTENING' ? stopCommandListening : ['SPEAKING', 'GREETING'].includes(voiceState) ? cancelVoice : startManualMic} className="size-9 rounded-xl border border-slate-200 text-[#173D30] hover:bg-emerald-50 flex items-center justify-center shrink-0" aria-label={voiceState === 'LISTENING' ? 'Stop listening' : ['SPEAKING', 'GREETING'].includes(voiceState) ? 'Interrupt voice' : 'Speak to Nexus'} title={voiceState === 'LISTENING' ? 'Stop listening' : ['SPEAKING', 'GREETING'].includes(voiceState) ? 'Interrupt voice' : 'Speak to Nexus'}>
-                  {voiceState === 'LISTENING' || ['SPEAKING', 'GREETING'].includes(voiceState) ? <Square className="size-3.5" /> : <Mic className="size-4" />}
+                <button
+                  type="button"
+                  onClick={
+                    voiceState === 'LISTENING'
+                      ? stopCommandListening
+                      : ['SPEAKING', 'GREETING'].includes(voiceState)
+                      ? cancelVoice
+                      : voiceState === 'PERMISSION_DENIED'
+                      ? handleRetryMic
+                      : startManualMic
+                  }
+                  className={cn(
+                    "size-9 rounded-xl border border-slate-200 flex items-center justify-center shrink-0 transition-colors",
+                    voiceState === 'PERMISSION_DENIED'
+                      ? "text-amber-600 hover:bg-amber-50 border-amber-200"
+                      : "text-[#173D30] hover:bg-emerald-50"
+                  )}
+                  aria-label={
+                    voiceState === 'LISTENING'
+                      ? 'Stop listening'
+                      : ['SPEAKING', 'GREETING'].includes(voiceState)
+                      ? 'Interrupt voice'
+                      : voiceState === 'PERMISSION_DENIED'
+                      ? 'Microphone denied. Click to retry'
+                      : 'Speak to Nexus'
+                  }
+                  title={
+                    voiceState === 'LISTENING'
+                      ? 'Stop listening'
+                      : ['SPEAKING', 'GREETING'].includes(voiceState)
+                      ? 'Interrupt voice'
+                      : voiceState === 'PERMISSION_DENIED'
+                      ? 'Microphone denied. Click to retry'
+                      : 'Speak to Nexus'
+                  }
+                >
+                  {voiceState === 'LISTENING' || ['SPEAKING', 'GREETING'].includes(voiceState) ? (
+                    <Square className="size-3.5" />
+                  ) : voiceState === 'PERMISSION_DENIED' ? (
+                    <MicOff className="size-4 text-amber-600" />
+                  ) : (
+                    <Mic className="size-4" />
+                  )}
                 </button>
                 <input
                   type="text"
