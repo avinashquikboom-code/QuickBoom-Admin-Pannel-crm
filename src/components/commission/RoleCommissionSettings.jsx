@@ -39,6 +39,22 @@ const money = (n) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
     Number(n),
   );
+const dateOnly = (value) => (value ? String(value).slice(0, 10) : "");
+function activePeriodConflicts(rows, form) {
+  if (!form || form.status !== "ACTIVE" || !form.roleId || !form.startsAt) return [];
+  const start = dateOnly(form.startsAt);
+  const end = dateOnly(form.endsAt) || "9999-12-31";
+  return rows.filter((row) => {
+    if (
+      row.status !== "ACTIVE" ||
+      Number(row.roleId) !== Number(form.roleId) ||
+      (form.id && Number(row.id) === Number(form.id))
+    ) return false;
+    const rowStart = dateOnly(row.startsAt) || "0000-01-01";
+    const rowEnd = dateOnly(row.endsAt) || "9999-12-31";
+    return rowStart <= end && rowEnd >= start;
+  });
+}
 export function RoleCommissionSettings() {
   const [rows, setRows] = React.useState([]),
     [roles, setRoles] = React.useState([]),
@@ -55,6 +71,7 @@ export function RoleCommissionSettings() {
     amount: "",
     date: new Date().toISOString().slice(0, 10),
   });
+  const periodConflicts = activePeriodConflicts(rows, form);
   const load = React.useCallback(async () => {
     setLoading(true);
     setError("");
@@ -76,6 +93,10 @@ export function RoleCommissionSettings() {
     load();
   }, [load]);
   async function save() {
+    if (periodConflicts.length) {
+      toast.error("An active configuration already covers this role and effective period. Edit the existing rule or choose non-overlapping dates.");
+      return;
+    }
     setSaving(true);
     try {
       const body = {
@@ -267,6 +288,7 @@ export function RoleCommissionSettings() {
         }
         size="xl"
         loading={saving}
+        disabled={periodConflicts.length > 0}
         onSubmit={save}
         submitLabel="Save configuration"
       >
@@ -329,6 +351,17 @@ export function RoleCommissionSettings() {
                 />
               </Field>
             </div>
+            {periodConflicts.length > 0 && (
+              <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-semibold">An active rule already covers this role and date range.</p>
+                <p className="mt-1">Edit the existing configuration from the table, or choose dates that do not overlap.</p>
+                <ul className="mt-2 list-inside list-disc">
+                  {periodConflicts.map((row) => (
+                    <li key={row.id}>#{row.id} {row.name} · {dateOnly(row.startsAt)} to {dateOnly(row.endsAt) || "No end date"}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <p>
               Basis: full confirmed payment amount × selected percentage. Ranges
               include both endpoints.
