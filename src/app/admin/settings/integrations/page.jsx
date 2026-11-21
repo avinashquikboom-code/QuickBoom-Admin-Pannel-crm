@@ -11,7 +11,6 @@ import {
   setIntegrationEnabled,
   suiteError,
   testIntegration,
-  loadIntegrationModels,
 } from '@/modules/suite/suite-api';
 import { toast } from '@/hooks/use-toast';
 import { IntegrationsKpiGrid } from '@/components/integrations/IntegrationsKpiGrid';
@@ -170,18 +169,7 @@ const FIELDS = {
     },
   ],
   ANTHROPIC: [
-    { key: 'integrationName', label: 'Integration Name', group: 'config', placeholder: 'Claude AI' },
     { key: 'apiKey', label: 'API Key', secret: true, required: true },
-    {
-      key: 'model',
-      label: 'Model Selection',
-      group: 'config',
-      type: 'select',
-      options: ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'],
-      defaultValue: 'claude-sonnet-5',
-    },
-    { key: 'maxTokens', label: 'Maximum Output Tokens', group: 'config', type: 'number', placeholder: '1024' },
-    { key: 'temperature', label: 'Temperature (supported models only)', group: 'config', type: 'number', placeholder: '1', min: 0, max: 1, step: 0.1 },
   ],
   ELEVENLABS: [
     {
@@ -223,8 +211,6 @@ export default function IntegrationsPage() {
   const [mapsApiKey, setMapsApiKey] = React.useState('');
   const [mapsModalOpen, setMapsModalOpen] = React.useState(false);
   const [addDialogOpen, setAddDialogOpen] = React.useState(false);
-  const [claudeModels, setClaudeModels] = React.useState([]);
-  const [claudeModelsLoading, setClaudeModelsLoading] = React.useState(false);
 
   // Load integrations from backend
   React.useEffect(() => {
@@ -255,17 +241,6 @@ export default function IntegrationsPage() {
     };
   }, [refresh]);
 
-  React.useEffect(() => {
-    if (activeRow?.provider !== 'ANTHROPIC' || !activeRow.configured) return;
-    let alive = true;
-    setClaudeModelsLoading(true);
-    loadIntegrationModels('ANTHROPIC')
-      .then((response) => { if (alive) setClaudeModels(Array.isArray(response) ? response : response?.data || []); })
-      .catch(() => { if (alive) setClaudeModels([]); })
-      .finally(() => { if (alive) setClaudeModelsLoading(false); });
-    return () => { alive = false; };
-  }, [activeRow]);
-
   // Merge runtime status
   const normalizedRows = rows.map((row) => ({
     ...row,
@@ -274,11 +249,7 @@ export default function IntegrationsPage() {
     description: PRESENTATION[row.provider]?.description || `Connect ${row.displayName || row.provider} with QB Suite.`,
     status: calculateStatus(row, tests[row.provider]),
   }));
-  const activeFields = React.useMemo(() => {
-    const configuredFields = activeRow ? FIELDS[activeRow.provider] || activeRow.fields || [] : [];
-    if (activeRow?.provider !== 'ANTHROPIC' || !claudeModels.length) return configuredFields;
-    return configuredFields.map((field) => field.key === 'model' ? { ...field, options: claudeModels.map((item) => ({ value: item.id, label: item.name && item.name !== item.id ? `${item.name} (${item.id})` : item.id })) } : field);
-  }, [activeRow?.provider, activeRow?.fields, claudeModels]);
+  const activeFields = activeRow ? FIELDS[activeRow.provider] || activeRow.fields || [] : [];
 
   // Filtering
   const filteredRows = normalizedRows.filter((row) => {
@@ -351,7 +322,7 @@ export default function IntegrationsPage() {
     if (saving) return;
     setSaving(true);
     try {
-      const safePayload = row.provider === 'ELEVENLABS'
+      const safePayload = ['ANTHROPIC', 'ELEVENLABS'].includes(row.provider)
         ? { ...payload, config: { ...(row.config || {}), ...(payload.config || {}) } }
         : payload;
       const { isEnabled, ...connectionTestPayload } = safePayload;
@@ -405,7 +376,7 @@ export default function IntegrationsPage() {
 
     setTesting(row.provider);
     try {
-      const testPayload = row.provider === 'ELEVENLABS'
+      const testPayload = ['ANTHROPIC', 'ELEVENLABS'].includes(row.provider)
         ? { ...(explicitPayload || {}), config: { ...(row.config || {}), ...(explicitPayload?.config || {}) } }
         : explicitPayload || {};
       const res = await testIntegration(row.provider, testPayload);
