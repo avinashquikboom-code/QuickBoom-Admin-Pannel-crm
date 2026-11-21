@@ -11,6 +11,7 @@ import {
   setIntegrationEnabled,
   suiteError,
   testIntegration,
+  loadIntegrationModels,
 } from '@/modules/suite/suite-api';
 import { toast } from '@/hooks/use-toast';
 import { IntegrationsKpiGrid } from '@/components/integrations/IntegrationsKpiGrid';
@@ -48,10 +49,10 @@ const PRESENTATION = {
     description: 'Google Gemini 2.0 Flash & Pro multimodal models for real-time CRM intelligence.',
   },
   ANTHROPIC: {
-    name: 'Anthropic Claude',
+    name: 'Claude AI',
     category: 'AI Providers',
     categoryKey: 'AI',
-    description: 'Claude 3.5 Sonnet advanced reasoning, document analysis and coding assistant.',
+    description: 'Advanced AI models for business intelligence, content generation, data analysis and intelligent automation.',
   },
   RAZORPAY: {
     name: 'Razorpay',
@@ -163,15 +164,18 @@ const FIELDS = {
     },
   ],
   ANTHROPIC: [
+    { key: 'integrationName', label: 'Integration Name', group: 'config', placeholder: 'Claude AI' },
     { key: 'apiKey', label: 'API Key', secret: true, required: true },
     {
       key: 'model',
       label: 'Model Selection',
       group: 'config',
       type: 'select',
-      options: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
-      defaultValue: 'claude-3-5-sonnet-20241022',
+      options: ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'],
+      defaultValue: 'claude-sonnet-5',
     },
+    { key: 'maxTokens', label: 'Maximum Output Tokens', group: 'config', type: 'number', placeholder: '1024' },
+    { key: 'temperature', label: 'Temperature (supported models only)', group: 'config', type: 'number', placeholder: '1', min: 0, max: 1, step: 0.1 },
   ],
   FIREBASE: [
     { key: 'projectId', label: 'Project ID', required: true },
@@ -204,6 +208,8 @@ export default function IntegrationsPage() {
   const [mapsApiKey, setMapsApiKey] = React.useState('');
   const [mapsModalOpen, setMapsModalOpen] = React.useState(false);
   const [addDialogOpen, setAddDialogOpen] = React.useState(false);
+  const [claudeModels, setClaudeModels] = React.useState([]);
+  const [claudeModelsLoading, setClaudeModelsLoading] = React.useState(false);
 
   // Load integrations from backend
   React.useEffect(() => {
@@ -234,6 +240,17 @@ export default function IntegrationsPage() {
     };
   }, [refresh]);
 
+  React.useEffect(() => {
+    if (activeRow?.provider !== 'ANTHROPIC' || !activeRow.configured) return;
+    let alive = true;
+    setClaudeModelsLoading(true);
+    loadIntegrationModels('ANTHROPIC')
+      .then((response) => { if (alive) setClaudeModels(Array.isArray(response) ? response : response?.data || []); })
+      .catch(() => { if (alive) setClaudeModels([]); })
+      .finally(() => { if (alive) setClaudeModelsLoading(false); });
+    return () => { alive = false; };
+  }, [activeRow]);
+
   // Merge runtime status
   const normalizedRows = rows.map((row) => ({
     ...row,
@@ -242,6 +259,11 @@ export default function IntegrationsPage() {
     description: PRESENTATION[row.provider]?.description || `Connect ${row.displayName || row.provider} with QB Suite.`,
     status: calculateStatus(row, tests[row.provider]),
   }));
+  const activeFields = React.useMemo(() => {
+    const configuredFields = activeRow ? FIELDS[activeRow.provider] || activeRow.fields || [] : [];
+    if (activeRow?.provider !== 'ANTHROPIC' || !claudeModels.length) return configuredFields;
+    return configuredFields.map((field) => field.key === 'model' ? { ...field, options: claudeModels.map((item) => ({ value: item.id, label: item.name && item.name !== item.id ? `${item.name} (${item.id})` : item.id })) } : field);
+  }, [activeRow?.provider, activeRow?.fields, claudeModels]);
 
   // Filtering
   const filteredRows = normalizedRows.filter((row) => {
@@ -328,7 +350,7 @@ export default function IntegrationsPage() {
         return;
       }
 
-      await saveIntegration(row.provider, { ...payload, isEnabled: true });
+      await saveIntegration(row.provider, { ...payload, isEnabled: payload.isEnabled !== false });
       setActiveRow(null);
       setRefresh((v) => v + 1);
       toast.success(`${row.displayName || row.provider} saved and verified successfully!`);
@@ -395,6 +417,7 @@ export default function IntegrationsPage() {
 
   // Toggle active status
   const handleToggleStatus = async (row) => {
+    if (row.isEnabled && !window.confirm(`Disable ${row.displayName}? AI and other requests using this provider will stop.`)) return;
     try {
       await setIntegrationEnabled(row.provider, !row.isEnabled);
       setRefresh((v) => v + 1);
@@ -725,7 +748,7 @@ export default function IntegrationsPage() {
         row={activeRow}
         label={activeRow ? activeRow.displayName : ''}
         category={activeRow ? activeRow.category : ''}
-        fields={activeRow ? FIELDS[activeRow.provider] || activeRow.fields || [] : []}
+        fields={activeFields}
         saving={saving}
         testing={testing}
         testResult={activeRow ? tests[activeRow.provider] : null}
