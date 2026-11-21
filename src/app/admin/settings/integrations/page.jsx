@@ -54,6 +54,12 @@ const PRESENTATION = {
     categoryKey: 'AI',
     description: 'Advanced AI models for business intelligence, content generation, data analysis and intelligent automation.',
   },
+  ELEVENLABS: {
+    name: 'ElevenLabs Speech Engine',
+    category: 'AI Providers',
+    categoryKey: 'AI',
+    description: 'Realtime speech recognition and natural voice playback for QB Nexus. OpenAI and Gemini remain the reasoning providers.',
+  },
   RAZORPAY: {
     name: 'Razorpay',
     category: 'Payments',
@@ -176,6 +182,12 @@ const FIELDS = {
     },
     { key: 'maxTokens', label: 'Maximum Output Tokens', group: 'config', type: 'number', placeholder: '1024' },
     { key: 'temperature', label: 'Temperature (supported models only)', group: 'config', type: 'number', placeholder: '1', min: 0, max: 1, step: 0.1 },
+  ],
+  ELEVENLABS: [
+    { key: 'apiKey', label: 'API Key', secret: true, required: true },
+    { key: 'speechEngineId', label: 'Speech Engine ID', group: 'config', required: true, placeholder: 'seng_...' },
+    { key: 'voiceId', label: 'Default Voice ID', group: 'config', placeholder: 'Selectable by each user in QB Nexus' },
+    { key: 'modelId', label: 'Text to Speech Model', group: 'config', placeholder: 'eleven_multilingual_v2' },
   ],
   FIREBASE: [
     { key: 'projectId', label: 'Project ID', required: true },
