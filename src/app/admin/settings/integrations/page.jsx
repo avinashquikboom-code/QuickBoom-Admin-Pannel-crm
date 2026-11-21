@@ -241,8 +241,26 @@ export default function IntegrationsPage() {
     };
   }, [refresh]);
 
+  // Keep the provider visible when a backend version omits its registry row.
+  // This is only a presentation fallback; credentials remain in the existing provider record.
+  const hasElevenLabsRow = rows.some((row) =>
+    String(row.provider || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === 'ELEVENLABS'
+  );
+  const integrationRows = hasElevenLabsRow
+    ? rows
+    : [...rows, {
+        provider: 'ELEVENLABS',
+        displayName: PRESENTATION.ELEVENLABS.name,
+        category: PRESENTATION.ELEVENLABS.category,
+        isEnabled: true,
+        configured: false,
+        source: 'NONE',
+        credentials: {},
+        config: {},
+      }];
+
   // Merge runtime status
-  const normalizedRows = rows.map((row) => ({
+  const normalizedRows = integrationRows.map((row) => ({
     ...row,
     displayName: PRESENTATION[row.provider]?.name || row.displayName || row.provider,
     category: PRESENTATION[row.provider]?.category || row.category || 'Other',
