@@ -119,7 +119,7 @@ export function IntegrationConfigDrawer({
         </div>
       }
       description="Manage API keys, environment settings, and credentials. Passwords & tokens are masked for your security."
-      submitLabel="Save & Enable"
+      submitLabel="Save Configuration"
       loading={saving}
       disabled={saving}
       onSubmit={handleSave}
@@ -195,8 +195,8 @@ export function IntegrationConfigDrawer({
                     className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-800 shadow-2xs focus:border-emerald-500 focus:outline-hidden"
                   >
                     {field.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
+                      <option key={typeof opt === 'string' ? opt : opt.value} value={typeof opt === 'string' ? opt : opt.value}>
+                        {typeof opt === 'string' ? opt : opt.label}
                       </option>
                     ))}
                   </select>
@@ -214,6 +214,9 @@ export function IntegrationConfigDrawer({
                       }
                       onChange={(e) => handleFieldChange(field.key, e.target.value)}
                       className="pr-10 text-xs h-10 rounded-xl border-slate-200 bg-white"
+                      min={field.min}
+                      max={field.max}
+                      step={field.step}
                     />
                     {isSecret && (
                       <button
