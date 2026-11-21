@@ -72,6 +72,23 @@ export function ProviderLogo({ provider, className = 'size-8', size = 32 }) {
         </svg>
       );
 
+    case 'ELEVENLABS':
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          width={size}
+          height={size}
+          className={className}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect width="24" height="24" rx="6" fill="#000000" />
+          <path
+            d="M9.5 6.5h1.8v11H9.5zm3.2 0h1.8v11h-1.8z"
+            fill="#FFFFFF"
+          />
+        </svg>
+      );
+
     case 'RAZORPAY':
       return (
         <svg

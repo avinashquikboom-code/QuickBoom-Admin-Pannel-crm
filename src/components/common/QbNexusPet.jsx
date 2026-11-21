@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { ConversationProvider, useConversation } from '@elevenlabs/react';
 import { usePathname } from 'next/navigation';
 import {
   Sparkles,
@@ -30,7 +31,7 @@ import api from '../../../lib/api';
 
 const STORAGE_KEY = 'qb_nexus_chat_history_v1';
 const VOICE_PREFS_KEY = 'qb-nexus-preferences-v2';
-const WAKE_ENABLED_KEY = 'qb-nexus-wake-enabled-v2';
+const LEGACY_WAKE_ENABLED_KEY = 'qb-nexus-wake-enabled-v2';
 const DEFAULT_GREETING = "Hello! I'm Nexus, your QB AI assistant. How can I help you today?";
 
 // Supported Languages & Spoken Acknowledgements
@@ -61,14 +62,11 @@ export const SUPPORTED_LANGUAGES = [
   },
 ];
 
-// Flexible regex recognizing "Hey QB Nexus", "Hello QB Nexus", "Okay QB Nexus" and phonetically similar variations
-const WAKE_WORD_REGEX = /\b(?:(?:hey|hello|okay|ok)\s+)?(?:q\s*b\s*|cube\s+)?nexus\b/i;
-
 const INITIAL_MESSAGES = [
   {
     id: 'welcome-msg',
     sender: 'bot',
-    text: "Hello! I'm QB Nexus, your central AI Operations Manager. Say \"Hey QB Nexus\" or type below to command CRM, HRM, Tasks, or Reports.",
+    text: "Hello! I'm QB Nexus, your central AI Operations Manager. Start a voice session or type below to command CRM, HRM, Tasks, or Reports.",
     time: 'Just now',
     suggestions: [
       "How many pending leads do we have today?",
@@ -225,9 +223,85 @@ function NexusFace({ state = 'IDLE', blinking = false, className }) {
 }
 
 export function QbNexusPet() {
+  return <ConversationProvider><QbNexusPetInner /></ConversationProvider>;
+}
+
+function QbNexusPetInner() {
   const token = useAuthStore((state) => state.token);
   const pathname = usePathname();
   const prevPathnameRef = React.useRef(pathname);
+  const voiceBindingIdRef = React.useRef('');
+  const voiceSessionActiveRef = React.useRef(false);
+  const voiceSessionStartingRef = React.useRef(false);
+
+  const conversation = useConversation({
+    onConnect: async (conversationId) => {
+      try {
+        await api.post('/admin/ai/nexus/voice/bind', { conversationId, bindingId: voiceBindingIdRef.current });
+        voiceBindingIdRef.current = '';
+        if (!openRef.current || !mountedRef.current) { conversation.endSession(); return; }
+        voiceSessionActiveRef.current = true;
+        voiceSessionEnabledRef.current = true;
+        setVoiceSessionEnabled(true);
+        setVoiceState('LISTENING');
+        setVoiceError('');
+      } catch (error) {
+        voiceBindingIdRef.current = '';
+        setVoiceError(error?.response?.data?.message || 'Could not securely connect the voice session.');
+        setVoiceState('ERROR');
+        conversation.endSession();
+      }
+    },
+    onDisconnect: () => {
+      voiceSessionActiveRef.current = false;
+      voiceSessionEnabledRef.current = false;
+      setVoiceSessionEnabled(false);
+      releaseMicrophoneStreams();
+      stopAudioPlayback();
+      if (mountedRef.current) setVoiceState('IDLE');
+    },
+    onError: (error) => {
+      voiceSessionActiveRef.current = false;
+      voiceSessionEnabledRef.current = false;
+      setVoiceSessionEnabled(false);
+      releaseMicrophoneStreams();
+      stopAudioPlayback();
+      setVoiceState('ERROR');
+      setVoiceError(error?.message || 'ElevenLabs voice connection failed. Text chat remains available.');
+    },
+    onModeChange: (mode) => {
+      if (!openRef.current) return;
+      setVoiceState(mode === 'speaking' ? 'SPEAKING' : 'LISTENING');
+    },
+    onStatusChange: (status) => {
+      if (status === 'connecting') setVoiceState('PROCESSING');
+      if (status === 'disconnected') {
+        voiceSessionActiveRef.current = false;
+        if (mountedRef.current) setVoiceState('IDLE');
+      }
+    },
+    onMessage: (event) => {
+      const source = event?.source || event?.role;
+      const sender = source === 'user' ? 'user' : source === 'ai' || source === 'agent' ? 'bot' : '';
+      const content = String(event?.message || event?.text || event?.content || '').trim();
+      if (!sender || !content) return;
+      if (sender === 'user') {
+        setVoiceText(content);
+        setIsTyping(true);
+        setVoiceState('PROCESSING');
+      } else {
+        setVoiceText('');
+        setIsTyping(false);
+      }
+      setMessages((previous) => [...previous, {
+        id: `voice-${sender}-${Date.now()}`,
+        sender,
+        text: content,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    },
+    onInterruption: () => { if (openRef.current) setVoiceState('LISTENING'); },
+  });
 
   // UI state
   const [open, setOpen] = React.useState(false);
@@ -238,9 +312,9 @@ export function QbNexusPet() {
   const [input, setInput] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
 
-  // Hands-free Wake Word state
-  const [wakeWordEnabled, setWakeWordEnabled] = React.useState(false);
-  const wakeWordEnabledRef = React.useRef(false);
+  // Explicit voice-session state
+  const [voiceSessionEnabled, setVoiceSessionEnabled] = React.useState(false);
+  const voiceSessionEnabledRef = React.useRef(false);
 
   // Robot State: IDLE | STANDBY | WAKE_DETECTED | OPENING | GREETING | LISTENING | PROCESSING | SPEAKING | EXECUTING | SUCCESS | ERROR
   const [voiceState, setVoiceState] = React.useState('IDLE');
@@ -248,7 +322,6 @@ export function QbNexusPet() {
   const [voiceError, setVoiceError] = React.useState('');
 
   // Audio / Speech settings
-  const [recognitionSupported, setRecognitionSupported] = React.useState(false);
   const [speakReplies, setSpeakReplies] = React.useState(true);
   const [showVoiceSettings, setShowVoiceSettings] = React.useState(false);
   const [selectedLanguage, setSelectedLanguage] = React.useState('en-US');
@@ -257,6 +330,7 @@ export function QbNexusPet() {
   const [voiceURI, setVoiceURI] = React.useState('');
   const [voiceRate, setVoiceRate] = React.useState(1);
   const [availableVoices, setAvailableVoices] = React.useState([]);
+  const [voicePreviewLoading, setVoicePreviewLoading] = React.useState(false);
   const [micPermission, setMicPermission] = React.useState('prompt');
   const [showMicHelp, setShowMicHelp] = React.useState(false);
   const [blinking, setBlinking] = React.useState(false);
@@ -265,16 +339,14 @@ export function QbNexusPet() {
 
   // References
   const messagesEndRef = React.useRef(null);
-  const recognitionRef = React.useRef(null);
   const mediaStreamRef = React.useRef(null);
   const audioContextRef = React.useRef(null);
   const analyserRef = React.useRef(null);
   const audioRef = React.useRef(null);
-  const speechRef = React.useRef(null);
+  const speechResolveRef = React.useRef(null);
+  const playbackGenerationRef = React.useRef(0);
   const voiceTimersRef = React.useRef(new Set());
   const mountedRef = React.useRef(false);
-  const modeRef = React.useRef('wake'); // 'wake' or 'command'
-  const commandRef = React.useRef('');
   const animFrameRef = React.useRef(null);
 
   // Compute overall pet state
@@ -288,9 +360,9 @@ export function QbNexusPet() {
     if (voiceState === 'EXECUTING') return 'EXECUTING';
     if (voiceState === 'PROCESSING' || isTyping) return 'PROCESSING';
     if (voiceState === 'SUCCESS') return 'SUCCESS';
-    if (wakeWordEnabled) return 'STANDBY';
+    if (voiceSessionEnabled) return 'STANDBY';
     return 'IDLE';
-  }, [voiceError, voiceState, isTyping, wakeWordEnabled]);
+  }, [voiceError, voiceState, isTyping, voiceSessionEnabled]);
 
   // Keep refs in sync
   React.useEffect(() => {
@@ -298,8 +370,23 @@ export function QbNexusPet() {
   }, [open]);
 
   React.useEffect(() => {
-    wakeWordEnabledRef.current = wakeWordEnabled;
-  }, [wakeWordEnabled]);
+    voiceSessionEnabledRef.current = voiceSessionEnabled;
+  }, [voiceSessionEnabled]);
+
+  React.useEffect(() => {
+    try { conversation.setVolume({ volume: speakReplies ? 1 : 0 }); } catch {}
+  }, [conversation.setVolume, speakReplies]);
+
+  React.useEffect(() => {
+    if (conversation.status !== 'connected') { setAudioLevel(0); return undefined; }
+    let frame;
+    const sample = () => {
+      setAudioLevel(Math.min(100, Math.round((conversation.getInputVolume?.() || 0) * 100)));
+      frame = requestAnimationFrame(sample);
+    };
+    frame = requestAnimationFrame(sample);
+    return () => cancelAnimationFrame(frame);
+  }, [conversation.status, conversation.mode, conversation.getInputVolume]);
 
   // Periodic Blink schedule
   React.useEffect(() => {
@@ -348,14 +435,8 @@ export function QbNexusPet() {
       if (prefs.voiceRate) setVoiceRate(prefs.voiceRate);
       if (typeof prefs.speakReplies === 'boolean') setSpeakReplies(prefs.speakReplies);
 
-      const savedWake = localStorage.getItem(WAKE_ENABLED_KEY) === 'true';
-      if (savedWake) {
-        // Will auto-activate on user interaction or if permission already granted
-      }
+      localStorage.setItem(LEGACY_WAKE_ENABLED_KEY, 'false');
     } catch {}
-
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    setRecognitionSupported(Boolean(Recognition));
 
     if (navigator.permissions?.query) {
       navigator.permissions.query({ name: 'microphone' }).then((permission) => {
@@ -370,12 +451,14 @@ export function QbNexusPet() {
       }).catch(() => {});
     }
 
-    const loadVoices = () => setAvailableVoices(window.speechSynthesis?.getVoices?.() || []);
-    loadVoices();
-    window.speechSynthesis?.addEventListener?.('voiceschanged', loadVoices);
+    api.get('/admin/ai/nexus/voice/voices').then((response) => {
+      const data = response?.data?.data || {};
+      const voices = Array.isArray(data.voices) ? data.voices : [];
+      setAvailableVoices(voices.map((voice) => ({ voiceURI: voice.id, name: voice.name, lang: voice.labels?.language || voice.category || 'ElevenLabs' })));
+      if (data.voiceId) setVoiceURI((current) => current || data.voiceId);
+    }).catch(() => setAvailableVoices([]));
 
     return () => {
-      window.speechSynthesis?.removeEventListener?.('voiceschanged', loadVoices);
     };
   }, []);
 
@@ -426,6 +509,7 @@ export function QbNexusPet() {
   }
 
   function stopAudioPlayback() {
+    playbackGenerationRef.current += 1;
     if (audioRef.current) {
       try {
         audioRef.current.pause();
@@ -433,15 +517,8 @@ export function QbNexusPet() {
       } catch {}
       audioRef.current = null;
     }
-    if (speechRef.current) {
-      speechRef.current.onstart = null;
-      speechRef.current.onend = null;
-      speechRef.current.onerror = null;
-      speechRef.current = null;
-    }
-    try {
-      window.speechSynthesis?.cancel?.();
-    } catch {}
+    speechResolveRef.current?.();
+    speechResolveRef.current = null;
   }
 
   // Release all audio tracks and AudioContext
@@ -472,45 +549,26 @@ export function QbNexusPet() {
     setAudioLevel(0);
   }, []);
 
-  function stopRecognition() {
-    const recognition = recognitionRef.current;
-    recognitionRef.current = null;
-    if (recognition) {
-      recognition.onresult = null;
-      recognition.onend = null;
-      recognition.onerror = null;
-      try { recognition.abort?.(); } catch {}
-      try { recognition.stop?.(); } catch {}
+  const stopAllVoiceResources = React.useCallback((options = {}) => {
+    const { resetVoiceEnabled = false, resetWakeEnabled = false, keepError = false } = options;
+    clearVoiceTimers();
+    stopAudioPlayback();
+    releaseMicrophoneStreams();
+    try { conversation.endSession(); } catch {}
+    voiceBindingIdRef.current = '';
+    voiceSessionActiveRef.current = false;
+    voiceSessionStartingRef.current = false;
+    setVoiceText('');
+    if (!keepError) setVoiceError('');
+    if (resetVoiceEnabled || resetWakeEnabled) {
+      voiceSessionEnabledRef.current = false;
+      setVoiceSessionEnabled(false);
+      try { localStorage.setItem(LEGACY_WAKE_ENABLED_KEY, 'false'); } catch {}
     }
-  }
+    setVoiceState('IDLE');
+  }, [releaseMicrophoneStreams, conversation.endSession]);
 
-  /**
-   * Complete teardown of all voice resources (called on logout, disable voice, or unmount)
-   */
-  const stopAllVoiceResources = React.useCallback(
-    (options = {}) => {
-      const { resetWakeEnabled = false, keepError = false } = options;
-      clearVoiceTimers();
-      stopAudioPlayback();
-      stopRecognition();
-      releaseMicrophoneStreams();
-
-      commandRef.current = '';
-      setVoiceText('');
-      if (!keepError) setVoiceError('');
-
-      if (resetWakeEnabled) {
-        setWakeWordEnabled(false);
-        wakeWordEnabledRef.current = false;
-        try {
-          localStorage.setItem(WAKE_ENABLED_KEY, 'false');
-        } catch {}
-      }
-
-      setVoiceState('IDLE');
-    },
-    [releaseMicrophoneStreams]
-  );
+  React.useEffect(() => () => stopAllVoiceResources({ resetVoiceEnabled: true }), [stopAllVoiceResources]);
 
   /**
    * Request microphone permission and setup AudioContext for Voice Activity Detection
@@ -582,208 +640,35 @@ export function QbNexusPet() {
     }
   }
 
-  /**
-   * Speech Synthesis via ElevenLabs Text-to-Speech (with browser SpeechSynthesis fallback)
-   */
-  async function speakText(text, lang = selectedLanguage) {
-    if (!text || !speakReplies) return Promise.resolve();
-
+  /** Speak only with ElevenLabs. A voice failure never falls back to browser TTS. */
+  async function speakText(text) {
+    if (!text || !speakReplies) return;
     stopAudioPlayback();
-
-    // 1. Attempt ElevenLabs TTS via Backend
+    const generation = playbackGenerationRef.current;
     try {
-      const response = await api.post('/admin/ai/nexus/voice/speak', {
-        text,
+      const response = await api.post('/admin/ai/nexus/voice/speak', { text, voiceId: voiceURI || undefined, speed: voiceRate });
+      const data = response?.data?.data || {};
+      if (generation !== playbackGenerationRef.current || !openRef.current) return;
+      if (!data.success || !data.audio) {
+        setVoiceError(data.message || 'ElevenLabs voice is not configured.');
+        return;
+      }
+      await new Promise((resolve) => {
+        speechResolveRef.current = resolve;
+        const audio = new Audio(data.audio);
+        audioRef.current = audio;
+        const finish = () => {
+          audioRef.current = null;
+          speechResolveRef.current = null;
+          resolve();
+        };
+        audio.onended = finish;
+        audio.onerror = () => { setVoiceError('ElevenLabs could not play the response audio.'); finish(); };
+        audio.play().catch(() => { setVoiceError('ElevenLabs could not play the response audio.'); finish(); });
       });
-      const audioUrl = response?.data?.data?.audio || response?.data?.audio;
-      if (audioUrl) {
-        return new Promise((resolve) => {
-          const audio = new Audio(audioUrl);
-          audioRef.current = audio;
-          audio.onended = () => {
-            audioRef.current = null;
-            resolve();
-          };
-          audio.onerror = () => {
-            audioRef.current = null;
-            // Fallback to browser synthesis
-            fallbackBrowserSpeech(text, lang).then(resolve);
-          };
-          audio.play().catch(() => {
-            fallbackBrowserSpeech(text, lang).then(resolve);
-          });
-        });
-      }
-    } catch {}
-
-    // 2. Browser SpeechSynthesis Fallback
-    return fallbackBrowserSpeech(text, lang);
-  }
-
-  function fallbackBrowserSpeech(text, lang) {
-    return new Promise((resolve) => {
-      if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
-        resolve();
-        return;
-      }
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = voiceRate;
-
-      const voices = window.speechSynthesis.getVoices?.() || [];
-      const match =
-        voices.find((v) => v.voiceURI === voiceURI) ||
-        voices.find((v) => v.lang.toLowerCase().startsWith(lang.toLowerCase().slice(0, 2)));
-      if (match) utterance.voice = match;
-
-      speechRef.current = utterance;
-      utterance.onend = () => {
-        speechRef.current = null;
-        resolve();
-      };
-      utterance.onerror = () => {
-        speechRef.current = null;
-        resolve();
-      };
-      window.speechSynthesis.speak(utterance);
-    });
-  }
-
-  /**
-   * Dedicated Wake-Word Listener & Command Recognizer
-   */
-  function startRecognition(mode = 'wake') {
-    if (!wakeWordEnabledRef.current || document.visibilityState !== 'visible' || !mountedRef.current) {
-      return;
+    } catch (error) {
+      setVoiceError(error?.response?.data?.message || 'ElevenLabs could not synthesize a response.');
     }
-
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) {
-      setRecognitionSupported(false);
-      setVoiceError('Wake word is unavailable in this browser. Use text chat or click mic.');
-      return;
-    }
-
-    stopRecognition();
-
-    const recognition = new Recognition();
-    recognition.lang = selectedLanguage;
-    recognition.continuous = mode === 'wake';
-    recognition.interimResults = true;
-    modeRef.current = mode;
-
-    recognition.onresult = (event) => {
-      let transcript = '';
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        transcript += event.results[i][0]?.transcript || '';
-      }
-      const cleanTranscript = transcript.trim();
-      setVoiceText(cleanTranscript);
-
-      // --- WAKE WORD DETECTION ---
-      if (modeRef.current === 'wake' && WAKE_WORD_REGEX.test(cleanTranscript)) {
-        setVoiceError('');
-        stopRecognition();
-
-        // Trigger Phase 2: Automatic Chatbot Opening
-        handleWakeWordDetected();
-      } else if (modeRef.current === 'command' && event.results[event.results.length - 1]?.isFinal) {
-        const command = cleanTranscript;
-        if (command) {
-          commandRef.current = command;
-          stopRecognition();
-          void handleProcessCommand(command);
-        }
-      }
-    };
-
-    recognition.onerror = (event) => {
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        if (micPermission === 'granted') {
-          // Hardware allowed, speech recognition service blocked (e.g. Brave / corporate policy)
-          setRecognitionSupported(false);
-          setVoiceState('IDLE');
-          return;
-        }
-        setMicPermission('denied');
-        setVoiceState('PERMISSION_DENIED');
-        setVoiceError('Microphone access denied. You can continue using text chat.');
-        setWakeWordEnabled(false);
-        wakeWordEnabledRef.current = false;
-      } else if (event.error === 'audio-capture') {
-        setVoiceError('No microphone detected. Check your audio device.');
-        setVoiceState('ERROR');
-      } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        // Subtle transient error; will retry automatically
-      }
-    };
-
-    recognition.onend = () => {
-      if (recognitionRef.current === recognition) recognitionRef.current = null;
-      if (!wakeWordEnabledRef.current || document.visibilityState !== 'visible' || !mountedRef.current) {
-        return;
-      }
-
-      // Keep listening for wake word or command
-      if (modeRef.current === 'wake') {
-        scheduleVoice(() => startRecognition('wake'), 250);
-      } else if (modeRef.current === 'command' && !commandRef.current) {
-        scheduleVoice(() => startRecognition('command'), 250);
-      }
-    };
-
-    recognitionRef.current = recognition;
-    try {
-      recognition.start();
-    } catch {
-      recognitionRef.current = null;
-    }
-  }
-
-  /**
-   * Phase 2: Action on Wake Word Detection
-   */
-  async function handleWakeWordDetected() {
-    // 1. Play subtle wake-up animation state
-    setVoiceState('WAKE_DETECTED');
-
-    // 2. Automatically open floating robot and expand chat panel
-    setOpen(true);
-    setMinimized(false);
-    setTooltipVisible(false);
-
-    // 3. Transition to OPENING -> GREETING
-    scheduleVoice(async () => {
-      setVoiceState('GREETING');
-
-      // 4. Voice acknowledgement in user's preferred language using ElevenLabs
-      const langConfig =
-        SUPPORTED_LANGUAGES.find((l) => l.code === selectedLanguage) || SUPPORTED_LANGUAGES[0];
-      const ackText = langConfig.ack;
-
-      // Add acknowledgement note to chat
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `ack-${Date.now()}`,
-          sender: 'bot',
-          text: ackText,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isGreeting: true,
-        },
-      ]);
-
-      // Speak acknowledgement
-      await speakText(ackText, langConfig.code);
-
-      // 5. Change robot state to LISTENING and start capturing next instruction
-      if (mountedRef.current) {
-        setVoiceState('LISTENING');
-        setVoiceText('');
-        commandRef.current = '';
-        startRecognition('command');
-      }
-    }, 450);
   }
 
   /**
@@ -849,10 +734,9 @@ export function QbNexusPet() {
       // Transition to SUCCESS
       setVoiceState('SUCCESS');
       scheduleVoice(() => {
-        // Return to STANDBY if wake-word listening is active, else IDLE
-        setVoiceState(wakeWordEnabledRef.current ? 'STANDBY' : 'IDLE');
-        if (wakeWordEnabledRef.current) {
-          startRecognition('wake');
+        // Keep the active voice session listening, or return to idle
+        setVoiceState(voiceSessionActiveRef.current ? 'LISTENING' : 'IDLE');
+        if (voiceSessionEnabledRef.current) {
         }
       }, 1000);
     } catch (error) {
@@ -869,8 +753,7 @@ export function QbNexusPet() {
       setVoiceError(errMsg);
       setVoiceState('ERROR');
       scheduleVoice(() => {
-        setVoiceState(wakeWordEnabledRef.current ? 'STANDBY' : 'IDLE');
-        if (wakeWordEnabledRef.current) startRecognition('wake');
+        setVoiceState(voiceSessionActiveRef.current ? 'LISTENING' : 'IDLE');
       }, 2000);
     } finally {
       setIsTyping(false);
@@ -915,8 +798,7 @@ export function QbNexusPet() {
 
       setVoiceState('SUCCESS');
       scheduleVoice(() => {
-        setVoiceState(wakeWordEnabledRef.current ? 'STANDBY' : 'IDLE');
-        if (wakeWordEnabledRef.current) startRecognition('wake');
+        setVoiceState(voiceSessionActiveRef.current ? 'LISTENING' : 'IDLE');
       }, 1000);
     } catch (error) {
       const errMsg = error?.response?.data?.message || 'Failed to process confirmation.';
@@ -935,78 +817,105 @@ export function QbNexusPet() {
     }
   }
 
-  /**
-   * Enable Hands-Free Wake Word Mode
-   */
-  async function handleToggleWakeWord() {
-    if (wakeWordEnabled) {
-      // User disabled wake word
-      stopAllVoiceResources({ resetWakeEnabled: true });
+  /** Start or stop the user-started ElevenLabs voice session. */
+  async function startElevenLabsVoice() {
+    if (voiceSessionStartingRef.current || voiceSessionActiveRef.current) return;
+    if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) {
+      setVoiceState('ERROR');
+      setVoiceError('This browser does not support live voice. Continue with text chat or use a current browser.');
       return;
     }
-
-    // User explicitly enabled wake word
-    const stream = await ensureMicrophoneStream();
-    if (!stream) return;
-
-    setWakeWordEnabled(true);
-    wakeWordEnabledRef.current = true;
+    voiceSessionStartingRef.current = true;
+    setVoiceError('');
+    setVoiceState('REQUESTING_PERMISSION');
     try {
-      localStorage.setItem(WAKE_ENABLED_KEY, 'true');
-    } catch {}
-
-    setVoiceState('STANDBY');
-    startRecognition('wake');
+      const permissionStream = await ensureMicrophoneStream();
+      if (!permissionStream) return;
+      releaseMicrophoneStreams();
+      const response = await api.post('/admin/ai/nexus/voice/token');
+      const data = response?.data?.data || {};
+      if (!data.token || !data.bindingId) throw new Error('Could not start the ElevenLabs voice session.');
+      if (!openRef.current || !mountedRef.current) return;
+      voiceBindingIdRef.current = data.bindingId;
+      setVoiceState('PROCESSING');
+      conversation.startSession({
+        conversationToken: data.token,
+        connectionType: 'webrtc',
+        overrides: {
+          agent: { language: selectedLanguage.slice(0, 2) },
+          tts: { voiceId: voiceURI || data.voiceId || undefined, speed: voiceRate },
+          asr: { keywords: ['Nexus', 'QB Suite'] },
+        },
+      });
+    } catch (error) {
+      voiceBindingIdRef.current = '';
+      setVoiceState('ERROR');
+      setVoiceError(error?.response?.data?.message || error?.message || 'Could not start ElevenLabs voice. Text chat remains available.');
+    } finally {
+      voiceSessionStartingRef.current = false;
+    }
   }
 
-  /**
-   * Manual Microphone Click
-   */
-  async function handleManualMicClick() {
-    if (voiceState === 'LISTENING') {
-      stopRecognition();
-      setVoiceState(wakeWordEnabledRef.current ? 'STANDBY' : 'IDLE');
-      if (wakeWordEnabledRef.current) scheduleVoice(() => startRecognition('wake'), 200);
-      return;
-    }
-
-    if (['SPEAKING', 'GREETING'].includes(voiceState)) {
+  async function testSelectedVoice() {
+    if (!voiceURI || voicePreviewLoading) return;
+    setVoicePreviewLoading(true);
+    setVoiceError('');
+    try {
+      const response = await api.post('/admin/ai/nexus/voice/test', { voiceId: voiceURI, text: 'Hello, this is your QB Nexus voice preview.' });
+      const data = response?.data?.data || {};
+      if (!data.audio) throw new Error('ElevenLabs did not return a voice preview.');
       stopAudioPlayback();
-      setVoiceState(wakeWordEnabledRef.current ? 'STANDBY' : 'IDLE');
-      return;
-    }
-
-    const stream = await ensureMicrophoneStream();
-    if (!stream) return;
-
-    setVoiceState('LISTENING');
-    setVoiceText('');
-    commandRef.current = '';
-    startRecognition('command');
+      const generation = playbackGenerationRef.current;
+      await new Promise((resolve, reject) => {
+        const audio = new Audio(data.audio);
+        audioRef.current = audio;
+        const finish = () => { audioRef.current = null; speechResolveRef.current = null; resolve(); };
+        const fail = () => { audioRef.current = null; speechResolveRef.current = null; reject(new Error('The voice preview could not be played.')); };
+        speechResolveRef.current = finish;
+        audio.onended = finish;
+        audio.onerror = fail;
+        if (generation !== playbackGenerationRef.current || !openRef.current) finish();
+        else audio.play().catch(fail);
+      });
+    } catch (error) {
+      setVoiceError(error?.response?.data?.message || error?.message || 'Could not test the selected voice.');
+    } finally { setVoicePreviewLoading(false); }
   }
 
-  /**
-   * Closing the Chat Drawer
-   * Critical Requirement: Closing the chat should stop command recording & playback,
-   * but MUST NOT disable the background wake-word listener if enabled.
-   */
+  /** Start or stop the user-started ElevenLabs voice session. */
+  async function handleToggleVoiceSession() {
+    if (voiceSessionActiveRef.current || voiceSessionStartingRef.current) {
+      stopAllVoiceResources({ resetVoiceEnabled: true });
+      return;
+    }
+    await startElevenLabsVoice();
+  }
+
+  async function handleManualMicClick() {
+    if (voiceSessionActiveRef.current) {
+      if (conversation.isMuted) {
+        conversation.setMuted(false);
+        setVoiceState('LISTENING');
+      } else if (conversation.isSpeaking) {
+        conversation.sendUserActivity();
+        setVoiceState('LISTENING');
+      } else {
+        conversation.setMuted(true);
+        setVoiceText('');
+        setVoiceState('IDLE');
+      }
+      return;
+    }
+    await startElevenLabsVoice();
+  }
+
+  /** Closing the chat ends the session and releases all audio resources. */
   const handleCloseChat = React.useCallback(() => {
-    stopAudioPlayback();
+    stopAllVoiceResources({ resetVoiceEnabled: true });
     setOpen(false);
     openRef.current = false;
     setMinimized(false);
     setShowVoiceSettings(false);
-
-    if (wakeWordEnabledRef.current) {
-      // Keep background wake-word listener active
-      setVoiceState('STANDBY');
-      modeRef.current = 'wake';
-      commandRef.current = '';
-      setVoiceText('');
-      startRecognition('wake');
-    } else {
-      stopAllVoiceResources({ resetWakeEnabled: false });
-    }
   }, [stopAllVoiceResources]);
 
   // Handle Next.js route navigation
@@ -1020,7 +929,7 @@ export function QbNexusPet() {
   // Handle logout: release all microphone resources
   React.useEffect(() => {
     if (!token) {
-      stopAllVoiceResources({ resetWakeEnabled: true });
+      stopAllVoiceResources({ resetVoiceEnabled: true });
       setOpen(false);
     }
   }, [token, stopAllVoiceResources]);
@@ -1031,19 +940,14 @@ export function QbNexusPet() {
       const isVisible = document.visibilityState === 'visible';
       setPageVisible(isVisible);
       if (!isVisible) {
-        // Suspend microphone streams while tab is in background
-        stopAudioPlayback();
-        stopRecognition();
-      } else if (wakeWordEnabledRef.current) {
-        // Resume wake word listening when tab becomes active
-        scheduleVoice(() => startRecognition('wake'), 300);
+        stopAllVoiceResources({ resetVoiceEnabled: true });
       }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, []);
+  }, [stopAllVoiceResources]);
 
   const session = readSession();
   const userName = session?.user?.firstName || session?.user?.name || 'Administrator';
@@ -1076,25 +980,25 @@ export function QbNexusPet() {
         }
       `}</style>
 
-      {/* Floating Robot Avatar & Hands-Free Indicator */}
+      {/* Floating Robot Avatar & Voice Session Indicator */}
       <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-[calc(env(safe-area-inset-right)+1rem)] sm:bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] sm:right-[calc(env(safe-area-inset-right)+1.5rem)] z-40 flex flex-col items-end gap-2">
-        {/* Hands-Free Wake Word Floating Pill (Visible when wake-word is active and chat is closed) */}
-        {wakeWordEnabled && !open && (
+        {/* Voice never runs while chat is closed. */}
+        {voiceSessionEnabled && !open && (
           <div className="flex items-center gap-1.5 rounded-full bg-[#173D30] text-white px-3 py-1 text-[11px] font-medium shadow-lg border border-[#20C466]/40 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2">
             <span className="relative flex size-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#20C466] opacity-75" />
               <span className="relative inline-flex rounded-full size-2 bg-[#20C466]" />
             </span>
-            <span>Say &ldquo;Hey QB Nexus&rdquo;</span>
+            <span>ElevenLabs voice active</span>
             <span className="text-[9px] px-1 rounded bg-white/10 uppercase text-emerald-300">
               {selectedLanguage.slice(0, 2)}
             </span>
             <button
               type="button"
-              onClick={handleToggleWakeWord}
-              title="Pause hands-free wake word listening"
+              onClick={handleToggleVoiceSession}
+              title="End voice session"
               className="ml-1 rounded-full p-0.5 text-slate-300 hover:text-white hover:bg-white/10"
-              aria-label="Pause wake word"
+              aria-label="End voice session"
             >
               <Pause className="size-3" />
             </button>
@@ -1102,7 +1006,7 @@ export function QbNexusPet() {
         )}
 
         {/* Welcome Tooltip */}
-        {tooltipVisible && !open && !wakeWordEnabled && (
+        {tooltipVisible && !open && !voiceSessionEnabled && (
           <div className="relative max-w-[240px] rounded-2xl bg-white border border-emerald-200/90 p-3 shadow-lg text-xs text-slate-700 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2">
             <button
               onClick={() => setTooltipVisible(false)}
@@ -1116,7 +1020,7 @@ export function QbNexusPet() {
               <span>Ask QB Nexus</span>
             </div>
             <p className="text-[11px] leading-relaxed text-slate-600">
-              Hi {userName}! Click here or enable hands-free voice to say &ldquo;Hey QB Nexus&rdquo;.
+              Hi {userName}! Click here to chat with QB Nexus.
             </p>
             <div className="absolute -bottom-1.5 right-6 size-3 rotate-45 border-r border-b border-emerald-200 bg-white" />
           </div>
@@ -1169,13 +1073,13 @@ export function QbNexusPet() {
 
           {/* Online badge */}
           <span
-            title={wakeWordEnabled ? 'Wake word active' : 'QB Nexus online'}
+            title={voiceSessionEnabled ? 'ElevenLabs voice active' : 'QB Nexus online'}
             className="absolute -right-1 -top-1 flex size-[18px] items-center justify-center rounded-full border-2 border-white bg-white"
           >
             <span
               className={cn(
                 'relative size-3 rounded-full border border-white',
-                wakeWordEnabled
+                voiceSessionEnabled
                   ? 'bg-[#20C466] shadow-[0_0_10px_#20C466]'
                   : token
                   ? 'bg-emerald-500'
@@ -1228,29 +1132,29 @@ export function QbNexusPet() {
                       ? 'Ready'
                       : petState === 'ERROR'
                       ? 'Notice'
-                      : wakeWordEnabled
-                      ? 'Hands-Free On'
+                      : voiceSessionEnabled
+                      ? 'Voice Active'
                       : 'Online'}
                   </span>
                 </div>
-                <p className="text-[10px] text-emerald-200/80">Operations Intelligence & Wake Word</p>
+                <p className="text-[10px] text-emerald-200/80">OpenAI + Gemini reasoning · ElevenLabs voice</p>
               </div>
             </div>
 
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={handleToggleWakeWord}
-                title={wakeWordEnabled ? 'Disable hands-free wake word' : 'Enable hands-free wake word'}
+                onClick={handleToggleVoiceSession}
+                title={voiceSessionEnabled ? 'End ElevenLabs voice session' : 'Start ElevenLabs voice session'}
                 className={cn(
                   'size-7 rounded-lg flex items-center justify-center transition-colors',
-                  wakeWordEnabled
+                  voiceSessionEnabled
                     ? 'bg-emerald-500/30 text-[#20C466] border border-emerald-400/40'
                     : 'text-emerald-200/80 hover:bg-white/10 hover:text-white'
                 )}
-                aria-label="Toggle wake word"
+                aria-label={voiceSessionEnabled ? 'End voice session' : 'Start voice session'}
               >
-                <Radio className={cn('size-3.5', wakeWordEnabled && 'animate-pulse')} />
+                <Radio className={cn('size-3.5', voiceSessionEnabled && 'animate-pulse')} />
               </button>
 
               <button
@@ -1322,7 +1226,7 @@ export function QbNexusPet() {
                     </button>
                     <button
                       type="button"
-                      onClick={handleToggleWakeWord}
+                      onClick={handleToggleVoiceSession}
                       className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700"
                     >
                       Retry
@@ -1341,19 +1245,19 @@ export function QbNexusPet() {
                   </div>
                 )}
               </div>
-            ) : !wakeWordEnabled ? (
+            ) : !voiceSessionEnabled ? (
               <div className="flex items-center justify-between gap-2">
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-semibold text-[#173D30]">Hands-Free &ldquo;Hey QB Nexus&rdquo;</p>
-                  <p className="text-[10px] text-slate-500">Wake word activates assistant hands-free even when closed</p>
+                  <p className="text-[11px] font-semibold text-[#173D30]">ElevenLabs voice session</p>
+                  <p className="text-[10px] text-slate-500">Microphone access starts only after you choose to start voice.</p>
                 </div>
                 <button
                   type="button"
-                  onClick={handleToggleWakeWord}
+                  onClick={handleToggleVoiceSession}
                   className="rounded-lg bg-[#173D30] hover:bg-[#123026] px-2.5 py-1 text-[10px] font-semibold text-white flex items-center gap-1"
                 >
                   <Radio className="size-3 text-[#20C466]" />
-                  Enable Wake Word
+                  Start Voice
                 </button>
               </div>
             ) : (
@@ -1363,7 +1267,7 @@ export function QbNexusPet() {
                   {voiceState === 'LISTENING'
                     ? "Listening to your instruction..."
                     : voiceState === 'WAKE_DETECTED'
-                    ? 'Wake word detected! Opening...'
+                    ? 'Nexus is ready to listen...'
                     : voiceState === 'GREETING'
                     ? 'Acknowledging...'
                     : voiceState === 'PROCESSING'
@@ -1372,7 +1276,7 @@ export function QbNexusPet() {
                     ? 'Executing confirmed action...'
                     : voiceState === 'SPEAKING'
                     ? 'Nexus is speaking...'
-                    : 'Hands-Free Active — Say “Hey QB Nexus”'}
+                    : 'ElevenLabs session active — speak your question'}
                 </span>
 
                 {/* Live sound wave bars when active */}
@@ -1386,7 +1290,7 @@ export function QbNexusPet() {
                   )}
                   <button
                     type="button"
-                    onClick={handleToggleWakeWord}
+                    onClick={handleToggleVoiceSession}
                     className="text-[10px] text-slate-500 hover:text-rose-600 font-medium"
                   >
                     Pause
@@ -1451,13 +1355,15 @@ export function QbNexusPet() {
                 </p>
               </div>
 
-              {/* Wake Word Information */}
-              <div className="space-y-1">
-                <span className="block font-semibold text-slate-700">Wake Word Triggers</span>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[10px] text-slate-600 space-y-0.5">
-                  <p><strong>Primary phrase:</strong> &ldquo;Hey QB Nexus&rdquo;</p>
-                  <p><strong>Also supported:</strong> &ldquo;Hello QB Nexus&rdquo;, &ldquo;Okay QB Nexus&rdquo;</p>
-                </div>
+              <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+                <label className="space-y-1">
+                  <span className="block font-semibold text-slate-700">ElevenLabs voice</span>
+                  <select value={voiceURI} onChange={(event) => setVoiceURI(event.target.value)} className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-slate-700">
+                    <option value="">Default configured voice</option>
+                    {availableVoices.map((voice) => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang}</option>)}
+                  </select>
+                </label>
+                <button type="button" onClick={testSelectedVoice} disabled={!voiceURI || voicePreviewLoading} className="h-8 rounded-lg border border-emerald-200 px-2.5 font-semibold text-[#173D30] disabled:opacity-50">{voicePreviewLoading ? 'Testing…' : 'Test voice'}</button>
               </div>
 
               {/* AI Orchestration Providers */}
@@ -1517,7 +1423,7 @@ export function QbNexusPet() {
 
               {/* Security & Lifecycle Notes */}
               <p className="text-[9px] leading-relaxed text-slate-400 pt-1 border-t border-slate-100">
-                Wake-word listening requires microphone permission and an active HTTPS origin. Closing the chat drawer leaves hands-free listening active; logging out or clicking pause completely releases the microphone.
+                Voice is opt-in. Closing chat, logging out, or hiding this tab ends the ElevenLabs session and releases audio. The microphone does not reactivate when chat reopens.
               </p>
             </section>
           )}
@@ -1645,7 +1551,7 @@ export function QbNexusPet() {
 
             <input
               type="text"
-              placeholder="Ask Nexus or say “Hey QB Nexus”..."
+              placeholder="Ask Nexus anything about your business..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               className="flex-1 h-9 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#173D30]"
@@ -1678,20 +1584,20 @@ export function QbNexusPet() {
 
             <div className="flex items-center gap-2">
               {['SPEAKING', 'GREETING'].includes(voiceState) && (
-                <button type="button" onClick={stopAudioPlayback} className="text-rose-600 font-medium">
+                <button type="button" onClick={() => { try { conversation.sendUserActivity(); } catch {} stopAudioPlayback(); setVoiceState('LISTENING'); }} className="text-rose-600 font-medium">
                   Interrupt
                 </button>
               )}
               <button
                 type="button"
-                onClick={handleToggleWakeWord}
+                onClick={handleToggleVoiceSession}
                 className={cn(
                   'inline-flex items-center gap-1 font-medium',
-                  wakeWordEnabled ? 'text-emerald-700 hover:text-emerald-900' : 'hover:text-[#173D30]'
+                  voiceSessionEnabled ? 'text-emerald-700 hover:text-emerald-900' : 'hover:text-[#173D30]'
                 )}
               >
                 <Radio className="size-3" />
-                <span>{wakeWordEnabled ? 'Hands-Free On' : 'Hands-Free Off'}</span>
+                <span>{voiceSessionEnabled ? 'Voice session on' : 'Voice session off'}</span>
               </button>
             </div>
           </div>
