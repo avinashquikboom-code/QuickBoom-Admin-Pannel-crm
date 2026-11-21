@@ -9,18 +9,29 @@ import {
   Building,
   Calendar,
   Phone,
+  PhoneCall,
+  MoreVertical,
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
   Filter,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/common/Dropdown';
+import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function RecentLeadsCard({ recentLeads = [], loading }) {
+  const router = useRouter();
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('ALL');
   const [sortField, setSortField] = React.useState('createdAt');
@@ -182,12 +193,13 @@ export function RecentLeadsCard({ recentLeads = [], loading }) {
                   Created Date <ArrowUpDown className="size-3" />
                 </div>
               </th>
+              <th className="pb-3 text-right w-10">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {paginatedLeads.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-400">
+                <td colSpan={7} className="py-8 text-center text-slate-400">
                   No leads found matching your criteria.
                 </td>
               </tr>
@@ -243,6 +255,38 @@ export function RecentLeadsCard({ recentLeads = [], loading }) {
                     <td className="py-3 text-right text-slate-500 font-medium">
                       {createdDate}
                     </td>
+                    <td className="py-3 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label={`Actions for ${leadName}`}
+                          className="size-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                        >
+                          <MoreVertical className="size-3.5" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36 bg-white border border-slate-200 shadow-xl rounded-xl p-1 text-xs">
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/admin/crm/leads?leadId=${lead.id}`)}
+                            className="p-1.5 rounded-lg cursor-pointer hover:bg-slate-50 text-slate-700"
+                          >
+                            View Details
+                          </DropdownMenuItem>
+                          {lead.phone && (
+                            <DropdownMenuItem
+                              onClick={() => window.open(`tel:${lead.phone}`)}
+                              className="p-1.5 rounded-lg cursor-pointer hover:bg-emerald-50 text-emerald-700"
+                            >
+                              Call Lead
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/admin/crm/deals?convertLeadId=${lead.id}`)}
+                            className="p-1.5 rounded-lg cursor-pointer hover:bg-slate-50 text-slate-700"
+                          >
+                            Convert to Deal
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
                   </tr>
                 );
               })
@@ -281,7 +325,39 @@ export function RecentLeadsCard({ recentLeads = [], loading }) {
                     <p className="font-bold text-slate-900 text-xs">{leadName}</p>
                     <p className="text-[11px] text-slate-500">{company}</p>
                   </div>
-                  <StatusBadge status={lead.status || 'NEW'} />
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge status={lead.status || 'NEW'} />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        aria-label={`Actions for ${leadName}`}
+                        className="size-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                      >
+                        <MoreVertical className="size-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36 bg-white border border-slate-200 shadow-xl rounded-xl p-1 text-xs">
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/admin/crm/leads?leadId=${lead.id}`)}
+                          className="p-1.5 rounded-lg cursor-pointer hover:bg-slate-50 text-slate-700"
+                        >
+                          View Details
+                        </DropdownMenuItem>
+                        {lead.phone && (
+                          <DropdownMenuItem
+                            onClick={() => window.open(`tel:${lead.phone}`)}
+                            className="p-1.5 rounded-lg cursor-pointer hover:bg-emerald-50 text-emerald-700"
+                          >
+                            Call Lead
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => router.push(`/admin/crm/deals?convertLeadId=${lead.id}`)}
+                          className="p-1.5 rounded-lg cursor-pointer hover:bg-slate-50 text-slate-700"
+                        >
+                          Convert to Deal
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/50">
                   <span className="rounded bg-white border border-slate-200 px-1.5 py-0.5 text-[10px]">
