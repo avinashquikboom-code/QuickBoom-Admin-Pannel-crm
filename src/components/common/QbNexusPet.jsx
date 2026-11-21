@@ -134,6 +134,7 @@ export function QbNexusPet() {
   const [providerTests, setProviderTests] = React.useState({});
   const [testingProvider, setTestingProvider] = React.useState('');
   const [micPermission, setMicPermission] = React.useState('prompt');
+  const [showMicHelp, setShowMicHelp] = React.useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = React.useState(false);
   const [fallbackRecording, setFallbackRecording] = React.useState(false);
   const [blinking, setBlinking] = React.useState(false);
@@ -368,7 +369,14 @@ export function QbNexusPet() {
     if (navigator.permissions?.query) {
       navigator.permissions.query({ name: 'microphone' }).then((permission) => {
         setMicPermission(permission.state);
-        permission.onchange = () => setMicPermission(permission.state);
+        permission.onchange = () => {
+          setMicPermission(permission.state);
+          if (permission.state === 'granted') {
+            setVoiceError('');
+            setShowMicHelp(false);
+            setVoiceState((current) => current === 'PERMISSION_DENIED' ? 'IDLE' : current);
+          }
+        };
       }).catch(() => {});
     }
     const loadVoices = () => setAvailableVoices(window.speechSynthesis?.getVoices?.() || []);
@@ -485,6 +493,13 @@ export function QbNexusPet() {
 
     recognition.onerror = (event) => {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        if (micPermission === 'granted') {
+          // If browser microphone hardware is allowed, Web Speech service failed (e.g. Brave/corporate proxy)
+          setRecognitionSupported(false);
+          setVoiceError('');
+          setVoiceState('IDLE');
+          return;
+        }
         setMicPermission('denied');
         setVoiceState('PERMISSION_DENIED');
         setVoiceError('Microphone access denied. You can continue using text chat.');
@@ -1068,28 +1083,48 @@ export function QbNexusPet() {
 
           <div className="shrink-0 border-b border-emerald-100 bg-[#F0FAF3] px-3 py-2">
             {voiceState === 'PERMISSION_DENIED' ? (
-              <div role="alert" className="flex items-center justify-between gap-2 text-[11px] text-amber-800 bg-amber-50/90 rounded-lg p-2 border border-amber-200">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <MicOff className="size-3.5 text-amber-600 shrink-0" />
-                  <span className="truncate">{voiceError || 'Microphone access denied. You can continue using text chat.'}</span>
+              <div role="alert" className="text-[11px] text-amber-800 bg-amber-50/90 rounded-lg p-2.5 border border-amber-200 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <MicOff className="size-3.5 text-amber-600 shrink-0" />
+                    <span className="font-medium truncate">{voiceError || 'Microphone access denied. You can continue using text chat.'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowMicHelp((prev) => !prev)}
+                      className="text-[10px] font-semibold text-amber-700 underline hover:text-amber-900 transition-colors"
+                    >
+                      {showMicHelp ? 'Hide guide' : 'How to allow'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRetryMic}
+                      className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700 transition-colors"
+                    >
+                      Retry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setVoiceError(''); setVoiceState('IDLE'); setShowMicHelp(false); }}
+                      className="text-[10px] text-slate-500 hover:text-slate-700 font-medium"
+                      aria-label="Dismiss voice alert"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleRetryMic}
-                    className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-700 transition-colors"
-                  >
-                    Retry
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setVoiceError(''); setVoiceState('IDLE'); }}
-                    className="text-[10px] text-slate-500 hover:text-slate-700"
-                    aria-label="Dismiss voice alert"
-                  >
-                    Dismiss
-                  </button>
-                </div>
+                {showMicHelp && (
+                  <div className="pt-1.5 border-t border-amber-200 text-[10px] text-slate-700 space-y-1">
+                    <p className="font-semibold text-amber-900">How to unblock the microphone in your browser:</p>
+                    <ol className="list-decimal pl-4 space-y-1 text-slate-600">
+                      <li>Click the <strong>tune/lock icon 🔒</strong> on the left side of your address bar (next to the website URL).</li>
+                      <li>Find <strong>Microphone</strong> and switch it from <em>Block</em> to <strong>Allow</strong>.</li>
+                      <li>On macOS: Check <strong>System Settings → Privacy & Security → Microphone</strong> and make sure your browser is enabled.</li>
+                      <li>Click <strong>Retry</strong> above.</li>
+                    </ol>
+                  </div>
+                )}
               </div>
             ) : voiceState === 'REQUESTING_PERMISSION' ? (
               <div className="flex items-center gap-2 text-[11px] text-[#173D30]">
