@@ -54,6 +54,12 @@ const PRESENTATION = {
     categoryKey: 'AI',
     description: 'Advanced AI models for business intelligence, content generation, data analysis and intelligent automation.',
   },
+  ELEVENLABS: {
+    name: 'ElevenLabs',
+    category: 'AI Providers',
+    categoryKey: 'AI',
+    description: 'Voice AI, speech recognition and text-to-speech services.',
+  },
   RAZORPAY: {
     name: 'Razorpay',
     category: 'Payments',
@@ -176,6 +182,38 @@ const FIELDS = {
     },
     { key: 'maxTokens', label: 'Maximum Output Tokens', group: 'config', type: 'number', placeholder: '1024' },
     { key: 'temperature', label: 'Temperature (supported models only)', group: 'config', type: 'number', placeholder: '1', min: 0, max: 1, step: 0.1 },
+  ],
+  ELEVENLABS: [
+    {
+      key: 'apiKey',
+      label: 'ELEVENLABS_API_KEY',
+      secret: true,
+      required: true,
+      placeholder: 'xi-... (ElevenLabs API Key)',
+    },
+    {
+      key: 'speechEngineId',
+      label: 'ELEVENLABS_SPEECH_ENGINE_ID',
+      group: 'config',
+      required: true,
+      placeholder: 'seng_... (Speech Engine ID)',
+    },
+    {
+      key: 'voiceId',
+      label: 'ELEVENLABS_VOICE_ID',
+      group: 'config',
+      placeholder: '21m00Tcm4TlvDq8ikWAM (Voice ID)',
+    },
+    {
+      key: 'speechEnginePort',
+      label: 'ELEVENLABS_SPEECH_ENGINE_PORT',
+      group: 'config',
+      type: 'number',
+      defaultValue: 3101,
+      min: 1024,
+      max: 65535,
+      placeholder: '3101',
+    },
   ],
   FIREBASE: [
     { key: 'projectId', label: 'Project ID', required: true },
