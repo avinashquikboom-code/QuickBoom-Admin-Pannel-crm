@@ -191,29 +191,6 @@ const FIELDS = {
       required: true,
       placeholder: 'xi-... (ElevenLabs API Key)',
     },
-    {
-      key: 'speechEngineId',
-      label: 'ELEVENLABS_SPEECH_ENGINE_ID',
-      group: 'config',
-      required: true,
-      placeholder: 'seng_... (Speech Engine ID)',
-    },
-    {
-      key: 'voiceId',
-      label: 'ELEVENLABS_VOICE_ID',
-      group: 'config',
-      placeholder: '21m00Tcm4TlvDq8ikWAM (Voice ID)',
-    },
-    {
-      key: 'speechEnginePort',
-      label: 'ELEVENLABS_SPEECH_ENGINE_PORT',
-      group: 'config',
-      type: 'number',
-      defaultValue: 3101,
-      min: 1024,
-      max: 65535,
-      placeholder: '3101',
-    },
   ],
   FIREBASE: [
     { key: 'projectId', label: 'Project ID', required: true },
@@ -374,8 +351,11 @@ export default function IntegrationsPage() {
     if (saving) return;
     setSaving(true);
     try {
+      const safePayload = row.provider === 'ELEVENLABS'
+        ? { ...payload, config: { ...(row.config || {}), ...(payload.config || {}) } }
+        : payload;
       // Test first for validation
-      const testRes = await testIntegration(row.provider, payload);
+      const testRes = await testIntegration(row.provider, safePayload);
       const body =
         testRes?.data && typeof testRes.data === 'object' && !Array.isArray(testRes.data)
           ? testRes.data
@@ -388,7 +368,7 @@ export default function IntegrationsPage() {
         return;
       }
 
-      await saveIntegration(row.provider, { ...payload, isEnabled: payload.isEnabled !== false });
+      await saveIntegration(row.provider, { ...safePayload, isEnabled: payload.isEnabled !== false });
       setActiveRow(null);
       setRefresh((v) => v + 1);
       toast.success(`${row.displayName || row.provider} saved and verified successfully!`);
@@ -424,7 +404,10 @@ export default function IntegrationsPage() {
 
     setTesting(row.provider);
     try {
-      const res = await testIntegration(row.provider, explicitPayload || {});
+      const testPayload = row.provider === 'ELEVENLABS'
+        ? { ...(explicitPayload || {}), config: { ...(row.config || {}), ...(explicitPayload?.config || {}) } }
+        : explicitPayload || {};
+      const res = await testIntegration(row.provider, testPayload);
       const body = res?.data && typeof res.data === 'object' && !Array.isArray(res.data) ? res.data : res;
       const ok = body?.success !== false && !/fail|error/i.test(String(body?.status || ''));
       const at = formatTimestamp(body?.lastTestedAt) || new Date().toLocaleTimeString();

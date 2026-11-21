@@ -31,7 +31,7 @@ import api from '../../../lib/api';
 
 const STORAGE_KEY = 'qb_nexus_chat_history_v1';
 const VOICE_PREFS_KEY = 'qb-nexus-preferences-v2';
-const LEGACY_WAKE_ENABLED_KEY = 'qb-nexus-wake-enabled-v2';
+const WAKE_ENABLED_KEY = 'qb-nexus-wake-enabled-v2';
 const DEFAULT_GREETING = "Hello! I'm Nexus, your QB AI assistant. How can I help you today?";
 
 // Supported Languages & Spoken Acknowledgements
@@ -62,11 +62,14 @@ export const SUPPORTED_LANGUAGES = [
   },
 ];
 
+// Flexible regex recognizing "Hey QB Nexus", "Hello QB Nexus", "Okay QB Nexus" and phonetically similar variations
+const WAKE_WORD_REGEX = /\b(?:(?:hey|hello|okay|ok)\s+)?(?:q\s*b\s*|cube\s+)?nexus\b/i;
+
 const INITIAL_MESSAGES = [
   {
     id: 'welcome-msg',
     sender: 'bot',
-    text: "Hello! I'm QB Nexus, your central AI Operations Manager. Start a voice session or type below to command CRM, HRM, Tasks, or Reports.",
+    text: "Hello! I'm QB Nexus, your central AI Operations Manager. Say \"Hey QB Nexus\", start a voice session, or type below to command CRM, HRM, Tasks, or Reports.",
     time: 'Just now',
     suggestions: [
       "How many pending leads do we have today?",
