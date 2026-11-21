@@ -125,6 +125,12 @@ export function IntegrationConfigDrawer({
       onSubmit={handleSave}
     >
       <div className="space-y-6">
+        {row.provider === 'ELEVENLABS' && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs leading-relaxed text-emerald-900">
+            Speech Engine ID, default voice ID, and callback port are managed in the backend environment. Choose your personal voice in QB Nexus settings.
+          </div>
+        )}
+
         {/* Enable / Disable Status Banner */}
         <div className="flex items-center justify-between rounded-xl border border-slate-200/90 bg-slate-50/70 p-3.5">
           <div className="space-y-0.5">
