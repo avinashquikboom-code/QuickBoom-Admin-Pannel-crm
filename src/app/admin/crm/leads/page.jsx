@@ -50,7 +50,6 @@ import {
   LeadForm,
   Field,
   socialFormValues,
-  SocialLinks,
   LeadAvatar,
   LeadPhotos,
 } from '@/modules/crm/ManualLeadDrawer';
@@ -108,6 +107,22 @@ import {
 } from '@fortawesome/free-brands-svg-icons';
 import { cn } from '@/lib/utils';
 
+// Standard 12 lead stages from requirements + colors & aliases
+const STANDARD_STAGES = [
+  { key: 'NEW', name: 'New', color: '#0284C7', bgColor: '#E0F2FE', borderColor: '#BAE6FD', aliases: ['NEW'] },
+  { key: 'CONTACTED', name: 'Connected', color: '#0D9488', bgColor: '#CCFBF1', borderColor: '#99F6E4', aliases: ['CONNECTED', 'CONTACTED'] },
+  { key: 'DETAILS_SEND', name: 'Details Shared', color: '#4F46E5', bgColor: '#EEF2FF', borderColor: '#C7D2FE', aliases: ['DETAILS_SHARED', 'DETAILS_SEND', 'DETAILS_SENT'] },
+  { key: 'FOLLOW_UP', name: 'Follow-up', color: '#7C3AED', bgColor: '#F5F3FF', borderColor: '#DDD6FE', aliases: ['FOLLOW_UP', 'FOLLOW-UP', 'FOLLOWUP'] },
+  { key: 'VISIT_SCHEDULED', name: 'Visit Scheduled', color: '#0891B2', bgColor: '#ECFEFF', borderColor: '#A5F3FC', aliases: ['VISIT_SCHEDULED'] },
+  { key: 'VISIT_DONE', name: 'Visit Completed', color: '#10B981', bgColor: '#D1FAE5', borderColor: '#A7F3D0', aliases: ['VISIT_COMPLETED', 'VISIT_DONE'] },
+  { key: 'RE_FOLLOW_UP', name: 'Re-follow-up', color: '#8B5CF6', bgColor: '#EDE9FE', borderColor: '#DDD6FE', aliases: ['RE_FOLLOW_UP', 'RE-FOLLOW-UP', 'REFOLLOWUP'] },
+  { key: 'PROPOSAL_SENT', name: 'Proposal Sent', color: '#2563EB', bgColor: '#EFF6FF', borderColor: '#BFDBFE', aliases: ['PROPOSAL_SENT', 'PROPOSAL'] },
+  { key: 'NEGOTIATION', name: 'Negotiation', color: '#F59E0B', bgColor: '#FFFBEB', borderColor: '#FDE68A', aliases: ['NEGOTIATION'] },
+  { key: 'FINAL_CALL', name: 'Final Call', color: '#EA580C', bgColor: '#FFF7ED', borderColor: '#FFEDD5', aliases: ['FINAL_CALL'] },
+  { key: 'WON', name: 'Won', color: '#16A34A', bgColor: '#DCFCE7', borderColor: '#BBF7D0', aliases: ['WON', 'CONVERTED', 'QUALIFIED'] },
+  { key: 'LOST', name: 'Lost', color: '#DC2626', bgColor: '#FFE4E6', borderColor: '#FECDD3', aliases: ['LOST', 'CANCELLED'] },
+];
+
 function filtersFrom(query) {
   return {
     leadId:
@@ -142,6 +157,7 @@ async function matchingIds(query) {
 function downloadCsv(rows) {
   const headers = [
     'Name',
+    'Category',
     'Company',
     'Phone',
     'Email',
@@ -154,13 +170,14 @@ function downloadCsv(rows) {
   const lines = rows.map((row) =>
     [
       personName(row),
-      row.companyName,
-      row.phone,
-      row.email,
-      row.source,
-      row.priority,
+      row.category || '',
+      row.companyName || '',
+      row.phone || '',
+      row.email || '',
+      row.source || '',
+      row.priority || '',
       personName(row.assignedTo || row.employee),
-      row.status,
+      row.status || '',
       String(row.createdAt || '').slice(0, 10),
     ]
       .map((value) => `"${String(value || '').replace(/"/g, '""')}"`)
@@ -207,13 +224,22 @@ function PriorityBadge({ priority }) {
 }
 
 function StageBadge({ stage, status, stages = [] }) {
-  const match = stages.find(
-    (s) =>
-      String(s.id) === String(stage?.id) ||
-      s.key === status ||
-      s.name === stage?.name ||
-      String(s.key || '').toUpperCase() === String(status || '').toUpperCase()
-  );
+  const normStatus = String(status || '').toUpperCase();
+  const match =
+    stages.find(
+      (s) =>
+        String(s.id) === String(stage?.id) ||
+        String(s.key || '').toUpperCase() === normStatus ||
+        s.name === stage?.name ||
+        s.name?.toUpperCase() === normStatus
+    ) ||
+    STANDARD_STAGES.find(
+      (s) =>
+        s.key === normStatus ||
+        s.aliases.includes(normStatus) ||
+        s.name.toUpperCase() === normStatus
+    );
+
   const name = stage?.name || match?.name || stageLabel(status, stages);
   const color = stage?.color || match?.color || '#16A34A';
   const bgColor = stage?.bgColor || match?.bgColor || `${color}18`;
@@ -231,6 +257,137 @@ function StageBadge({ stage, status, stages = [] }) {
       <span className="size-1.5 rounded-full" style={{ backgroundColor: color }} />
       {name}
     </span>
+  );
+}
+
+/**
+ * Clickable brand social media icons with tooltips
+ */
+function SocialMediaIcons({ lead }) {
+  const social =
+    lead?.socialMedia && typeof lead.socialMedia === 'object' && !Array.isArray(lead.socialMedia)
+      ? Object.fromEntries(
+          Object.entries(lead.socialMedia).map(([k, v]) => [k.trim().toLowerCase(), v])
+        )
+      : {};
+
+  const platforms = [
+    {
+      key: 'instagram',
+      label: 'Instagram',
+      icon: faInstagram,
+      color: '#E1306C',
+      bg: '#FDF2F8',
+      val: social.instagram,
+    },
+    {
+      key: 'facebook',
+      label: 'Facebook',
+      icon: faFacebook,
+      color: '#1877F2',
+      bg: '#EFF6FF',
+      val: social.facebook,
+    },
+    {
+      key: 'youtube',
+      label: 'YouTube',
+      icon: faYoutube,
+      color: '#FF0000',
+      bg: '#FEF2F2',
+      val: social.youtube,
+    },
+    {
+      key: 'pinterest',
+      label: 'Pinterest',
+      icon: faPinterest,
+      color: '#E60023',
+      bg: '#FEF2F2',
+      val: social.pinterest,
+    },
+    {
+      key: 'linkedin',
+      label: 'LinkedIn',
+      icon: faLinkedin,
+      color: '#0A66C2',
+      bg: '#F0F9FF',
+      val: social.linkedin,
+    },
+    {
+      key: 'whatsapp',
+      label: 'WhatsApp',
+      icon: faWhatsapp,
+      color: '#25D366',
+      bg: '#F0FDF4',
+      val:
+        social.whatsapp ||
+        social.whatsappurl ||
+        (lead?.whatsapp && lead.whatsapp !== lead.phone
+          ? `https://wa.me/${String(lead.whatsapp).replace(/\D/g, '')}`
+          : null),
+    },
+    {
+      key: 'twitter',
+      label: 'Twitter / X',
+      icon: faXTwitter,
+      color: '#111111',
+      bg: '#F8FAFC',
+      val: social.twitter || social.x || social.twitter_x,
+    },
+    {
+      key: 'tiktok',
+      label: 'TikTok',
+      icon: faTiktok,
+      color: '#000000',
+      bg: '#F8FAFC',
+      val: social.tiktok,
+    },
+    {
+      key: 'website',
+      label: 'Website',
+      icon: faGlobe,
+      color: '#163A2E',
+      bg: '#ECFDF5',
+      val: lead?.website,
+    },
+  ];
+
+  const links = platforms.flatMap((p) => {
+    const raw = p.val;
+    if (!raw) return [];
+    let href = String(raw).trim();
+    if (!/^https?:\/\//i.test(href)) {
+      if (p.key === 'whatsapp' && /^\d+$/.test(href.replace(/\D/g, ''))) {
+        href = `https://wa.me/${href.replace(/\D/g, '')}`;
+      } else if (/^[\w.-]+\.[a-z]{2,}/i.test(href)) {
+        href = `https://${href}`;
+      } else {
+        return [];
+      }
+    }
+    return [{ ...p, href }];
+  });
+
+  if (links.length === 0) {
+    return <span className="text-slate-300 text-xs">—</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {links.map((link) => (
+        <a
+          key={link.key}
+          href={link.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`${link.label}: ${link.href}`}
+          aria-label={`${link.label}: ${link.href}`}
+          className="size-6 rounded-md flex items-center justify-center transition-transform hover:scale-110 shadow-2xs border border-slate-200/60"
+          style={{ color: link.color, backgroundColor: link.bg }}
+        >
+          <FontAwesomeIcon icon={link.icon} className="size-3" />
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -262,6 +419,19 @@ export default function LeadsRoute() {
     page: 1,
     limit: 20,
   });
+
+  // Debounced search text
+  const [searchTerm, setSearchTerm] = React.useState('');
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setQuery((prev) => {
+        if (prev.search === searchTerm) return prev;
+        return { ...prev, search: searchTerm, page: 1 };
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Sorting
   const [sortKey, setSortKey] = React.useState('createdAt');
@@ -296,6 +466,7 @@ export default function LeadsRoute() {
       const urlStatus = searchParams.get('status');
       const urlSearch = searchParams.get('search');
       if (urlStatus || urlSearch) {
+        if (urlSearch) setSearchTerm(urlSearch);
         setQuery((prev) => ({
           ...prev,
           status: urlStatus || prev.status,
@@ -336,10 +507,68 @@ export default function LeadsRoute() {
     return [...new Set([...SOURCE_OPTIONS, ...names])];
   }, [sources]);
 
-  // Active stages
+  // Active stages from server
   const activeStages = React.useMemo(() => {
     return stages.filter((stage) => stage.isActive !== false);
   }, [stages]);
+
+  // Combined Stage Cards: 12 Standard Stages + Any Extra Tenant Custom Stages
+  const combinedStageCards = React.useMemo(() => {
+    const serverStages = stages.filter((s) => s.isActive !== false);
+    const metricStages = Array.isArray(payload.metrics?.stages) ? payload.metrics.stages : [];
+
+    const standardWithCounts = STANDARD_STAGES.map((std) => {
+      const match = serverStages.find((s) => {
+        const k = String(s.key || '').toUpperCase();
+        const n = String(s.name || '').toUpperCase();
+        return std.aliases.some((a) => a === k || a === n) || s.name === std.name;
+      });
+
+      const metricMatch = metricStages.find((ms) => {
+        const n = String(ms.name || '').toUpperCase();
+        return std.aliases.some((a) => a === n) || ms.name === std.name || ms.id === match?.id;
+      });
+
+      let count = match?.leadsCount ?? metricMatch?.count;
+      if (count == null || count === 0) {
+        if (std.key === 'NEW' && payload.metrics?.new != null) count = payload.metrics.new;
+        else if (std.key === 'CONTACTED' && payload.metrics?.contacted != null) count = payload.metrics.contacted;
+        else if (std.key === 'WON' && payload.metrics?.converted != null) count = payload.metrics.converted;
+        else if (std.key === 'LOST' && payload.metrics?.lost != null) count = payload.metrics.lost;
+        else count = 0;
+      }
+
+      return {
+        key: match?.key || std.key,
+        name: std.name,
+        color: match?.color || std.color,
+        bgColor: match?.bgColor || std.bgColor,
+        borderColor: match?.borderColor || std.borderColor,
+        count: Number(count || 0),
+        aliases: std.aliases,
+      };
+    });
+
+    const extras = serverStages
+      .filter((s) => {
+        const k = String(s.key || '').toUpperCase();
+        const n = String(s.name || '').toUpperCase();
+        return !STANDARD_STAGES.some(
+          (std) => std.aliases.some((a) => a === k || a === n) || std.name.toUpperCase() === n
+        );
+      })
+      .map((s) => ({
+        key: s.key || s.name,
+        name: s.name,
+        color: s.color || '#20C466',
+        bgColor: s.bgColor || '#ECFDF5',
+        borderColor: s.borderColor || '#A7F3D0',
+        count: Number(s.leadsCount || 0),
+        aliases: [String(s.key || '').toUpperCase(), String(s.name || '').toUpperCase()],
+      }));
+
+    return [...standardWithCounts, ...extras];
+  }, [stages, payload.metrics]);
 
   // Sorted Rows
   const sortedRows = React.useMemo(() => {
@@ -353,6 +582,9 @@ export default function LeadsRoute() {
       } else if (sortKey === 'assigned') {
         valA = personName(a.assignedTo || a.employee);
         valB = personName(b.assignedTo || b.employee);
+      } else if (sortKey === 'status') {
+        valA = a.stage?.name || a.status || '';
+        valB = b.stage?.name || b.status || '';
       }
       valA = String(valA || '').toLowerCase();
       valB = String(valB || '').toLowerCase();
@@ -389,6 +621,7 @@ export default function LeadsRoute() {
 
   // Reset all filters
   const handleResetFilters = () => {
+    setSearchTerm('');
     setQuery({
       search: '',
       status: '',
@@ -449,7 +682,7 @@ export default function LeadsRoute() {
   const totalLeadsCount = payload.metrics?.total ?? payload.pagination?.total ?? rows.length;
 
   return (
-    <div className="space-y-5 pb-16 w-full min-w-0">
+    <div className="space-y-5 pb-28 w-full min-w-0">
       {/* 1. Header with Breadcrumbs, Title & Primary Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-4">
         <div>
@@ -478,7 +711,7 @@ export default function LeadsRoute() {
             className="inline-flex items-center gap-1.5 h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#173D30] transition-colors shadow-2xs"
           >
             <FileText className="size-3.5 text-slate-500" />
-            <span>Proposal History</span>
+            <span>View Proposal History</span>
           </Link>
 
           <Button
@@ -513,7 +746,7 @@ export default function LeadsRoute() {
               className="h-9 gap-1.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold shadow-xs"
             >
               <Plus className="size-4 text-[#20C466]" />
-              <span>Add Lead</span>
+              <span>Create Lead</span>
             </Button>
           )}
         </div>
@@ -560,23 +793,24 @@ export default function LeadsRoute() {
             <span className="text-[10px] text-slate-400 mt-0.5">Across all stages</span>
           </button>
 
-          {/* Dynamic Stage Cards */}
-          {activeStages.map((stage) => {
+          {/* Dynamic 12 Lead Stages Cards + Extras */}
+          {combinedStageCards.map((card) => {
             const isSelected =
-              query.status === stage.key ||
-              query.status === stage.name ||
-              (stage.key && query.status.toUpperCase() === stage.key.toUpperCase());
-            const stageCount = stage.leadsCount ?? 0;
-            const stageColor = stage.color || '#20C466';
+              Boolean(query.status) &&
+              (query.status === card.key ||
+                card.aliases?.some(
+                  (a) => a.toUpperCase() === String(query.status).toUpperCase()
+                ) ||
+                String(query.status).toUpperCase() === card.name.toUpperCase());
 
             return (
               <button
-                key={stage.id || stage.key}
+                key={card.name}
                 type="button"
                 onClick={() => {
                   setQuery((prev) => ({
                     ...prev,
-                    status: isSelected ? '' : stage.key,
+                    status: isSelected ? '' : card.key,
                     page: 1,
                   }));
                 }}
@@ -589,22 +823,22 @@ export default function LeadsRoute() {
               >
                 <div
                   className="absolute top-0 left-0 right-0 h-1"
-                  style={{ backgroundColor: stageColor }}
+                  style={{ backgroundColor: card.color }}
                 />
                 <div className="flex items-center justify-between gap-1 mb-1 mt-0.5">
                   <span
                     className="text-[11px] font-semibold text-slate-700 truncate"
-                    title={stage.name}
+                    title={card.name}
                   >
-                    {stage.name}
+                    {card.name}
                   </span>
                   <span
                     className="size-2 rounded-full shrink-0"
-                    style={{ backgroundColor: stageColor }}
+                    style={{ backgroundColor: card.color }}
                   />
                 </div>
                 <span className="text-xl font-bold text-slate-900 tracking-tight">
-                  {stageCount}
+                  {card.count}
                 </span>
                 <span className="text-[10px] text-slate-400 mt-0.5">
                   {isSelected ? 'Filtered' : 'Click to filter'}
@@ -618,19 +852,22 @@ export default function LeadsRoute() {
       {/* 3. Comprehensive Filter Bar & Active Filter Chips */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-2xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {/* Search Input */}
+          {/* Debounced Search Input */}
           <div className="relative sm:col-span-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
             <Input
-              value={query.search}
-              onChange={(e) => setQuery({ ...query, search: e.target.value, page: 1 })}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search leads by name, company, email, phone..."
               className="pl-9 pr-8 h-9 text-xs rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
             />
-            {query.search && (
+            {searchTerm && (
               <button
                 type="button"
-                onClick={() => setQuery({ ...query, search: '', page: 1 })}
+                onClick={() => {
+                  setSearchTerm('');
+                  setQuery((prev) => ({ ...prev, search: '', page: 1 }));
+                }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 <X className="size-3.5" />
@@ -647,9 +884,9 @@ export default function LeadsRoute() {
               className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#173D30]"
             >
               <option value="">All stages</option>
-              {activeStages.map((stage) => (
-                <option key={stage.id || stage.key} value={stage.key}>
-                  {stage.name}
+              {combinedStageCards.map((s) => (
+                <option key={s.name} value={s.key}>
+                  {s.name}
                 </option>
               ))}
             </select>
@@ -762,7 +999,10 @@ export default function LeadsRoute() {
               <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px]">
                 Search: &ldquo;{query.search}&rdquo;
                 <button
-                  onClick={() => setQuery({ ...query, search: '', page: 1 })}
+                  onClick={() => {
+                    setSearchTerm('');
+                    setQuery({ ...query, search: '', page: 1 });
+                  }}
                   className="hover:text-rose-600"
                 >
                   <X className="size-3" />
@@ -846,12 +1086,82 @@ export default function LeadsRoute() {
         />
       )}
 
-      {/* 5. Main Leads Table & Responsive Layout */}
+      {/* 5. Main Leads Table (13 Columns Redesign) */}
       <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-xs text-slate-500 space-y-2">
-            <span className="inline-block size-6 animate-spin rounded-full border-2 border-[#173D30] border-t-transparent" />
-            <p>Loading CRM leads...</p>
+          <div className="w-full overflow-x-auto min-w-0">
+            <table className="w-full text-left text-xs text-slate-700 border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-600">
+                  <th className="py-3 px-3 w-10 text-center">#</th>
+                  <th className="py-3 px-3 min-w-[170px]">Lead</th>
+                  <th className="py-3 px-3 min-w-[110px]">Category</th>
+                  <th className="py-3 px-3 min-w-[130px]">Company</th>
+                  <th className="py-3 px-3 min-w-[130px]">Social Media</th>
+                  <th className="py-3 px-3 min-w-[120px]">Phone</th>
+                  <th className="py-3 px-3 min-w-[140px]">Email</th>
+                  <th className="py-3 px-3 min-w-[100px]">Source</th>
+                  <th className="py-3 px-3 min-w-[90px]">Priority</th>
+                  <th className="py-3 px-3 min-w-[130px]">Assigned Employee</th>
+                  <th className="py-3 px-3 min-w-[100px]">Created Date</th>
+                  <th className="py-3 px-3 min-w-[120px]">Stage</th>
+                  <th className="py-3 px-3 text-right min-w-[110px]">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-3.5 px-3 text-center">
+                      <div className="size-4 bg-slate-200 rounded mx-auto" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="size-8 rounded-lg bg-slate-200" />
+                        <div className="space-y-1">
+                          <div className="h-3 w-24 bg-slate-200 rounded" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-3 w-16 bg-slate-200 rounded" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-3 w-20 bg-slate-200 rounded" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="flex gap-1">
+                        <div className="size-5 rounded bg-slate-200" />
+                        <div className="size-5 rounded bg-slate-200" />
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-3 w-20 bg-slate-200 rounded" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-3 w-24 bg-slate-200 rounded" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-4 w-14 bg-slate-200 rounded-md" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-4 w-12 bg-slate-200 rounded-full" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-3 w-20 bg-slate-200 rounded" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-3 w-16 bg-slate-200 rounded" />
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <div className="h-4 w-16 bg-slate-200 rounded-full" />
+                    </td>
+                    <td className="py-3.5 px-3 text-right">
+                      <div className="h-4 w-12 bg-slate-200 rounded ml-auto" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : error ? (
           <div className="p-10 text-center text-xs text-rose-700 bg-rose-50/50 space-y-2">
@@ -894,7 +1204,7 @@ export default function LeadsRoute() {
                 }}
                 className="mt-2 bg-[#173D30] text-white text-xs"
               >
-                Add Lead
+                Create Lead
               </Button>
             ) : null}
           </div>
@@ -903,6 +1213,7 @@ export default function LeadsRoute() {
             <table className="w-full text-left text-xs text-slate-700 border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-600 select-none">
+                  {/* Column 1: Checkbox */}
                   <th className="py-3 px-3 w-10 text-center">
                     <input
                       type="checkbox"
@@ -912,12 +1223,14 @@ export default function LeadsRoute() {
                       aria-label="Select all on this page"
                     />
                   </th>
+
+                  {/* Column 2: Lead */}
                   <th
-                    className="py-3 px-3.5 cursor-pointer hover:text-slate-900 transition-colors min-w-[200px]"
+                    className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[170px]"
                     onClick={() => handleSort('name')}
                   >
                     <span className="flex items-center gap-1.5">
-                      <span>Lead & Business</span>
+                      <span>Lead</span>
                       {sortKey === 'name' ? (
                         sortDir === 'asc' ? (
                           <ArrowUp className="size-3 text-[#173D30]" />
@@ -929,15 +1242,15 @@ export default function LeadsRoute() {
                       )}
                     </span>
                   </th>
-                  <th className="py-3 px-3 min-w-[130px]">Social Media</th>
-                  <th className="py-3 px-3 min-w-[170px]">Contact Info</th>
+
+                  {/* Column 3: Category */}
                   <th
-                    className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[140px]"
-                    onClick={() => handleSort('assigned')}
+                    className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[110px]"
+                    onClick={() => handleSort('category')}
                   >
                     <span className="flex items-center gap-1.5">
-                      <span>Assigned</span>
-                      {sortKey === 'assigned' ? (
+                      <span>Category</span>
+                      {sortKey === 'category' ? (
                         sortDir === 'asc' ? (
                           <ArrowUp className="size-3 text-[#173D30]" />
                         ) : (
@@ -948,9 +1261,57 @@ export default function LeadsRoute() {
                       )}
                     </span>
                   </th>
-                  <th className="py-3 px-3 min-w-[110px]">Source</th>
+
+                  {/* Column 4: Company */}
+                  <th
+                    className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[130px]"
+                    onClick={() => handleSort('companyName')}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span>Company</span>
+                      {sortKey === 'companyName' ? (
+                        sortDir === 'asc' ? (
+                          <ArrowUp className="size-3 text-[#173D30]" />
+                        ) : (
+                          <ArrowDown className="size-3 text-[#173D30]" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="size-3 text-slate-400" />
+                      )}
+                    </span>
+                  </th>
+
+                  {/* Column 5: Social Media */}
+                  <th className="py-3 px-3 min-w-[130px]">Social Media</th>
+
+                  {/* Column 6: Phone */}
+                  <th className="py-3 px-3 min-w-[120px]">Phone</th>
+
+                  {/* Column 7: Email */}
+                  <th className="py-3 px-3 min-w-[140px]">Email</th>
+
+                  {/* Column 8: Source */}
                   <th
                     className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[100px]"
+                    onClick={() => handleSort('source')}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span>Source</span>
+                      {sortKey === 'source' ? (
+                        sortDir === 'asc' ? (
+                          <ArrowUp className="size-3 text-[#173D30]" />
+                        ) : (
+                          <ArrowDown className="size-3 text-[#173D30]" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="size-3 text-slate-400" />
+                      )}
+                    </span>
+                  </th>
+
+                  {/* Column 9: Priority */}
+                  <th
+                    className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[95px]"
                     onClick={() => handleSort('priority')}
                   >
                     <span className="flex items-center gap-1.5">
@@ -966,12 +1327,33 @@ export default function LeadsRoute() {
                       )}
                     </span>
                   </th>
+
+                  {/* Column 10: Assigned Employee */}
+                  <th
+                    className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[130px]"
+                    onClick={() => handleSort('assigned')}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span>Assigned Employee</span>
+                      {sortKey === 'assigned' ? (
+                        sortDir === 'asc' ? (
+                          <ArrowUp className="size-3 text-[#173D30]" />
+                        ) : (
+                          <ArrowDown className="size-3 text-[#173D30]" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="size-3 text-slate-400" />
+                      )}
+                    </span>
+                  </th>
+
+                  {/* Column 11: Created Date */}
                   <th
                     className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[105px]"
                     onClick={() => handleSort('createdAt')}
                   >
                     <span className="flex items-center gap-1.5">
-                      <span>Created</span>
+                      <span>Created Date</span>
                       {sortKey === 'createdAt' ? (
                         sortDir === 'asc' ? (
                           <ArrowUp className="size-3 text-[#173D30]" />
@@ -983,13 +1365,35 @@ export default function LeadsRoute() {
                       )}
                     </span>
                   </th>
-                  <th className="py-3 px-3 min-w-[130px]">Stage</th>
-                  <th className="py-3 px-3 text-right min-w-[90px]">Actions</th>
+
+                  {/* Column 12: Stage */}
+                  <th
+                    className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[120px]"
+                    onClick={() => handleSort('status')}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span>Stage</span>
+                      {sortKey === 'status' ? (
+                        sortDir === 'asc' ? (
+                          <ArrowUp className="size-3 text-[#173D30]" />
+                        ) : (
+                          <ArrowDown className="size-3 text-[#173D30]" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="size-3 text-slate-400" />
+                      )}
+                    </span>
+                  </th>
+
+                  {/* Column 13: Actions */}
+                  <th className="py-3 px-3 text-right min-w-[110px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedRows.map((row) => {
                   const isRowSelected = selectedIds.includes(row.id);
+                  const assignedName = personName(row.assignedTo || row.employee);
+                  const assignedInitial = (assignedName || 'U')[0]?.toUpperCase();
 
                   return (
                     <tr
@@ -999,7 +1403,7 @@ export default function LeadsRoute() {
                         isRowSelected && 'bg-emerald-50/30'
                       )}
                     >
-                      {/* Checkbox */}
+                      {/* 1. Checkbox */}
                       <td className="py-3 px-3 text-center">
                         <input
                           type="checkbox"
@@ -1010,85 +1414,114 @@ export default function LeadsRoute() {
                         />
                       </td>
 
-                      {/* Lead Avatar, Name & Company */}
-                      <td className="py-3 px-3.5">
-                        <div className="flex items-center gap-3">
+                      {/* 2. Lead (Avatar + Name) */}
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2.5">
                           <LeadAvatar lead={row} />
                           <div className="min-w-0">
                             <button
                               type="button"
                               onClick={() => setSelectedLead(row)}
-                              className="font-bold text-slate-900 hover:text-[#173D30] hover:underline text-xs text-left truncate block max-w-[200px]"
+                              className="font-bold text-slate-900 hover:text-[#173D30] hover:underline text-xs text-left truncate block max-w-[160px]"
                               title={personName(row)}
                             >
                               {personName(row)}
                             </button>
-                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
-                              {row.companyName ? (
-                                <span
-                                  className="truncate font-medium text-slate-700 max-w-[130px]"
-                                  title={row.companyName}
-                                >
-                                  {row.companyName}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400 italic">No company</span>
-                              )}
-                              {row.category ? (
-                                <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] text-slate-600 truncate max-w-[90px]">
-                                  {row.category}
-                                </span>
-                              ) : null}
-                            </div>
+                            {row.title ? (
+                              <span className="text-[10px] text-slate-400 truncate block">
+                                {row.title}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </td>
 
-                      {/* Social Media Links */}
+                      {/* 3. Category */}
                       <td className="py-3 px-3">
-                        <SocialLinks lead={row} />
+                        {row.category ? (
+                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 truncate max-w-[110px]" title={row.category}>
+                            {row.category}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
                       </td>
 
-                      {/* Contact Info (Phone & Email) */}
+                      {/* 4. Company */}
                       <td className="py-3 px-3">
-                        <div className="space-y-1">
-                          {row.phone ? (
-                            <a
-                              href={`tel:${row.phone}`}
-                              className="flex items-center gap-1.5 font-medium text-slate-800 hover:text-[#20C466] transition-colors"
-                              title={`Call ${row.phone}`}
-                            >
-                              <Phone className="size-3 text-slate-400 shrink-0" />
-                              <span className="truncate">{row.phone}</span>
-                            </a>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                          {row.email ? (
-                            <a
-                              href={`mailto:${row.email}`}
-                              className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-[#20C466] transition-colors"
-                              title={`Email ${row.email}`}
-                            >
-                              <Mail className="size-3 text-slate-400 shrink-0" />
-                              <span className="truncate">{row.email}</span>
-                            </a>
-                          ) : null}
-                        </div>
+                        {row.companyName ? (
+                          <span
+                            className="font-medium text-slate-800 text-xs truncate max-w-[130px] block"
+                            title={row.companyName}
+                          >
+                            {row.companyName}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic text-xs">—</span>
+                        )}
                       </td>
 
-                      {/* Assigned Employee & Department */}
+                      {/* 5. Social Media (Clickable Brand Icons) */}
+                      <td className="py-3 px-3">
+                        <SocialMediaIcons lead={row} />
+                      </td>
+
+                      {/* 6. Phone */}
+                      <td className="py-3 px-3">
+                        {row.phone ? (
+                          <a
+                            href={`tel:${row.phone}`}
+                            className="inline-flex items-center gap-1.5 font-medium text-slate-800 hover:text-[#20C466] transition-colors whitespace-nowrap"
+                            title={`Call ${row.phone}`}
+                          >
+                            <Phone className="size-3 text-slate-400 shrink-0" />
+                            <span>{row.phone}</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+
+                      {/* 7. Email */}
+                      <td className="py-3 px-3">
+                        {row.email ? (
+                          <a
+                            href={`mailto:${row.email}`}
+                            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#20C466] transition-colors truncate max-w-[140px]"
+                            title={`Email ${row.email}`}
+                          >
+                            <Mail className="size-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{row.email}</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+
+                      {/* 8. Source */}
+                      <td className="py-3 px-3">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                          {/google/i.test(row.source || '') ? 'Google Maps' : row.source || '—'}
+                        </span>
+                      </td>
+
+                      {/* 9. Priority */}
+                      <td className="py-3 px-3">
+                        <PriorityBadge priority={row.priority} />
+                      </td>
+
+                      {/* 10. Assigned Employee */}
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-2">
                           <span className="flex size-6 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-[#173D30] border border-emerald-200 shrink-0">
-                            {(personName(row.assignedTo || row.employee) || 'U')[0]}
+                            {assignedInitial}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate font-medium text-slate-800 text-xs">
-                              {personName(row.assignedTo || row.employee)}
+                            <p className="truncate font-medium text-slate-800 text-xs" title={assignedName}>
+                              {assignedName}
                             </p>
                             {row.assignedTeam ? (
-                              <p className="text-[10px] text-slate-400 truncate">
+                              <p className="text-[10px] text-slate-400 truncate" title={row.assignedTeam}>
                                 {row.assignedTeam}
                               </p>
                             ) : null}
@@ -1096,24 +1529,12 @@ export default function LeadsRoute() {
                         </div>
                       </td>
 
-                      {/* Source */}
-                      <td className="py-3 px-3">
-                        <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 whitespace-nowrap">
-                          {/google/i.test(row.source || '') ? 'Google Maps' : row.source || '—'}
-                        </span>
-                      </td>
-
-                      {/* Priority */}
-                      <td className="py-3 px-3">
-                        <PriorityBadge priority={row.priority} />
-                      </td>
-
-                      {/* Created Date */}
+                      {/* 11. Created Date */}
                       <td className="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">
                         {row.createdAt ? String(row.createdAt).slice(0, 10) : '—'}
                       </td>
 
-                      {/* Stage Badge */}
+                      {/* 12. Stage */}
                       <td className="py-3 px-3">
                         <StageBadge
                           stage={row.stage}
@@ -1122,7 +1543,7 @@ export default function LeadsRoute() {
                         />
                       </td>
 
-                      {/* Row Actions Menu */}
+                      {/* 13. Actions */}
                       <td className="py-3 px-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
@@ -1187,22 +1608,44 @@ export default function LeadsRoute() {
         )}
       </div>
 
-      {/* 6. Pagination Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 px-1">
-        <div>
-          Showing{' '}
-          <span className="font-semibold text-slate-800">
-            {rows.length === 0 ? 0 : (query.page - 1) * (query.limit || 20) + 1}
-          </span>{' '}
-          to{' '}
-          <span className="font-semibold text-slate-800">
-            {Math.min(query.page * (query.limit || 20), payload.pagination?.total || rows.length)}
-          </span>{' '}
-          of{' '}
-          <span className="font-semibold text-slate-800">
-            {payload.pagination?.total || rows.length}
-          </span>{' '}
-          leads
+      {/* 6. Pagination Bar with Rows-Per-Page Selector */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 px-1 pt-1">
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            Showing{' '}
+            <span className="font-semibold text-slate-800">
+              {rows.length === 0 ? 0 : (query.page - 1) * (query.limit || 20) + 1}
+            </span>{' '}
+            to{' '}
+            <span className="font-semibold text-slate-800">
+              {Math.min(
+                query.page * (query.limit || 20),
+                payload.pagination?.total || rows.length
+              )}
+            </span>{' '}
+            of{' '}
+            <span className="font-semibold text-slate-800">
+              {payload.pagination?.total || rows.length}
+            </span>{' '}
+            leads
+          </div>
+
+          <div className="flex items-center gap-1.5 border-l border-slate-200 pl-4">
+            <span className="text-slate-500">Rows per page:</span>
+            <select
+              aria-label="Rows per page"
+              value={query.limit || 20}
+              onChange={(e) =>
+                setQuery((p) => ({ ...p, limit: Number(e.target.value), page: 1 }))
+              }
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#173D30]"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -1241,7 +1684,7 @@ export default function LeadsRoute() {
       <FormDrawer
         open={formOpen}
         onOpenChange={setFormOpen}
-        title={editingId ? 'Edit Lead' : 'Add Lead'}
+        title={editingId ? 'Edit Lead' : 'Create Lead'}
         description="Fill details to persist to CRM database."
         onSubmit={handleSaveLead}
         loading={saving}
@@ -1716,7 +2159,7 @@ function LeadDossierContent({ lead, stages = [], onEdit }) {
           <Share2 className="size-3.5 text-[#20C466]" />
           Social Media Profiles
         </h4>
-        <SocialLinks lead={lead} />
+        <SocialMediaIcons lead={lead} />
       </div>
 
       {/* Notes & History */}
