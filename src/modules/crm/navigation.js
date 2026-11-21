@@ -3,6 +3,8 @@ import {
     faBuilding,
     faChartLine,
     faClock,
+    faFileLines,
+    faGauge,
     faHandshake,
     faListCheck,
     faPaperPlane,
@@ -13,9 +15,12 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 export const navigation = [
+    { name: 'CRM Dashboard', href: '/admin/crm', matchExact: true, icon: faGauge },
     { name: 'Leads', href: '/admin/crm/leads', icon: faUsers },
-    { name: 'Customers', href: '/admin/crm/customers', icon: faUserGroup },
     { name: 'Deals', href: '/admin/crm/deals', icon: faHandshake },
+    { name: 'Activities', href: '/admin/crm/activities', icon: faChartLine },
+    { name: 'Reports', href: '/admin/crm/reports', icon: faFileLines },
+    { name: 'Customers', href: '/admin/crm/customers', icon: faUserGroup },
     { name: 'Follow-ups', href: '/admin/crm/follow-ups', icon: faClock },
     { name: 'Send Details', href: '/admin/crm/send-details', icon: faPaperPlane },
     { name: 'Lead Limits', href: '/admin/crm/lead-limits', icon: faShieldHalved },
@@ -23,5 +28,4 @@ export const navigation = [
     { name: 'Companies', href: '/admin/crm/companies', icon: faBuilding },
     { name: 'Visits', href: '/admin/crm/visits', icon: faUserCheck },
     { name: 'Tasks', href: '/admin/crm/tasks', icon: faListCheck },
-    { name: 'Activities', href: '/admin/crm/activities', icon: faChartLine },
 ];

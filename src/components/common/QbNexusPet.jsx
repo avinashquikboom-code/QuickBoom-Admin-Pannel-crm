@@ -5,7 +5,6 @@ import {
   Sparkles,
   X,
   Send,
-  Bot,
   Minimize2,
   Maximize2,
   ChevronRight,
@@ -42,6 +41,44 @@ const INITIAL_MESSAGES = [
   },
 ];
 
+function NexusFace({ state = 'IDLE', blinking = false, className }) {
+  const isThinking = state === 'THINKING';
+  const isSpeaking = state === 'SPEAKING';
+  const isError = state === 'ERROR';
+  const isSuccess = state === 'SUCCESS';
+  return (
+    <svg className={cn('relative z-10', className)} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <path d="M32 16V8" stroke="#20C466" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="32" cy="7" r="4" fill="#20C466" className="qb-nexus-antenna" />
+      <rect x="14" y="16" width="36" height="26" rx="8" fill="#FFF" stroke="#173D30" strokeWidth="2.5" />
+      <rect x="10" y="24" width="4" height="10" rx="2" fill="#20C466" />
+      <rect x="50" y="24" width="4" height="10" rx="2" fill="#20C466" />
+      <rect x="18" y="21" width="28" height="15" rx="5" fill="#173D30" />
+      {isError ? (
+        <g stroke="#FB923C" strokeWidth="2" strokeLinecap="round">
+          <path d="m23 26 5 2" /><path d="m41 26-5 2" />
+          <circle cx="26" cy="30" r="1.3" fill="#FB923C" /><circle cx="38" cy="30" r="1.3" fill="#FB923C" />
+        </g>
+      ) : isSuccess ? (
+        <g stroke="#20C466" strokeWidth="2.2" strokeLinecap="round"><path d="m23 29 3 2 3-2" /><path d="m35 29 3 2 3-2" /></g>
+      ) : blinking ? (
+        <g stroke="#20C466" strokeWidth="2.2" strokeLinecap="round"><path d="M23 29h6" /><path d="M35 29h6" /></g>
+      ) : (
+        <g fill="#20C466">
+          <circle cx={isThinking ? 27 : 26} cy={isThinking ? 27 : 28.5} r="3" />
+          <circle cx={isThinking ? 39 : 38} cy={isThinking ? 27 : 28.5} r="3" />
+        </g>
+      )}
+      {isThinking && <path d="M22 23c2-2 5-2 7 0m6 0c2-2 5-2 7 0" stroke="#20C466" strokeWidth="1.4" strokeLinecap="round" />}
+      {isSpeaking ? <ellipse cx="32" cy="33" rx="2.6" ry="1.8" fill="#20C466" className="qb-nexus-mouth" /> : <path d={isSuccess ? 'M28 32c2 3 6 3 8 0' : isError ? 'M29 34c2-2 4-2 6 0' : 'M29 33c1.5 1.5 4.5 1.5 6 0'} stroke={isError ? '#FB923C' : '#20C466'} strokeWidth="1.5" strokeLinecap="round" />}
+      <path d="M18 43C18 43 20 54 32 54C44 54 46 43 46 43" fill="#FFF" stroke="#173D30" strokeWidth="2.5" />
+      <path d="M32 46C30 46 29 48 30 50C32 51 34 49 34 47C34 46.5 33 46 32 46Z" fill="#20C466" />
+      {isThinking && <g className="qb-nexus-particles" fill="#20C466"><circle cx="9" cy="17" r="1.3"/><circle cx="55" cy="14" r="1"/><circle cx="52" cy="44" r="1.2"/></g>}
+      {state === 'WAKE_DETECTED' && <g className="qb-nexus-sparkles" stroke="#B9F8D2" strokeWidth="1.5" strokeLinecap="round"><path d="M7 24v5m-2.5-2.5h5M55 19v6m-3-3h6"/></g>}
+    </svg>
+  );
+}
+
 export function QbNexusPet() {
   const token = useAuthStore((state) => state.token);
   const [open, setOpen] = React.useState(false);
@@ -57,15 +94,41 @@ export function QbNexusPet() {
   const [recognitionSupported, setRecognitionSupported] = React.useState(false);
   const [speakReplies, setSpeakReplies] = React.useState(true);
   const [fallbackRecording, setFallbackRecording] = React.useState(false);
+  const [blinking, setBlinking] = React.useState(false);
   const messagesEndRef = React.useRef(null);
   const recognitionRef = React.useRef(null);
   const mediaRecorderRef = React.useRef(null);
   const mediaStreamRef = React.useRef(null);
   const mediaChunksRef = React.useRef([]);
   const fallbackTimerRef = React.useRef(null);
+  const activityTimerRef = React.useRef(null);
   const enabledRef = React.useRef(false);
   const modeRef = React.useRef('wake');
   const commandRef = React.useRef('');
+  const petState = voiceState === 'ERROR' ? 'ERROR' : voiceState === 'WAKE_DETECTED' ? 'WAKE_DETECTED' : voiceState === 'LISTENING' ? 'LISTENING' : voiceState === 'SPEAKING' ? 'SPEAKING' : voiceState === 'SUCCESS' ? 'SUCCESS' : isTyping ? 'THINKING' : 'IDLE';
+
+  React.useEffect(() => {
+    if (petState !== 'IDLE') { setBlinking(false); return undefined; }
+    let blinkTimer;
+    let reopenTimer;
+    const schedule = () => {
+      if (document.visibilityState !== 'visible') return;
+      blinkTimer = setTimeout(() => {
+        setBlinking(true);
+        reopenTimer = setTimeout(() => { setBlinking(false); schedule(); }, 140);
+      }, 4200 + Math.random() * 3000);
+    };
+    const onVisibility = () => {
+      clearTimeout(blinkTimer); clearTimeout(reopenTimer);
+      if (document.visibilityState === 'visible') schedule();
+    };
+    schedule();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearTimeout(blinkTimer); clearTimeout(reopenTimer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [petState]);
 
   // Restore messages from localStorage
   React.useEffect(() => {
@@ -121,6 +184,7 @@ export function QbNexusPet() {
       stopRecognition();
       stopFallbackRecorder(false);
       clearTimeout(fallbackTimerRef.current);
+      clearTimeout(activityTimerRef.current);
       window.speechSynthesis?.cancel();
     };
   }, []);
@@ -294,21 +358,23 @@ export function QbNexusPet() {
 
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    setVoiceError('');
     setIsTyping(true);
-    setVoiceState(fromVoice ? 'PROCESSING' : voiceState);
+    clearTimeout(activityTimerRef.current);
+    setVoiceState('PROCESSING');
     try {
       const response = await api.post('/admin/ai/nexus/chat', { message: query });
       const replyText = response?.data?.data?.answer || response?.data?.answer || 'I could not find an answer for that request.';
       const botReply = { id: `bot-${Date.now()}`, sender: 'bot', text: replyText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
       setMessages((prev) => [...prev, botReply]);
       if (fromVoice && speakReplies && window.speechSynthesis) {
-        setVoiceState('SPEAKING');
         const utterance = new SpeechSynthesisUtterance(replyText);
-        utterance.onend = () => { setVoiceState('SUCCESS'); setTimeout(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000); };
-        utterance.onerror = () => { setVoiceState('SUCCESS'); if (enabledRef.current) startRecognition('wake'); };
+        utterance.onstart = () => setVoiceState('SPEAKING');
+        utterance.onend = () => { setVoiceState('SUCCESS'); activityTimerRef.current = setTimeout(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000); };
+        utterance.onerror = () => { setVoiceState('SUCCESS'); activityTimerRef.current = setTimeout(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000); };
         window.speechSynthesis.speak(utterance);
-      } else if (fromVoice) {
-        setVoiceState('SUCCESS'); setTimeout(() => { setVoiceState('IDLE'); if (enabledRef.current) startRecognition('wake'); }, 1000);
+      } else {
+        setVoiceState('SUCCESS'); activityTimerRef.current = setTimeout(() => { setVoiceState('IDLE'); if (fromVoice && enabledRef.current) startRecognition('wake'); }, 1000);
       }
     } catch (error) {
       const replyText = error?.response?.data?.message || 'Nexus could not answer right now. Please try again.';
