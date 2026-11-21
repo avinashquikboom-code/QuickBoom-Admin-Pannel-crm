@@ -8,6 +8,9 @@ import { HrmNotice } from '@/modules/hrm/HrmNotice';
 // Dashboard Components
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { KpiCards } from '@/components/dashboard/KpiCards';
+import { LeadsOverviewCard } from '@/components/dashboard/LeadsOverviewCard';
+import { LeadsBySourceCard } from '@/components/dashboard/LeadsBySourceCard';
+import { UpcomingActivitiesCard } from '@/components/dashboard/UpcomingActivitiesCard';
 import { RevenueChartCard } from '@/components/dashboard/RevenueChartCard';
 import { LeadsByStageCard } from '@/components/dashboard/LeadsByStageCard';
 import { AttendanceCard } from '@/components/dashboard/AttendanceCard';
@@ -220,16 +223,49 @@ export default function AdminDashboardPage() {
         />
       )}
 
-      {/* 2. Responsive KPI Cards (5 Cards) */}
+      {/* 2. Responsive Primary KPI Cards (4 Cards: Total Leads, Converted, Revenue, Active Employees) */}
       <KpiCards
         summary={summary}
         leads={leads}
-        customers={customers}
-        deals={deals}
         loading={loading}
       />
 
-      {/* 3. Main Analytics Section: Revenue Overview (7/12) & Leads by Stage Donut (5/12) */}
+      {/* 3. Main Analytics Section: Leads Overview, Leads by Source, Upcoming Activities */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full min-w-0 items-stretch">
+        {/* Leads Overview Area Chart (5/12 on xl, 12/12 on lg) */}
+        <div className="lg:col-span-12 xl:col-span-5 min-w-0 flex flex-col h-full">
+          <LeadsOverviewCard leads={leads} loading={loading} />
+        </div>
+
+        {/* Leads by Source Doughnut Chart (4/12 on xl, 6/12 on lg) */}
+        <div className="lg:col-span-6 xl:col-span-4 min-w-0 flex flex-col h-full">
+          <LeadsBySourceCard leads={leads} loading={loading} />
+        </div>
+
+        {/* Upcoming Activities List (3/12 on xl, 6/12 on lg) */}
+        <div className="lg:col-span-6 xl:col-span-3 min-w-0 flex flex-col h-full">
+          <UpcomingActivitiesCard tasks={data?.tasks} loading={loading} />
+        </div>
+      </div>
+
+      {/* 4. Operational Dashboard Cards: Employee Attendance, Task Summary, Recent Leads */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 w-full min-w-0 items-stretch">
+        <div className="min-w-0 flex flex-col h-full">
+          <AttendanceCard
+            summary={summary}
+            liveAttendance={liveAttendance}
+            loading={loading}
+          />
+        </div>
+        <div className="min-w-0 flex flex-col h-full">
+          <TasksOverviewCard tasks={tasks} loading={loading} />
+        </div>
+        <div className="min-w-0 flex flex-col h-full md:col-span-2 lg:col-span-1">
+          <RecentLeadsCard recentLeads={recentLeads} loading={loading} />
+        </div>
+      </div>
+
+      {/* 5. Extended Revenue & Campaign Performance Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full min-w-0 items-stretch">
         <div className="lg:col-span-7 xl:col-span-8 min-w-0 flex flex-col h-full">
           <RevenueChartCard
@@ -245,29 +281,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 4. Three-Column Summary Cards: Attendance Overview, Tasks Overview, Payroll Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 w-full min-w-0 items-stretch">
-        <div className="min-w-0 flex flex-col h-full">
-          <AttendanceCard
-            summary={summary}
-            liveAttendance={liveAttendance}
-            loading={loading}
-          />
-        </div>
-        <div className="min-w-0 flex flex-col h-full">
-          <TasksOverviewCard tasks={tasks} loading={loading} />
-        </div>
-        <div className="min-w-0 flex flex-col h-full">
-          <PayrollSummaryCard
-            summary={summary}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            loading={loading}
-          />
-        </div>
-      </div>
-
-      {/* 5. Data Capture & Campaign Marketing Performance Section */}
+      {/* 6. Data Capture & Marketing Broadcast Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full min-w-0 items-stretch">
         <div className="lg:col-span-1 min-w-0 flex flex-col h-full">
           <DataCaptureCard data={captureData} loading={loading && !captureData} />
@@ -278,11 +292,6 @@ export default function AdminDashboardPage() {
         <div className="lg:col-span-1 min-w-0 flex flex-col h-full">
           <EmailCampaignCard stats={data?.emailStats} loading={loading} />
         </div>
-      </div>
-
-      {/* 6. Recent Leads Table & Responsive Cards */}
-      <div className="w-full min-w-0">
-        <RecentLeadsCard recentLeads={recentLeads} loading={loading} />
       </div>
 
       {/* 7. Recent Activity & Quick Actions (2-Col Layout) */}

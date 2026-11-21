@@ -62,7 +62,7 @@ export function TasksOverviewCard({ tasks, loading }) {
             href="/admin/crm/tasks"
             className="inline-flex items-center gap-1 text-xs font-semibold text-[#163A2E] hover:underline"
           >
-            All Tasks <ArrowUpRight className="size-3.5" />
+            View All <ArrowUpRight className="size-3.5" />
           </Link>
         </div>
 

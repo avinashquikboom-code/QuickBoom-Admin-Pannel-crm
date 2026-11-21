@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { faBars, faBell, faBuilding, faCheckDouble, faGear, faMagnifyingGlass, faRightFromBracket, faTableCellsLarge, faUserTie, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faBell, faBuilding, faCheckDouble, faCircleQuestion, faGear, faMagnifyingGlass, faPlus, faRightFromBracket, faTableCellsLarge, faUserTie, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Input } from '@/components/common/Input';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/common/Drawer';
@@ -202,10 +202,59 @@ export function Header() {
             </button>
 
             {/* Quick Search (Tablet & Desktop) */}
-            <form onSubmit={handleSearchSubmit} className="relative hidden min-w-0 sm:block w-40 md:w-52 lg:w-64">
+            <form onSubmit={handleSearchSubmit} className="relative hidden min-w-0 sm:block w-36 md:w-48 lg:w-56">
               <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
-              <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search employee, lead, deal..." className="h-9 pl-8 pr-3 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-brand"/>
+              <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="h-9 pl-8 pr-3 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-brand"/>
             </form>
+
+            {/* Quick Actions Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Quick Actions"
+                className="hidden md:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-2xs"
+              >
+                <FontAwesomeIcon icon={faPlus} className="size-3 text-[#20C466]" />
+                <span>Quick Actions</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-white border border-slate-200 shadow-xl rounded-xl p-1.5">
+                <DropdownMenuItem onClick={() => router.push('/admin/crm/leads')} className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-emerald-50 hover:text-[#173D30] flex items-center gap-2">
+                  <FontAwesomeIcon icon={faUsers} className="size-3.5 text-emerald-600" />
+                  <span>Add Lead</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/admin/hrm/employees')} className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-emerald-50 hover:text-[#173D30] flex items-center gap-2">
+                  <FontAwesomeIcon icon={faUserTie} className="size-3.5 text-blue-600" />
+                  <span>New Employee</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/admin/crm/tasks')} className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-emerald-50 hover:text-[#173D30] flex items-center gap-2">
+                  <FontAwesomeIcon icon={faTableCellsLarge} className="size-3.5 text-purple-600" />
+                  <span>Create Task</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/admin/data-capture')} className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-emerald-50 hover:text-[#173D30] flex items-center gap-2">
+                  <FontAwesomeIcon icon={faBuilding} className="size-3.5 text-teal-600" />
+                  <span>Data Capture</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Help Popover */}
+            <Popover>
+              <PopoverTrigger aria-label="Help & Documentation" className="hidden lg:flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
+                <FontAwesomeIcon icon={faCircleQuestion} className="size-4" />
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-3 bg-white border border-slate-200 shadow-xl rounded-xl text-xs space-y-2">
+                <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                  <FontAwesomeIcon icon={faCircleQuestion} className="size-3.5 text-emerald-600" />
+                  <span>QB Suite Help & Support</span>
+                </div>
+                <p className="text-slate-500 text-[11px] leading-relaxed">
+                  Quick assistance for CRM, HRM, and automated integrations.
+                </p>
+                <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1 text-[11px]">
+                  <Link href="/admin/settings" className="text-brand hover:underline font-medium">System Documentation →</Link>
+                  <Link href="/admin/settings/activity-logs" className="text-slate-600 hover:text-slate-900">Audit & Security Logs</Link>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Notifications Popover */}
             <Popover>

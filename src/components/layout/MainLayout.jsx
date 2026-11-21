@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { Toaster } from '@/components/common/Toast';
 import { TooltipProvider } from '@/components/common/Tooltip';
 import { ApprovalDialogProvider } from '@/components/approval';
+import { QbNexusPet } from '@/components/common/QbNexusPet';
 export function MainLayout({ children }) {
  return (
    <ApprovalDialogProvider>
@@ -25,6 +26,7 @@ export function MainLayout({ children }) {
          </main>
        </div>
      </div>
+     <QbNexusPet />
      <Toaster position="top-right" />
    </TooltipProvider>
    </ApprovalDialogProvider>

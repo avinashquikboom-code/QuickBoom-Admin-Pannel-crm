@@ -33,7 +33,7 @@ export function DashboardHeader({
     sessionUser?.firstName ||
     sessionUser?.fullName ||
     sessionUser?.name ||
-    'Admin';
+    'Super Admin';
 
   const hour = new Date().getHours();
   const greeting =
@@ -137,9 +137,9 @@ export function DashboardHeader({
               {todayStr}
             </span>
             <span className="text-slate-300 hidden sm:inline">•</span>
-            <span className="truncate text-slate-500">
-              QB Suite Executive Management Dashboard
-            </span>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+            Here&apos;s what&apos;s happening across your business today.
+          </p>
             {lastUpdated && (
               <>
                 <span className="text-slate-300 hidden sm:inline">•</span>

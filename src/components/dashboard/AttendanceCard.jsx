@@ -73,7 +73,7 @@ export function AttendanceCard({ summary, liveAttendance, loading }) {
             href="/admin/hrm/attendance"
             className="inline-flex items-center gap-1 text-xs font-semibold text-[#163A2E] hover:underline"
           >
-            Live Logs <ArrowUpRight className="size-3.5" />
+            View Details <ArrowUpRight className="size-3.5" />
           </Link>
         </div>
 
