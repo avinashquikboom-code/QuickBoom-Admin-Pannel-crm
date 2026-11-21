@@ -354,10 +354,15 @@ export function RoleCommissionSettings() {
             {periodConflicts.length > 0 && (
               <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                 <p className="font-semibold">An active rule already covers this role and date range.</p>
-                <p className="mt-1">Edit the existing configuration from the table, or choose dates that do not overlap.</p>
-                <ul className="mt-2 list-inside list-disc">
+                <p className="mt-1">Add multiple slabs inside one role configuration. Open the active rule below and use “Add slab”; overlapping active configurations for the same role are not allowed.</p>
+                <ul className="mt-2 space-y-2">
                   {periodConflicts.map((row) => (
-                    <li key={row.id}>#{row.id} {row.name} · {dateOnly(row.startsAt)} to {dateOnly(row.endsAt) || "No end date"}</li>
+                    <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-100/70 p-2">
+                      <span>#{row.id} {row.name} · {dateOnly(row.startsAt)} to {dateOnly(row.endsAt) || "No end date"}</span>
+                      <Button type="button" size="sm" variant="outline" onClick={() => edit(row)}>
+                        Edit #{row.id} and add slabs
+                      </Button>
+                    </li>
                   ))}
                 </ul>
               </div>
