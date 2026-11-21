@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { faBars, faBell, faBuilding, faCheckDouble, faCircleQuestion, faGear, faMagnifyingGlass, faPlus, faRightFromBracket, faTableCellsLarge, faUserTie, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faBell, faBuilding, faCheckDouble, faGear, faMagnifyingGlass, faPlus, faRightFromBracket, faTableCellsLarge, faUserTie, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Input } from '@/components/common/Input';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/common/Drawer';
@@ -235,26 +235,6 @@ export function Header() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Help Popover */}
-            <Popover>
-              <PopoverTrigger aria-label="Help & Documentation" className="hidden lg:flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
-                <FontAwesomeIcon icon={faCircleQuestion} className="size-4" />
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 p-3 bg-white border border-slate-200 shadow-xl rounded-xl text-xs space-y-2">
-                <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                  <FontAwesomeIcon icon={faCircleQuestion} className="size-3.5 text-emerald-600" />
-                  <span>QB Suite Help & Support</span>
-                </div>
-                <p className="text-slate-500 text-[11px] leading-relaxed">
-                  Quick assistance for CRM, HRM, and automated integrations.
-                </p>
-                <div className="pt-1.5 border-t border-slate-100 flex flex-col gap-1 text-[11px]">
-                  <Link href="/admin/settings" className="text-brand hover:underline font-medium">System Documentation →</Link>
-                  <Link href="/admin/settings/activity-logs" className="text-slate-600 hover:text-slate-900">Audit & Security Logs</Link>
-                </div>
-              </PopoverContent>
-            </Popover>
 
             {/* Notifications Popover */}
             <Popover>
