@@ -93,7 +93,7 @@ const routeRegistry = {
 
     // CRM Sections
     'lead-limits': { category: 'SALES & CRM', title: 'Lead Limits', icon: faShieldHalved },
-    'contacts': { category: 'SALES & CRM', title: 'Contacts Directory', icon: faAddressBook },
+    'contacts': { category: 'SALES & CRM', title: 'Contacted', icon: faAddressBook },
     'companies': { category: 'SALES & CRM', title: 'Companies & Accounts', icon: faBuilding },
     'deals': { category: 'SALES & CRM', title: 'Deals Pipeline', icon: faHandshake },
     'visits': { category: 'SALES & CRM', title: 'Field Visits', icon: faUserCheck },

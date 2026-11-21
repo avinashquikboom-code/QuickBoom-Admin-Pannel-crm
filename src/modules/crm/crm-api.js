@@ -420,9 +420,11 @@ export async function loadLeadLimits() {
 }
 
 export const saveEmployeeLimit = (employeeId, values) => api.put(`/lead-generation-limits/employees/${employeeId}`, {
-  dailyLimit: values.dailyLimit === '' ? null : Number(values.dailyLimit),
-  monthlyLimit: values.monthlyLimit === '' ? null : Number(values.monthlyLimit),
+  dailyLimit: values.dailyLimit === '' || values.dailyLimit == null ? null : Number(values.dailyLimit),
+  monthlyLimit: values.monthlyLimit === '' || values.monthlyLimit == null ? null : Number(values.monthlyLimit),
 });
+
+export const clearEmployeeLimit = (employeeId) => api.delete(`/lead-generation-limits/employees/${employeeId}`);
 
 export const saveRoleLimit = (values) => api.post('/lead-generation-limits/roles', {
   roleName: values.roleName,
