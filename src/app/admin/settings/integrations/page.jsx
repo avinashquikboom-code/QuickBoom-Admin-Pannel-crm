@@ -2,339 +2,825 @@
 
 import * as React from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
-import { Button } from '@/components/common/Button';
-import { Input } from '@/components/common/Input';
-import { Label } from '@/components/common/Label';
-import { FormDrawer } from '@/components/common/drawers/FormDrawer';
-import { GoogleMapsIntegrationModal } from '@/components/integrations/GoogleMapsIntegrationModal';
-import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
-import { disconnectIntegration, loadIntegrations, saveIntegration, setIntegrationEnabled, suiteError, testIntegration } from '@/modules/suite/suite-api';
-import { AdminRowActions } from '@/components/common/AdminRowActions';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  disconnectIntegration,
+  loadIntegrations,
+  saveIntegration,
+  setIntegrationEnabled,
+  suiteError,
+  testIntegration,
+} from '@/modules/suite/suite-api';
 import { toast } from '@/hooks/use-toast';
+import { IntegrationsKpiGrid } from '@/components/integrations/IntegrationsKpiGrid';
+import { IntegrationCard } from '@/components/integrations/IntegrationCard';
+import { IntegrationConfigDrawer } from '@/components/integrations/IntegrationConfigDrawer';
+import { GoogleMapsIntegrationModal } from '@/components/integrations/GoogleMapsIntegrationModal';
+import {
+  RotateCw,
+  Plus,
+  Search,
+  Sparkles,
+  CreditCard,
+  MapPin,
+  MessageSquare,
+  HardDrive,
+  Mail,
+  Filter,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  Layers,
+} from 'lucide-react';
 
 const PRESENTATION = {
-  AWS: ['AWS S3', 'Storage'],
-  MSG91: ['MSG91', 'Messaging'],
-  GOOGLE_MAPS: ['Google Maps', 'Maps'],
-  WHATSAPP: ['WhatsApp Business', 'Messaging'],
-  SMTP: ['SMTP Email', 'Email'],
-  GEMINI: ['Google Gemini', 'AI'],
-  OPENAI: ['OpenAI', 'AI'],
-  FIREBASE: ['Firebase', 'Messaging'],
-  RAZORPAY: ['Razorpay', 'Payments'],
+  OPENAI: {
+    name: 'OpenAI',
+    category: 'AI Providers',
+    categoryKey: 'AI',
+    description: 'GPT-4o, reasoning models and multimodal intelligence for generative workflows.',
+  },
+  GEMINI: {
+    name: 'Google Gemini',
+    category: 'AI Providers',
+    categoryKey: 'AI',
+    description: 'Google Gemini 2.0 Flash & Pro multimodal models for real-time CRM intelligence.',
+  },
+  ANTHROPIC: {
+    name: 'Anthropic Claude',
+    category: 'AI Providers',
+    categoryKey: 'AI',
+    description: 'Claude 3.5 Sonnet advanced reasoning, document analysis and coding assistant.',
+  },
+  RAZORPAY: {
+    name: 'Razorpay',
+    category: 'Payments',
+    categoryKey: 'PAYMENTS',
+    description: 'Accept online customer payments, subscription billing, and automated webhooks.',
+  },
+  GOOGLE_MAPS: {
+    name: 'Google Maps',
+    category: 'Maps & Location',
+    categoryKey: 'MAPS',
+    description: 'Geocoding, location lookup, distance calculation and places data capture.',
+  },
+  WHATSAPP: {
+    name: 'WhatsApp Business',
+    category: 'Messaging',
+    categoryKey: 'MESSAGING',
+    description: 'Meta WhatsApp Business API for automated notifications, proposals and alerts.',
+  },
+  MSG91: {
+    name: 'MSG91',
+    category: 'Messaging',
+    categoryKey: 'MESSAGING',
+    description: 'Transactional SMS, multi-channel messaging and OTP delivery services.',
+  },
+  FIREBASE: {
+    name: 'Firebase',
+    category: 'Messaging',
+    categoryKey: 'MESSAGING',
+    description: 'Firebase Cloud Messaging (FCM) for real-time mobile push notifications.',
+  },
+  AWS: {
+    name: 'AWS S3',
+    category: 'Storage',
+    categoryKey: 'STORAGE',
+    description: 'Amazon S3 cloud storage for proposal documents, PDFs, and captured photos.',
+  },
+  SMTP: {
+    name: 'SMTP Email',
+    category: 'Email',
+    categoryKey: 'EMAIL',
+    description: 'Transactional and outgoing system emails, salary slips, and proposal dispatch.',
+  },
 };
+
+const CATEGORIES = [
+  { key: 'ALL', label: 'All', icon: Layers },
+  { key: 'AI Providers', label: 'AI Providers', icon: Sparkles },
+  { key: 'Payments', label: 'Payments', icon: CreditCard },
+  { key: 'Maps & Location', label: 'Maps', icon: MapPin },
+  { key: 'Messaging', label: 'Messaging', icon: MessageSquare },
+  { key: 'Storage', label: 'Storage', icon: HardDrive },
+  { key: 'Email', label: 'Email', icon: Mail },
+];
 
 const FIELDS = {
   AWS: [
-    ['accessKeyId', 'Access key ID'],
-    ['secretAccessKey', 'Secret access key', true],
-    ['bucket', 'Bucket name'],
-    ['region', 'Region'],
-    ['customDomain', 'Custom domain'],
+    { key: 'accessKeyId', label: 'Access Key ID', required: true },
+    { key: 'secretAccessKey', label: 'Secret Access Key', secret: true, required: true },
+    { key: 'region', label: 'Region', required: true, placeholder: 'ap-south-1' },
+    { key: 'bucket', label: 'Bucket Name', required: true },
+    { key: 'customDomain', label: 'Custom Domain (CloudFront)' },
   ],
   MSG91: [
-    ['authKey', 'Authentication key', true],
-    ['senderId', 'Sender ID'],
-    ['templateId', 'Template ID'],
-    ['otpExpiry', 'OTP expiry seconds', false, 'config'],
+    { key: 'authKey', label: 'Authentication Key', secret: true, required: true },
+    { key: 'senderId', label: 'Sender ID' },
+    { key: 'templateId', label: 'Template ID' },
+    { key: 'otpExpiry', label: 'OTP Expiry (seconds)', type: 'number', group: 'config' },
   ],
-  GOOGLE_MAPS: [['apiKey', 'API key', true]],
+  GOOGLE_MAPS: [
+    { key: 'apiKey', label: 'Google Maps API Key', secret: true, required: true },
+  ],
   WHATSAPP: [
-    ['accessToken', 'Access token', true],
-    ['phoneNumberId', 'Phone number ID'],
-    ['businessAccountId', 'Business account ID'],
-    ['appId', 'App ID'],
-    ['verifyToken', 'Verify token'],
-    ['apiVersion', 'API version'],
+    { key: 'accessToken', label: 'Access Token', secret: true, required: true },
+    { key: 'phoneNumberId', label: 'Phone Number ID', required: true },
+    { key: 'businessAccountId', label: 'Business Account ID', required: true },
+    { key: 'appId', label: 'Meta App ID' },
+    { key: 'verifyToken', label: 'Webhook Verify Token', secret: true },
+    { key: 'apiVersion', label: 'API Version', placeholder: 'v21.0' },
   ],
   SMTP: [
-    ['host', 'SMTP host', false, 'config'],
-    ['port', 'Port', false, 'config'],
-    ['security', 'Encryption', false, 'config', ['TLS', 'SSL', 'NONE']],
-    ['username', 'Username', true],
-    ['password', 'Password', true],
-    ['fromEmail', 'From email', false, 'config'],
-    ['fromName', 'From name', false, 'config'],
+    { key: 'host', label: 'SMTP Host', group: 'config', required: true, placeholder: 'smtp.gmail.com' },
+    { key: 'port', label: 'Port', type: 'number', group: 'config', required: true, placeholder: '587' },
+    { key: 'security', label: 'Encryption', type: 'select', group: 'config', options: ['TLS', 'SSL', 'NONE'], required: true },
+    { key: 'username', label: 'Username', required: true },
+    { key: 'password', label: 'Password', secret: true, required: true },
+    { key: 'fromEmail', label: 'From Email', group: 'config', required: true },
+    { key: 'fromName', label: 'From Name', group: 'config' },
   ],
-  GEMINI: [['apiKey', 'API key', true]],
-  OPENAI: [['apiKey', 'API key', true], ['imageModel', 'Image model']],
+  GEMINI: [
+    { key: 'apiKey', label: 'API Key', secret: true, required: true },
+    {
+      key: 'model',
+      label: 'Model Selection',
+      group: 'config',
+      type: 'select',
+      options: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+      defaultValue: 'gemini-2.0-flash',
+    },
+  ],
+  OPENAI: [
+    { key: 'apiKey', label: 'API Key', secret: true, required: true },
+    {
+      key: 'imageModel',
+      label: 'Model Selection',
+      type: 'select',
+      options: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+      defaultValue: 'gpt-4o-mini',
+    },
+  ],
+  ANTHROPIC: [
+    { key: 'apiKey', label: 'API Key', secret: true, required: true },
+    {
+      key: 'model',
+      label: 'Model Selection',
+      group: 'config',
+      type: 'select',
+      options: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+      defaultValue: 'claude-3-5-sonnet-20241022',
+    },
+  ],
   FIREBASE: [
-    ['projectId', 'Project ID'],
-    ['clientEmail', 'Client email'],
-    ['privateKey', 'Private key', true],
-    ['apiKey', 'API key', true],
-    ['appId', 'App ID'],
-    ['messagingSenderId', 'Sender ID'],
+    { key: 'projectId', label: 'Project ID', required: true },
+    { key: 'clientEmail', label: 'Client Email', required: true },
+    { key: 'privateKey', label: 'Private Key', secret: true, required: true },
+    { key: 'messagingSenderId', label: 'Messaging Sender ID' },
   ],
   RAZORPAY: [
-    ['keyId', 'Key ID'],
-    ['keySecret', 'Key secret', true],
-    ['webhookSecret', 'Webhook secret', true],
+    { key: 'environment', label: 'Environment', group: 'environment', type: 'select', options: ['TEST', 'LIVE'], required: true },
+    { key: 'keyId', label: 'Key ID', required: true },
+    { key: 'keySecret', label: 'Key Secret', secret: true, required: true },
+    { key: 'webhookSecret', label: 'Webhook Secret', secret: true },
   ],
 };
 
 export default function IntegrationsPage() {
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
   const [error, setError] = React.useState('');
   const [query, setQuery] = React.useState('');
-  const [filter, setFilter] = React.useState('ALL');
+  const [activeCategory, setActiveCategory] = React.useState('ALL');
+  const [activeStatus, setActiveStatus] = React.useState('ALL');
   const [tests, setTests] = React.useState({});
   const [testing, setTesting] = React.useState('');
-  const [active, setActive] = React.useState(null);
-  const [form, setForm] = React.useState({});
-  const [reveal, setReveal] = React.useState({});
+  const [activeRow, setActiveRow] = React.useState(null);
   const [refresh, setRefresh] = React.useState(0);
   const [saving, setSaving] = React.useState(false);
+  const [lastSync, setLastSync] = React.useState(null);
   const [mapsApiKey, setMapsApiKey] = React.useState('');
+  const [mapsModalOpen, setMapsModalOpen] = React.useState(false);
+  const [addDialogOpen, setAddDialogOpen] = React.useState(false);
 
+  // Load integrations from backend
   React.useEffect(() => {
     let alive = true;
-    setLoading(true);
+    if (refresh > 0) setRefreshing(true);
+    else setLoading(true);
+
     loadIntegrations()
-      .then((items) => { if (alive) { setRows(items); setError(''); } })
-      .catch((err) => { if (alive) setError(suiteError(err)); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
+      .then((items) => {
+        if (!alive) return;
+        const normalized = Array.isArray(items) ? items : [];
+        setRows(normalized);
+        setError('');
+        setLastSync(new Date());
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setError(suiteError(err));
+      })
+      .finally(() => {
+        if (!alive) return;
+        setLoading(false);
+        setRefreshing(false);
+      });
+
+    return () => {
+      alive = false;
+    };
   }, [refresh]);
 
-  const listed = rows.map((row) => ({ ...row, status: statusOf(row, tests[row.provider]) }));
-  const visible = listed.filter((row) => {
-    const name = labelOf(row).toLowerCase();
-    const matches = !query || name.includes(query.trim().toLowerCase()) || String(row.provider).toLowerCase().includes(query.trim().toLowerCase());
-    return matches && (filter === 'ALL' || row.status === filter);
+  // Merge runtime status
+  const normalizedRows = rows.map((row) => ({
+    ...row,
+    displayName: PRESENTATION[row.provider]?.name || row.displayName || row.provider,
+    category: PRESENTATION[row.provider]?.category || row.category || 'Other',
+    description: PRESENTATION[row.provider]?.description || `Connect ${row.displayName || row.provider} with QB Suite.`,
+    status: calculateStatus(row, tests[row.provider]),
+  }));
+
+  // Filtering
+  const filteredRows = normalizedRows.filter((row) => {
+    const q = query.trim().toLowerCase();
+    const nameMatches =
+      !q ||
+      row.displayName.toLowerCase().includes(q) ||
+      String(row.provider).toLowerCase().includes(q) ||
+      row.category.toLowerCase().includes(q);
+
+    const categoryMatches =
+      activeCategory === 'ALL' ||
+      row.category === activeCategory ||
+      (activeCategory === 'Maps & Location' && row.category.includes('Maps'));
+
+    const statusMatches =
+      activeStatus === 'ALL' ||
+      row.status === activeStatus ||
+      (activeStatus === 'ERROR' && row.status === 'ERROR');
+
+    return nameMatches && categoryMatches && statusMatches;
   });
+
+  // Calculate KPIs
   const counts = {
-    total: listed.length,
-    connected: listed.filter((row) => row.status === 'CONNECTED').length,
-    missing: listed.filter((row) => row.status === 'NOT_CONFIGURED').length,
-    issues: listed.filter((row) => row.status === 'ERROR').length,
+    total: normalizedRows.length,
+    connected: normalizedRows.filter((r) => r.status === 'CONNECTED').length,
+    missing: normalizedRows.filter((r) => r.status === 'NOT_CONFIGURED').length,
+    issues: normalizedRows.filter((r) => r.status === 'ERROR').length,
   };
 
-  const open = (row) => {
+  // Category counts
+  const categoryCounts = React.useMemo(() => {
+    const map = { ALL: normalizedRows.length };
+    for (const cat of CATEGORIES) {
+      if (cat.key === 'ALL') continue;
+      map[cat.key] = normalizedRows.filter(
+        (r) => r.category === cat.key || (cat.key === 'Maps & Location' && r.category.includes('Maps'))
+      ).length;
+    }
+    return map;
+  }, [normalizedRows]);
+
+  // AI Providers split
+  const aiRows = filteredRows.filter((r) => r.category === 'AI Providers');
+  const otherRows = filteredRows.filter((r) => r.category !== 'AI Providers');
+
+  // Grouped remaining categories
+  const otherCategories = ['Payments', 'Maps & Location', 'Messaging', 'Storage', 'Email'];
+  const groupedOther = otherCategories
+    .map((cat) => ({
+      name: cat,
+      rows: otherRows.filter((r) => r.category === cat),
+    }))
+    .filter((g) => g.rows.length > 0);
+
+  // Open drawer / modal
+  const handleOpenConfig = (row) => {
     if (row.provider === 'GOOGLE_MAPS') {
       setMapsApiKey('');
-      setActive(row);
+      setActiveRow(row);
+      setMapsModalOpen(true);
       return;
     }
-    const next = {};
-    fieldsFor(row).forEach((field) => {
-      if (field.secret) return;
-      const source = field.group === 'config' ? row.config : field.group === 'environment' ? { environment: row.environment } : row.credentials;
-      const value = field.group === 'environment' ? row.environment : source?.[field.key];
-      if (typeof value === 'boolean') next[field.key] = value;
-      else if (value != null && typeof value !== 'object') next[field.key] = String(value);
-    });
-    setForm(next);
-    setReveal({});
-    setActive(row);
+    setActiveRow(row);
   };
 
-  const save = async (event) => {
-    event?.preventDefault?.();
-    const payload = collect(active, form);
-    await runSaveAndEnable(active, payload);
-  };
-
-  const saveGoogleMaps = async () => {
-    if (!active || active.provider !== 'GOOGLE_MAPS') return;
-    const trimmed = mapsApiKey.trim();
-    const hasSavedKey = googleMapsHasSavedKey(active);
-    if (!trimmed && !hasSavedKey) {
-      toast.error('Enter a Google Maps API key to enable this integration.');
-      return;
-    }
-    const credentials = {};
-    if (trimmed) credentials.apiKey = trimmed;
-    await runSaveAndEnable(active, { credentials, config: {} });
-  };
-
-  async function runSaveAndEnable(row, payload) {
+  // Save configuration
+  const handleSaveConfig = async (row, payload) => {
     if (saving) return;
     setSaving(true);
     try {
-      const result = await testIntegration(row.provider, payload);
-      const body = result?.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : result;
+      // Test first for validation
+      const testRes = await testIntegration(row.provider, payload);
+      const body =
+        testRes?.data && typeof testRes.data === 'object' && !Array.isArray(testRes.data)
+          ? testRes.data
+          : testRes;
       const ok = body?.success !== false && !/fail|error/i.test(String(body?.status || ''));
+
       if (!ok) {
-        toast.error(body?.message || 'Connection test failed. The integration was not enabled.');
-        setRefresh((value) => value + 1);
+        toast.error(body?.message || 'Connection test failed. The integration was not saved.');
+        setRefresh((v) => v + 1);
         return;
       }
+
       await saveIntegration(row.provider, { ...payload, isEnabled: true });
-      setActive(null);
-      setMapsApiKey('');
-      setRefresh((value) => value + 1);
-      toast.success('Connection successful. Integration saved and enabled.');
+      setActiveRow(null);
+      setRefresh((v) => v + 1);
+      toast.success(`${row.displayName || row.provider} saved and verified successfully!`);
     } catch (err) {
       toast.error(suiteError(err));
     } finally {
       setSaving(false);
     }
-  }
+  };
 
-  return <div className="max-w-none space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
-    <PageHeader title="Integrations" description="Manage and configure third-party services connected to QB Suite." actions={<Button variant="outline" onClick={() => setRefresh((value) => value + 1)}>Refresh</Button>} />
-    <HrmStats items={[{ label: 'Total integrations', value: counts.total }, { label: 'Connected', value: counts.connected }, { label: 'Not configured', value: counts.missing }, { label: 'Connection issues', value: counts.issues }]} />
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center w-full min-w-0">
-      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search integrations" className="w-full sm:max-w-xs" />
-      <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">{['ALL', 'CONNECTED', 'NOT_CONFIGURED', 'ERROR', 'DISABLED'].map((item) => <Button key={item} size="sm" variant={filter === item ? 'default' : 'outline'} onClick={() => setFilter(item)}>{filterLabel(item)}</Button>)}</div>
-    </div>
-    <HrmNotice loading={loading} error={error} empty={!loading && !error && visible.length === 0 ? 'No integrations match these filters.' : ''} onRetry={() => setRefresh((value) => value + 1)}>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {visible.map((row) => {
-          const result = tests[row.provider];
-          const testedAt = result?.at || formatTested(row.config?.lastTestedAt);
-          const busy = testing === row.provider;
-          return <article key={row.provider} className="flex min-w-0 flex-col rounded-xl border border-[#E2E8E5] bg-white p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-[#172B24]">{labelOf(row)}</h3>
-                <p className="text-xs text-[#718078]">{categoryOf(row)}</p>
-              </div>
-              <div className="flex items-center gap-1">
-                <ConnectionBadge status={busy ? 'TESTING' : row.status} />
-                <AdminRowActions record={row} recordName={labelOf(row)} disabled={busy}
-                  onToggleStatus={() => run(() => setIntegrationEnabled(row.provider, !row.isEnabled))}
-                  statusLabel={row.isEnabled ? 'Disable' : 'Enable'}
-                  actions={row.status !== 'NOT_CONFIGURED' ? [{ label: 'Disconnect', variant: 'destructive', confirm: false, onClick: () => disconnect(row) }] : []}
-                />
-              </div>
-            </div>
-            <p className="mt-3 text-xs text-[#718078]">Last tested: {testedAt || '—'}</p>
-            {result?.message && <p className={`mt-1 text-xs ${result.ok ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>{result.message}</p>}
-            {!result?.message && row.config?.lastTestError && row.status === 'ERROR' && <p className="mt-1 text-xs text-[#DC2626]">{row.config.lastTestError}</p>}
-            <div className="mt-4 grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
-              <Button type="button" onClick={() => open(row)}>Configure</Button>
-              <Button type="button" variant="outline" disabled={busy} onClick={() => runTest(row)}>
-                {busy ? <span className="inline-flex items-center gap-2"><span className="size-3 animate-spin rounded-full border-2 border-current border-r-transparent" />Testing...</span> : 'Test Connection'}
-              </Button>
-            </div>
-          </article>;
-        })}
-      </div>
-    </HrmNotice>
-    <GoogleMapsIntegrationModal
-      open={Boolean(active?.provider === 'GOOGLE_MAPS')}
-      onOpenChange={(next) => {
-        if (!next && !saving) {
-          setActive(null);
-          setMapsApiKey('');
-        }
-      }}
-      apiKey={mapsApiKey}
-      onApiKeyChange={setMapsApiKey}
-      onSave={saveGoogleMaps}
-      saving={saving}
-      hasSavedKey={active?.provider === 'GOOGLE_MAPS' ? googleMapsHasSavedKey(active) : false}
-    />
-    <FormDrawer
-      open={Boolean(active && active.provider !== 'GOOGLE_MAPS')}
-      onOpenChange={(next) => { if (!next && !saving) setActive(null); }}
-      title={active ? labelOf(active) : 'Integration'}
-      description="Blank secret fields keep the saved value. Save & Enable tests the connection before turning the integration on."
-      submitLabel="Save & Enable"
-      loading={saving}
-      disabled={saving}
-      onSubmit={save}
-    >
-      {active && active.provider !== 'GOOGLE_MAPS' && <div className="grid gap-3">{fieldsFor(active).map((field) => <Label key={field.key} className="grid gap-1 text-xs">{field.label}{field.type === 'boolean' ? <input type="checkbox" className="size-4" checked={Boolean(form[field.key])} onChange={(event) => setForm({ ...form, [field.key]: event.target.checked })} /> : field.options ? <select className="h-9 rounded-md border px-2 text-sm" value={form[field.key] || field.options[0]} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <div className="flex gap-2"><Input type={field.secret && !reveal[field.key] ? 'password' : field.type === 'number' ? 'number' : 'text'} autoComplete="new-password" value={form[field.key] || ''} placeholder={field.secret ? 'Leave blank to keep the saved value' : field.placeholder || ''} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />{field.secret && <Button type="button" variant="outline" onClick={() => setReveal({ ...reveal, [field.key]: !reveal[field.key] })}>{reveal[field.key] ? 'Hide' : 'Show'}</Button>}</div>}</Label>)}{active.provider === 'WHATSAPP' && active.config?.webhookUrl && <p className="text-xs text-slate-500">Webhook URL from the server: {active.config.webhookUrl}</p>}</div>}
-    </FormDrawer>
-  </div>;
-
-  function run(action) {
-    action().then(() => setRefresh((value) => value + 1)).catch((err) => toast.error(suiteError(err)));
-  }
-  async function runTest(row) {
-    if (testing) return;
-    if (!row.configured || row.source === 'NONE' || row.status === 'NOT_CONFIGURED') {
-      toast.error('Configure this integration before testing.');
+  // Google Maps save
+  const handleSaveGoogleMaps = async () => {
+    if (!activeRow || activeRow.provider !== 'GOOGLE_MAPS') return;
+    const trimmed = mapsApiKey.trim();
+    if (!trimmed && !hasSavedKey(activeRow)) {
+      toast.error('Enter a Google Maps API key to enable this integration.');
       return;
     }
+    await handleSaveConfig(activeRow, {
+      credentials: trimmed ? { apiKey: trimmed } : {},
+      config: {},
+    });
+    setMapsModalOpen(false);
+  };
+
+  // Live Test
+  const handleTestConnection = async (row, explicitPayload = null) => {
+    if (testing) return;
+    if (!explicitPayload && (!row.configured || row.source === 'NONE' || row.status === 'NOT_CONFIGURED')) {
+      toast.error('Configure this integration with valid credentials before testing.');
+      return;
+    }
+
     setTesting(row.provider);
     try {
-      const result = await testIntegration(row.provider);
-      const body = result?.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : result;
+      const res = await testIntegration(row.provider, explicitPayload || {});
+      const body = res?.data && typeof res.data === 'object' && !Array.isArray(res.data) ? res.data : res;
       const ok = body?.success !== false && !/fail|error/i.test(String(body?.status || ''));
-      const at = formatTested(body?.lastTestedAt) || new Date().toLocaleString();
+      const at = formatTimestamp(body?.lastTestedAt) || new Date().toLocaleTimeString();
+
       if (!ok) {
-        const message = body?.message || 'Connection test failed';
-        setTests((current) => ({ ...current, [row.provider]: { ok: false, message, at } }));
-        toast.error(message);
-        setRefresh((value) => value + 1);
+        const msg = body?.message || 'Connection test failed';
+        setTests((prev) => ({ ...prev, [row.provider]: { ok: false, message: msg, at } }));
+        toast.error(msg);
+        setRefresh((v) => v + 1);
         return;
       }
-      setTests((current) => ({ ...current, [row.provider]: { ok: true, message: 'Connection successful.', at } }));
-      toast.success('Connection successful.');
-      setRefresh((value) => value + 1);
+
+      const msg = body?.message || 'Connection verified successfully!';
+      setTests((prev) => ({ ...prev, [row.provider]: { ok: true, message: msg, at } }));
+      toast.success(msg);
+      setRefresh((v) => v + 1);
     } catch (err) {
-      const message = suiteError(err);
-      setTests((current) => ({ ...current, [row.provider]: { ok: false, message, at: new Date().toLocaleString() } }));
-      toast.error(message);
+      const msg = suiteError(err);
+      setTests((prev) => ({
+        ...prev,
+        [row.provider]: { ok: false, message: msg, at: new Date().toLocaleTimeString() },
+      }));
+      toast.error(msg);
     } finally {
       setTesting('');
     }
-  }
-  function disconnect(row) {
-    if (!window.confirm(`Disconnect ${labelOf(row)}? Saved credentials for this provider will be removed.`)) return;
-    run(() => disconnectIntegration(row.provider));
-  }
-}
+  };
 
-function fieldsFor(row) {
-  if (Array.isArray(row.fields) && row.fields.length) return row.fields;
-  const fallback = FIELDS[row.provider] || Object.keys(row.credentials || {}).filter((key) => !key.startsWith('has') && !key.startsWith('is')).map((key) => [key, key, /secret|password|token|apikey|privatekey/i.test(key)]);
-  return fallback.map((field) => ({ key: field[0], label: field[1], secret: Boolean(field[2]), group: field[3] || 'credentials', options: field[4], type: field[4] ? 'select' : 'text' }));
-}
-function labelOf(row) { return row?.displayName || PRESENTATION[row?.provider]?.[0] || row?.provider || 'Integration'; }
-function categoryOf(row) { return row?.category || PRESENTATION[row?.provider]?.[1] || '—'; }
-function collect(row, form) {
-  const credentials = {};
-  const config = {};
-  let environment;
-  fieldsFor(row).forEach((field) => {
-    const value = form[field.key];
-    if (typeof value === 'boolean') {
-      if (field.group === 'config') config[field.key] = value;
+  // Toggle active status
+  const handleToggleStatus = async (row) => {
+    try {
+      await setIntegrationEnabled(row.provider, !row.isEnabled);
+      setRefresh((v) => v + 1);
+      toast.success(`${row.displayName} ${row.isEnabled ? 'disabled' : 'enabled'}.`);
+    } catch (err) {
+      toast.error(suiteError(err));
+    }
+  };
+
+  // Disconnect provider
+  const handleDisconnect = async (row) => {
+    if (
+      !window.confirm(
+        `Disconnect ${row.displayName}? Saved API keys and credentials for this service will be removed.`
+      )
+    ) {
       return;
     }
-    if (value == null || String(value).trim() === '') return;
-    if (field.group === 'environment') environment = String(value).trim();
-    else if (field.group === 'config') config[field.key] = field.type === 'number' ? Number(value) : String(value).trim();
-    else credentials[field.key] = String(value).trim();
-  });
-  return { credentials, config, environment };
+    try {
+      await disconnectIntegration(row.provider);
+      setRefresh((v) => v + 1);
+      toast.success(`${row.displayName} disconnected.`);
+      if (activeRow?.provider === row.provider) setActiveRow(null);
+    } catch (err) {
+      toast.error(suiteError(err));
+    }
+  };
+
+  return (
+    <div className="w-full min-w-0 space-y-6 overflow-x-hidden pb-12">
+      {/* 1. Header */}
+      <PageHeader
+        title="Integrations"
+        description="Manage and configure third-party services connected to QB Suite."
+        actions={
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRefresh((v) => v + 1)}
+              disabled={loading || refreshing}
+              className="h-9 px-3 text-xs font-semibold border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-2xs"
+            >
+              <RotateCw className={`mr-1.5 size-3.5 ${refreshing || loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setAddDialogOpen(true)}
+              className="h-9 px-3.5 text-xs font-semibold bg-[#20C466] hover:bg-[#1bb05a] text-white shadow-2xs"
+            >
+              <Plus className="mr-1.5 size-4" />
+              Add Integration
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Sync timestamp bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-[#718096]">
+        <div className="flex items-center gap-2">
+          <span className="inline-block size-2 rounded-full bg-[#20C466]" />
+          <span>Real-time third-party provider status & monitoring</span>
+        </div>
+        <div>
+          Last synchronized:{' '}
+          <strong className="font-semibold text-[#172033]">
+            {lastSync ? lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+          </strong>
+        </div>
+      </div>
+
+      {/* 2. Animated KPI Overview */}
+      <IntegrationsKpiGrid
+        counts={counts}
+        onFilterClick={(status) => setActiveStatus(status)}
+      />
+
+      {/* 3. Search and Category Filter Toolbar */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
+          {/* Search Box */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#718096]" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search integrations by name or category..."
+              className="h-10 pl-9 pr-8 text-xs rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-colors"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+            {[
+              { id: 'ALL', label: 'All Status' },
+              { id: 'CONNECTED', label: 'Connected' },
+              { id: 'NOT_CONFIGURED', label: 'Not Configured' },
+              { id: 'ERROR', label: 'Issues' },
+              { id: 'DISABLED', label: 'Disabled' },
+            ].map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => setActiveStatus(st.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  activeStatus === st.id
+                    ? 'bg-[#173D30] text-white shadow-2xs'
+                    : 'bg-slate-100/70 text-slate-600 hover:bg-slate-200/70'
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Horizontal Category Filter Pills with Counts */}
+        <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-slate-100 pb-1 scrollbar-none">
+          {CATEGORIES.map((cat) => {
+            const Icon = cat.icon;
+            const count = categoryCounts[cat.key] || 0;
+            const isSelected = activeCategory === cat.key;
+
+            return (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => setActiveCategory(cat.key)}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
+                  isSelected
+                    ? 'bg-[#EAF7EF] border-emerald-300 text-[#173D30] shadow-2xs ring-1 ring-emerald-400/40'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Icon className={`size-3.5 ${isSelected ? 'text-[#20C466]' : 'text-slate-400'}`} />
+                <span>{cat.label}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Error state if load failed */}
+      {error && (
+        <div className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4 shrink-0 text-rose-600" />
+            <span>{error}</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setRefresh((v) => v + 1)}
+            className="h-8 text-xs border-rose-300 hover:bg-rose-100"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {/* Loading Skeletons */}
+      {loading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="h-64 rounded-2xl border border-slate-200 bg-white p-5 animate-pulse space-y-4"
+            >
+              <div className="flex justify-between items-start">
+                <div className="size-12 rounded-xl bg-slate-100" />
+                <div className="w-20 h-5 rounded-full bg-slate-100" />
+              </div>
+              <div className="w-32 h-4 rounded bg-slate-100" />
+              <div className="w-full h-10 rounded bg-slate-100" />
+              <div className="w-full h-9 rounded bg-slate-100 mt-6" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && filteredRows.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center space-y-3">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-50 text-[#173D30]">
+            <Filter className="size-5" />
+          </div>
+          <h3 className="text-sm font-bold text-[#172033]">No integrations found</h3>
+          <p className="text-xs text-[#718096] max-w-sm mx-auto">
+            No connected services match your current search &ldquo;{query}&rdquo; or selected filters.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setQuery('');
+              setActiveCategory('ALL');
+              setActiveStatus('ALL');
+            }}
+            className="text-xs font-semibold text-[#173D30]"
+          >
+            Clear all filters
+          </Button>
+        </div>
+      )}
+
+      {/* Content: Categorized View */}
+      {!loading && !error && filteredRows.length > 0 && (
+        <div className="space-y-8">
+          {/* 4. AI Providers - Prominent Section */}
+          {(activeCategory === 'ALL' || activeCategory === 'AI Providers') && aiRows.length > 0 && (
+            <section className="space-y-3.5">
+              <div className="flex items-center justify-between border-b border-emerald-100/80 pb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-[#173D30]">
+                    <Sparkles className="size-4 text-[#20C466]" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-[#172033] flex items-center gap-2">
+                      AI Providers
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#EAF7EF] text-[#173D30] border border-emerald-200/60">
+                        {aiRows.length} Platforms
+                      </span>
+                    </h2>
+                  </div>
+                </div>
+                <p className="text-xs text-[#718096] hidden sm:block">
+                  Generative intelligence, reasoning models & agent workflows
+                </p>
+              </div>
+
+              {/* 3-Column AI Provider Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+                {aiRows.map((row) => (
+                  <IntegrationCard
+                    key={row.provider}
+                    row={row}
+                    label={row.displayName}
+                    category={row.category}
+                    description={row.description}
+                    status={row.status}
+                    isTesting={testing === row.provider}
+                    testedAt={tests[row.provider]?.at || formatTimestamp(row.config?.lastTestedAt)}
+                    errorMessage={
+                      tests[row.provider]?.ok === false
+                        ? tests[row.provider].message
+                        : row.config?.lastTestError
+                    }
+                    successMessage={
+                      tests[row.provider]?.ok === true ? tests[row.provider].message : null
+                    }
+                    onConfigure={handleOpenConfig}
+                    onTest={handleTestConnection}
+                    onToggleStatus={handleToggleStatus}
+                    onDisconnect={handleDisconnect}
+                    isFeaturedAi={true}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 5. Other Categorized Sections */}
+          {groupedOther.map((group) => (
+            <section key={group.name} className="space-y-3.5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-[#172033]">{group.name}</h2>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
+                    {group.rows.length} {group.rows.length === 1 ? 'Service' : 'Services'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+                {group.rows.map((row) => (
+                  <IntegrationCard
+                    key={row.provider}
+                    row={row}
+                    label={row.displayName}
+                    category={row.category}
+                    description={row.description}
+                    status={row.status}
+                    isTesting={testing === row.provider}
+                    testedAt={tests[row.provider]?.at || formatTimestamp(row.config?.lastTestedAt)}
+                    errorMessage={
+                      tests[row.provider]?.ok === false
+                        ? tests[row.provider].message
+                        : row.config?.lastTestError
+                    }
+                    successMessage={
+                      tests[row.provider]?.ok === true ? tests[row.provider].message : null
+                    }
+                    onConfigure={handleOpenConfig}
+                    onTest={handleTestConnection}
+                    onToggleStatus={handleToggleStatus}
+                    onDisconnect={handleDisconnect}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {/* Configuration Drawer */}
+      <IntegrationConfigDrawer
+        open={Boolean(activeRow && activeRow.provider !== 'GOOGLE_MAPS')}
+        onOpenChange={(next) => {
+          if (!next && !saving) setActiveRow(null);
+        }}
+        row={activeRow}
+        label={activeRow ? activeRow.displayName : ''}
+        category={activeRow ? activeRow.category : ''}
+        fields={activeRow ? FIELDS[activeRow.provider] || activeRow.fields || [] : []}
+        saving={saving}
+        testing={testing}
+        testResult={activeRow ? tests[activeRow.provider] : null}
+        onSave={handleSaveConfig}
+        onTest={handleTestConnection}
+        onToggleStatus={handleToggleStatus}
+        onDisconnect={handleDisconnect}
+      />
+
+      {/* Google Maps Modal */}
+      <GoogleMapsIntegrationModal
+        open={mapsModalOpen}
+        onOpenChange={(next) => {
+          if (!next && !saving) {
+            setMapsModalOpen(false);
+            setActiveRow(null);
+            setMapsApiKey('');
+          }
+        }}
+        apiKey={mapsApiKey}
+        onApiKeyChange={setMapsApiKey}
+        onSave={handleSaveGoogleMaps}
+        saving={saving}
+        hasSavedKey={activeRow ? hasSavedKey(activeRow) : false}
+      />
+
+      {/* Add Integration Information Dialog */}
+      {addDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in-0 duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-[#20C466]">
+                  <Plus className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#172033]">Add Integration</h3>
+                  <p className="text-xs text-[#718096]">QB Suite Connected Architecture</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddDialogOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs leading-relaxed text-slate-700 space-y-2">
+              <p>
+                All <strong>10 official QB Suite integrations</strong> (AI Providers, Razorpay, Google Maps, WhatsApp, MSG91, Firebase, AWS S3, and SMTP) are already registered in your admin console.
+              </p>
+              <p>
+                To enable a new service, locate its card on this page and click <strong>Configure</strong> to supply your API credentials.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                size="sm"
+                onClick={() => setAddDialogOpen(false)}
+                className="bg-[#173D30] hover:bg-[#205541] text-white text-xs px-4"
+              >
+                Got It
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
-function statusOf(row, test) {
+
+function calculateStatus(row, runtimeTest) {
   if (!row.configured || row.source === 'NONE') return 'NOT_CONFIGURED';
   if (row.isEnabled === false) return 'DISABLED';
-  if (test && test.ok === false) return 'ERROR';
-  if (test && test.ok === true) return 'CONNECTED';
+  if (runtimeTest && runtimeTest.ok === false) return 'ERROR';
+  if (runtimeTest && runtimeTest.ok === true) return 'CONNECTED';
   if (row.config?.lastTestResult === 'FAILED') return 'ERROR';
   if (row.config?.lastTestResult === 'SUCCESS') return 'CONNECTED';
   return 'NOT_TESTED';
 }
-function formatTested(value) {
+
+function formatTimestamp(value) {
   if (!value || value === '—') return '';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 }
-function ConnectionBadge({ status }) {
-  const styles = {
-    CONNECTED: 'bg-[#DCFCE7] text-[#16A34A]',
-    ERROR: 'bg-[#FEE2E2] text-[#DC2626]',
-    NOT_CONFIGURED: 'bg-slate-100 text-slate-600',
-    DISABLED: 'bg-slate-100 text-slate-500',
-    TESTING: 'bg-[#FEF3C7] text-[#D97706]',
-    NOT_TESTED: 'bg-[#E8F1EC] text-[#163A2E]',
-  };
-  const labels = { CONNECTED: 'Connected', ERROR: 'Connection Error', NOT_CONFIGURED: 'Not configured', DISABLED: 'Disabled', TESTING: 'Testing...', NOT_TESTED: 'Not tested' };
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[status] || styles.NOT_TESTED}`}>{labels[status] || status}</span>;
-}
-function filterLabel(status) {
-  return { ALL: 'All', CONNECTED: 'Connected', NOT_CONFIGURED: 'Not configured', ERROR: 'Error', DISABLED: 'Disabled' }[status];
-}
-function googleMapsHasSavedKey(row) {
-  if (!row) return false;
-  return Boolean(row.configured || row.source === 'DATABASE' || row.credentials?.apiKey);
+
+function hasSavedKey(row) {
+  return Boolean(row && (row.configured || row.source === 'DATABASE' || row.credentials?.apiKey));
 }
