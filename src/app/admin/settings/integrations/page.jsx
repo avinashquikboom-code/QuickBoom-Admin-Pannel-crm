@@ -162,10 +162,11 @@ const FIELDS = {
     { key: 'apiKey', label: 'API Key', secret: true, required: true },
     {
       key: 'imageModel',
-      label: 'Model Selection',
+      label: 'Image Generation Model',
       type: 'select',
-      options: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
-      defaultValue: 'gpt-4o-mini',
+      group: 'config',
+      options: ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2', 'gpt-image-1.5'],
+      defaultValue: 'gpt-image-2.6-flare',
     },
   ],
   ANTHROPIC: [

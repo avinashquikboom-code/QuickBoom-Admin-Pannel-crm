@@ -40,7 +40,7 @@ export default function AiStudioPage() {
         { header: 'Credits', cell: (row) => row.creditsSpent ?? '—' },
         { header: 'Status', cell: (row) => <StatusBadge status={String(row.status || '').toLowerCase()} /> },
       ]}
-      detail={(row) => <div className="space-y-2 text-sm"><p>{row.caption || 'No caption returned'}</p><p>{(Array.isArray(row.hashtags) ? row.hashtags.join(' ') : (row.hashtags || '')) || 'No hashtags returned'}</p>{row.mediaUrl && <a className="text-brand" href={row.mediaUrl} target="_blank" rel="noreferrer">Open media</a>}{row.errorMessage && <p className="text-rose-700">{row.errorMessage}</p>}</div>}
+      detail={(row) => <div className="space-y-2 text-sm">{row.caption && <p>{row.caption}</p>}{(Array.isArray(row.hashtags) ? row.hashtags.join(' ') : row.hashtags) && <p>{Array.isArray(row.hashtags) ? row.hashtags.join(' ') : row.hashtags}</p>}{row.mediaUrl && <><img src={row.mediaUrl} alt={`Generated ${String(row.type || 'AI').toLowerCase()} output`} className="max-h-96 max-w-full rounded-lg object-contain" /> <a className="text-brand" href={row.mediaUrl} target="_blank" rel="noreferrer">Open or save image</a></>}{row.errorMessage && <p className="text-rose-700">{row.errorMessage}</p>}</div>}
     />
     <div className="max-w-none min-w-0 w-full mt-4 space-y-4">
       {allowed && <Button onClick={() => setOpen(true)}>Generate content</Button>}
@@ -55,7 +55,7 @@ export default function AiStudioPage() {
         { header: 'Error', cell: (row) => row.errorMessage || '—' },
       ]} /></div>
     </div>
-    <FormDrawer open={open} onOpenChange={setOpen} title="Generate content" description="Sends the prompt to the existing AI generate endpoint. Credit limits are enforced by the server." onSubmit={async (event) => { event.preventDefault(); try { const result = await generateContent(form); setOpen(false); setRefresh((value) => value + 1); toast.success(result?.message || 'Generation requested'); } catch (error) { toast.error(socialError(error)); } }}>
+    <FormDrawer open={open} onOpenChange={setOpen} title="Generate content" description="Sends the prompt to the existing AI generate endpoint. Credit limits are enforced by the server." onSubmit={async (event) => { event.preventDefault(); try { const result = await generateContent(form); setOpen(false); setRefresh((value) => value + 1); toast.success(result?.message || 'Generation completed'); } catch (error) { toast.error(socialError(error)); } }}>
       <div className="grid gap-3"><Field label="Type"><select className="h-9 rounded-md border px-2 text-sm" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}>{['POST', 'POSTER', 'VIDEO', 'CAPTION', 'HASHTAGS'].map((type) => <option key={type}>{type}</option>)}</select></Field><Field label="Prompt"><Input required value={form.prompt} onChange={(event) => setForm({ ...form, prompt: event.target.value })} /></Field><Field label="Platform"><select className="h-9 rounded-md border px-2 text-sm" value={form.platform} onChange={(event) => setForm({ ...form, platform: event.target.value })}>{['INSTAGRAM', 'FACEBOOK', 'YOUTUBE', 'TIKTOK', 'LINKEDIN'].map((platform) => <option key={platform}>{platform}</option>)}</select></Field><Field label="Objective"><Input value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })} /></Field></div>
     </FormDrawer>
   </>;
