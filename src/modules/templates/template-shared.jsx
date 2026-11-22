@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faDownload } from '@fortawesome/free-solid-svg-icons';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 export const PAGE_SIZES = [10, 25, 50, 100];
@@ -89,7 +90,17 @@ export function Field({ label, hint, error, children, required }) {
   );
 }
 
-export function TemplateTable({ loading, error, rows, empty, columns, render, className }) {
+export function TemplateTable({
+  loading,
+  error,
+  rows,
+  empty,
+  columns,
+  render,
+  className,
+  loadingSkeleton = false,
+  onRetry,
+}) {
   return (
     <div className={cn('min-w-0 overflow-x-auto rounded-xl border border-[#E2E8E5] bg-white', className)}>
       <table className="min-w-full text-left text-sm text-[#172B24]">
@@ -104,16 +115,36 @@ export function TemplateTable({ loading, error, rows, empty, columns, render, cl
         </thead>
         <tbody>
           {loading ? (
-            <tr>
-              <td className="px-3 py-8 text-[#718078]" colSpan={columns.length}>
-                Loading templates…
-              </td>
-            </tr>
+            loadingSkeleton ? (
+              Array.from({ length: 5 }, (_, rowIndex) => (
+                <tr key={`loading-${rowIndex}`} aria-hidden="true" className="border-t border-[#E2E8E5]">
+                  {columns.map((column, columnIndex) => (
+                    <td key={`${column}-${columnIndex}`} className="px-3 py-4 sm:px-4">
+                      <Skeleton className={cn('h-4', columnIndex === 0 ? 'w-36' : columnIndex === columns.length - 1 ? 'ml-auto w-10' : 'w-24')} />
+                      {columnIndex === 0 ? <Skeleton className="mt-2 h-3 w-24" /> : null}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="px-3 py-8 text-[#718078]" colSpan={columns.length}>
+                  Loading templates…
+                </td>
+              </tr>
+            )
           ) : null}
           {!loading && error ? (
             <tr>
               <td className="px-3 py-8 text-red-600" colSpan={columns.length}>
-                {error}
+                <div role="alert" className="flex flex-wrap items-center justify-between gap-3">
+                  <span>{error}</span>
+                  {onRetry ? (
+                    <Button type="button" variant="outline" className="min-h-10" onClick={onRetry}>
+                      Try again
+                    </Button>
+                  ) : null}
+                </div>
               </td>
             </tr>
           ) : null}
@@ -159,36 +190,63 @@ export function TemplateToolbar({
   onClear,
   extra,
   searchPlaceholder = 'Search by name, code, or subject',
+  sort,
+  sortOptions = [],
+  onSortChange,
+  exporting = false,
+  canExport = true,
 }) {
   return (
-    <div className="flex min-w-0 w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+    <div className="grid min-w-0 w-full gap-3 xl:grid-cols-[minmax(220px,1fr)_auto] xl:items-center">
       <Input
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
         placeholder={searchPlaceholder}
-        className="h-10 w-full min-w-0 sm:max-w-md"
+        className="h-10 w-full min-w-0"
         aria-label="Search templates"
       />
-      <div className="flex min-w-0 w-full flex-col gap-2 xs:flex-row sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="grid min-w-0 grid-cols-1 gap-2 min-[440px]:grid-cols-2 sm:flex sm:flex-wrap sm:items-center xl:justify-end">
         <select
           value={status}
           onChange={(event) => onStatusChange(event.target.value)}
           aria-label="Status filter"
-          className="h-10 w-full min-w-0 rounded-md border border-[#E2E8E5] bg-white px-3 text-sm text-[#172B24] sm:w-auto"
+          className="h-10 w-full min-w-0 rounded-md border border-[#E2E8E5] bg-white px-3 text-sm text-[#172B24] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-auto"
         >
           {statuses.map((item) => (
             <option key={item} value={item}>
-              {item === 'ALL' ? 'All statuses' : item}
+              {item === 'ALL' ? 'All statuses' : `${item[0]}${item.slice(1).toLowerCase()}`}
             </option>
           ))}
         </select>
-        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onClear}>
+        {sortOptions.length > 0 && onSortChange ? (
+          <select
+            value={sort}
+            onChange={(event) => onSortChange(event.target.value)}
+            aria-label="Sort email templates"
+            className="h-10 w-full min-w-0 rounded-md border border-[#E2E8E5] bg-white px-3 text-sm text-[#172B24] focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 sm:w-auto"
+          >
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <Button type="button" variant="outline" className="min-h-10 w-full transition hover:-translate-y-px active:translate-y-0 sm:w-auto" onClick={onClear}>
           Clear filters
         </Button>
-        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onExport}>
-          <FontAwesomeIcon icon={faDownload} className="mr-2" />
-          Export CSV
-        </Button>
+        {canExport ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-10 w-full transition hover:-translate-y-px active:translate-y-0 sm:w-auto"
+            onClick={onExport}
+            disabled={exporting}
+          >
+            <FontAwesomeIcon icon={faDownload} className="mr-2" />
+            {exporting ? 'Exporting…' : 'Export CSV'}
+          </Button>
+        ) : null}
         {extra}
       </div>
     </div>
