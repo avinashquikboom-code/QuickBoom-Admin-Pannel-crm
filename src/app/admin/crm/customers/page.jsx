@@ -8,9 +8,11 @@ import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
 import { CrmScreen } from '@/modules/crm/CrmScreen';
 import {
+  assignCustomerTeam,
   bulkDeleteCustomers,
   crmError,
   customerRelations,
+  getCustomerAssignedTeam,
   loadCustomers,
   loadEmployees,
   personName,
@@ -19,6 +21,8 @@ import {
   sessionCan,
   subscribeCustomerRefresh,
 } from '@/modules/crm/crm-api';
+import { loadTeams } from '@/modules/hrm/hrm-api';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
 import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -43,7 +47,9 @@ import {
   XCircle,
   Briefcase,
   Check,
+  CreditCard,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import api from '../../../../../lib/api';
 
 const CUSTOMER_STATUSES = ['ACTIVE', 'INACTIVE', 'UPCOMING'];
@@ -59,6 +65,7 @@ const blank = {
   status: 'ACTIVE',
   isActive: true,
   assignedEmployeeId: '',
+  assignedTeamId: '',
   city: '',
   state: '',
   country: 'India',
@@ -69,6 +76,8 @@ const blank = {
 export default function CustomersRoute() {
   const [allowed, setAllowed] = React.useState(false);
   const [employees, setEmployees] = React.useState([]);
+  const [teams, setTeams] = React.useState([]);
+  const [assignModalCustomer, setAssignModalCustomer] = React.useState(null);
   const [pendingDelete, setPendingDelete] = React.useState(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
@@ -92,6 +101,12 @@ export default function CustomersRoute() {
     loadEmployees()
       .then(setEmployees)
       .catch(() => setEmployees([]));
+    loadTeams({ limit: 100 })
+      .then((res) => {
+        const list = res.rows || res.data || (Array.isArray(res) ? res : []);
+        setTeams(list);
+      })
+      .catch(() => setTeams([]));
   }, []);
 
   React.useEffect(() => {
@@ -106,6 +121,7 @@ export default function CustomersRoute() {
         search: query.search || undefined,
         status: query.status || undefined,
         assignedEmployee: query.assignedEmployee || undefined,
+        assignedTeamId: query.assignedTeamId || undefined,
       }),
     []
   );
@@ -303,6 +319,14 @@ export default function CustomersRoute() {
               ...employees.map((emp) => ({ value: emp.name, label: emp.name })),
             ],
           },
+          {
+            key: 'assignedTeamId',
+            label: 'All teams',
+            options: [
+              { value: '', label: 'All teams' },
+              ...teams.map((t) => ({ value: String(t.id), label: t.name })),
+            ],
+          },
         ]}
         columns={({ open }) => [
           {
@@ -373,6 +397,85 @@ export default function CustomersRoute() {
                     {assignedName[0]?.toUpperCase() || 'U'}
                   </span>
                   <span className="truncate max-w-[120px]">{assignedName}</span>
+                </span>
+              );
+            },
+          },
+          {
+            header: 'Assigned Team',
+            className: 'min-w-[170px]',
+            cell: (row) => {
+              const teamName = row.team?.name || row.assignedTeam?.name;
+              if (!teamName) {
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setAssignModalCustomer(row)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-2.5 py-1 text-xs font-medium text-slate-500 hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-800 transition-colors cursor-pointer"
+                    title="Click to assign team"
+                  >
+                    <UsersRound className="size-3 text-slate-400" />
+                    <span>Unassigned</span>
+                  </button>
+                );
+              }
+              return (
+                <button
+                  type="button"
+                  onClick={() => setAssignModalCustomer(row)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/90 bg-emerald-50/70 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-300 transition-colors shadow-2xs group cursor-pointer"
+                  title={`Team Leader: ${row.team?.leader || 'Unassigned'} • Click to change`}
+                >
+                  <UsersRound className="size-3 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  <span className="truncate max-w-[120px]">{teamName}</span>
+                </button>
+              );
+            },
+          },
+          {
+            header: 'Plan',
+            className: 'min-w-[150px]',
+            cell: (row) => {
+              const planName = row.planName || row.plan || row.currentSubscription?.plan?.name;
+              const subStatus = String(row.subscriptionStatus || row.currentSubscription?.status || '').toUpperCase();
+              if (!planName || planName === 'Not Purchased' || subStatus === 'NOT_PURCHASED') {
+                return (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-500">
+                    <span className="size-1.5 rounded-full bg-slate-400" />
+                    Not Purchased
+                  </span>
+                );
+              }
+              const isExpired = subStatus === 'EXPIRED';
+              const isCancelled = subStatus === 'CANCELLED';
+              const isActive = subStatus === 'ACTIVE';
+
+              let badgeStyle = 'bg-slate-50 text-slate-700 border-slate-200';
+              let dotStyle = 'bg-slate-400';
+              if (isActive) {
+                badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                dotStyle = 'bg-emerald-500';
+              } else if (isExpired) {
+                badgeStyle = 'bg-amber-50 text-amber-800 border-amber-200';
+                dotStyle = 'bg-amber-500';
+              } else if (isCancelled) {
+                badgeStyle = 'bg-rose-50 text-rose-800 border-rose-200';
+                dotStyle = 'bg-rose-500';
+              }
+
+              return (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold max-w-[160px] truncate',
+                    badgeStyle
+                  )}
+                  title={planName}
+                >
+                  <span className={cn('size-1.5 rounded-full shrink-0', dotStyle)} />
+                  <span className="truncate">
+                    {planName}
+                    {isExpired ? ' (Expired)' : isCancelled ? ' (Cancelled)' : ''}
+                  </span>
                 </span>
               );
             },
@@ -489,6 +592,25 @@ export default function CustomersRoute() {
                 ))}
               </select>
             </Field>
+            <Field label="Assigned Team">
+              <select
+                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                value={form.assignedTeamId || ''}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    assignedTeamId: event.target.value ? Number(event.target.value) : '',
+                  })
+                }
+              >
+                <option value="">Unassigned (No Team)</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {t.head && t.head !== 'Unassigned' ? `• Lead: ${t.head}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="City">
               <Input
                 placeholder="e.g. Mumbai"
@@ -531,6 +653,9 @@ export default function CustomersRoute() {
             </div>
           </div>
         )}
+        toForm={(row) => ({
+          assignedTeamId: row.assignedTeamId || row.teamId || row.team?.id || '',
+        })}
         onSave={async (form, id) => {
           await saveCustomer(form, id);
           toast.success(id ? 'Customer updated successfully' : 'Customer created successfully');
@@ -538,6 +663,10 @@ export default function CustomersRoute() {
         rowActions={() =>
           allowed
             ? [
+                {
+                  label: 'Assign Team',
+                  onSelect: (row) => setAssignModalCustomer(row),
+                },
                 {
                   label: 'Toggle Active',
                   onSelect: (row) => handleToggleActive(row),
@@ -549,7 +678,13 @@ export default function CustomersRoute() {
               ]
             : []
         }
-        detail={(row) => <CustomerDetail row={row} onEdit={() => {}} />}
+        detail={(row) => (
+          <CustomerDetail
+            row={row}
+            onEdit={() => {}}
+            onAssignTeam={(customer) => setAssignModalCustomer(customer)}
+          />
+        )}
         toolbar={({ selected, clearSelection }) => {
           clearSelectionRef.current = clearSelection;
           if (!selected?.length || !allowed) return null;
@@ -608,6 +743,19 @@ export default function CustomersRoute() {
           onImport={runImport}
         />
       )}
+
+      <CustomerTeamAssignModal
+        customer={assignModalCustomer}
+        teams={teams}
+        open={Boolean(assignModalCustomer)}
+        onOpenChange={(open) => {
+          if (!open) setAssignModalCustomer(null);
+        }}
+        onAssigned={() => {
+          setAssignModalCustomer(null);
+          setRefreshToken((v) => v + 1);
+        }}
+      />
     </>
   );
 }
@@ -690,7 +838,7 @@ function CustomerName({ row, onOpen }) {
   );
 }
 
-function CustomerDetail({ row }) {
+function CustomerDetail({ row, onAssignTeam }) {
   const [activeTab, setActiveTab] = React.useState('overview');
   const [related, setRelated] = React.useState({ deals: [], visits: [], activities: [] });
   const [loadingRelated, setLoadingRelated] = React.useState(true);
@@ -715,6 +863,7 @@ function CustomerDetail({ row }) {
   }, [row.id]);
 
   const assignedName = personName(row.assignedEmployee) || row.assignedEmployee || 'Unassigned';
+  const assignedTeamName = row.team?.name || row.assignedTeam?.name;
 
   return (
     <div className="space-y-4">
@@ -751,6 +900,14 @@ function CustomerDetail({ row }) {
 
       {/* Quick Action Buttons */}
       <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onAssignTeam && onAssignTeam(row)}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-[#173D30] shadow-2xs transition hover:bg-emerald-100 cursor-pointer"
+        >
+          <UsersRound className="size-3.5 text-[#173D30]" />
+          {assignedTeamName ? `Team: ${assignedTeamName}` : 'Assign Team'}
+        </button>
         {row.phone && (
           <a
             href={`tel:${row.phone}`}
@@ -803,7 +960,45 @@ function CustomerDetail({ row }) {
             <Detail icon={Building2} label="Company Name" value={row.companyName} />
             <Detail icon={Briefcase} label="Customer Type" value={row.customerType} />
             <Detail icon={User} label="Assigned Employee" value={assignedName} />
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <UsersRound className="size-3.5 text-slate-400" />
+                  Assigned Team
+                </p>
+                <div className="mt-1 truncate text-sm font-semibold text-slate-800">
+                  {assignedTeamName ? (
+                    <span className="inline-flex items-center gap-1.5 text-emerald-800 font-semibold">
+                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                      {assignedTeamName}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 font-normal">Unassigned</span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onAssignTeam && onAssignTeam(row)}
+                className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer"
+              >
+                {assignedTeamName ? 'Change' : 'Assign'}
+              </button>
+            </div>
             <Detail icon={MapPin} label="Location" value={[row.address, row.city, row.state, row.country].filter(Boolean).join(', ')} />
+            <Detail
+              icon={CreditCard}
+              label="Subscription Plan"
+              value={
+                row.planName || row.plan || row.currentSubscription?.plan?.name
+                  ? `${row.planName || row.plan || row.currentSubscription?.plan?.name}${
+                      row.subscriptionStatus && row.subscriptionStatus !== 'ACTIVE'
+                        ? ` (${titleCase(row.subscriptionStatus)})`
+                        : ''
+                    }`
+                  : 'Not Purchased'
+              }
+            />
             <Detail icon={CalendarDays} label="Created At" value={formatDate(row.createdAt)} />
             <Detail icon={Clock} label="Category Status" value={titleCase(row.status || 'ACTIVE')} />
           </div>
@@ -1268,4 +1463,320 @@ function formatDate(value) {
 
 function Field({ label, children }) {
   return <Label className="grid gap-1.5 text-xs font-semibold text-slate-700">{label}{children}</Label>;
+}
+
+function CustomerTeamAssignModal({ customer, teams = [], open, onOpenChange, onAssigned }) {
+  const [selectedTeamId, setSelectedTeamId] = React.useState('');
+  const [assignmentDate, setAssignmentDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [reassignPendingTasks, setReassignPendingTasks] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [history, setHistory] = React.useState([]);
+
+  React.useEffect(() => {
+    if (!open || !customer) {
+      setSelectedTeamId('');
+      setHistory([]);
+      return;
+    }
+
+    const currentTeamId = customer.assignedTeamId || customer.team?.id || customer.assignedTeam?.id || '';
+    setSelectedTeamId(currentTeamId ? String(currentTeamId) : '');
+    setAssignmentDate(new Date().toISOString().slice(0, 10));
+    setReassignPendingTasks(true);
+
+    let active = true;
+    setLoading(true);
+    getCustomerAssignedTeam(customer.id)
+      .then((data) => {
+        if (!active) return;
+        if (data?.history && Array.isArray(data.history)) {
+          setHistory(data.history);
+        }
+        if (data?.team?.id) {
+          setSelectedTeamId(String(data.team.id));
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load assigned team details', err);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [customer, open]);
+
+  if (!customer) return null;
+
+  const currentAssignedName = customer.team?.name || customer.assignedTeam?.name || null;
+  const selectedTeam = teams.find((t) => String(t.id) === String(selectedTeamId));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const targetTeamId = selectedTeamId ? Number(selectedTeamId) : null;
+      await assignCustomerTeam(customer.id, targetTeamId, reassignPendingTasks);
+      toast.success(
+        targetTeamId
+          ? `Assigned customer to ${selectedTeam?.name || 'team'}`
+          : 'Customer team unassigned successfully'
+      );
+      onAssigned?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update team assignment');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUnassign = async () => {
+    setSaving(true);
+    try {
+      await assignCustomerTeam(customer.id, null, false);
+      toast.success('Customer unassigned from team');
+      onAssigned?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to unassign team');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <DialogTitle className="flex items-center gap-2 text-lg font-bold text-[#172033]">
+          <span className="flex size-8 items-center justify-center rounded-xl bg-emerald-50 text-[#173D30]">
+            <UsersRound className="size-4" />
+          </span>
+          Customer Team Assignment
+        </DialogTitle>
+        <DialogDescription className="text-xs text-slate-500">
+          Assign this customer to a team pod to distribute calendar activities, visits, and team tasks.
+        </DialogDescription>
+
+        <div className="mt-4 space-y-4">
+          {/* Customer Summary Card */}
+          <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-[#F5FAF7] p-3.5">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#173D30] shadow-2xs">
+                {(customer.name || 'CU')
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((p) => p[0])
+                  .join('')
+                  .toUpperCase()}
+              </span>
+              <div>
+                <p className="text-sm font-bold text-[#172033]">{customer.name}</p>
+                <p className="text-xs text-slate-500">
+                  {customer.companyName ? `${customer.companyName} · ` : ''}
+                  {customer.phone || customer.email || 'No contact specified'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Current Team
+              </span>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  currentAssignedName
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                {currentAssignedName || 'Unassigned'}
+              </span>
+            </div>
+          </div>
+
+          {/* Select Team Form */}
+          <div className="space-y-3">
+            <Field label="Select Team Pod *">
+              <select
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                value={selectedTeamId}
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+              >
+                <option value="">-- No Team (Unassigned) --</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {t.code ? `[${t.code}]` : ''} {t.head && t.head !== 'Unassigned' ? `· Lead: ${t.head}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {/* Selected Team Details Card */}
+            {selectedTeam && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-800 text-sm">{selectedTeam.name}</span>
+                    {selectedTeam.code && (
+                      <span className="rounded-md bg-emerald-100/70 px-1.5 py-0.5 text-[11px] font-mono font-semibold text-emerald-800">
+                        {selectedTeam.code}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">
+                    Capacity: {selectedTeam.memberCount || selectedTeam.members?.length || 0} / {selectedTeam.capacity || 10} members
+                  </span>
+                </div>
+
+                {/* Team Lead */}
+                <div className="rounded-lg border border-slate-200 bg-white p-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-800">
+                      {(selectedTeam.head || 'L')[0]?.toUpperCase()}
+                    </span>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800">
+                        {selectedTeam.head || selectedTeam.leader?.name || 'Unassigned Team Lead'}
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        {selectedTeam.leader?.email || selectedTeam.leader?.phone || 'Team Lead'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-700 uppercase">
+                    Team Lead
+                  </span>
+                </div>
+
+                {/* Team Members List */}
+                {Array.isArray(selectedTeam.members) && selectedTeam.members.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-600 mb-1.5">
+                      Pod Members ({selectedTeam.members.length}):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 bg-white rounded-lg border border-slate-200">
+                      {selectedTeam.members.map((m, idx) => {
+                        const mName =
+                          m.employee?.name ||
+                          (m.employee ? `${m.employee.firstName || ''} ${m.employee.lastName || ''}`.trim() : null) ||
+                          m.name ||
+                          `Member ${idx + 1}`;
+                        const mRole = m.role || m.employee?.designation || 'Member';
+                        return (
+                          <span
+                            key={m.id || idx}
+                            className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-700"
+                            title={`${mName} (${mRole})`}
+                          >
+                            <span className="size-1.5 rounded-full bg-emerald-500" />
+                            <span className="font-medium max-w-[110px] truncate">{mName}</span>
+                            <span className="text-[10px] text-slate-400">({mRole})</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Assignment Date */}
+            <Field label="Assignment Date">
+              <Input
+                type="date"
+                value={assignmentDate}
+                onChange={(e) => setAssignmentDate(e.target.value)}
+              />
+            </Field>
+
+            {/* Reassign Pending Tasks Checkbox */}
+            <label className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3 cursor-pointer hover:bg-slate-50 transition">
+              <input
+                type="checkbox"
+                checked={reassignPendingTasks}
+                onChange={(e) => setReassignPendingTasks(e.target.checked)}
+                className="mt-0.5 size-4 rounded text-[#173D30] focus:ring-emerald-400 accent-[#173D30]"
+              />
+              <div className="text-xs">
+                <span className="font-semibold text-slate-800">
+                  Reassign pending customer calendar tasks to new team
+                </span>
+                <p className="mt-0.5 text-slate-500 text-[11px] leading-relaxed">
+                  Pending client visits, followup calls, and tasks will be updated and assigned to the new team lead or team members automatically.
+                </p>
+              </div>
+            </label>
+
+            {/* Assignment History */}
+            {history.length > 0 && (
+              <div className="space-y-1.5 pt-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Recent Team Assignment History
+                </p>
+                <div className="max-h-24 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-200 bg-slate-50/50 text-xs">
+                  {history.slice(0, 5).map((log, idx) => (
+                    <div key={log.id || idx} className="p-2 flex items-center justify-between">
+                      <span className="text-slate-700 truncate max-w-[280px]">
+                        {log.details || log.action || 'Team Assignment Changed'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 shrink-0">
+                        {formatDate(log.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Modal Actions */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
+          <div>
+            {currentAssignedName && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving || loading}
+                onClick={handleUnassign}
+                className="h-9 rounded-xl border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold"
+              >
+                <Trash2 className="mr-1.5 size-3.5" />
+                Unassign Team
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={() => onOpenChange?.(false)}
+              className="h-9 rounded-xl border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={saving || loading}
+              onClick={handleSave}
+              className="h-9 rounded-xl bg-[#173D30] text-xs font-semibold text-white hover:bg-[#205541]"
+            >
+              {saving ? (
+                <>
+                  <RotateCw className="mr-1.5 size-3.5 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <Check className="mr-1.5 size-3.5" />
+                  Save Assignment
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

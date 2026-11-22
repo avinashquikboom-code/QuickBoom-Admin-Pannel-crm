@@ -10,7 +10,7 @@ import { HrmGap, HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { crmError } from './crm-api';
 import { RotateCw, Search, SlidersHorizontal } from 'lucide-react';
 
-export function CrmScreen({ hideTitleCard = false, title, description, actionLabel, canCreate = true, load, columns, stats, filters = [], blank, renderForm, onSave, rowActions, detail, gap, below, headerActions, extraHeaderActions, enableSelection = false, onSelectionChange, toolbar, refreshToken = 0, toForm, appearance = 'default', collapsibleFilters = false, emptyState }) {
+export function CrmScreen({ hideTitleCard = false, title, description, actionLabel, canCreate = true, load, columns, stats, filters = [], blank, renderForm, onSave, rowActions, detail, gap, below, headerActions, extraHeaderActions, enableSelection = false, onSelectionChange, toolbar, refreshToken = 0, toForm, appearance = 'default', collapsibleFilters = false, emptyState, loadingSkeleton = false }) {
   const [rows, setRows] = React.useState([]);
   const [payload, setPayload] = React.useState({});
   const [loading, setLoading] = React.useState(true);
@@ -89,7 +89,7 @@ export function CrmScreen({ hideTitleCard = false, title, description, actionLab
         </div>
         <Button variant="outline" className={isStyledAppearance ? 'h-10 rounded-xl border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 hover:border-emerald-200 hover:bg-emerald-50' : undefined} onClick={() => setRefresh((value) => value + 1)}>{isStyledAppearance && <RotateCw className="mr-2 size-4" aria-hidden="true" />}Refresh</Button>
       </div>
-      <HrmNotice loading={loading} error={error} empty={!loading && !error && rows.length === 0 ? (resolvedEmptyState || `No ${title.toLowerCase()} match these filters.`) : ''} onRetry={() => setRefresh((value) => value + 1)}>
+      <HrmNotice loading={loading} loadingSkeleton={loadingSkeleton} error={error} empty={!loading && !error && rows.length === 0 ? (resolvedEmptyState || `No ${title.toLowerCase()} match these filters.`) : ''} onRetry={() => setRefresh((value) => value + 1)}>
         {below && <div className="mb-4">{below(rows, payload)}</div>}
         {toolbar && <div className="mb-4">{toolbar({ query, selected: selectedRows, clearSelection: () => { setSelectedRows([]); setSelectionResetToken((value) => value + 1); }, reload: () => setRefresh((value) => value + 1), payload })}</div>}
         <div className="w-full overflow-x-auto min-w-0">
