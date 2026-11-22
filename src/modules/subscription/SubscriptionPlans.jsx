@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faLayerGroup, faCircleCheck, faCirclePause, faUsers, faCheck, faPlus, faDownload } from '@fortawesome/free-solid-svg-icons';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 const initialForm = { name: '', code: '', description: '', monthlyPrice: '', yearlyPrice: '', userLimit: '', leadLimit: '', storageLimitBytes: '', features: '' };
 const control = 'h-10 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700';

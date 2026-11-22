@@ -6,7 +6,7 @@ import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { FormDrawer } from '@/components/common/drawers';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 export function profileError(error) {
   const message = error?.response?.data?.message;

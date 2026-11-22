@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/hooks/use-toast';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import {
   faGear,

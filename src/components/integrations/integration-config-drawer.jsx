@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { IntegrationTestPanel } from './integration-test-panel';
 import { INTEGRATION_ICONS } from './integration-icons';
 import { INTEGRATION_STATUS } from '@/config/integrations';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 function SecretInput({ id, value, onChange, placeholder, disabled }) {
   const [show, setShow] = React.useState(false);

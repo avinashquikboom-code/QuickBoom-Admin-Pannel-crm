@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/common/Badge';
 import { Input } from '@/components/common/Input';
 import { Textarea } from '@/components/common/Textarea';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 export default function WhatsAppPage() {
     const [recipient, setRecipient] = React.useState('+1 (555) 234-5678');
     const [template, setTemplate] = React.useState('proposal_reminder');
