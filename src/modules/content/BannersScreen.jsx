@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/common/Badge';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { SlideOverDrawer } from '@/components/common/Drawer';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import {
   faImage,
@@ -112,6 +113,7 @@ export function BannersScreen() {
   // Statistics
   const [stats, setStats] = React.useState({ total: 0, active: 0, inactive: 0, lastUpdated: null });
   const [statsLoading, setStatsLoading] = React.useState(true);
+  const [statsError, setStatsError] = React.useState('');
 
   // Filters
   const [activeTab, setActiveTab] = React.useState('ALL'); // ALL, ACTIVE, INACTIVE
@@ -125,6 +127,7 @@ export function BannersScreen() {
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
   const [loading, setLoading] = React.useState(true);
+  const [listError, setListError] = React.useState('');
   const [refreshKey, setRefreshKey] = React.useState(0);
 
   // Selection
@@ -183,18 +186,17 @@ export function BannersScreen() {
   // Fetch Stats
   const fetchStats = React.useCallback(async () => {
     setStatsLoading(true);
+    setStatsError('');
     try {
       const res = await loadBannerStats();
-      if (res && typeof res.total === 'number') {
-        setStats({
-          total: res.total || 0,
-          active: res.active || 0,
-          inactive: res.inactive || 0,
-          lastUpdated: res.lastUpdated || null,
-        });
-      }
+      setStats({
+        total: res.total,
+        active: res.active,
+        inactive: res.inactive,
+        lastUpdated: res.lastUpdated || null,
+      });
     } catch (err) {
-      console.warn('Failed to load banner stats from endpoint, using calculated values', err);
+      setStatsError(suiteError(err) || 'Failed to load banner statistics.');
     } finally {
       setStatsLoading(false);
     }
@@ -203,6 +205,7 @@ export function BannersScreen() {
   // Fetch Banners
   const fetchBanners = React.useCallback(async () => {
     setLoading(true);
+    setListError('');
     try {
       const query = {
         page,
@@ -212,38 +215,21 @@ export function BannersScreen() {
       };
 
       const res = await loadBanners(query);
-      const items = Array.isArray(res?.items)
-        ? res.items
-        : Array.isArray(res?.data)
-        ? res.data
-        : Array.isArray(res)
-        ? res
-        : [];
+      if (!Array.isArray(res?.rows)) {
+        throw new Error('The banner list API returned an unexpected response format.');
+      }
+      const items = res.rows;
 
       setBanners(items);
+      const pageInfo = res.pagination || {};
       setPagination({
-        page: res?.page || res?.currentPage || page,
-        limit: res?.limit || limit,
-        total: typeof res?.total === 'number' ? res.total : items.length,
-        totalPages: res?.totalPages || Math.max(1, Math.ceil((res?.total || items.length) / limit)),
-      });
-
-      // Fallback stats computation if needed
-      setStats((prev) => {
-        if (prev.total === 0 && items.length > 0) {
-          const activeCount = items.filter((b) => b.isActive).length;
-          return {
-            total: items.length,
-            active: activeCount,
-            inactive: items.length - activeCount,
-            lastUpdated: items[0]?.updatedAt || items[0]?.createdAt || null,
-          };
-        }
-        return prev;
+        page: Number(pageInfo.page) || page,
+        limit: Number(pageInfo.limit) || limit,
+        total: Number.isFinite(Number(pageInfo.total)) ? Number(pageInfo.total) : items.length,
+        totalPages: Number(pageInfo.totalPages) || Math.max(1, Math.ceil((Number(pageInfo.total) || items.length) / limit)),
       });
     } catch (err) {
-      toast.error(suiteError(err) || 'Failed to load banners.');
-      setBanners([]);
+      setListError(suiteError(err) || 'Failed to load banners.');
     } finally {
       setLoading(false);
     }
@@ -319,6 +305,9 @@ export function BannersScreen() {
     }
   };
 
+  // Track initial values for dirty state / unsaved changes warning
+  const initialValuesRef = React.useRef(null);
+
   // Open create form
   const handleOpenCreate = () => {
     setEditingBanner(null);
@@ -326,13 +315,13 @@ export function BannersScreen() {
     setSelectedFile(null);
     setPreviewUrl('');
     setImageMode('FILE');
+    initialValuesRef.current = JSON.stringify(initialFormData);
     setIsFormOpen(true);
   };
 
   // Open edit form
   const handleOpenEdit = (banner) => {
-    setEditingBanner(banner);
-    setForm({
+    const editData = {
       title: banner.title || '',
       subtitle: banner.subtitle || '',
       description: banner.description || '',
@@ -343,14 +332,22 @@ export function BannersScreen() {
       priority: banner.priority ?? 0,
       isActive: banner.isActive !== false,
       isPublished: banner.isPublished !== false,
-      startDate: banner.startAt ? String(banner.startAt).slice(0, 10) : '',
-      endDate: banner.endAt ? String(banner.endAt).slice(0, 10) : '',
-    });
+      startDate: banner.startAt ? String(banner.startAt).slice(0, 10) : (banner.startDate ? String(banner.startDate).slice(0, 10) : ''),
+      endDate: banner.endAt ? String(banner.endAt).slice(0, 10) : (banner.endDate ? String(banner.endDate).slice(0, 10) : ''),
+    };
+    setEditingBanner(banner);
+    setForm(editData);
     setSelectedFile(null);
     setPreviewUrl(banner.imageUrl || banner.image || '');
     setImageMode(banner.imageUrl || banner.image ? 'URL' : 'FILE');
+    initialValuesRef.current = JSON.stringify(editData);
     setIsFormOpen(true);
   };
+
+  const isFormDirty = React.useMemo(() => {
+    if (!isFormOpen || !initialValuesRef.current) return false;
+    return JSON.stringify(form) !== initialValuesRef.current || Boolean(selectedFile);
+  }, [form, isFormOpen, selectedFile]);
 
   // Open view details
   const handleOpenView = async (banner) => {
@@ -404,11 +401,7 @@ export function BannersScreen() {
 
   // Save form
   const handleSaveBanner = async (e) => {
-    e.preventDefault();
-    if (!form.title.trim()) {
-      toast.error('Banner title is required.');
-      return;
-    }
+    if (e && e.preventDefault) e.preventDefault();
 
     if (!selectedFile && !form.imageUrl.trim() && !previewUrl) {
       toast.error('Please upload an image file or provide an image URL.');
@@ -424,6 +417,7 @@ export function BannersScreen() {
     try {
       await saveBanner(form, editingBanner?.id, selectedFile);
       toast.success(editingBanner ? 'Banner updated successfully.' : 'Banner created successfully.');
+      initialValuesRef.current = null;
       setIsFormOpen(false);
       setRefreshKey((k) => k + 1);
     } catch (err) {
@@ -538,7 +532,7 @@ export function BannersScreen() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-900 tracking-tight">
-              {statsLoading ? '—' : stats.total}
+              {statsLoading || statsError ? '—' : stats.total}
             </span>
             <span className="text-xs text-slate-500 font-medium">banners created</span>
           </div>
@@ -556,7 +550,7 @@ export function BannersScreen() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-black text-emerald-700 tracking-tight">
-              {statsLoading ? '—' : stats.active}
+              {statsLoading || statsError ? '—' : stats.active}
             </span>
             <span className="text-xs text-emerald-600 font-medium">live on apps</span>
           </div>
@@ -574,7 +568,7 @@ export function BannersScreen() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl font-black text-slate-700 tracking-tight">
-              {statsLoading ? '—' : stats.inactive}
+              {statsLoading || statsError ? '—' : stats.inactive}
             </span>
             <span className="text-xs text-slate-500 font-medium">paused / archived</span>
           </div>
@@ -592,9 +586,9 @@ export function BannersScreen() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-lg font-bold text-slate-900 tracking-tight truncate">
-              {statsLoading ? '—' : formatRelativeTime(stats.lastUpdated)}
+              {statsLoading || statsError ? '—' : formatRelativeTime(stats.lastUpdated)}
             </span>
-            {stats.lastUpdated && (
+            {!statsError && stats.lastUpdated && (
               <span className="text-xs text-slate-400 truncate">
                 ({formatDate(stats.lastUpdated)})
               </span>
@@ -602,6 +596,13 @@ export function BannersScreen() {
           </div>
         </div>
       </div>
+
+      {statsError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          <span>Banner statistics unavailable: {statsError}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => setRefreshKey((k) => k + 1)}>Retry</Button>
+        </div>
+      )}
 
       {/* ── Status Tabs ────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
@@ -620,7 +621,7 @@ export function BannersScreen() {
               activeTab === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
-            {stats.total}
+            {statsError ? '—' : stats.total}
           </span>
         </button>
 
@@ -639,7 +640,7 @@ export function BannersScreen() {
               activeTab === 'ACTIVE' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
             }`}
           >
-            {stats.active}
+            {statsError ? '—' : stats.active}
           </span>
         </button>
 
@@ -658,7 +659,7 @@ export function BannersScreen() {
               activeTab === 'INACTIVE' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
-            {stats.inactive}
+            {statsError ? '—' : stats.inactive}
           </span>
         </button>
       </div>
@@ -699,6 +700,7 @@ export function BannersScreen() {
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
+                setActiveTab(e.target.value);
                 setPage(1);
               }}
               className="bg-transparent text-xs font-semibold text-slate-800 outline-hidden cursor-pointer"
@@ -832,10 +834,18 @@ export function BannersScreen() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
+                Array.from({ length: 4 }, (_, index) => (
+                  <tr key={`banner-skeleton-${index}`} aria-hidden="true">
+                    <td colSpan={10} className="px-4 py-3"><div className="h-12 animate-pulse rounded-lg bg-slate-100" /></td>
+                  </tr>
+                ))
+              ) : listError ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-500">
-                    <FontAwesomeIcon icon={faRotate} className="animate-spin text-lg text-emerald-600 mb-2" />
-                    <p className="text-xs">Loading banners...</p>
+                  <td colSpan={10} className="py-12 text-center">
+                    <div role="alert" className="mx-auto max-w-md text-sm text-rose-700">
+                      <p>{listError}</p>
+                      <Button type="button" variant="outline" className="mt-3" onClick={() => setRefreshKey((k) => k + 1)}>Retry</Button>
+                    </div>
                   </td>
                 </tr>
               ) : banners.length === 0 ? (
@@ -1095,9 +1105,13 @@ export function BannersScreen() {
       {/* ── Responsive Card View for Mobile Screens ─────────────────── */}
       <div className="block md:hidden space-y-3">
         {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
-            <FontAwesomeIcon icon={faRotate} className="animate-spin text-lg text-emerald-600 mb-2" />
-            <p className="text-xs">Loading banners...</p>
+          <div role="status" aria-label="Loading banners" className="space-y-3">
+            {[0, 1, 2].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl bg-slate-100" />)}
+          </div>
+        ) : listError ? (
+          <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-700">
+            <p>{listError}</p>
+            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => setRefreshKey((k) => k + 1)}>Retry</Button>
           </div>
         ) : banners.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
@@ -1261,302 +1275,295 @@ export function BannersScreen() {
         </div>
       )}
 
-      {/* ── Add / Edit Banner Modal ─────────────────────────────────── */}
-      {isFormOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
-        >
-          <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  {editingBanner ? 'Edit Promotional Banner' : 'Create New Promotional Banner'}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Configure banner creative, target action, and scheduling.
-                </p>
+      {/* ── Add / Edit Banner Slide-Over Drawer ─────────────────────── */}
+      <SlideOverDrawer
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        title={editingBanner ? 'Edit Promotional Banner' : 'Create New Promotional Banner'}
+        subtitle="Configure banner creative, target action, and scheduling."
+        icon={editingBanner ? faPenToSquare : faPlus}
+        isDirty={isFormDirty}
+        placement="left"
+        widthClass="w-full md:w-[85vw] lg:w-[800px] lg:max-w-[85vw]"
+        footer={({ attemptClose, loading: isClosing }) => (
+          <div className="flex items-center justify-end gap-2.5 w-full">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={attemptClose}
+              disabled={formBusy || isClosing}
+              className="rounded-xl border-slate-200 text-slate-700 h-10 px-4"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveBanner}
+              disabled={formBusy}
+              className="bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl shadow-xs font-semibold h-10 px-5 gap-2"
+            >
+              {formBusy ? (
+                <>
+                  <FontAwesomeIcon icon={faRotate} className="animate-spin text-xs" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <span>{editingBanner ? 'Save Changes' : 'Create Banner'}</span>
+              )}
+            </Button>
+          </div>
+        )}
+      >
+        <form onSubmit={handleSaveBanner} className="space-y-4">
+          {/* Image Input Section (Dual Mode) */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Banner Creative Image <span className="text-rose-500">*</span>
+              </label>
+              <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setImageMode('FILE')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md font-medium transition-all ${
+                    imageMode === 'FILE'
+                      ? 'bg-white text-emerald-700 shadow-2xs font-semibold'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <FontAwesomeIcon icon={faUpload} className="text-[10px]" />
+                  <span>Upload File</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageMode('URL')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md font-medium transition-all ${
+                    imageMode === 'URL'
+                      ? 'bg-white text-emerald-700 shadow-2xs font-semibold'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <FontAwesomeIcon icon={faLink} className="text-[10px]" />
+                  <span>Image URL</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsFormOpen(false)}
-                className="text-slate-400 hover:text-slate-600 size-8 flex items-center justify-center rounded-lg hover:bg-slate-100"
-              >
-                <FontAwesomeIcon icon={faXmark} />
-              </button>
             </div>
 
-            {/* Modal Body / Form */}
-            <form onSubmit={handleSaveBanner} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-              {/* Image Input Section (Dual Mode) */}
+            {/* Upload Mode UI */}
+            {imageMode === 'FILE' ? (
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Banner Creative Image <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setImageMode('FILE')}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md font-medium transition-all ${
-                        imageMode === 'FILE'
-                          ? 'bg-white text-emerald-700 shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <FontAwesomeIcon icon={faUpload} className="text-[10px]" />
-                      <span>Upload File</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setImageMode('URL')}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md font-medium transition-all ${
-                        imageMode === 'URL'
-                          ? 'bg-white text-emerald-700 shadow-2xs'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <FontAwesomeIcon icon={faLink} className="text-[10px]" />
-                      <span>Image URL</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Upload Mode UI */}
-                {imageMode === 'FILE' ? (
-                  <div className="space-y-2">
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-emerald-500 p-6 transition-all cursor-pointer text-center"
-                    >
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                      <div className="flex size-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 mb-2 group-hover:scale-105 transition-transform">
-                        <FontAwesomeIcon icon={faUpload} className="text-base" />
-                      </div>
-                      <p className="text-xs font-semibold text-slate-700">
-                        {selectedFile ? selectedFile.name : 'Click to select or drag and drop image'}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-1">
-                        PNG, JPG, WebP, or SVG up to 10MB
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  /* URL Mode UI */
-                  <div className="space-y-1.5">
-                    <Input
-                      type="url"
-                      placeholder="https://example.com/images/banner.webp"
-                      value={form.imageUrl}
-                      onChange={(e) => {
-                        setForm({ ...form, imageUrl: e.target.value });
-                        setPreviewUrl(e.target.value);
-                      }}
-                      className="text-xs rounded-xl"
-                    />
-                    <p className="text-[11px] text-slate-400">
-                      Enter a direct, public HTTPS image URL for this banner.
-                    </p>
-                  </div>
-                )}
-
-                {/* Live Image Preview (if image selected or URL present) */}
-                {previewUrl && (
-                  <div className="relative mt-2 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 max-h-48 group">
-                    <img
-                      src={previewUrl}
-                      alt="Preview"
-                      className="w-full max-h-48 object-cover"
-                      onError={() => {
-                        toast.error('Could not preview image. Please check the URL or file.');
-                      }}
-                    />
-                    <div className="absolute top-2 right-2 flex items-center gap-1.5">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={handleRemoveImage}
-                        className="size-7 p-0 bg-white/90 hover:bg-white text-rose-600 rounded-lg shadow-sm"
-                        title="Remove image"
-                      >
-                        <FontAwesomeIcon icon={faXmark} className="text-xs" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Title & Subtitle */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Banner Title <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    required
-                    placeholder="e.g. Summer Mega Sale"
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    className="text-sm rounded-xl"
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-emerald-500 p-6 transition-all cursor-pointer text-center"
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                    onChange={handleFileChange}
+                    className="hidden"
                   />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Subtitle / Tagline
-                  </label>
-                  <Input
-                    placeholder="e.g. Up to 50% off all orders"
-                    value={form.subtitle}
-                    onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
-                    className="text-sm rounded-xl"
-                  />
+                  <div className="flex size-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 mb-2 group-hover:scale-105 transition-transform">
+                    <FontAwesomeIcon icon={faUpload} className="text-base" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700">
+                    {selectedFile ? selectedFile.name : 'Click to select or drag and drop image'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    PNG, JPG, WebP, or SVG up to 10MB
+                  </p>
                 </div>
               </div>
-
-              {/* Description */}
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700">
-                  Description / Promo Details
-                </label>
-                <Textarea
-                  placeholder="Optional explanatory copy or promotional details..."
-                  rows={2}
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+            ) : (
+              /* URL Mode UI */
+              <div className="space-y-1.5">
+                <Input
+                  type="url"
+                  placeholder="https://example.com/images/banner.webp"
+                  value={form.imageUrl}
+                  onChange={(e) => {
+                    setForm({ ...form, imageUrl: e.target.value });
+                    setPreviewUrl(e.target.value);
+                  }}
                   className="text-xs rounded-xl"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Enter a direct, public HTTPS image URL for this banner.
+                </p>
+              </div>
+            )}
+
+            {/* Live Image Preview (if image selected or URL present) */}
+            {previewUrl && (
+              <div className="relative mt-2 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 max-h-48 group">
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="w-full max-h-48 object-cover"
+                  onError={() => {
+                    toast.error('Could not preview image. Please check the URL or file.');
+                  }}
+                />
+                <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleRemoveImage}
+                    className="size-7 p-0 bg-white/90 hover:bg-white text-rose-600 rounded-lg shadow-sm"
+                    title="Remove image"
+                  >
+                    <FontAwesomeIcon icon={faXmark} className="text-xs" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Banner Details Section */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 pb-2 border-b border-slate-100">
+              Content & Messaging (Optional)
+            </h4>
+
+            {/* Title & Subtitle */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Banner Title
+                </label>
+                <Input
+                  placeholder="e.g. Summer Mega Sale"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="text-sm rounded-xl"
                 />
               </div>
 
-              {/* CTA Text & Destination URL */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    CTA Button Text
-                  </label>
-                  <Input
-                    placeholder="e.g. Shop Now / Explore"
-                    value={form.ctaText}
-                    onChange={(e) => setForm({ ...form, ctaText: e.target.value })}
-                    className="text-sm rounded-xl"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Destination / Redirect URL
-                  </label>
-                  <Input
-                    placeholder="https://... or /products/summer-sale"
-                    value={form.ctaUrl}
-                    onChange={(e) => setForm({ ...form, ctaUrl: e.target.value })}
-                    className="text-sm rounded-xl"
-                  />
-                </div>
-              </div>
-
-              {/* Priority & Status Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Priority / Display Order
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={form.priority}
-                    onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                    className="text-sm rounded-xl"
-                  />
-                  <p className="text-[11px] text-slate-400">Higher numbers display first.</p>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Start Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={form.startDate}
-                    onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                    className="text-sm rounded-xl"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    End Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={form.endDate}
-                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                    className="text-sm rounded-xl"
-                  />
-                </div>
-              </div>
-
-              {/* Active Toggle Switch */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                <div>
-                  <span className="text-xs font-bold text-slate-800">Publish Immediately</span>
-                  <p className="text-[11px] text-slate-500">
-                    Enable banner visibility on customer applications.
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.isActive}
-                    onChange={(e) => setForm({ ...form, isActive: e.target.checked, isPublished: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16A34A]" />
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Subtitle / Tagline
                 </label>
+                <Input
+                  placeholder="e.g. Up to 50% off all orders"
+                  value={form.subtitle}
+                  onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+                  className="text-sm rounded-xl"
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Description / Promo Details
+              </label>
+              <Textarea
+                placeholder="Optional explanatory copy or promotional details..."
+                rows={2}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="text-xs rounded-xl"
+              />
+            </div>
+
+            {/* CTA Text & Destination URL */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  CTA Button Text
+                </label>
+                <Input
+                  placeholder="e.g. Shop Now / Explore"
+                  value={form.ctaText}
+                  onChange={(e) => setForm({ ...form, ctaText: e.target.value })}
+                  className="text-sm rounded-xl"
+                />
               </div>
 
-              {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsFormOpen(false)}
-                  disabled={formBusy}
-                  className="rounded-xl border-slate-200 text-slate-700"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={formBusy}
-                  className="bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl shadow-xs font-semibold"
-                >
-                  {formBusy ? (
-                    <>
-                      <FontAwesomeIcon icon={faRotate} className="animate-spin mr-1.5" />
-                      Saving...
-                    </>
-                  ) : editingBanner ? (
-                    'Save Changes'
-                  ) : (
-                    'Create Banner'
-                  )}
-                </Button>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Destination / Redirect URL
+                </label>
+                <Input
+                  placeholder="https://... or /products/summer-sale"
+                  value={form.ctaUrl}
+                  onChange={(e) => setForm({ ...form, ctaUrl: e.target.value })}
+                  className="text-sm rounded-xl"
+                />
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+
+          {/* Scheduling & Ordering Section */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 pb-2 border-b border-slate-100">
+              Ordering & Scheduling (Optional)
+            </h4>
+
+            {/* Priority & Status Controls */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Priority / Display Order
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  className="text-sm rounded-xl"
+                />
+                <p className="text-[11px] text-slate-400">Defaults to 0. Higher displays first.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Start Date
+                </label>
+                <Input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                  className="text-sm rounded-xl"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  End Date
+                </label>
+                <Input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                  className="text-sm rounded-xl"
+                />
+              </div>
+            </div>
+
+            {/* Active Toggle Switch */}
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+              <div>
+                <span className="text-xs font-bold text-slate-800">Publish Immediately</span>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Enable banner visibility on customer applications.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setForm({ ...form, isActive: e.target.checked, isPublished: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16A34A]" />
+              </label>
+            </div>
+          </div>
+        </form>
+      </SlideOverDrawer>
 
       {/* ── View Details Modal ───────────────────────────────────────── */}
       {viewBanner && (
