@@ -73,9 +73,9 @@ export const emailMarketingNavigation = [
 ];
 
 export const contentNavigation = [
-    { name: 'Trending Content', href: '/admin/content/trending', icon: faChartBar },
     { name: 'Home Banners', href: '/admin/content/banners', icon: faImage },
     { name: 'Marketing Videos', href: '/admin/content/videos', icon: faVideo },
+    { name: 'Trending Content', href: '/admin/content/trending', icon: faChartBar },
 ];
 
 export const marketingNavigation = [
