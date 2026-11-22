@@ -2,7 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
+  Users,
   Search,
   Filter,
   Plus,
@@ -683,74 +685,63 @@ export default function LeadsRoute() {
 
   return (
     <div className="space-y-5 pb-28 w-full min-w-0">
-      {/* 1. Header with Breadcrumbs, Title & Primary Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>CRM</span>
-            <span>/</span>
-            <span className="font-semibold text-[#173D30]">Leads</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#173D30] tracking-tight">
-              Leads
-            </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-[#173D30] border border-emerald-200">
-              <span className="size-1.5 rounded-full bg-[#20C466]" />
-              {totalLeadsCount} Total
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Create leads manually and manage existing CRM leads individually or in bulk.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Link
-            href="/admin/crm/proposals"
-            className="inline-flex items-center gap-1.5 h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#173D30] transition-colors shadow-2xs"
-          >
-            <FileText className="size-3.5 text-slate-500" />
-            <span>View Proposal History</span>
-          </Link>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setImportOpen(true)}
-            className="h-9 gap-1.5 rounded-xl border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#173D30] shadow-2xs"
-          >
-            <Upload className="size-3.5 text-slate-500" />
-            <span>Import CSV</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => downloadCsv(rows)}
-            disabled={rows.length === 0}
-            className="h-9 gap-1.5 rounded-xl border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#173D30] shadow-2xs"
-          >
-            <Download className="size-3.5 text-slate-500" />
-            <span>Export</span>
-          </Button>
-
-          {allowed && (
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingId(null);
-                setForm({ ...blank });
-                setFormOpen(true);
-              }}
-              className="h-9 gap-1.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold shadow-xs"
+      {/* 1. Page Title Card */}
+      <PageTitleCard
+        moduleName="CRM"
+        breadcrumb="Leads"
+        title="Leads"
+        description="Create leads manually and manage existing CRM leads individually or in bulk."
+        icon={Users}
+        badge={`${totalLeadsCount} Total`}
+        badgeVariant="green"
+        actions={
+          <>
+            <Link
+              href="/admin/crm/proposals"
+              className="inline-flex items-center gap-1.5 h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] transition-colors shadow-2xs"
             >
-              <Plus className="size-4 text-[#20C466]" />
-              <span>Create Lead</span>
+              <FileText className="size-3.5 text-slate-500" />
+              <span>View Proposals</span>
+            </Link>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportOpen(true)}
+              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] shadow-2xs"
+            >
+              <Upload className="size-3.5 text-slate-500" />
+              <span>Import CSV</span>
             </Button>
-          )}
-        </div>
-      </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCsv(rows)}
+              disabled={rows.length === 0}
+              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] shadow-2xs"
+            >
+              <Download className="size-3.5 text-slate-500" />
+              <span>Export</span>
+            </Button>
+
+            {allowed && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm({ ...blank });
+                  setFormOpen(true);
+                }}
+                className="h-10 gap-1.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold shadow-xs"
+              >
+                <Plus className="size-4 text-[#20C466]" />
+                <span>Create Lead</span>
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* 2. Interactive Stage KPI Statistics Cards */}
       <div className="space-y-2">

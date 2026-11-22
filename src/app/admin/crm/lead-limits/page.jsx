@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   Users,
   ShieldCheck,
@@ -333,41 +334,28 @@ export default function LeadLimitsRoute() {
 
   return (
     <div className="space-y-6 pb-28 w-full min-w-0">
-      {/* 1. Header with Breadcrumbs, Title & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>CRM</span>
-            <span>/</span>
-            <span className="font-semibold text-[#173D30]">Lead Limits</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#173D30] tracking-tight">
-              Lead Limits
-            </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-[#173D30] border border-emerald-200">
-              <span className="size-1.5 rounded-full bg-[#20C466]" />
-              {totalEmployees} Employees Active
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Configure role quotas, track real-time daily/monthly usage, and enforce authorized lead-generation capacity.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
+      {/* 1. Page Title Card */}
+      <PageTitleCard
+        moduleName="CRM"
+        breadcrumb="Lead Limits"
+        title="Lead Limits"
+        description="Configure role quotas, track real-time daily/monthly usage, and enforce authorized lead-generation capacity."
+        icon={ShieldCheck}
+        badge={`${totalEmployees} Employees Active`}
+        badgeVariant="green"
+        actions={
           <Button
             variant="outline"
             size="sm"
             onClick={() => setRefresh((v) => v + 1)}
             disabled={loading}
-            className="h-9 gap-1.5 rounded-xl border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#173D30] shadow-2xs"
+            className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] shadow-2xs"
           >
             <RotateCcw className={cn('size-3.5 text-slate-500', loading && 'animate-spin')} />
             <span>Refresh</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. Four Dashboard KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

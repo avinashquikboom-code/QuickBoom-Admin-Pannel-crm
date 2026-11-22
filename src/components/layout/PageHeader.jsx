@@ -45,6 +45,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { Badge } from '@/components/common/Badge';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import { cn } from '@/lib/utils';
 
 // Global route registry mapping pathname patterns to module category and default icon
@@ -230,6 +231,8 @@ function PageHeaderBase({
     title,
     description,
     category,
+    moduleName,
+    breadcrumb,
     badge,
     badgeVariant = 'green',
     primaryAction,
@@ -239,50 +242,34 @@ function PageHeaderBase({
     stats,
     tabs,
     children,
+    illustration,
+    variant,
+    icon,
     className,
     currentPath = '',
 }) {
     const routeMeta = React.useMemo(() => getRouteMetadata(currentPath), [currentPath]);
-
-    const renderedBadge = typeof badge === 'string' ? (
-        <Badge
-            variant="outline"
-            className={cn(
-                'text-xs font-semibold py-0.5 px-2.5 rounded-full border shadow-2xs',
-                badgeVariant === 'green'
-                    ? 'border-brand/30 bg-brand-light text-brand-dark'
-                    : 'border-slate-200 bg-slate-50 text-slate-700'
-            )}
-        >
-            {badge}
-        </Badge>
-    ) : badge;
 
     return (
         <section
             aria-label={typeof title === 'string' ? title : 'Page Header'}
             className={cn('flex w-full min-w-0 flex-col gap-4', className)}
         >
-            <div className="flex w-full min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div className="min-w-0">
-                    {(category || renderedBadge) && (
-                        <div className="mb-1 flex flex-wrap items-center gap-2">
-                            {category && <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#163A2E]">{category}</p>}
-                            {renderedBadge}
-                        </div>
-                    )}
-                    <h1 className="break-words text-2xl font-semibold text-[#172B24]">{title || routeMeta.title}</h1>
-                    {description && <p className="mt-1 break-words text-sm text-[#718078]">{description}</p>}
-                </div>
-                {(primaryAction || secondaryAction || actions || rightContent) && (
-                    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
-                        {secondaryAction}
-                        {primaryAction}
-                        {actions}
-                        {rightContent}
-                    </div>
-                )}
-            </div>
+            <PageTitleCard
+                moduleName={category || moduleName || routeMeta.category}
+                title={title || routeMeta.title}
+                description={description}
+                icon={icon || routeMeta.icon}
+                breadcrumb={breadcrumb}
+                badge={badge}
+                badgeVariant={badgeVariant}
+                primaryAction={primaryAction}
+                secondaryAction={secondaryAction}
+                actions={actions}
+                rightContent={rightContent}
+                illustration={illustration}
+                variant={variant}
+            />
             {children}
             {tabs && <div className="min-w-0 overflow-x-auto">{tabs}</div>}
             {stats && (

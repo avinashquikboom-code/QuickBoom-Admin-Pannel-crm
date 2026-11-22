@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   Layers,
   TrendingUp,
@@ -261,17 +262,14 @@ export default function ReportsPage() {
 
   return (
     <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6 pb-20 overflow-x-hidden">
-      {/* 1. Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900">
-            Reports & Analytics
-          </h1>
-          <p className="mt-1 text-sm text-[#718078]">
-            Generate, view and download business reports.
-          </p>
-        </div>
-      </div>
+      {/* 1. Page Title Card */}
+      <PageTitleCard
+        moduleName="ENTERPRISE REPORTS"
+        title="Reports & Analytics"
+        description="Generate, view and download comprehensive business reports across your CRM, HRM and Operations."
+        badge={`${totalAvailableReports} Reports Available`}
+        badgeVariant="green"
+      />
 
       {/* Error notification banner if any */}
       {error && (
