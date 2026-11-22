@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import * as React from 'react';
 import { faCheckDouble, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
@@ -58,10 +59,20 @@ export default function WhatsAppPage() {
         toast.success(`WhatsApp message dispatched to ${recipient}`);
     };
     return (<div className="space-y-6">
-      <PageHeader title="WhatsApp Business API Gateway" description="Official Meta Cloud API pipeline for conversational sales and customer support automation." badge="WhatsApp" badgeVariant="green" actions={<Badge className="bg-brand-light text-brand-dark border-none gap-1.5 py-1 px-3">
+      <PageHeader title="WhatsApp Business API Gateway" description="Official Meta Cloud API pipeline for conversational sales and customer support automation." badge="WhatsApp" badgeVariant="green" actions={
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/admin/sections/meta-templates/campaigns"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#16A34A] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#15803D] transition-colors"
+          >
+            <span>Campaigns Dashboard</span>
+          </Link>
+          <Badge className="bg-brand-light text-brand-dark border-none gap-1.5 py-1 px-3">
             <span className="size-2 rounded-full bg-brand animate-pulse"/>
             <span>Webhook: Connected</span>
-          </Badge>}/>
+          </Badge>
+        </div>
+      }/>
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">

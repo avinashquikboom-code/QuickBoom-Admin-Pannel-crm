@@ -422,43 +422,64 @@ export function MetaWhatsAppCampaigns() {
 
   return (
     <div className="min-w-0 w-full max-w-full space-y-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
-      {/* ── Top Header ────────────────────────────────────────────── */}
-      <PageHeader
-        category="TEMPLATES & ASSETS"
-        title="WhatsApp Campaigns"
-        icon={faBullhorn}
-        description="Create, manage and track WhatsApp messaging campaigns using approved Meta templates."
-        actions={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+      {/* ── WhatsApp Campaigns Hero Banner ────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#06331D] via-[#094326] to-[#0A3D23] border border-[#145331]/80 p-6 sm:p-7 shadow-sm">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2 max-w-3xl">
+            {/* Meta Cloud API Broadcasts Pill */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#052917]/90 px-3.5 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/30 shadow-inner">
+              <FontAwesomeIcon icon={faWhatsapp} className="text-[#25D366] text-sm" />
+              <span>Meta Cloud API Broadcasts</span>
+            </div>
+
+            {/* Title */}
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              WhatsApp Campaigns Dashboard
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-sm sm:text-[15px] leading-relaxed text-emerald-100/85">
+              Target your CRM leads or custom phone lists with personalized variables, scheduled delivery, and real-time send tracking via approved WhatsApp business templates.
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
             <Button
               type="button"
-              className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white shadow-sm transition-all"
+              className="bg-[#00B75D] hover:bg-[#00A152] active:scale-[0.98] text-white font-semibold text-sm px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 transition-all border-0"
               onClick={openCreate}
             >
-              <FontAwesomeIcon icon={faPlus} className="mr-2" />
-              Create Campaign
+              <FontAwesomeIcon icon={faPlus} className="text-xs" />
+              <span>New Campaign</span>
             </Button>
+
             <Button
               type="button"
-              variant="outline"
               onClick={exportCampaignsCsv}
               disabled={!rows.length}
-              className="w-full sm:w-auto border-slate-200"
+              className="bg-[#0c4328]/80 hover:bg-[#105232] active:scale-[0.98] text-white font-medium text-sm px-4 py-2.5 rounded-lg border border-[#1e613f] shadow-sm flex items-center gap-2 transition-all disabled:opacity-50"
             >
-              <FontAwesomeIcon icon={faDownload} className="mr-2" />
-              Export CSV
+              <FontAwesomeIcon icon={faDownload} className="text-xs text-slate-200" />
+              <span>Export CSV</span>
             </Button>
-            <Button asChild variant="outline" className="w-full sm:w-auto border-slate-200">
+
+            <Button
+              asChild
+              variant="ghost"
+              className="bg-white/10 hover:bg-white/15 text-emerald-100 hover:text-white text-xs font-medium px-3 py-2 rounded-lg border border-emerald-500/20 transition-all h-9"
+            >
               <Link href="/admin/sections/meta-templates">
-                <FontAwesomeIcon icon={faRotateLeft} className="mr-2" />
-                All Templates
+                <FontAwesomeIcon icon={faRotateLeft} className="mr-1.5" />
+                Templates
               </Link>
             </Button>
+
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="hidden sm:inline-flex border-slate-200 text-slate-600 hover:text-slate-900"
+              className="bg-white/10 hover:bg-white/15 text-emerald-100 hover:text-white rounded-lg border border-emerald-500/20 h-9 w-9 transition-all"
               onClick={load}
               disabled={loading}
               title="Refresh"
@@ -466,8 +487,8 @@ export function MetaWhatsAppCampaigns() {
               <FontAwesomeIcon icon={faRotate} className={loading ? 'animate-spin' : ''} />
             </Button>
           </div>
-        }
-      />
+        </div>
+      </div>
 
       {/* ── KPI Cards Grid ────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
