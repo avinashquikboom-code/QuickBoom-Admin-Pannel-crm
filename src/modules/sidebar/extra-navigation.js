@@ -113,7 +113,6 @@ export const templatesNavigation = [
 export const aiSocialNavigation = [
     { name: 'AI Studio & Social', href: '/admin/ai-studio', icon: faStar },
     { name: 'AI Credits Management', href: '/admin/ai-credits', icon: faCreditCard },
-    { name: 'SSM Account Access Details', href: '/admin/ssm-access', icon: faShareNodes },
 ];
 
 export const influencerNavigation = [

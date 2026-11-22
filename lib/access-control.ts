@@ -175,6 +175,7 @@ export const adminNavigation: {
         { name: 'Active Subscriptions', href: '/customers/subscriptions', icon: ShieldCheck,  },
         { name: 'Offline Payment Requests', href: '/customers/offline-requests', icon: Clock,  },
         { name: 'Resource Usage', href: '/customers/usage', icon: Activity,  },
+        { name: 'SSM Account Access Details', href: '/marketing/social-media', icon: Share2,  },
         { name: 'Super Admin Hub', href: '/super-admin', icon: ShieldCheck,  },
       ],
     },
@@ -201,7 +202,6 @@ export const adminNavigation: {
       items: [
         { name: 'AI Studio & Social', href: '/marketing/ai-studio', icon: Sparkles,  },
         { name: 'AI Credits Management', href: '/marketing/ai-credits', icon: Coins,  },
-        { name: 'SSM Account Access Details', href: '/marketing/social-media', icon: Share2,  },
       ],
     },
 

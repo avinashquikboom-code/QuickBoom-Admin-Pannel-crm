@@ -75,7 +75,7 @@ const routeRegistry = {
     // AI & Social
     'ai-studio': { category: 'AI & SOCIAL STUDIO', title: 'AI Studio', icon: faStar },
     'ai-credits': { category: 'AI & SOCIAL STUDIO', title: 'AI Credits', icon: faCreditCard },
-    'ssm-access': { category: 'AI & SOCIAL STUDIO', title: 'Social Account Access', icon: faShareNodes },
+    'ssm-access': { category: 'CUSTOMER SUCCESS', title: 'SSM Account Access Details', icon: faShareNodes },
 
     // Influencer & Content
     'influencer-hub': { category: 'INFLUENCER MANAGEMENT', title: 'Influencer Hub', icon: faIdBadge },
