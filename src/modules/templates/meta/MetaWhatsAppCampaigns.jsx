@@ -438,6 +438,16 @@ export function MetaWhatsAppCampaigns() {
               <FontAwesomeIcon icon={faPlus} className="mr-2" />
               Create Campaign
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={exportCampaignsCsv}
+              disabled={!rows.length}
+              className="w-full sm:w-auto border-slate-200"
+            >
+              <FontAwesomeIcon icon={faDownload} className="mr-2" />
+              Export CSV
+            </Button>
             <Button asChild variant="outline" className="w-full sm:w-auto border-slate-200">
               <Link href="/admin/sections/meta-templates">
                 <FontAwesomeIcon icon={faRotateLeft} className="mr-2" />
@@ -458,50 +468,6 @@ export function MetaWhatsAppCampaigns() {
           </div>
         }
       />
-
-      {/* ── Hero Banner (WhatsApp Themed) ─────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F3E2E] via-[#14532D] to-[#166534] p-5 sm:p-7 text-white shadow-lg">
-        {/* Subtle decorative circles */}
-        <div className="pointer-events-none absolute -right-12 -top-12 h-56 w-56 rounded-full bg-emerald-400/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-10 right-28 h-40 w-40 rounded-full bg-green-500/10 blur-xl" />
-
-        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200 backdrop-blur-sm border border-emerald-400/30">
-              <FontAwesomeIcon icon={faWhatsapp} className="text-emerald-400 text-sm" />
-              Meta Cloud API Broadcasts
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              WhatsApp Campaigns Dashboard
-            </h2>
-            <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-              Target your CRM leads or custom phone lists with personalized variables, scheduled delivery,
-              and real-time send tracking via approved WhatsApp business templates.
-            </p>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3 self-start md:self-center">
-            <Button
-              type="button"
-              onClick={openCreate}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-md border-0"
-            >
-              <FontAwesomeIcon icon={faPlus} className="mr-2" />
-              New Campaign
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={exportCampaignsCsv}
-              disabled={!rows.length}
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm"
-            >
-              <FontAwesomeIcon icon={faDownload} className="mr-2" />
-              Export CSV
-            </Button>
-          </div>
-        </div>
-      </div>
 
       {/* ── KPI Cards Grid ────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
