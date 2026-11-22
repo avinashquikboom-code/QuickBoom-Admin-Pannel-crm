@@ -1283,6 +1283,8 @@ export function BannersScreen() {
         subtitle="Configure banner creative, target action, and scheduling."
         icon={editingBanner ? faPenToSquare : faPlus}
         isDirty={isFormDirty}
+        placement="left"
+        widthClass="w-full md:w-[85vw] lg:w-[800px] lg:max-w-[85vw]"
         footer={({ attemptClose, loading: isClosing }) => (
           <div className="flex items-center justify-end gap-2.5 w-full">
             <Button
