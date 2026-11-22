@@ -26,8 +26,8 @@ const STAGE_EMAIL_SAMPLE_VARS = {
   oldStage: 'New',
   newStage: 'Current stage',
   salesOwner: 'CRM Executive',
-  currentDate: new Date().toLocaleDateString('en-IN'),
-  currentTime: new Date().toLocaleTimeString('en-IN'),
+  currentDate: '15/01/2025',
+  currentTime: '10:30 AM',
 };
 
 const STAGE_WHATSAPP_SAMPLE_VARS = {

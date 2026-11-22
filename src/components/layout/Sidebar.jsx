@@ -282,8 +282,13 @@ export function Sidebar(props) {
 function SidebarContent({ className = '', onNavigate }) {
     const pathname = usePathname();
     const router = useRouter();
+    const [mounted, setMounted] = React.useState(false);
     const { collapsed, setCollapsed } = useSidebarStore();
-    const isCollapsed = collapsed && !onNavigate;
+    const isCollapsed = mounted && collapsed && !onNavigate;
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
 
     React.useEffect(() => {
         if (onNavigate) return;

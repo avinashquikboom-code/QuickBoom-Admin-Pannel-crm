@@ -29,6 +29,11 @@ export function NotificationDropdown() {
   const [loading, setLoading] = React.useState(true);
   const [markingAll, setMarkingAll] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchAll = React.useCallback(async () => {
     try {
@@ -127,7 +132,7 @@ export function NotificationDropdown() {
         className="relative flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer"
       >
         <FontAwesomeIcon icon={faBell} className="size-4.5" />
-        {unreadCount > 0 && (
+        {mounted && unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 flex min-w-4 h-4 px-1 items-center justify-center rounded-full bg-[#163A2E] text-[10px] font-bold text-white shadow-xs animate-in zoom-in-50">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>

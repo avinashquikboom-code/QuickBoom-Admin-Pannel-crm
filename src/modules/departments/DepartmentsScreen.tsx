@@ -1,54 +1,87 @@
 'use client';
 
 import * as React from 'react';
-import type { ColumnDef } from '@tanstack/react-table';
-import { PageHeader } from '@/components/layout/PageHeader';
-import { DataTable, DataTableColumnHeader, AdminRowActions } from '@/components/data-table';
-import { KpiGrid } from '@/components/common/KpiCard';
-import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import {
+  Building2,
+  Users,
+  CheckCircle2,
+  MinusCircle,
+  Plus,
+  Download,
+  RotateCw,
+  Search,
+  SlidersHorizontal,
+  MoreHorizontal,
+  Eye,
+  Pencil,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  Archive,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  X,
+  AlertCircle,
+} from 'lucide-react';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faBuilding, faPlus, faDownload, faRotate, faEllipsis, faEye, faPenToSquare, faTrash, faToggleOn, faBoxArchive, faUsers, faCheck, faCircleMinus, faCalendar, faEyeSlash, type IconDefinition } from '@fortawesome/free-solid-svg-icons';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { readSession } from '@/lib/auth/admin-session';
 import { useAuthStore } from '../../../lib/store';
 import { isUserAdmin } from '../../../lib/access-control';
 import { DepartmentDrawer } from './DepartmentDrawer';
-import { apiError, bulkDeleteDepartments, changeDepartmentStatus, deleteDepartment, exportDepartments, listDepartments, type Department } from './department-api';
+import {
+  apiError,
+  bulkDeleteDepartments,
+  changeDepartmentStatus,
+  deleteDepartment,
+  exportDepartments,
+  listDepartments,
+  type Department,
+} from './department-api';
 import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
-import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
+import { cn } from '@/lib/utils';
 
-const DepartmentTable = DataTable as unknown as React.ComponentType<{
-  columns: ColumnDef<Department>[];
-  data: Department[];
-  enableRowSelection: boolean;
-  onSelectionChange?: (rows: Department[]) => void;
-  selectionResetToken?: number;
-  isLoading: boolean;
-  searchPlaceholder: string;
-  emptyState: React.ReactNode;
-  caption: string;
-  pageSize: number;
-  className: string;
-}>;
-
-function Icon({ icon, className }: { icon: IconDefinition; className?: string }) {
-  return <FontAwesomeIcon icon={icon} size={undefined} label={undefined} className={className} />;
-}
-
-const StatsGrid = KpiGrid as React.ComponentType<{ cards: Array<Record<string, unknown>> }>;
-const StatusTabs = SegmentedTabs as React.ComponentType<{
-  tabs: Array<{ label: string; value: string; count?: string | number }>;
-  value: string;
-  onChange: (value: string) => void;
-  ariaLabel?: string;
+// Cast components that have untyped JS props in shadcn
+const TitleCard = PageTitleCard as unknown as React.ComponentType<{
+  category?: string;
+  moduleName?: string;
+  title: string;
+  description?: string;
+  icon?: unknown;
+  actions?: React.ReactNode;
+  badge?: React.ReactNode;
   className?: string;
 }>;
+
 const DeleteDialog = PermanentDeleteDialog as unknown as React.ComponentType<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -60,98 +93,71 @@ const DeleteDialog = PermanentDeleteDialog as unknown as React.ComponentType<{
   loading?: boolean;
   onConfirm: () => void | Promise<void>;
 }>;
-const BulkToolbar = AdminBulkSelectionToolbar as unknown as React.ComponentType<{
-  count: number;
-  noun?: string;
+
+const MenuItem = DropdownMenuItem as unknown as React.ComponentType<{
+  onClick?: () => void;
+  className?: string;
   children: React.ReactNode;
-  onClear: () => void;
-}>;
-const BulkDeleteBtn = AdminBulkDeleteButton as unknown as React.ComponentType<{
-  count?: number;
-  label?: string;
-  loading?: boolean;
-  onClick: () => void;
 }>;
 
-type Filter = 'all' | 'active' | 'inactive' | 'archived';
+const MenuCheckboxItem = DropdownMenuCheckboxItem as unknown as React.ComponentType<{
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  className?: string;
+  children: React.ReactNode;
+}>;
+
+type FilterTab = 'all' | 'active' | 'inactive' | 'archived';
+type SortField = 'name' | 'code' | 'employeesCount' | 'createdAt';
+type SortOrder = 'asc' | 'desc';
 type Confirmation = { record: Department; action: 'delete' | 'status' | 'archive' };
 
-function Status({ active }: { active: boolean }) {
-  return (
-    <Badge render={undefined} className={`h-auto gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${active ? 'border-emerald-200/80 bg-[#E8F8EE] text-[#169F4D]' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
-      <span className={`size-1.5 rounded-full ${active ? 'bg-[#1FC45B]' : 'bg-slate-400'}`} />
-      {active ? 'Active' : 'Inactive'}
-    </Badge>
-  );
-}
-
-function MobileLabel({ children }: { children: React.ReactNode }) {
-  return <span className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-slate-400 md:hidden">{children}</span>;
-}
-
-function AnimatedMetric({ value, loading }: { value: number | string; loading: boolean }) {
-  const [display, setDisplay] = React.useState<number | string>(value);
-  const [highlight, setHighlight] = React.useState(false);
-  const previous = React.useRef<number | string>(value);
-  React.useEffect(() => {
-    if (loading || typeof value !== 'number' || typeof previous.current !== 'number' || previous.current === value) {
-      setDisplay(value);
-      previous.current = value;
-      return;
-    }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setDisplay(value);
-    } else {
-      const start = previous.current;
-      const duration = 420;
-      const startedAt = performance.now();
-      let frame = 0;
-      const step = (now: number) => {
-        const progress = Math.min(1, (now - startedAt) / duration);
-        setDisplay(Math.round(start + (value - start) * progress));
-        if (progress < 1) frame = requestAnimationFrame(step);
-      };
-      frame = requestAnimationFrame(step);
-      setHighlight(true);
-      const timer = window.setTimeout(() => setHighlight(false), 700);
-      previous.current = value;
-      return () => { cancelAnimationFrame(frame); window.clearTimeout(timer); };
-    }
-    previous.current = value;
-  }, [value, loading]);
-  return <span className={`inline-block rounded-md transition-colors duration-300 motion-reduce:transition-none ${highlight ? 'bg-emerald-50 text-[#169F4D]' : ''}`}>{loading ? '—' : display}</span>;
-}
-
 export function DepartmentsScreen() {
+  const [mounted, setMounted] = React.useState(false);
   const [records, setRecords] = React.useState<Department[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
   const [refresh, setRefresh] = React.useState(0);
-  const [filter, setFilter] = React.useState<Filter>('all');
-  const [mobileSort, setMobileSort] = React.useState('name');
+  const [filter, setFilter] = React.useState<FilterTab>('all');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [sortField, setSortField] = React.useState<SortField>('name');
+  const [sortOrder, setSortOrder] = React.useState<SortOrder>('asc');
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
+
   const authUser = useAuthStore((state) => state.user);
   const [sessionUser, setSessionUser] = React.useState<unknown>(null);
   const [drawer, setDrawer] = React.useState<{ id: number | null; mode: 'create' | 'edit' | 'view' } | null>(null);
   const [confirmation, setConfirmation] = React.useState<Confirmation | null>(null);
-  const [selectedDepartments, setSelectedDepartments] = React.useState<Department[]>([]);
-  const [selectionResetToken, setSelectionResetToken] = React.useState(0);
+  const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [mutating, setMutating] = React.useState(false);
   const mutationLock = React.useRef(false);
   const [actionError, setActionError] = React.useState('');
-  const [visibleColumns, setVisibleColumns] = React.useState({ code: true, employeesCount: true, isActive: true, createdAt: true });
+
+  const [visibleColumns, setVisibleColumns] = React.useState({
+    code: true,
+    employeesCount: true,
+    isActive: true,
+    createdAt: true,
+  });
 
   React.useEffect(() => {
+    setMounted(true);
     setSessionUser(readSession()?.user ?? null);
   }, [authUser]);
+
   const canManage = isUserAdmin(authUser) || isUserAdmin(sessionUser);
 
+  // Fetch departments on refresh trigger
   React.useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError('');
     listDepartments(controller.signal)
-      .then(setRecords)
+      .then((data) => {
+        setRecords(data);
+      })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
           setRecords([]);
@@ -164,45 +170,126 @@ export function DepartmentsScreen() {
     return () => controller.abort();
   }, [refresh]);
 
-  const counts = React.useMemo(() => ({
-    all: records.length,
-    active: records.filter((department) => department.isActive).length,
-    inactive: records.filter((department) => !department.isActive).length,
-    archived: 0,
-    employees: records.reduce((sum, department) => sum + department.employeesCount, 0),
-  }), [records]);
+  // Metric counts
+  const counts = React.useMemo(() => {
+    const all = records.length;
+    const active = records.filter((d) => d.isActive).length;
+    const inactive = records.filter((d) => !d.isActive).length;
+    const archived = 0; // Backend supports Active & Inactive
+    const employees = records.reduce((sum, d) => sum + (d.employeesCount || 0), 0);
+    return { all, active, inactive, archived, employees };
+  }, [records]);
 
-  const filtered = React.useMemo(() => {
-    const visible = records.filter((department) => {
+  // Filtered & Searched records
+  const filteredRecords = React.useMemo(() => {
+    let list = records.filter((d) => {
+      if (filter === 'active') return d.isActive;
+      if (filter === 'inactive') return !d.isActive;
       if (filter === 'archived') return false;
-      if (filter === 'all') return true;
-      return department.isActive === (filter === 'active');
+      return true;
     });
-    return visible.sort((a, b) => {
-      if (mobileSort === 'employees') return b.employeesCount - a.employeesCount;
-      if (mobileSort === 'code') return a.code.localeCompare(b.code);
-      return a.name.localeCompare(b.name) * (mobileSort === 'name-desc' ? -1 : 1);
-    });
-  }, [records, filter, mobileSort]);
 
+    const query = searchQuery.trim().toLowerCase();
+    if (query) {
+      list = list.filter(
+        (d) =>
+          d.name.toLowerCase().includes(query) ||
+          d.code.toLowerCase().includes(query) ||
+          (d.description && d.description.toLowerCase().includes(query))
+      );
+    }
+
+    return list.sort((a, b) => {
+      let comparison = 0;
+      if (sortField === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortField === 'code') {
+        comparison = a.code.localeCompare(b.code);
+      } else if (sortField === 'employeesCount') {
+        comparison = (a.employeesCount || 0) - (b.employeesCount || 0);
+      } else if (sortField === 'createdAt') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [records, filter, searchQuery, sortField, sortOrder]);
+
+  // Reset page when filter or search changes
+  React.useEffect(() => {
+    setPage(1);
+  }, [filter, searchQuery, pageSize]);
+
+  // Paginated records
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
+  const paginatedRecords = React.useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredRecords.slice(start, start + pageSize);
+  }, [filteredRecords, page, pageSize]);
+
+  // Selection handlers
+  const isAllPageSelected =
+    paginatedRecords.length > 0 && paginatedRecords.every((d) => selectedIds.has(d.id));
+  const isSomePageSelected =
+    paginatedRecords.some((d) => selectedIds.has(d.id)) && !isAllPageSelected;
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    const next = new Set(selectedIds);
+    if (checked) {
+      paginatedRecords.forEach((d) => next.add(d.id));
+    } else {
+      paginatedRecords.forEach((d) => next.delete(d.id));
+    }
+    setSelectedIds(next);
+  };
+
+  const handleToggleSelectRow = (id: number, checked: boolean) => {
+    const next = new Set(selectedIds);
+    if (checked) {
+      next.add(id);
+    } else {
+      next.delete(id);
+    }
+    setSelectedIds(next);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  // Sorting handler
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Actions
   const ask = React.useCallback((record: Department, action: Confirmation['action']) => {
     setActionError('');
     setConfirmation({ record, action });
   }, []);
 
   async function confirmAction() {
-    if (!confirmation || confirmation.action === 'archive' || mutationLock.current || !canManage) return;
+    if (!confirmation || confirmation.action === 'archive' || mutationLock.current || !canManage)
+      return;
     mutationLock.current = true;
     setMutating(true);
     setActionError('');
     try {
-      if (confirmation.action === 'delete') toast.success(await deleteDepartment(confirmation.record.id));
-      else {
+      if (confirmation.action === 'delete') {
+        const msg = await deleteDepartment(confirmation.record.id);
+        toast.success(msg || 'Department deleted');
+      } else {
         await changeDepartmentStatus(confirmation.record.id, !confirmation.record.isActive);
-        toast.success(`Department ${confirmation.record.isActive ? 'deactivated' : 'activated'}`);
+        toast.success(
+          `Department ${confirmation.record.isActive ? 'deactivated' : 'activated'} successfully`
+        );
       }
       setConfirmation(null);
-      setRefresh((value) => value + 1);
+      setRefresh((v) => v + 1);
     } catch (err) {
       setActionError(apiError(err));
     } finally {
@@ -212,19 +299,18 @@ export function DepartmentsScreen() {
   }
 
   async function confirmBulkDelete() {
-    if (!selectedDepartments.length || mutationLock.current || !canManage) return;
+    if (!selectedIds.size || mutationLock.current || !canManage) return;
     mutationLock.current = true;
     setMutating(true);
     setActionError('');
     try {
-      const ids = selectedDepartments.map((d) => d.id);
+      const ids = Array.from(selectedIds);
       const res = await bulkDeleteDepartments(ids);
-      toast.success(res.message || 'Department deletion request completed.');
+      toast.success(res.message || 'Department deletion completed.');
       if (res.blockedDetails?.length) {
         toast.error(res.blockedDetails.map((item) => `#${item.id}: ${item.reason}`).join('\n'));
       }
-      setSelectedDepartments([]);
-      setSelectionResetToken((v) => v + 1);
+      setSelectedIds(new Set());
       setBulkDeleteOpen(false);
       setRefresh((v) => v + 1);
     } catch (err) {
@@ -235,264 +321,773 @@ export function DepartmentsScreen() {
     }
   }
 
-  const columns = React.useMemo<ColumnDef<Department>[]>(() => [
-    {
-      id: 'select',
-      enableSorting: false,
-      enableHiding: false,
-      header: ({ table }) => (
-        <Checkbox
-          aria-label="Select all departments on this page"
-          checked={table.getIsAllPageRowsSelected()}
-          indeterminate={!table.getIsAllPageRowsSelected() && table.getIsSomePageRowsSelected()}
-          onCheckedChange={(checked: boolean) => table.toggleAllPageRowsSelected(!!checked)}
-          className="border-slate-300"
-        />
-      ),
-      cell: ({ row }) => (
-        <label className="flex items-center gap-2">
-          <Checkbox
-            aria-label={`Select ${row.original.name}`}
-            checked={row.getIsSelected()}
-            onCheckedChange={(checked: boolean) => row.toggleSelected(!!checked)}
-            className="border-slate-300"
-          />
-          <span className="text-xs text-slate-400 md:hidden">Select department</span>
-        </label>
-      ),
-      meta: { className: 'max-md:col-span-2' },
-    },
-    {
-      accessorKey: 'name',
-      enableHiding: false,
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Department Name" className="" />,
-      cell: ({ row }) => (
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-[#5EC269]/25 bg-[#E8F8EE] text-[#169F4D]">
-            <Icon icon={faBuilding} className="size-4 text-[#5EC269]" />
-          </div>
-          <div className="min-w-0">
-            <button type="button" onClick={() => setDrawer({ id: row.original.id, mode: 'view' })} className="truncate text-left text-sm font-semibold text-[#172033] hover:text-[#169F4D] focus-visible:underline">
-              {row.original.name}
-            </button>
-            <p className="mt-0.5 line-clamp-1 max-w-sm text-[11px] leading-relaxed text-slate-400">
-              {row.original.description || 'No description added.'}
-            </p>
-          </div>
-        </div>
-      ),
-      meta: { className: 'min-w-0 md:min-w-[240px] max-md:col-span-2' },
-    },
-    {
-      accessorKey: 'code',
-      meta: { className: visibleColumns.code ? '' : 'hidden', headClassName: visibleColumns.code ? '' : 'hidden' },
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Department Code" className="" />,
-      cell: ({ row }) => (
-        <>
-          <MobileLabel>Department Code</MobileLabel>
-          <Badge render={undefined} variant="outline" className="h-auto rounded-md border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[11px] font-semibold text-slate-700">
-            {row.original.code}
-          </Badge>
-        </>
-      ),
-    },
-    {
-      accessorKey: 'employeesCount',
-      meta: { className: visibleColumns.employeesCount ? '' : 'hidden', headClassName: visibleColumns.employeesCount ? '' : 'hidden' },
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Employees" className="" />,
-      cell: ({ row }) => (
-        <>
-          <MobileLabel>Employees</MobileLabel>
-          <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
-            {row.original.employeesCount}
-          </span>
-        </>
-      ),
-    },
-    {
-      accessorKey: 'isActive',
-      meta: { className: visibleColumns.isActive ? '' : 'hidden', headClassName: visibleColumns.isActive ? '' : 'hidden' },
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" className="" />,
-      cell: ({ row }) => (
-        <>
-          <MobileLabel>Status</MobileLabel>
-          <Status active={row.original.isActive} />
-        </>
-      ),
-    },
-    {
-      accessorKey: 'createdAt',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Created Date" className="" />,
-      cell: ({ row }) => <><MobileLabel>Created Date</MobileLabel><span className="text-xs text-slate-600">{new Date(row.original.createdAt).toLocaleDateString()}</span></>,
-      meta: { className: visibleColumns.createdAt ? '' : 'hidden', headClassName: visibleColumns.createdAt ? '' : 'hidden' },
-    },
-    {
-      id: 'actions',
-      enableHiding: false,
-      header: 'Actions',
-      cell: ({ row }) => (
-        <AdminRowActions
-          row={row}
-          recordName={row.original.name}
-          disabled={mutating || loading}
-          onView={() => setDrawer({ id: row.original.id, mode: 'view' })}
-          viewLabel="View Details"
-          onEdit={canManage ? () => setDrawer({ id: row.original.id, mode: 'edit' }) : undefined}
-          editLabel="Edit Department"
-          customActions={canManage ? [
-            {
-              label: 'Change Status',
-              icon: faToggleOn,
-              onClick: () => ask(row.original, 'status'),
-            },
-            {
-              label: 'Archive Department',
-              icon: faBoxArchive,
-              onClick: () => ask(row.original, 'archive'),
-            },
-          ] : []}
-          onDelete={canManage ? () => ask(row.original, 'delete') : undefined}
-          deleteLabel="Delete Department"
-          confirmDelete={false}
-        />
-      ),
-      meta: { className: 'max-md:col-span-2 max-md:flex max-md:justify-end max-md:border-t max-md:border-slate-100' },
-    },
-  ], [ask, canManage, mutating, loading, visibleColumns]);
+  const handleExport = () => {
+    const dataToExport = filteredRecords.length > 0 ? filteredRecords : records;
+    if (dataToExport.length === 0) {
+      toast.error('No department records available to export.');
+      return;
+    }
+    exportDepartments(dataToExport);
+    toast.success(`Exported ${dataToExport.length} departments to CSV`);
+  };
 
-  const countLabel = (value: number) => (loading || error ? '—' : value);
-  const tabs = [
-    { label: 'All', value: 'all', count: countLabel(counts.all) },
-    { label: 'Active', value: 'active', count: countLabel(counts.active) },
-    { label: 'Inactive', value: 'inactive', count: countLabel(counts.inactive) },
-    { label: 'Archived', value: 'archived', count: countLabel(counts.archived) },
+  const tabs: Array<{ key: FilterTab; label: string; count: number }> = [
+    { key: 'all', label: 'All', count: counts.all },
+    { key: 'active', label: 'Active', count: counts.active },
+    { key: 'inactive', label: 'Inactive', count: counts.inactive },
+    { key: 'archived', label: 'Archived', count: counts.archived },
   ];
 
   return (
-    <div className="min-w-0 space-y-6">
-      <PageHeader
+    <div className="w-full min-w-0 space-y-5 sm:space-y-6 pb-20 overflow-x-hidden">
+      {/* 1. Header / Page Banner */}
+      <TitleCard
+        category="MASTER MANAGEMENT"
         title="Departments"
-        category="Master Management"
-        icon={faBuilding}
         description="Manage departments, organize teams and configure organizational structure."
-        actions={(
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+        icon={Building2}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
             <Button
+              type="button"
               variant="outline"
-              className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-2xs"
-              title="Export records in the selected status tab"
-              disabled={loading || !!error || filtered.length === 0}
-              onClick={() => {
-                exportDepartments(filtered);
-                toast.success('Departments exported');
-              }}
+              disabled={loading || records.length === 0}
+              onClick={handleExport}
+              className="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs gap-2 transition-colors cursor-pointer"
             >
-              <Icon icon={faDownload} className="size-3.5 text-slate-500" />
-              Export CSV
+              <Download className="size-4 text-slate-500" />
+              <span>Export CSV</span>
             </Button>
             {canManage && (
-              <Button className="h-9 bg-[#1FC45B] text-xs font-bold text-white hover:bg-[#169F4D]" onClick={() => setDrawer({ id: null, mode: 'create' })}>
-                <Icon icon={faPlus} className="size-3.5" />
-                Add Department
+              <Button
+                type="button"
+                onClick={() => setDrawer({ id: null, mode: 'create' })}
+                className="h-10 px-4 rounded-xl bg-[#20C466] hover:bg-[#1ab35c] text-white text-xs font-bold shadow-2xs gap-2 transition-colors cursor-pointer"
+              >
+                <Plus className="size-4" />
+                <span>Add Department</span>
               </Button>
             )}
           </div>
-        )}
+        }
       />
 
-      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none">
-      <StatsGrid
-        cards={[
-          { title: 'Total Departments', value: <AnimatedMetric value={counts.all} loading={loading || !!error} />, description: 'Records returned by the department API', icon: faBuilding },
-          { title: 'Active Departments', value: <AnimatedMetric value={counts.active} loading={loading || !!error} />, description: 'Currently operational', icon: faCheck, iconColor: 'text-[#169F4D]', iconBg: 'border-[#5EC269]/20 bg-[#E8F8EE]' },
-          { title: 'Inactive Departments', value: <AnimatedMetric value={counts.inactive} loading={loading || !!error} />, description: 'Marked inactive', icon: faCircleMinus, iconColor: 'text-slate-500', iconBg: 'border-slate-200 bg-slate-50' },
-          { title: 'Total Assigned Employees', value: <AnimatedMetric value={counts.employees} loading={loading || !!error} />, description: 'Assigned across listed departments', icon: faUsers },
-        ]}
-      />
+      {/* 2. Statistics KPI Cards (4 columns on desktop, 2 on tablet, 1 on mobile) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Departments */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between gap-3 min-w-0 transition-all hover:border-slate-300">
+          <div className="space-y-1 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
+              Total Departments
+            </span>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              {loading ? (
+                <span className="inline-block h-7 w-14 animate-pulse rounded bg-slate-100" />
+              ) : (
+                Number(counts.all).toLocaleString()
+              )}
+            </p>
+            <p className="text-[11px] text-slate-400 truncate">All registered departments</p>
+          </div>
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-100 bg-[#E8F1EC] text-[#163A2E] shadow-2xs">
+            <Building2 className="size-6 text-[#163A2E]" />
+          </div>
+        </div>
+
+        {/* Card 2: Active Departments */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between gap-3 min-w-0 transition-all hover:border-slate-300">
+          <div className="space-y-1 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
+              Active Departments
+            </span>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-emerald-700">
+              {loading ? (
+                <span className="inline-block h-7 w-14 animate-pulse rounded bg-slate-100" />
+              ) : (
+                Number(counts.active).toLocaleString()
+              )}
+            </p>
+            <p className="text-[11px] text-slate-400 truncate">Currently operational</p>
+          </div>
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200/80 bg-emerald-50 text-emerald-700 shadow-2xs">
+            <CheckCircle2 className="size-6 text-emerald-700" />
+          </div>
+        </div>
+
+        {/* Card 3: Inactive Departments */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between gap-3 min-w-0 transition-all hover:border-slate-300">
+          <div className="space-y-1 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
+              Inactive Departments
+            </span>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-600">
+              {loading ? (
+                <span className="inline-block h-7 w-14 animate-pulse rounded bg-slate-100" />
+              ) : (
+                Number(counts.inactive).toLocaleString()
+              )}
+            </p>
+            <p className="text-[11px] text-slate-400 truncate">Disabled or suspended</p>
+          </div>
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200/80 bg-slate-50 text-slate-600 shadow-2xs">
+            <MinusCircle className="size-6 text-slate-500" />
+          </div>
+        </div>
+
+        {/* Card 4: Total Assigned Employees */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between gap-3 min-w-0 transition-all hover:border-slate-300">
+          <div className="space-y-1 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block truncate">
+              Total Assigned Employees
+            </span>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#163A2E]">
+              {loading ? (
+                <span className="inline-block h-7 w-14 animate-pulse rounded bg-slate-100" />
+              ) : (
+                Number(counts.employees).toLocaleString()
+              )}
+            </p>
+            <p className="text-[11px] text-slate-400 truncate">Assigned across departments</p>
+          </div>
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-100 bg-[#EAF7EF] text-[#173D30] shadow-2xs">
+            <Users className="size-6 text-[#173D30]" />
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3 border-b border-slate-200/80 pb-3 sm:flex-row sm:items-center sm:justify-between">
-        <StatusTabs tabs={tabs} value={filter} onChange={(value) => setFilter(value as Filter)} ariaLabel="Department status" className="max-w-full" />
-        <Button variant="outline" className="h-9 gap-2 self-start bg-white text-xs" disabled={loading || mutating} onClick={() => setRefresh((value) => value + 1)}>
-          <Icon icon={faRotate} className={`size-3 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
+      {/* 3. Status Filters, Search, Columns & Refresh Toolbar */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-xs space-y-3.5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/90 overflow-x-auto no-scrollbar max-w-full">
+            {tabs.map((tab) => {
+              const active = filter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setFilter(tab.key)}
+                  className={cn(
+                    'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer',
+                    active
+                      ? 'bg-white text-[#163A2E] shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  )}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold px-1.5 py-0.5 rounded-full transition-colors',
+                      active
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-slate-200/80 text-slate-600'
+                    )}
+                  >
+                    {loading ? '—' : tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-      <section aria-label="Department results" aria-busy={loading} className="min-w-0 space-y-3">
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" className="h-8 gap-2 bg-white text-xs"><Icon icon={faEyeSlash} className="size-3" /> Columns</Button>} />
-            <DropdownMenuContent align="end" className="w-48 bg-white">
-              {([['code', 'Department Code'], ['employeesCount', 'Employees'], ['isActive', 'Status'], ['createdAt', 'Created Date']] as const).map(([key, label]) => (
-                <DropdownMenuCheckboxItem key={key} checked={visibleColumns[key]} onCheckedChange={(checked: any) => setVisibleColumns((current) => ({ ...current, [key]: Boolean(checked) }))}>{label}</DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Right Controls: Search, Columns & Refresh */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-64 sm:flex-initial min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Search departments or codes..."
+                value={searchQuery}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                className="h-9.5 pl-9 pr-8 text-xs bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-brand rounded-xl w-full"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Columns Visibility Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="h-9.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
+                title="Toggle visible table columns"
+              >
+                <SlidersHorizontal className="size-3.5 text-slate-500" />
+                <span className="hidden sm:inline">Columns</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 bg-white border border-slate-200 shadow-xl rounded-xl p-1.5">
+                <div className="px-2 py-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Toggle Columns
+                </div>
+                <DropdownMenuSeparator className="bg-slate-100" />
+                <MenuCheckboxItem
+                  checked={visibleColumns.code}
+                  onCheckedChange={(checked: boolean) =>
+                    setVisibleColumns((prev) => ({ ...prev, code: Boolean(checked) }))
+                  }
+                  className="text-xs p-2 rounded-lg cursor-pointer text-slate-700"
+                >
+                  Department Code
+                </MenuCheckboxItem>
+                <MenuCheckboxItem
+                  checked={visibleColumns.employeesCount}
+                  onCheckedChange={(checked: boolean) =>
+                    setVisibleColumns((prev) => ({ ...prev, employeesCount: Boolean(checked) }))
+                  }
+                  className="text-xs p-2 rounded-lg cursor-pointer text-slate-700"
+                >
+                  Employees Count
+                </MenuCheckboxItem>
+                <MenuCheckboxItem
+                  checked={visibleColumns.isActive}
+                  onCheckedChange={(checked: boolean) =>
+                    setVisibleColumns((prev) => ({ ...prev, isActive: Boolean(checked) }))
+                  }
+                  className="text-xs p-2 rounded-lg cursor-pointer text-slate-700"
+                >
+                  Status
+                </MenuCheckboxItem>
+                <MenuCheckboxItem
+                  checked={visibleColumns.createdAt}
+                  onCheckedChange={(checked: boolean) =>
+                    setVisibleColumns((prev) => ({ ...prev, createdAt: Boolean(checked) }))
+                  }
+                  className="text-xs p-2 rounded-lg cursor-pointer text-slate-700"
+                >
+                  Created Date
+                </MenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Refresh Button */}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading || mutating}
+              onClick={() => setRefresh((v) => v + 1)}
+              className="h-9.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
+              title="Refresh department list"
+            >
+              <RotateCw className={cn('size-3.5 text-slate-500', loading && 'animate-spin')} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+          </div>
         </div>
-        <div className="md:hidden">
-          <Select value={mobileSort} onValueChange={(value: string | null) => { if (value) setMobileSort(value); }}>
-            <SelectTrigger aria-label="Sort departments" className="w-full bg-white"><SelectValue className="" /></SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="name" className="text-sm">Name: A–Z</SelectItem>
-              <SelectItem value="name-desc" className="text-sm">Name: Z–A</SelectItem>
-              <SelectItem value="code" className="text-sm">Department code</SelectItem>
-              <SelectItem value="employees" className="text-sm">Most employees</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {selectedDepartments.length > 0 && canManage && (
-          <BulkToolbar
-            count={selectedDepartments.length}
-            noun="departments"
-            onClear={() => {
-              setSelectedDepartments([]);
-              setSelectionResetToken((v) => v + 1);
-            }}
-          >
-            <BulkDeleteBtn
-              count={selectedDepartments.length}
-              onClick={() => setBulkDeleteOpen(true)}
-              loading={mutating}
-            />
-          </BulkToolbar>
+
+        {/* Bulk Action Bar (if selected) */}
+        {selectedIds.size > 0 && canManage && (
+          <div className="flex items-center justify-between rounded-xl bg-emerald-50/80 border border-emerald-200/90 p-2.5 px-3.5 animate-in fade-in slide-in-from-top-1">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#163A2E]">
+              <span className="size-2 rounded-full bg-[#20C466]" />
+              <span>
+                {selectedIds.size} {selectedIds.size === 1 ? 'department' : 'departments'} selected
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleClearSelection}
+                className="h-7 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+              >
+                Clear
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setBulkDeleteOpen(true)}
+                disabled={mutating}
+                className="h-7.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <Trash2 className="size-3.5" />
+                <span>Delete Selected</span>
+              </Button>
+            </div>
+          </div>
         )}
+      </div>
+
+      {/* 4. Departments Table Card */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white shadow-xs overflow-hidden">
         {error ? (
-          <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-6">
-            <h3 className="font-semibold text-rose-800">Unable to load departments</h3>
-            <p className="mt-2 text-sm text-rose-700">{error}</p>
-            <Button variant="outline" className="mt-4 bg-white" onClick={() => setRefresh((value) => value + 1)}>Try again</Button>
+          <div role="alert" className="p-8 text-center space-y-3">
+            <div className="size-12 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center border border-rose-100">
+              <AlertCircle className="size-6" />
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">Unable to load departments</h3>
+            <p className="text-sm text-slate-500 max-w-md mx-auto">{error}</p>
+            <Button
+              variant="outline"
+              onClick={() => setRefresh((v) => v + 1)}
+              className="mt-2 text-xs font-semibold border-slate-200 rounded-xl"
+            >
+              Try again
+            </Button>
           </div>
         ) : (
-          <DepartmentTable
-            key={`${filter}-${refresh}-${mobileSort}`}
-            columns={columns}
-            data={filtered}
-            enableRowSelection
-            onSelectionChange={setSelectedDepartments}
-            selectionResetToken={selectionResetToken}
-            isLoading={loading}
-            searchPlaceholder="Search departments or codes…"
-            emptyState={filter === 'archived' ? (
-              <div className="py-8">
-                <Icon icon={faBoxArchive} className="mx-auto mb-3 size-7 text-slate-300" />
-                <p className="font-semibold text-slate-700">No archived departments</p>
-                <p className="mx-auto mt-1 max-w-md text-slate-500">The department API stores Active and Inactive only. Archived is shown so the count stays accurate: there are no archived records to load.</p>
-              </div>
-            ) : (
-              <div className="py-8">
-                <Icon icon={faBuilding} className="mx-auto mb-3 size-7 text-slate-300" />
-                <p className="font-semibold text-slate-700">No departments found</p>
-                <p className="mt-1 text-slate-500">Try another search or status filter, or add a department.</p>
-              </div>
-            )}
-            caption="Departments directory"
-            pageSize={10}
-            className="min-w-0 overflow-hidden [&_td]:whitespace-normal max-md:[&_thead]:sr-only max-md:[&_table]:block max-md:[&_tbody]:block max-md:[&_tbody_tr]:mb-3 max-md:[&_tbody_tr]:grid max-md:[&_tbody_tr]:grid-cols-2 max-md:[&_tbody_tr]:gap-x-1 max-md:[&_tbody_tr]:rounded-xl max-md:[&_tbody_tr]:border max-md:[&_tbody_tr]:border-slate-200 max-md:[&_tbody_tr]:p-3 max-md:[&_td]:block max-md:[&_td]:min-w-0 max-md:[&_td]:border-0 max-md:[&_td]:px-2 max-md:[&_td]:py-2 max-md:[&_td[colspan]]:col-span-2"
-          />
-        )}
-      </section>
+          <>
+            {/* Table Container with Horizontal Scroll */}
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    {/* Checkbox Column */}
+                    <th scope="col" className="w-12 px-4 py-3.5 text-center">
+                      <Checkbox
+                        aria-label="Select all departments on this page"
+                        checked={isAllPageSelected}
+                        indeterminate={isSomePageSelected}
+                        onCheckedChange={(checked: boolean) => handleToggleSelectAll(Boolean(checked))}
+                        className="border-slate-300"
+                      />
+                    </th>
 
+                    {/* Department Name */}
+                    <th scope="col" className="px-4 py-3.5 min-w-[240px]">
+                      <button
+                        type="button"
+                        onClick={() => handleSort('name')}
+                        className="group flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors uppercase cursor-pointer"
+                      >
+                        <span>Department Name</span>
+                        {sortField === 'name' ? (
+                          sortOrder === 'asc' ? (
+                            <ArrowUp className="size-3.5 text-[#163A2E]" />
+                          ) : (
+                            <ArrowDown className="size-3.5 text-[#163A2E]" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="size-3 text-slate-400 group-hover:text-slate-600" />
+                        )}
+                      </button>
+                    </th>
+
+                    {/* Department Code */}
+                    {visibleColumns.code && (
+                      <th scope="col" className="px-4 py-3.5 min-w-[140px]">
+                        <button
+                          type="button"
+                          onClick={() => handleSort('code')}
+                          className="group flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors uppercase cursor-pointer"
+                        >
+                          <span>Department Code</span>
+                          {sortField === 'code' ? (
+                            sortOrder === 'asc' ? (
+                              <ArrowUp className="size-3.5 text-[#163A2E]" />
+                            ) : (
+                              <ArrowDown className="size-3.5 text-[#163A2E]" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="size-3 text-slate-400 group-hover:text-slate-600" />
+                          )}
+                        </button>
+                      </th>
+                    )}
+
+                    {/* Employees */}
+                    {visibleColumns.employeesCount && (
+                      <th scope="col" className="px-4 py-3.5 min-w-[120px]">
+                        <button
+                          type="button"
+                          onClick={() => handleSort('employeesCount')}
+                          className="group flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors uppercase cursor-pointer"
+                        >
+                          <span>Employees</span>
+                          {sortField === 'employeesCount' ? (
+                            sortOrder === 'asc' ? (
+                              <ArrowUp className="size-3.5 text-[#163A2E]" />
+                            ) : (
+                              <ArrowDown className="size-3.5 text-[#163A2E]" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="size-3 text-slate-400 group-hover:text-slate-600" />
+                          )}
+                        </button>
+                      </th>
+                    )}
+
+                    {/* Status */}
+                    {visibleColumns.isActive && (
+                      <th scope="col" className="px-4 py-3.5 min-w-[110px]">
+                        Status
+                      </th>
+                    )}
+
+                    {/* Created Date */}
+                    {visibleColumns.createdAt && (
+                      <th scope="col" className="px-4 py-3.5 min-w-[130px]">
+                        <button
+                          type="button"
+                          onClick={() => handleSort('createdAt')}
+                          className="group flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors uppercase cursor-pointer"
+                        >
+                          <span>Created Date</span>
+                          {sortField === 'createdAt' ? (
+                            sortOrder === 'asc' ? (
+                              <ArrowUp className="size-3.5 text-[#163A2E]" />
+                            ) : (
+                              <ArrowDown className="size-3.5 text-[#163A2E]" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="size-3 text-slate-400 group-hover:text-slate-600" />
+                          )}
+                        </button>
+                      </th>
+                    )}
+
+                    {/* Actions */}
+                    <th scope="col" className="w-16 px-4 py-3.5 text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {/* Loading State */}
+                  {loading && (
+                    <>
+                      {[1, 2, 3, 4, 5].map((idx) => (
+                        <tr key={idx} className="animate-pulse">
+                          <td className="px-4 py-3.5 text-center">
+                            <div className="size-4 bg-slate-200 rounded mx-auto" />
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="size-9 rounded-xl bg-slate-200 shrink-0" />
+                              <div className="space-y-1.5 flex-1 min-w-0">
+                                <div className="h-3.5 bg-slate-200 rounded w-36" />
+                                <div className="h-2.5 bg-slate-100 rounded w-48" />
+                              </div>
+                            </div>
+                          </td>
+                          {visibleColumns.code && (
+                            <td className="px-4 py-3.5">
+                              <div className="h-5 bg-slate-100 rounded w-16" />
+                            </td>
+                          )}
+                          {visibleColumns.employeesCount && (
+                            <td className="px-4 py-3.5">
+                              <div className="h-5 bg-slate-100 rounded w-12" />
+                            </td>
+                          )}
+                          {visibleColumns.isActive && (
+                            <td className="px-4 py-3.5">
+                              <div className="h-5 bg-slate-100 rounded-full w-20" />
+                            </td>
+                          )}
+                          {visibleColumns.createdAt && (
+                            <td className="px-4 py-3.5">
+                              <div className="h-3 bg-slate-100 rounded w-20" />
+                            </td>
+                          )}
+                          <td className="px-4 py-3.5 text-right">
+                            <div className="size-7 bg-slate-100 rounded-lg ml-auto" />
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Empty State */}
+                  {!loading && paginatedRecords.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={
+                          3 +
+                          (visibleColumns.code ? 1 : 0) +
+                          (visibleColumns.employeesCount ? 1 : 0) +
+                          (visibleColumns.isActive ? 1 : 0) +
+                          (visibleColumns.createdAt ? 1 : 0)
+                        }
+                        className="py-12 text-center"
+                      >
+                        <div className="size-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+                          <Building2 className="size-6" />
+                        </div>
+                        <p className="font-bold text-slate-800 text-sm">No departments found</p>
+                        <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                          {searchQuery
+                            ? `No departments matching "${searchQuery}". Try a different keyword.`
+                            : filter === 'archived'
+                            ? 'No archived departments in the database.'
+                            : 'No department records registered in this category.'}
+                        </p>
+                        {searchQuery && (
+                          <Button
+                            variant="outline"
+                            onClick={() => setSearchQuery('')}
+                            className="mt-3 text-xs rounded-xl"
+                          >
+                            Clear search filter
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* Rows */}
+                  {!loading &&
+                    paginatedRecords.map((department) => {
+                      const isSelected = selectedIds.has(department.id);
+                      return (
+                        <tr
+                          key={department.id}
+                          className={cn(
+                            'transition-colors hover:bg-slate-50/80',
+                            isSelected && 'bg-emerald-50/40'
+                          )}
+                        >
+                          {/* Checkbox */}
+                          <td className="px-4 py-3.5 text-center">
+                            <Checkbox
+                              aria-label={`Select ${department.name}`}
+                              checked={isSelected}
+                              onCheckedChange={(checked: boolean) =>
+                                handleToggleSelectRow(department.id, Boolean(checked))
+                              }
+                              className="border-slate-300"
+                            />
+                          </td>
+
+                          {/* Department Name & Description */}
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-[#E8F8EE] text-[#163A2E] shadow-2xs">
+                                <Building2 className="size-4.5 text-[#163A2E]" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setDrawer({ id: department.id, mode: 'view' })}
+                                  className="font-bold text-sm text-slate-900 hover:text-emerald-700 transition-colors truncate block text-left cursor-pointer"
+                                  title={`View details for ${department.name}`}
+                                >
+                                  {department.name}
+                                </button>
+                                <p
+                                  className="text-xs text-slate-400 truncate max-w-xs sm:max-w-sm md:max-w-md mt-0.5"
+                                  title={department.description || 'No description added'}
+                                >
+                                  {department.description || 'No description added.'}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Department Code */}
+                          {visibleColumns.code && (
+                            <td className="px-4 py-3.5">
+                              <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
+                                {department.code || '—'}
+                              </span>
+                            </td>
+                          )}
+
+                          {/* Employees Count */}
+                          {visibleColumns.employeesCount && (
+                            <td className="px-4 py-3.5">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200/80">
+                                <Users className="size-3 text-slate-500" />
+                                {Number(department.employeesCount || 0).toLocaleString()}
+                              </span>
+                            </td>
+                          )}
+
+                          {/* Status */}
+                          {visibleColumns.isActive && (
+                            <td className="px-4 py-3.5">
+                              {department.isActive ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-[#E8F8EE] text-[#169F4D] text-[11px] font-semibold px-2.5 py-0.5">
+                                  <span className="size-1.5 rounded-full bg-[#1FC45B]" />
+                                  <span>Active</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 text-slate-600 text-[11px] font-semibold px-2.5 py-0.5">
+                                  <span className="size-1.5 rounded-full bg-slate-400" />
+                                  <span>Inactive</span>
+                                </span>
+                              )}
+                            </td>
+                          )}
+
+                          {/* Created Date */}
+                          {visibleColumns.createdAt && (
+                            <td className="px-4 py-3.5 text-xs text-slate-600 whitespace-nowrap">
+                              {department.createdAt
+                                ? new Date(department.createdAt).toLocaleDateString(undefined, {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })
+                                : '—'}
+                            </td>
+                          )}
+
+                          {/* Row Actions Menu */}
+                          <td className="px-4 py-3.5 text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors ml-auto cursor-pointer shadow-2xs"
+                                aria-label="Open department action menu"
+                              >
+                                <MoreHorizontal className="size-4" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                className="w-48 bg-white border border-slate-200 shadow-xl rounded-xl p-1.5"
+                              >
+                                <MenuItem
+                                  onClick={() => setDrawer({ id: department.id, mode: 'view' })}
+                                  className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-emerald-50 hover:text-[#173D30] flex items-center gap-2"
+                                >
+                                  <Eye className="size-3.5 text-slate-500" />
+                                  <span>View Details</span>
+                                </MenuItem>
+
+                                {canManage && (
+                                  <>
+                                    <MenuItem
+                                      onClick={() =>
+                                        setDrawer({ id: department.id, mode: 'edit' })
+                                      }
+                                      className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-emerald-50 hover:text-[#173D30] flex items-center gap-2"
+                                    >
+                                      <Pencil className="size-3.5 text-blue-600" />
+                                      <span>Edit Department</span>
+                                    </MenuItem>
+
+                                    <MenuItem
+                                      onClick={() => ask(department, 'status')}
+                                      className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-emerald-50 hover:text-[#173D30] flex items-center gap-2"
+                                    >
+                                      {department.isActive ? (
+                                        <>
+                                          <ToggleLeft className="size-3.5 text-amber-600" />
+                                          <span>Deactivate</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ToggleRight className="size-3.5 text-emerald-600" />
+                                          <span>Activate</span>
+                                        </>
+                                      )}
+                                    </MenuItem>
+
+                                    <MenuItem
+                                      onClick={() => ask(department, 'archive')}
+                                      className="text-xs p-2 rounded-lg cursor-pointer text-slate-700 hover:bg-emerald-50 hover:text-[#173D30] flex items-center gap-2"
+                                    >
+                                      <Archive className="size-3.5 text-purple-600" />
+                                      <span>Archive Department</span>
+                                    </MenuItem>
+
+                                    <DropdownMenuSeparator className="bg-slate-100" />
+
+                                    <MenuItem
+                                      onClick={() => ask(department, 'delete')}
+                                      className="text-xs p-2 rounded-lg cursor-pointer text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                                    >
+                                      <Trash2 className="size-3.5 text-rose-600" />
+                                      <span>Delete Department</span>
+                                    </MenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination & Rows Per Page Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3.5 border-t border-slate-200/80 bg-slate-50/50 text-xs text-slate-600">
+              {/* Left: Showing range */}
+              <div className="flex items-center gap-2 text-slate-500">
+                <span>
+                  Showing{' '}
+                  <strong className="text-slate-900 font-bold">
+                    {filteredRecords.length === 0 ? 0 : (page - 1) * pageSize + 1}
+                  </strong>{' '}
+                  to{' '}
+                  <strong className="text-slate-900 font-bold">
+                    {Math.min(page * pageSize, filteredRecords.length)}
+                  </strong>{' '}
+                  of{' '}
+                  <strong className="text-slate-900 font-bold">
+                    {filteredRecords.length}
+                  </strong>{' '}
+                  departments
+                </span>
+              </div>
+
+              {/* Right: Page Size & Navigation Buttons */}
+              <div className="flex items-center gap-3">
+                {/* Rows per page selector */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 hidden sm:inline">Rows:</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(val: string | null) => {
+                      if (val) setPageSize(Number(val));
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-16 bg-white text-xs border-slate-200 rounded-lg">
+                      <SelectValue className="text-xs" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="5" className="text-xs">5</SelectItem>
+                      <SelectItem value="10" className="text-xs">10</SelectItem>
+                      <SelectItem value="25" className="text-xs">25</SelectItem>
+                      <SelectItem value="50" className="text-xs">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Page info & Prev/Next buttons */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 px-1">
+                    Page {page} of {totalPages}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="size-8 p-0 rounded-lg bg-white border-slate-200 cursor-pointer disabled:opacity-40"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="size-8 p-0 rounded-lg bg-white border-slate-200 cursor-pointer disabled:opacity-40"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 5. Create / Edit / View Drawer Modal */}
       {drawer && (
         <DepartmentDrawer
           key={`${drawer.mode}-${drawer.id}`}
@@ -500,14 +1095,17 @@ export function DepartmentsScreen() {
           onClose={() => setDrawer(null)}
           onSaved={() => {
             setDrawer(null);
-            setRefresh((value) => value + 1);
+            setRefresh((v) => v + 1);
           }}
         />
       )}
 
+      {/* 6. Single Department Permanent Delete Dialog */}
       <DeleteDialog
         open={Boolean(confirmation && confirmation.action === 'delete')}
-        onOpenChange={(open: boolean) => { if (!open && !mutationLock.current) setConfirmation(null); }}
+        onOpenChange={(open: boolean) => {
+          if (!open && !mutationLock.current) setConfirmation(null);
+        }}
         recordName={confirmation?.record?.name}
         noun="department"
         warningNote="If employees are assigned, the department will be set to Inactive instead. Otherwise it will be permanently deleted and linked designations will be unassigned."
@@ -515,36 +1113,58 @@ export function DepartmentsScreen() {
         onConfirm={confirmAction}
       />
 
+      {/* 7. Bulk Delete Dialog */}
       <DeleteDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        count={selectedDepartments.length}
+        count={selectedIds.size}
         noun="department"
-        warningNote="Departments with active employees will be set to Inactive to preserve employee organizational history."
+        warningNote="Departments with active employees will be set to Inactive to preserve organizational history."
         loading={mutating}
         onConfirm={confirmBulkDelete}
       />
 
-      <Dialog open={Boolean(confirmation && confirmation.action !== 'delete')} onOpenChange={(open: boolean) => { if (!open && !mutationLock.current) setConfirmation(null); }}>
-        <DialogContent className="sm:max-w-md" showCloseButton={!mutating}>
+      {/* 8. Status Change & Archive Dialog */}
+      <Dialog
+        open={Boolean(confirmation && confirmation.action !== 'delete')}
+        onOpenChange={(open: boolean) => {
+          if (!open && !mutationLock.current) setConfirmation(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-white border-slate-200 rounded-2xl" showCloseButton={!mutating}>
           <DialogHeader className="pr-5">
-            <DialogTitle className="text-lg">
-              {confirmation?.action === 'archive' ? 'Archive department?' : 'Change department status?'}
+            <DialogTitle className="text-lg font-bold text-slate-900">
+              {confirmation?.action === 'archive'
+                ? 'Archive department?'
+                : 'Change department status?'}
             </DialogTitle>
-            <DialogDescription className="leading-relaxed">
+            <DialogDescription className="leading-relaxed text-sm text-slate-500 mt-1">
               {confirmation?.action === 'archive'
                 ? `“${confirmation.record.name}” cannot be archived. The department API only supports Active and Inactive.`
-                : `Set “${confirmation?.record.name}” to ${confirmation?.record.isActive ? 'Inactive' : 'Active'}?`}
+                : `Set “${confirmation?.record.name}” to ${
+                    confirmation?.record.isActive ? 'Inactive' : 'Active'
+                  }?`}
             </DialogDescription>
           </DialogHeader>
-          {actionError && <p role="alert" className="text-sm text-rose-600">{actionError}</p>}
-          <DialogFooter className="">
-            <Button variant="outline" className="" disabled={mutating} onClick={() => setConfirmation(null)}>
+          {actionError && (
+            <p role="alert" className="text-sm font-semibold text-rose-600">
+              {actionError}
+            </p>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={mutating}
+              onClick={() => setConfirmation(null)}
+              className="rounded-xl border-slate-200 text-xs font-semibold"
+            >
               {confirmation?.action === 'archive' ? 'Close' : 'Cancel'}
             </Button>
             {confirmation?.action !== 'archive' && (
               <Button
-                className="bg-[#1FC45B] text-white hover:bg-[#169F4D]"
+                type="button"
+                className="bg-[#20C466] text-white hover:bg-[#1ab35c] rounded-xl text-xs font-bold"
                 disabled={mutating}
                 onClick={confirmAction}
               >
