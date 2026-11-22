@@ -16,7 +16,7 @@ import { FormDrawer, DrawerFormField } from '@/components/common/drawers/FormDra
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/common/Drawer';
 import { Label } from '@/components/common/Label';
 import { mockContacts } from '@/modules/crm/services/mock-data';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 export default function CustomersPage() {
     const [contacts, setContacts] = React.useState(mockContacts);
     const [searchQuery, setSearchQuery] = React.useState('');

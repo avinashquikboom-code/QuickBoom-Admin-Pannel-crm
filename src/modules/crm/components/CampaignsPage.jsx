@@ -12,7 +12,7 @@ import { FormDrawer, DrawerFormField } from '@/components/common/drawers/FormDra
 import { Label } from '@/components/common/Label';
 import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/common/Select';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 const mockCampaigns = [
     {
         id: 'CMP-101',

@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar'
 import { faCheckCircle, faPaperclip, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { faEyeSlash } from '@fortawesome/free-regular-svg-icons';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
+import { TruncatedAnnouncementText } from '@/components/announcements/TruncatedAnnouncementText';
 export function AnnouncementList({ announcements, onEdit, onDelete, onTogglePublish, }) {
     return (<div className="space-y-3.5">
       {announcements.map((ann) => (<Card key={ann.id} className={`border bg-white transition-all duration-200 shadow-2xs hover:shadow-xs ${ann.isImportant ? 'border-rose-200/80 bg-rose-50/20' : 'border-slate-200/90'}`}>
@@ -35,13 +36,19 @@ export function AnnouncementList({ announcements, onEdit, onDelete, onTogglePubl
                     </span>)}
                 </div>
 
-                <h3 className="text-base font-bold text-slate-900 leading-snug pt-1">
-                  {ann.title}
-                </h3>
-
-                <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
-                  {ann.content}
-                </p>
+                <div className="pt-1 min-w-0 max-w-3xl">
+                  <TruncatedAnnouncementText
+                    text={ann.title}
+                    isTitle
+                    label="Announcement Title"
+                    className="text-base font-bold"
+                  />
+                  <TruncatedAnnouncementText
+                    text={ann.content || ann.description}
+                    label="Announcement Description"
+                    className="text-xs text-slate-600 mt-1"
+                  />
+                </div>
 
                 {/* Attachments */}
                 {ann.attachments && ann.attachments.length > 0 && (<div className="pt-2 flex flex-wrap gap-2">

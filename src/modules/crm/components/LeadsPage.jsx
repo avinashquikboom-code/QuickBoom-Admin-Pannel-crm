@@ -19,7 +19,7 @@ import { Label } from '@/components/common/Label';
 import { Textarea } from '@/components/common/Textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/common/Select';
 import { mockLeads } from '@/modules/crm/services/mock-data';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 export default function LeadsPage() {
     const [leads, setLeads] = React.useState(mockLeads);
     const [searchQuery, setSearchQuery] = React.useState('');

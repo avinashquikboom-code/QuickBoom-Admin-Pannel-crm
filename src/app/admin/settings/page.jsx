@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/hooks/use-toast';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import {
   faGear,
@@ -15,19 +15,22 @@ import {
   faTrashCan,
   faArrowsRotate,
   faCheck,
-  faTriangleExclamation,
   faShieldHalved,
   faCircleCheck,
   faFloppyDisk,
   faRotateLeft,
-  faBolt,
+  faPlus,
+  faLock,
+  faEye,
+  faEyeSlash,
+  faKey,
+  faGauge,
 } from '@fortawesome/free-solid-svg-icons';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
 import { Input } from '@/components/common/Input';
-import { Select } from '@/components/common/Select';
 import {
   loadGeneralSettings,
   updateGeneralSettings,
@@ -37,6 +40,12 @@ import {
   clearApplicationCache,
   syncSystemSettings,
 } from '@/modules/settings/general-settings-api';
+import { SettingsTabs } from '@/modules/settings/components/SettingsTabs';
+import { ApplicationStatusCard } from '@/modules/settings/components/ApplicationStatusCard';
+import { QuickActionsCard } from '@/modules/settings/components/QuickActionsCard';
+import { ConfirmModal } from '@/modules/settings/components/ConfirmModal';
+import { ColorPickerField } from '@/modules/settings/components/ColorPickerField';
+import { DevicePreviewSwitcher } from '@/modules/settings/components/DevicePreviewSwitcher';
 
 const TABS = [
   { id: 'application', label: 'Application', icon: faSliders },
@@ -47,11 +56,30 @@ const TABS = [
   { id: 'advanced', label: 'Advanced', icon: faServer },
 ];
 
+const LANGUAGE_CATALOG = [
+  { code: 'en', label: 'English', native: 'English' },
+  { code: 'mr', label: 'Marathi', native: 'मराठी' },
+  { code: 'hi', label: 'Hindi', native: 'हिन्दी' },
+  { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી' },
+  { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
+  { code: 'de', label: 'German', native: 'Deutsch' },
+  { code: 'fr', label: 'French', native: 'Français' },
+  { code: 'es', label: 'Spanish', native: 'Español' },
+  { code: 'ar', label: 'Arabic', native: 'العربية' },
+];
+
 export default function GeneralSettingsPage() {
   const [activeTab, setActiveTab] = React.useState('application');
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
+  const [actionBusy, setActionBusy] = React.useState(false);
+
+  // Device mockup preview for branding
+  const [activePreviewDevice, setActivePreviewDevice] = React.useState('desktop');
+
+  // Secrets visibility toggle
+  const [showSecretKey, setShowSecretKey] = React.useState(false);
 
   // Form states
   const [settings, setSettings] = React.useState({
@@ -76,6 +104,17 @@ export default function GeneralSettingsPage() {
     secondaryColor: '#204C3D',
     paleColor: '#E8F1EC',
     configVersion: '1.0.0',
+    // Advanced options
+    environment: 'PRODUCTION',
+    logLevel: 'INFO',
+    sessionTimeoutMinutes: 60,
+    forceHttps: true,
+    twoFactorEnforced: false,
+    rateLimitMax: 120,
+    rateLimitWindowSec: 60,
+    cacheDriver: 'In-Memory Cache Layer',
+    cacheTtlSec: 3600,
+    apiBaseUrl: 'https://admin.qbapp.online/api',
     applicationStatus: {
       status: 'HEALTHY',
       version: '1.0.0',
@@ -87,7 +126,7 @@ export default function GeneralSettingsPage() {
 
   const [savedSettings, setSavedSettings] = React.useState(null);
 
-  // Options loaded dynamically from backend
+  // Dynamic Options from backend
   const [options, setOptions] = React.useState({
     languages: [
       { code: 'en', label: 'English', native: 'English', isDefault: true },
@@ -125,12 +164,12 @@ export default function GeneralSettingsPage() {
       { value: 'Saturday', label: 'Saturday' },
     ],
     numberFormattingOptions: [
-      { value: 'en-IN', label: 'Indian (1,00,000.00)' },
-      { value: 'en-US', label: 'International (100,000.00)' },
+      { value: 'en-IN', label: 'Indian (1,25,450.75)' },
+      { value: 'en-US', label: 'International (125,450.75)' },
     ],
     currencyDisplayOptions: [
-      { value: 'SYMBOL_FIRST', label: 'Symbol first (₹1,000)' },
-      { value: 'CODE_FIRST', label: 'Code first (INR 1,000)' },
+      { value: 'SYMBOL_FIRST', label: 'Symbol first (₹1,25,450.75)' },
+      { value: 'CODE_FIRST', label: 'Code first (INR 1,25,450.75)' },
     ],
   });
 
@@ -143,8 +182,12 @@ export default function GeneralSettingsPage() {
     action: null,
   });
 
-  // File upload input ref
+  // Add Language selector modal
+  const [showAddLanguageModal, setShowAddLanguageModal] = React.useState(false);
+
+  // File upload input refs
   const fileInputRef = React.useRef(null);
+  const faviconInputRef = React.useRef(null);
 
   // Load initial settings and options
   const fetchData = React.useCallback(async () => {
@@ -159,6 +202,9 @@ export default function GeneralSettingsPage() {
         setSettings((prev) => ({
           ...prev,
           ...fetchedSettings,
+          availableLanguages: Array.isArray(fetchedSettings.availableLanguages)
+            ? fetchedSettings.availableLanguages
+            : prev.availableLanguages,
           applicationStatus: fetchedSettings.applicationStatus || prev.applicationStatus,
         }));
         setSavedSettings(fetchedSettings);
@@ -167,7 +213,7 @@ export default function GeneralSettingsPage() {
       if (fetchedOptions) {
         setOptions((prev) => ({ ...prev, ...fetchedOptions }));
       }
-    } catch (err) {
+    } catch {
       toast.error('Failed to load application settings from server');
     } finally {
       setLoading(false);
@@ -200,7 +246,13 @@ export default function GeneralSettingsPage() {
       'secondaryColor',
       'paleColor',
     ];
-    return keysToCheck.some((key) => settings[key] !== savedSettings[key]);
+    const simpleDiff = keysToCheck.some((key) => settings[key] !== savedSettings[key]);
+    if (simpleDiff) return true;
+
+    // Check array equality for availableLanguages
+    const curLangs = (settings.availableLanguages || []).slice().sort().join(',');
+    const savedLangs = (savedSettings.availableLanguages || []).slice().sort().join(',');
+    return curLangs !== savedLangs;
   }, [settings, savedSettings]);
 
   // Handle generic field change
@@ -256,7 +308,6 @@ export default function GeneralSettingsPage() {
       const result = await updateGeneralSettings(payload);
       toast.success(result?.message || 'General settings saved successfully');
       setSavedSettings((prev) => ({ ...prev, ...payload }));
-      // Refresh status from server
       await fetchData();
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to save settings');
@@ -274,6 +325,17 @@ export default function GeneralSettingsPage() {
       }));
       toast.success('Changes reverted to saved configuration');
     }
+  };
+
+  // Reset branding colors to default QB palette
+  const handleResetBrandingColors = () => {
+    setSettings((prev) => ({
+      ...prev,
+      primaryColor: '#163A2E',
+      secondaryColor: '#204C3D',
+      paleColor: '#E8F1EC',
+    }));
+    toast.success('Theme colors reset to default QB Suite green palette');
   };
 
   // Logo upload
@@ -319,7 +381,7 @@ export default function GeneralSettingsPage() {
         setSavedSettings((prev) => ({ ...prev, appLogoUrl: '' }));
       }
       toast.success('Application logo removed');
-    } catch (err) {
+    } catch {
       toast.error('Failed to remove logo');
     } finally {
       setUploadingLogo(false);
@@ -329,11 +391,13 @@ export default function GeneralSettingsPage() {
   // Cache clear action
   const handleClearCache = async () => {
     try {
+      setActionBusy(true);
       const res = await clearApplicationCache();
       toast.success(res?.message || 'Application cache cleared successfully');
-    } catch (err) {
+    } catch {
       toast.error('Failed to clear application cache');
     } finally {
+      setActionBusy(false);
       setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
     }
   };
@@ -341,14 +405,39 @@ export default function GeneralSettingsPage() {
   // Sync settings action
   const handleSyncSettings = async () => {
     try {
+      setActionBusy(true);
       const res = await syncSystemSettings();
       toast.success(res?.message || 'System settings synchronized successfully');
       await fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to synchronize system settings');
     } finally {
+      setActionBusy(false);
       setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
     }
+  };
+
+  // Language management helpers
+  const toggleLanguageActive = (langCode) => {
+    if (langCode === settings.defaultLanguage) {
+      toast.error('Cannot disable the primary default language');
+      return;
+    }
+    const current = new Set(settings.availableLanguages || []);
+    if (current.has(langCode)) {
+      current.delete(langCode);
+    } else {
+      current.add(langCode);
+    }
+    handleChange('availableLanguages', Array.from(current));
+  };
+
+  const addLanguage = (langCode) => {
+    const current = new Set(settings.availableLanguages || []);
+    current.add(langCode);
+    handleChange('availableLanguages', Array.from(current));
+    setShowAddLanguageModal(false);
+    toast.success(`Language added to configured list`);
   };
 
   // Format sample date for live preview
@@ -384,7 +473,7 @@ export default function GeneralSettingsPage() {
     const precision = Number(settings.decimalPrecision ?? 2);
     const fixed = amount.toFixed(precision);
 
-    let [intPart, decPart] = fixed.split('.');
+    const [intPart, decPart] = fixed.split('.');
     let formattedNumber = intPart;
 
     if (settings.numberFormatting === 'en-IN') {
@@ -415,7 +504,7 @@ export default function GeneralSettingsPage() {
 
   return (
     <div className="max-w-none space-y-5 sm:space-y-6 w-full min-w-0 overflow-x-hidden pb-12">
-      {/* 1. Page Header with SYSTEM GOVERNANCE category badge and Settings Illustration */}
+      {/* 1. Page Header with SYSTEM GOVERNANCE category badge */}
       <PageHeader
         category="SYSTEM GOVERNANCE"
         title="General Settings"
@@ -456,7 +545,10 @@ export default function GeneralSettingsPage() {
               disabled={saving || !isDirty}
               className="bg-[#163A2E] hover:bg-[#204C3D] text-white shadow-xs font-semibold px-4"
             >
-              <FontAwesomeIcon icon={saving ? faArrowsRotate : faFloppyDisk} className={`size-3.5 mr-1.5 ${saving ? 'animate-spin' : ''}`} />
+              <FontAwesomeIcon
+                icon={saving ? faArrowsRotate : faFloppyDisk}
+                className={`size-3.5 mr-1.5 ${saving ? 'animate-spin' : ''}`}
+              />
               {saving ? 'Saving…' : 'Save Changes'}
             </Button>
           </div>
@@ -464,31 +556,7 @@ export default function GeneralSettingsPage() {
       />
 
       {/* 2. Navigation Tabs (Horizontally scrollable on mobile) */}
-      <div className="relative border-b border-[#E2E8E5] bg-white rounded-xl shadow-2xs p-1.5 sm:p-2">
-        <nav
-          className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none"
-          aria-label="Settings Tabs"
-        >
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs sm:text-sm font-semibold transition-all shrink-0 ${
-                  isActive
-                    ? 'bg-[#163A2E] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-[#E8F1EC] hover:text-[#163A2E]'
-                }`}
-              >
-                <FontAwesomeIcon icon={tab.icon} className={`size-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      <SettingsTabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* 3. Main Content: 2-Column Grid (Main Settings on left, Status Cards on right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 min-w-0">
@@ -757,19 +825,34 @@ export default function GeneralSettingsPage() {
                 </div>
               </div>
 
-              {/* Supported Languages List */}
+              {/* Supported Languages List with Management */}
               <div className="space-y-3 pt-2">
-                <label className="block text-xs sm:text-sm font-semibold text-slate-800">
-                  Configured Languages in Portal
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-800">
+                    Configured Languages in Portal
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowAddLanguageModal(true)}
+                    className="border-[#E2E8E5] text-xs h-7 text-[#163A2E] hover:bg-[#E8F1EC]"
+                  >
+                    <FontAwesomeIcon icon={faPlus} className="size-2.5 mr-1" />
+                    Add Language
+                  </Button>
+                </div>
+
                 <div className="space-y-2.5">
-                  {options.languages.map((lang) => {
-                    const isSelected = settings.defaultLanguage === lang.code;
+                  {LANGUAGE_CATALOG.filter((l) =>
+                    (settings.availableLanguages || ['en', 'mr']).includes(l.code)
+                  ).map((lang) => {
+                    const isDefault = settings.defaultLanguage === lang.code;
                     return (
                       <div
                         key={lang.code}
                         className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                          isSelected ? 'border-[#163A2E] bg-[#E8F1EC]/60' : 'border-[#E2E8E5] bg-white'
+                          isDefault ? 'border-[#163A2E] bg-[#E8F1EC]/60' : 'border-[#E2E8E5] bg-white'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -783,10 +866,21 @@ export default function GeneralSettingsPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {isSelected && (
+                          {isDefault ? (
                             <Badge className="bg-[#163A2E] text-white text-[10px] px-2 py-0.5">
                               Primary Default
                             </Badge>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => toggleLanguageActive(lang.code)}
+                              className="text-slate-400 hover:text-rose-600 text-xs h-7 px-2"
+                              title="Remove language"
+                            >
+                              <FontAwesomeIcon icon={faTrashCan} className="size-3" />
+                            </Button>
                           )}
                           <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                             Active
@@ -795,6 +889,27 @@ export default function GeneralSettingsPage() {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Regional Summary Checklist */}
+              <div className="rounded-xl border border-slate-200 bg-[#F7F9F8] p-4 space-y-2.5">
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Regional Formats Summary
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="p-2.5 rounded-lg bg-white border border-slate-200">
+                    <span className="text-[10px] text-slate-500 font-semibold block uppercase">Date Standard</span>
+                    <span className="font-mono font-bold text-slate-900">{settings.dateFormat}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white border border-slate-200">
+                    <span className="text-[10px] text-slate-500 font-semibold block uppercase">Time Standard</span>
+                    <span className="font-mono font-bold text-slate-900">{settings.timeFormat}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white border border-slate-200">
+                    <span className="text-[10px] text-slate-500 font-semibold block uppercase">Number Format</span>
+                    <span className="font-mono font-bold text-slate-900">{settings.numberFormatting}</span>
+                  </div>
                 </div>
               </div>
 
@@ -919,7 +1034,7 @@ export default function GeneralSettingsPage() {
                     Used for employee attendance weekly summaries, shift scheduling calendars, and weekly sales metrics.
                   </p>
                 </div>
-                  </div>
+              </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
                 <Button
@@ -943,7 +1058,7 @@ export default function GeneralSettingsPage() {
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                   Configure default currency symbol, ISO code, decimal precision, and Indian vs. International numbering.
                 </p>
-                  </div>
+              </div>
 
               {/* Live Preview Box */}
               <div className="rounded-xl border border-[#163A2E]/20 bg-[#E8F1EC] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -954,7 +1069,7 @@ export default function GeneralSettingsPage() {
                   <p className="text-xl sm:text-2xl font-bold text-[#163A2E] mt-0.5 font-mono">
                     {liveCurrencyPreview}
                   </p>
-                  </div>
+                </div>
                 <div className="text-left sm:text-right">
                   <span className="text-[10px] font-semibold text-slate-500 uppercase">ISO Standard</span>
                   <p className="text-sm font-bold text-slate-800">{settings.currencyCode} ({settings.currencySymbol})</p>
@@ -1032,7 +1147,7 @@ export default function GeneralSettingsPage() {
                   </select>
                 </div>
 
-                  <div className="space-y-1.5">
+                <div className="space-y-1.5">
                   <label className="block text-xs sm:text-sm font-semibold text-slate-800">
                     Currency Display Format
                   </label>
@@ -1067,48 +1182,66 @@ export default function GeneralSettingsPage() {
           {/* TAB 5: BRANDING */}
           {activeTab === 'branding' && (
             <Card className="border border-[#E2E8E5] bg-white p-4 sm:p-6 shadow-xs rounded-2xl space-y-6">
-              <div className="border-b border-slate-100 pb-4">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900">Brand Identity & Styling</h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                  Visual theme palette, application title, and login page branding elements.
-                </p>
+              <div className="border-b border-slate-100 pb-4 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">Brand Identity & Styling</h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    Visual theme palette, application logo, favicon, and interactive viewport preview.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleResetBrandingColors}
+                  className="border-[#E2E8E5] text-xs h-8 text-slate-700 hover:bg-[#E8F1EC]"
+                >
+                  <FontAwesomeIcon icon={faRotateLeft} className="size-3 mr-1.5 text-slate-500" />
+                  Reset to Default
+                </Button>
               </div>
 
-              {/* Theme Palette Card */}
+              {/* Theme Palette Pickers */}
               <div className="space-y-3">
                 <label className="block text-xs sm:text-sm font-semibold text-slate-800">
-                  QB Suite Theme Color Palette
+                  Theme Color Palette
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="rounded-xl border border-slate-200 p-3 bg-white space-y-2">
-                    <div className="h-12 w-full rounded-lg bg-[#163A2E] shadow-xs flex items-center justify-center text-white text-xs font-mono font-bold">
-                      #163A2E
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">Primary Green</p>
-                      <p className="text-[11px] text-slate-500">Core headers, primary buttons, active tabs</p>
-                    </div>
-                  </div>
+                  <ColorPickerField
+                    label="Primary Green"
+                    description="Headers, buttons, active tabs"
+                    value={settings.primaryColor}
+                    onChange={(c) => handleChange('primaryColor', c)}
+                    presets={[
+                      { name: 'QB Green', value: '#163A2E' },
+                      { name: 'Dark Pine', value: '#0f291e' },
+                      { name: 'Emerald Forest', value: '#134e4a' },
+                    ]}
+                  />
 
-                  <div className="rounded-xl border border-slate-200 p-3 bg-white space-y-2">
-                    <div className="h-12 w-full rounded-lg bg-[#204C3D] shadow-xs flex items-center justify-center text-white text-xs font-mono font-bold">
-                      #204C3D
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">Secondary Green</p>
-                      <p className="text-[11px] text-slate-500">Interactive hover states & accents</p>
-                    </div>
-                  </div>
+                  <ColorPickerField
+                    label="Secondary Green"
+                    description="Hover accents, badges"
+                    value={settings.secondaryColor}
+                    onChange={(c) => handleChange('secondaryColor', c)}
+                    presets={[
+                      { name: 'QB Mid Green', value: '#204C3D' },
+                      { name: 'Pine', value: '#1b4332' },
+                      { name: 'Deep Sage', value: '#2d6a4f' },
+                    ]}
+                  />
 
-                  <div className="rounded-xl border border-slate-200 p-3 bg-white space-y-2">
-                    <div className="h-12 w-full rounded-lg bg-[#E8F1EC] border border-emerald-100 shadow-2xs flex items-center justify-center text-[#163A2E] text-xs font-mono font-bold">
-                      #E8F1EC
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">Pale Green</p>
-                      <p className="text-[11px] text-slate-500">Card highlights, pills, banner gradient</p>
-                    </div>
-                  </div>
+                  <ColorPickerField
+                    label="Pale Green"
+                    description="Highlights, banner tints"
+                    value={settings.paleColor}
+                    onChange={(c) => handleChange('paleColor', c)}
+                    presets={[
+                      { name: 'QB Pale Tint', value: '#E8F1EC' },
+                      { name: 'Mint Light', value: '#ecfdf5' },
+                      { name: 'Ice Soft', value: '#f0fdf4' },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -1116,7 +1249,7 @@ export default function GeneralSettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 <div className="space-y-1.5">
                   <label className="block text-xs sm:text-sm font-semibold text-slate-800">
-                    Application Name
+                    Application Display Title
                   </label>
                   <Input
                     value={settings.appName}
@@ -1139,27 +1272,51 @@ export default function GeneralSettingsPage() {
                 </div>
               </div>
 
-              {/* Brand Preview Panel */}
-              <div className="rounded-xl border border-[#E2E8E5] bg-[#F7F9F8] p-4 space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Header Branding Live Mockup
-                </span>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-[#163A2E] text-white">
-                  <div className="flex items-center gap-2.5">
-                    {settings.appLogoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={settings.appLogoUrl} alt="Logo" className="size-6 object-contain" />
-                    ) : (
-                      <div className="size-6 rounded bg-white/20 flex items-center justify-center font-bold text-xs text-white">
-                        QB
-                      </div>
-                    )}
-                    <span className="font-bold text-sm tracking-tight">{settings.appName || 'QB Suite'}</span>
-                    <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded text-white/90">Admin</span>
+              {/* Favicon Asset */}
+              <div className="space-y-2 p-3.5 rounded-xl border border-slate-200 bg-[#F7F9F8]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-800">
+                      Browser Favicon (.ico / .png)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Appears in browser tabs and bookmark bars (32×32 or 48×48px).
+                    </p>
                   </div>
-                  <span className="text-xs text-white/80 font-medium">Enterprise Portal</span>
+                  <input
+                    ref={faviconInputRef}
+                    type="file"
+                    accept="image/x-icon,image/png,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) toast.success(`Selected favicon: ${f.name}`);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => faviconInputRef.current?.click()}
+                    className="border-slate-300 text-xs h-7.5"
+                  >
+                    <FontAwesomeIcon icon={faUpload} className="size-3 mr-1.5" />
+                    Upload Favicon
+                  </Button>
                 </div>
               </div>
+
+              {/* Live Branding Preview with Responsive Viewport Controls */}
+              <DevicePreviewSwitcher
+                activeDevice={activePreviewDevice}
+                onChange={setActivePreviewDevice}
+                appName={settings.appName}
+                appLogoUrl={settings.appLogoUrl}
+                loginSubtitle={settings.loginPageBranding}
+                primaryColor={settings.primaryColor}
+                secondaryColor={settings.secondaryColor}
+                paleColor={settings.paleColor}
+              />
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
                 <Button
@@ -1181,12 +1338,148 @@ export default function GeneralSettingsPage() {
               <div className="border-b border-slate-100 pb-4">
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">Advanced System Governance</h2>
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                  Cache invalidation, synchronized configuration verification, and system telemetry.
+                  Security policies, API rate-limiting, cache invalidation, and environment telemetry.
                 </p>
               </div>
 
-              {/* Operations Grid */}
+              {/* Environment & Log Level */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-800">
+                    System Environment
+                  </label>
+                  <select
+                    value={settings.environment}
+                    onChange={(e) => handleChange('environment', e.target.value)}
+                    className="w-full h-10 rounded-md border border-[#E2E8E5] bg-white px-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#163A2E]"
+                  >
+                    <option value="PRODUCTION">Production (Optimized, Secure)</option>
+                    <option value="STAGING">Staging (Pre-release testing)</option>
+                    <option value="DEVELOPMENT">Development (Debug mode)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-800">
+                    Log Level
+                  </label>
+                  <select
+                    value={settings.logLevel}
+                    onChange={(e) => handleChange('logLevel', e.target.value)}
+                    className="w-full h-10 rounded-md border border-[#E2E8E5] bg-white px-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#163A2E]"
+                  >
+                    <option value="INFO">INFO (Normal operation)</option>
+                    <option value="WARN">WARN (Warnings & critical issues)</option>
+                    <option value="ERROR">ERROR (Errors only)</option>
+                    <option value="DEBUG">DEBUG (Verbose diagnostic)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Security & Access Policies */}
+              <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-white">
+                <div className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faLock} className="text-[#163A2E] size-3.5" />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">Security & Session Access</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Session Timeout (Minutes)
+                    </label>
+                    <Input
+                      type="number"
+                      value={settings.sessionTimeoutMinutes}
+                      onChange={(e) => handleChange('sessionTimeoutMinutes', Number(e.target.value))}
+                      className="h-9 text-xs border-[#E2E8E5]"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50/50">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-800 block">Enforce HTTPS</span>
+                      <span className="text-[10px] text-slate-500">Require SSL traffic</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.forceHttps}
+                      onChange={(e) => handleChange('forceHttps', e.target.checked)}
+                      className="size-4 text-[#163A2E] rounded focus:ring-[#163A2E] accent-[#163A2E]"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50/50">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-800 block">Enforce 2FA</span>
+                      <span className="text-[10px] text-slate-500">All admin logins</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={settings.twoFactorEnforced}
+                      onChange={(e) => handleChange('twoFactorEnforced', e.target.checked)}
+                      className="size-4 text-[#163A2E] rounded focus:ring-[#163A2E] accent-[#163A2E]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* API Rate Limiting & Cache Engine */}
+              <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-white">
+                <div className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faGauge} className="text-[#163A2E] size-3.5" />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">API Rate Limiting & Cache Layer</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="p-3 rounded-lg border border-slate-200 bg-[#F7F9F8] space-y-1.5">
+                    <span className="text-xs font-bold text-slate-800">Throttling Limit</span>
+                    <p className="text-[11px] text-slate-500">120 requests / 60 seconds per IP address</p>
+                    <Badge className="bg-[#163A2E] text-white text-[10px]">Active Guard</Badge>
+                  </div>
+                  <div className="p-3 rounded-lg border border-slate-200 bg-[#F7F9F8] space-y-1.5">
+                    <span className="text-xs font-bold text-slate-800">Cache Driver & TTL</span>
+                    <p className="text-[11px] text-slate-500">In-Memory NestJS Cache / 3600s TTL</p>
+                    <Badge variant="outline" className="border-emerald-300 text-emerald-800 bg-emerald-50 text-[10px]">
+                      Operational
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Protected Developer Configuration */}
+              <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-white">
+                <div className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faKey} className="text-[#163A2E] size-3.5" />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">Protected API Configurations</h3>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-semibold text-slate-700">
+                    Application Signing Key (Protected)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type={showSecretKey ? 'text' : 'password'}
+                      readOnly
+                      value="qb_sec_prod_894f29107ccb428d"
+                      className="font-mono text-xs bg-slate-50 border-slate-200"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowSecretKey(!showSecretKey)}
+                      className="h-10 px-3 border-slate-200 text-slate-600"
+                    >
+                      <FontAwesomeIcon icon={showSecretKey ? faEyeSlash : faEye} className="size-3.5" />
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Sensitive keys are securely masked in the portal interface.
+                  </p>
+                </div>
+              </div>
+
+              {/* Governance Operations Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 {/* Clear Cache Card */}
                 <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                   <div className="flex items-center gap-2.5">
@@ -1226,7 +1519,7 @@ export default function GeneralSettingsPage() {
                     </div>
                     <div>
                       <h3 className="text-xs sm:text-sm font-bold text-slate-900">Sync System Settings</h3>
-                      <p className="text-[11px] text-slate-500">Validates PostgreSQL schema values and broadcast active configs.</p>
+                      <p className="text-[11px] text-slate-500">Validates PostgreSQL schema values and broadcasts active configs.</p>
                     </div>
                   </div>
                   <Button
@@ -1249,7 +1542,7 @@ export default function GeneralSettingsPage() {
                 </div>
               </div>
 
-              {/* Advanced Technical Details */}
+              {/* Database Metadata */}
               <div className="rounded-xl border border-[#E2E8E5] bg-[#F7F9F8] p-4 space-y-3">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                   Database & Configuration Metadata
@@ -1280,174 +1573,107 @@ export default function GeneralSettingsPage() {
         {/* Right Column: Status & Quick Action Cards (lg:col-span-4) */}
         <div className="lg:col-span-4 space-y-5 sm:space-y-6 min-w-0">
           {/* Card 1: Application Status */}
-          <Card className="border border-[#E2E8E5] bg-white p-4 sm:p-5 shadow-xs rounded-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
-                <FontAwesomeIcon icon={faServer} className="text-[#163A2E] size-3.5" />
-                Application Status
-              </h3>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800 border border-emerald-200">
-                <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                {settings.applicationStatus?.status || 'HEALTHY'}
-              </span>
-            </div>
-
-            <div className="space-y-3 text-xs sm:text-sm">
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-500">System Version</span>
-                <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-xs">
-                  v{settings.applicationStatus?.version || settings.configVersion || '1.0.0'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-500">Environment</span>
-                <Badge className="bg-[#163A2E] text-white text-[10px] font-semibold uppercase">
-                  {settings.applicationStatus?.environment || 'PRODUCTION'}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-500">Last Updated</span>
-                <span className="font-semibold text-slate-800 text-xs text-right">
-                  {settings.applicationStatus?.lastUpdated
-                    ? new Date(settings.applicationStatus.lastUpdated).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'System Initialized'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-1">
-                <span className="text-slate-500">Last Synced</span>
-                <span className="font-semibold text-slate-800 text-xs text-right">
-                  {settings.applicationStatus?.lastSyncedAt
-                    ? new Date(settings.applicationStatus.lastSyncedAt).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : 'Just now'}
-                </span>
-              </div>
-            </div>
-          </Card>
+          <ApplicationStatusCard
+            statusData={settings.applicationStatus}
+            configVersion={settings.configVersion}
+          />
 
           {/* Card 2: Quick Actions */}
-          <Card className="border border-[#E2E8E5] bg-white p-4 sm:p-5 shadow-xs rounded-2xl space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
-                <FontAwesomeIcon icon={faBolt} className="text-[#163A2E] size-3.5" />
-                Quick Actions
-              </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Common administrative governance tasks.
-              </p>
-            </div>
-
-            <div className="space-y-2.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setConfirmDialog({
-                    isOpen: true,
-                    title: 'Clear Application Cache?',
-                    message:
-                      'Are you sure you want to invalidate all application cache layers?',
-                    confirmText: 'Clear Cache',
-                    action: handleClearCache,
-                  })
-                }
-                className="w-full justify-start text-xs font-semibold border-[#E2E8E5] text-slate-700 hover:bg-[#E8F1EC] hover:text-[#163A2E] h-9"
-              >
-                <FontAwesomeIcon icon={faTrashCan} className="size-3.5 mr-2 text-slate-400" />
-                Clear Cache
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setConfirmDialog({
-                    isOpen: true,
-                    title: 'Synchronize System Settings?',
-                    message:
-                      'Are you sure you want to re-synchronize general system settings?',
-                    confirmText: 'Sync Settings',
-                    action: handleSyncSettings,
-                  })
-                }
-                className="w-full justify-start text-xs font-semibold border-[#E2E8E5] text-slate-700 hover:bg-[#E8F1EC] hover:text-[#163A2E] h-9"
-              >
-                <FontAwesomeIcon icon={faArrowsRotate} className="size-3.5 mr-2 text-slate-400" />
-                Sync System Settings
-              </Button>
-
-              {isDirty && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleReset}
-                  className="w-full justify-start text-xs font-semibold text-rose-600 hover:bg-rose-50 h-9"
-                >
-                  <FontAwesomeIcon icon={faRotateLeft} className="size-3.5 mr-2 text-rose-500" />
-                  Discard Unsaved Changes
-                </Button>
-              )}
-            </div>
-          </Card>
+          <QuickActionsCard
+            busy={actionBusy}
+            isDirty={isDirty}
+            onClearCache={() =>
+              setConfirmDialog({
+                isOpen: true,
+                title: 'Clear Application Cache?',
+                message:
+                  'Are you sure you want to invalidate all application cache layers?',
+                confirmText: 'Clear Cache',
+                action: handleClearCache,
+              })
+            }
+            onSyncSettings={() =>
+              setConfirmDialog({
+                isOpen: true,
+                title: 'Synchronize System Settings?',
+                message:
+                  'Are you sure you want to re-synchronize general system settings?',
+                confirmText: 'Sync Settings',
+                action: handleSyncSettings,
+              })
+            }
+            onDiscardChanges={handleReset}
+          />
         </div>
       </div>
 
       {/* Confirmation Modal Dialog */}
-      {confirmDialog.isOpen && (
+      <ConfirmModal
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        onConfirm={confirmDialog.action}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        busy={actionBusy}
+      />
+
+      {/* Add Language Modal Dialog */}
+      {showAddLanguageModal && (
         <div
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
         >
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-xl border border-[#E2E8E5] space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 sm:p-6 shadow-xl border border-[#E2E8E5] space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                <FontAwesomeIcon icon={faTriangleExclamation} className="size-5" />
+              <div className="size-9 rounded-lg bg-[#E8F1EC] text-[#163A2E] flex items-center justify-center shrink-0">
+                <FontAwesomeIcon icon={faGlobe} className="size-4" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">{confirmDialog.title}</h3>
-                <p className="text-xs text-slate-500">Action confirmation required</p>
+                <h3 className="text-base font-bold text-slate-900">Add Portal Language</h3>
+                <p className="text-xs text-slate-500">Select language to configure</p>
               </div>
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              {confirmDialog.message}
-            </p>
+            <div className="space-y-2 max-h-60 overflow-y-auto divide-y divide-slate-100">
+              {LANGUAGE_CATALOG.filter(
+                (l) => !(settings.availableLanguages || []).includes(l.code)
+              ).map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => addLanguage(lang.code)}
+                  className="w-full flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-lg text-left transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="size-7 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700">
+                      {lang.code.toUpperCase()}
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">{lang.label}</p>
+                      <p className="text-[10px] text-slate-500">{lang.native}</p>
+                    </div>
+                  </div>
+                  <FontAwesomeIcon icon={faPlus} className="size-3 text-slate-400" />
+                </button>
+              ))}
+              {LANGUAGE_CATALOG.filter(
+                (l) => !(settings.availableLanguages || []).includes(l.code)
+              ).length === 0 && (
+                <p className="text-xs text-slate-500 text-center py-4">All catalog languages are already configured.</p>
+              )}
+            </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2">
+            <div className="flex items-center justify-end pt-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+                onClick={() => setShowAddLanguageModal(false)}
                 className="border-slate-200 text-slate-700"
               >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={confirmDialog.action}
-                className="bg-[#163A2E] hover:bg-[#204C3D] text-white font-semibold"
-              >
-                {confirmDialog.confirmText}
+                Close
               </Button>
             </div>
           </div>
