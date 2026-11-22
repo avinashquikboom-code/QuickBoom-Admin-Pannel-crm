@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { RotateCw, AlertTriangle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-export default function DataCaptureError({ error, reset }) {
+export default function DataCaptureError({ error, reset, retry }) {
   React.useEffect(() => {
     console.error('[DataCaptureError]', error);
   }, [error]);
@@ -17,11 +17,11 @@ export default function DataCaptureError({ error, reset }) {
       </div>
       <h2 className="text-xl font-bold text-slate-900 mb-2">Data Capture Failed to Load</h2>
       <p className="max-w-md text-sm text-slate-500 mb-6">
-        {error?.message || 'An unexpected rendering or network error occurred while loading this page.'}
+        Data Capture is temporarily unavailable. Please try again.
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button
-          onClick={() => (reset ? reset() : window.location.reload())}
+          onClick={() => (retry || reset ? (retry || reset)() : window.location.reload())}
           className="bg-[#16A34A] hover:bg-[#15803D] text-white"
         >
           <RotateCw className="mr-2 h-4 w-4" />

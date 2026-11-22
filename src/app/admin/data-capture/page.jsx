@@ -39,6 +39,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  Plus,
   Sparkles,
   Upload,
   UserCheck,
@@ -102,6 +103,7 @@ export default function DataCapturePage() {
   const [deletionResult, setDeletionResult] = React.useState(null);
   const [allowed, setAllowed] = React.useState(false);
   const [usage, setUsage] = React.useState({});
+  const [usageError, setUsageError] = React.useState(false);
   const [extractOpen, setExtractOpen] = React.useState(false);
   const [csvImportOpen, setCsvImportOpen] = React.useState(false);
   const [selectedPlaces, setSelectedPlaces] = React.useState(null);
@@ -115,7 +117,20 @@ export default function DataCapturePage() {
   }, []);
 
   React.useEffect(() => {
-    loadCaptureUsage().then(setUsage).catch(() => setUsage({}));
+    let active = true;
+    loadCaptureUsage()
+      .then((result) => {
+        if (!active) return;
+        setUsage(result || {});
+        setUsageError(false);
+      })
+      .catch((error) => {
+        console.error('[DataCaptureUsage]', error);
+        if (active) setUsageError(true);
+      });
+    return () => {
+      active = false;
+    };
   }, [refresh]);
 
   const load = React.useCallback(
@@ -280,29 +295,37 @@ export default function DataCapturePage() {
         stats={() => [
           {
             label: 'Captured Records',
-            value: usage.totalLeadsCaptured ?? 0,
+            value: usageError ? '—' : usage.totalLeadsCaptured ?? 0,
             icon: Database,
             iconTone: 'bg-[#EAF7EF] text-[#173D30]',
           },
           {
             label: 'Validated',
-            value: usage.validatedCount ?? 0,
+            value: usageError ? '—' : usage.validatedCount ?? 0,
             icon: CheckCircle2,
             iconTone: 'bg-emerald-50 text-emerald-700',
           },
           {
             label: 'Converted to Leads',
-            value: usage.convertedCount ?? 0,
+            value: usageError ? '—' : usage.convertedCount ?? 0,
             icon: UserCheck,
             iconTone: 'bg-sky-50 text-sky-700',
           },
           {
             label: 'Extractions',
-            value: usage.totalExtractions ?? 0,
+            value: usageError ? '—' : usage.totalExtractions ?? 0,
             icon: Sparkles,
             iconTone: 'bg-violet-50 text-violet-700',
           },
         ]}
+        below={usageError ? () => (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <span>Usage and quota information is currently unavailable.</span>
+            <Button variant="outline" size="sm" onClick={() => setRefresh((value) => value + 1)}>
+              Retry usage
+            </Button>
+          </div>
+        ) : undefined}
         filters={[
           { key: 'status', label: 'All statuses', options: STATUS_OPTIONS },
           { key: 'source', label: 'All sources', options: SOURCE_OPTIONS },
