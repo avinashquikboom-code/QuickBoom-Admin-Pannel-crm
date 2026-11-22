@@ -13,6 +13,7 @@ import { DataTable, DataTableColumnHeader } from '@/components/data-table';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faDownload, faPlus, faRotateRight } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
+import { TruncatedAnnouncementText } from '@/components/announcements/TruncatedAnnouncementText';
 import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import {
   archiveAnnouncement,
@@ -93,7 +94,23 @@ export default function AnnouncementsPage() {
   };
 
   const columns = React.useMemo(() => [
-    { accessorKey: 'title', header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />, cell: ({ row }) => <div><p className="font-semibold text-slate-900">{row.original.title}</p><p className="line-clamp-1 text-[11px] text-slate-500">{row.original.description}</p></div> },
+    {
+      accessorKey: 'title',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
+      cell: ({ row }) => (
+        <div className="min-w-0 w-[180px] sm:w-[240px] md:w-[280px] lg:w-[340px] xl:w-[420px] max-w-[420px] space-y-0.5">
+          <TruncatedAnnouncementText
+            text={row.original.title}
+            isTitle
+            label="Announcement Title"
+          />
+          <TruncatedAnnouncementText
+            text={row.original.description}
+            label="Announcement Description"
+          />
+        </div>
+      ),
+    },
     { accessorKey: 'category', header: ({ column }) => <DataTableColumnHeader column={column} title="Category" /> },
     { accessorKey: 'audience', header: ({ column }) => <DataTableColumnHeader column={column} title="Audience" /> },
     { accessorKey: 'departmentName', header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />, cell: ({ row }) => row.original.departmentName || '—' },
@@ -115,7 +132,20 @@ export default function AnnouncementsPage() {
         <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-2"><Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="h-9 text-xs" /><Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="h-9 text-xs" /></div>
       </div>
       <HrmNotice loading={loading} error={error} onRetry={() => setRefresh((value) => value + 1)} empty={!loading && !error && rows.length === 0 ? 'No announcements match these filters.' : ''} />
-      <div className="grid gap-3 md:hidden">{rows.map((row) => <article key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4"><p className="font-semibold">{row.title}</p><p className="mt-1 text-xs text-slate-500">{row.category} · {row.audience} · {row.status}</p><p className="mt-1 text-xs text-slate-500">{row.departmentName || 'All departments'} · {dateLabel(row.publishAt)}</p></article>)}</div>
+      <div className="grid gap-3 md:hidden">
+        {rows.map((row) => (
+          <article
+            key={row.id}
+            onClick={async () => setDetail(await loadAnnouncement(row.id).catch((err) => { toast.error(hrmError(err)); return row; }))}
+            className="rounded-2xl border border-slate-200 bg-white p-4 space-y-1 cursor-pointer hover:border-slate-300 transition-colors"
+          >
+            <TruncatedAnnouncementText text={row.title} isTitle label="Announcement Title" />
+            <TruncatedAnnouncementText text={row.description} label="Announcement Description" />
+            <p className="mt-1 text-xs text-slate-500">{row.category} · {row.audience} · {row.status}</p>
+            <p className="mt-1 text-xs text-slate-500">{row.departmentName || 'All departments'} · {dateLabel(row.publishAt)}</p>
+          </article>
+        ))}
+      </div>
       {rows.length ? <div className="hidden md:block"><DataTable columns={columns} data={rows} hideSearch pageSize={20} emptyState="" /></div> : null}
       <div className="flex justify-end gap-2 text-xs"><Button type="button" variant="outline" className="h-9" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><Button type="button" variant="outline" className="h-9" disabled={page >= (pagination.totalPages || 1)} onClick={() => setPage((value) => value + 1)}>Next</Button></div>
       <FormDrawer open={open} onOpenChange={setOpen} title={editing ? 'Edit announcement' : 'Add announcement'} description="Drafts stay unpublished until you publish or schedule them." submitLabel={editing ? 'Save changes' : 'Create draft'} loading={saving} onSubmit={save}>
