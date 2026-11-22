@@ -336,18 +336,103 @@ export async function loadOffices() {
   }));
 }
 
-export async function loadTeams() {
-  const payload = await api.get('/teams', { params: { page: 1, limit: 100 } });
-  return listFrom(payload).map((team) => ({
-    id: team.id,
-    name: team.name,
-    code: team.code || `TEAM-${team.id}`,
-    head: team.leader?.name || team.leaderName || 'Unassigned',
-    members: team.membersCount ?? team._count?.members ?? (Array.isArray(team.members) ? team.members.length : 0),
+export async function loadTeams(query = {}) {
+  const params = {
+    page: query.page || 1,
+    limit: query.limit || 20,
+    search: query.search || undefined,
+    status: query.status && query.status !== 'ALL' ? query.status : undefined,
+  };
+  const payload = await api.get('/teams', { params });
+  const rawList = listFrom(payload);
+  const items = rawList.map((team) => {
+    let code = team.code;
+    let capacity = team.capacity;
+    let description = team.cleanDescription ?? team.description ?? '';
+    if (!code || !capacity) {
+      const match = String(description).match(/^\[([A-Z0-9_-]+)\](?:\[CAP:(\d+)\])?\s*(.*)$/is);
+      if (match) {
+        if (!code) code = match[1];
+        if (!capacity && match[2]) capacity = parseInt(match[2], 10);
+        description = match[3] || '';
+      }
+    }
+    const memberCount = team.memberCount ?? team.membersCount ?? team._count?.members ?? (Array.isArray(team.members) ? team.members.length : 0);
+    return {
+      ...team,
+      id: team.id,
+      name: team.name,
+      code: code || `POD-${String(team.id).padStart(3, '0')}`,
+      capacity: capacity ? Number(capacity) : Math.max(10, memberCount + 2),
+      head: team.leader?.name || (team.leader ? `${team.leader.firstName || ''} ${team.leader.lastName || ''}`.trim() : null) || team.leaderName || 'Unassigned',
+      leader: team.leader || null,
+      leaderId: team.leaderId || team.leader?.id || null,
+      members: Array.isArray(team.members) ? team.members : [],
+      memberCount,
+      membersCount: memberCount,
+      isActive: team.isActive !== false,
+      status: team.isActive === false ? 'Inactive' : 'Active',
+      createdAt: team.createdAt,
+      createdOn: team.createdAt ? String(team.createdAt).slice(0, 10) : '',
+      description,
+    };
+  });
+
+  const pagination = payload?.data?.pagination || payload?.pagination || {
+    page: params.page,
+    limit: params.limit,
+    total: payload?.data?.meta?.total ?? payload?.meta?.total ?? payload?.data?.total ?? items.length,
+    totalPages: payload?.data?.meta?.totalPages ?? payload?.meta?.totalPages ?? payload?.data?.totalPages ?? 1,
+  };
+
+  // Attach properties to items array so both array-based and object-based consumption work
+  items.items = items;
+  items.data = items;
+  items.pagination = pagination;
+  items.total = pagination.total;
+  items.totalPages = pagination.totalPages;
+
+  return items;
+}
+
+export async function loadTeamStats() {
+  try {
+    const res = await api.get('/teams/stats');
+    const data = res?.data || res;
+    if (data && typeof data.total === 'number') {
+      return data;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch /teams/stats endpoint, using fallback calculation', err);
+  }
+  return null;
+}
+
+export async function getTeam(id) {
+  const res = await api.get(`/teams/${id}`);
+  const team = res?.data || res;
+  if (!team) return null;
+  let code = team.code;
+  let capacity = team.capacity;
+  let description = team.cleanDescription ?? team.description ?? '';
+  if (!code || !capacity) {
+    const match = String(description).match(/^\[([A-Z0-9_-]+)\](?:\[CAP:(\d+)\])?\s*(.*)$/is);
+    if (match) {
+      if (!code) code = match[1];
+      if (!capacity && match[2]) capacity = parseInt(match[2], 10);
+      description = match[3] || '';
+    }
+  }
+  const memberCount = team.memberCount ?? team.membersCount ?? team._count?.members ?? (Array.isArray(team.members) ? team.members.length : 0);
+  return {
+    ...team,
+    code: code || `POD-${String(team.id).padStart(3, '0')}`,
+    capacity: capacity ? Number(capacity) : Math.max(10, memberCount + 2),
+    head: team.leader?.name || (team.leader ? `${team.leader.firstName || ''} ${team.leader.lastName || ''}`.trim() : null) || 'Unassigned',
+    memberCount,
+    description,
     status: team.isActive === false ? 'Inactive' : 'Active',
-    createdOn: team.createdAt ? String(team.createdAt).slice(0, 10) : '',
-    description: team.description || '',
-  }));
+  };
 }
 
 export function saveOffice(values, id) {
@@ -360,12 +445,39 @@ export function removeOffice(id) {
 }
 
 export function saveTeam(values, id) {
-  const body = { name: values.name, description: values.description || undefined, isActive: values.status !== 'Inactive' };
+  const body = {
+    name: values.name?.trim(),
+    code: values.code?.trim(),
+    capacity: values.capacity ? Number(values.capacity) : undefined,
+    description: values.description?.trim() || undefined,
+    leaderId: values.leaderId ? Number(values.leaderId) : null,
+    memberIds: Array.isArray(values.memberIds) ? values.memberIds.map(Number) : undefined,
+    isActive: values.isActive !== undefined ? Boolean(values.isActive) : values.status !== 'Inactive',
+  };
   return id ? api.patch(`/teams/${id}`, body) : api.post('/teams', body);
 }
 
-export function removeTeam(id) {
-  return api.delete(`/teams/${id}`);
+export function setTeamStatus(id, isActive) {
+  return api.patch(`/teams/${id}`, { isActive });
+}
+
+export function removeTeam(id, permanent = false) {
+  return api.delete(`/teams/${id}`, { params: { permanent: String(permanent) } });
+}
+
+export function addTeamMember(teamId, { employeeId, role = 'MEMBER' }) {
+  return api.post(`/teams/${teamId}/members`, { employeeId: Number(employeeId), role });
+}
+
+export function removeTeamMember(teamId, employeeId) {
+  return api.delete(`/teams/${teamId}/members/${employeeId}`);
+}
+
+export async function transferTeamMember(fromTeamId, toTeamId, employeeId) {
+  await api.post(`/teams/${toTeamId}/members`, { employeeId: Number(employeeId) });
+  if (fromTeamId && Number(fromTeamId) !== Number(toTeamId)) {
+    await api.delete(`/teams/${fromTeamId}/members/${employeeId}`);
+  }
 }
 
 function objectFrom(payload) {
