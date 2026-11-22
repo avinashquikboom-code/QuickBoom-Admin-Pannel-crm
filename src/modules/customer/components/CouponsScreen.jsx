@@ -101,6 +101,7 @@ export function CouponsScreen() {
   // Stats
   const [stats, setStats] = React.useState({ total: 0, active: 0, inactive: 0, used: 0 });
   const [statsLoading, setStatsLoading] = React.useState(true);
+  const [statsError, setStatsError] = React.useState('');
 
   // Filter state
   const [activeTab, setActiveTab] = React.useState('ALL'); // ALL, ACTIVE, INACTIVE
@@ -172,6 +173,7 @@ export function CouponsScreen() {
   const fetchStats = React.useCallback(async () => {
     try {
       setStatsLoading(true);
+      setStatsError('');
       const data = await loadCouponStats();
       setStats({
         total: Number(data?.total ?? 0),
@@ -180,7 +182,7 @@ export function CouponsScreen() {
         used: Number(data?.used ?? 0),
       });
     } catch (err) {
-      // Keep previous stats
+      setStatsError(billingError(err) || 'Failed to load coupon statistics. Please try again.');
     } finally {
       setStatsLoading(false);
     }
@@ -508,6 +510,14 @@ export function CouponsScreen() {
       />
 
       {/* ── Statistics Cards Grid (4 KPI Cards) ────────────────────── */}
+      {statsError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <span>{statsError}</span>
+          <Button type="button" variant="outline" size="sm" onClick={fetchStats} className="border-rose-200 text-rose-700 hover:bg-rose-100">
+            Retry statistics
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Coupons */}
         <div className="relative overflow-hidden rounded-2xl border border-[#E2E8E5] bg-white p-5 shadow-xs transition-all hover:shadow-sm">
@@ -560,7 +570,7 @@ export function CouponsScreen() {
               {statsLoading ? '—' : stats.inactive}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">Disabled or past their expiry threshold</p>
+          <p className="mt-1 text-xs text-slate-500">Disabled and not expired</p>
         </div>
 
         {/* Total Redemptions */}

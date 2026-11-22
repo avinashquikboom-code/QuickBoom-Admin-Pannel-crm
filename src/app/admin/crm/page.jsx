@@ -433,7 +433,7 @@ export default function CrmDashboardPage() {
       {/* 1. Page Title Card */}
       <PageTitleCard
         moduleName="CRM"
-        title="CRM Dashboard"
+        title="Dashboard"
         description="Get a real-time view of your leads, deals, pipeline and team performance."
         icon={Users}
         actions={

@@ -463,7 +463,7 @@ export default function CustomerDashboardPage() {
       {/* A. Dashboard Header */}
       <PageTitleCard
         module="CRM"
-        title="Customer Dashboard"
+        title="Dashboard"
         description="Customer, subscription, invoice, and revenue totals from the existing APIs."
         icon={Users}
         illustration={<CustomerHeaderIllustration />}

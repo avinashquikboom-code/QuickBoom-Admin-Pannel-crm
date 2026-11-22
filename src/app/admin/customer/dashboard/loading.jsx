@@ -1,7 +1,7 @@
 export default function CustomerDashboardLoading() {
   return (
     <div role="status" aria-live="polite" className="w-full space-y-5 sm:space-y-6 pb-24">
-      <span className="sr-only">Loading Customer Dashboard</span>
+      <span className="sr-only">Loading Dashboard</span>
       {/* Title Card Skeleton */}
       <div className="h-28 w-full animate-pulse rounded-2xl border border-slate-200 bg-white" />
       {/* Filter Bar Skeleton */}
