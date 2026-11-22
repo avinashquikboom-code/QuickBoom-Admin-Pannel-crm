@@ -68,6 +68,14 @@ function DataTableContent({
     onSelectionChange,
     selectionResetToken = 0,
 }) {
+    const tableData = React.useMemo(() => {
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.rows)) return data.rows;
+        if (data && Array.isArray(data.items)) return data.items;
+        if (data && Array.isArray(data.data)) return data.data;
+        return EMPTY;
+    }, [data]);
+
     const [sorting, setSorting] = React.useState(() => initialSorting);
     const [globalFilter, setGlobalFilter] = React.useState('');
     const [columnVisibility, setColumnVisibility] = React.useState({});
@@ -75,13 +83,13 @@ function DataTableContent({
     const [status, setStatus] = React.useState('all');
 
     const statuses = React.useMemo(() => {
-        return [...new Set(data.map((row) => row.status).filter(Boolean))].sort();
-    }, [data]);
+        return [...new Set(tableData.map((row) => row.status).filter(Boolean))].sort();
+    }, [tableData]);
 
     const filtered = React.useMemo(() => {
-        if (status === 'all') return data;
-        return data.filter((row) => row.status === status);
-    }, [data, status]);
+        if (status === 'all') return tableData;
+        return tableData.filter((row) => row.status === status);
+    }, [tableData, status]);
 
     const definitions = React.useMemo(() => {
         const result = columns.map((column, index) => ({
@@ -92,7 +100,7 @@ function DataTableContent({
                 column.enableSorting ??
                 (typeof column.header === 'string' &&
                     !/action/i.test(column.header) &&
-                    (data.length === 0 || legacyValue(data[0], column) != null)),
+                    (tableData.length === 0 || legacyValue(tableData[0], column) != null)),
             enableHiding: column.enableHiding ?? true,
             cell: ({ row, getValue }) =>
                 column.cell ? column.cell(row.original) : getValue(),
@@ -162,7 +170,7 @@ function DataTableContent({
         }
 
         return result;
-    }, [columns, data, enableRowSelection, rowActions]);
+    }, [columns, tableData, enableRowSelection, rowActions]);
 
     // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
@@ -198,16 +206,16 @@ function DataTableContent({
 
     React.useEffect(() => {
         setRowSelection({});
-    }, [data, selectionResetToken]);
+    }, [tableData, selectionResetToken]);
 
     const onSelectionChangeRef = React.useRef(onSelectionChange);
     onSelectionChangeRef.current = onSelectionChange;
     React.useEffect(() => {
         if (typeof onSelectionChangeRef.current !== 'function') return;
         onSelectionChangeRef.current(table.getSelectedRowModel().rows.map((row) => row.original));
-        // table is read from this render; rowSelection and data are the selection inputs.
+        // table is read from this render; rowSelection and tableData are the selection inputs.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rowSelection, data]);
+    }, [rowSelection, tableData]);
 
     if (isLoading) {
         return (

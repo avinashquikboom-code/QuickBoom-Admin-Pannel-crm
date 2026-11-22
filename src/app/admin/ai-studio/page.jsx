@@ -18,7 +18,14 @@ export default function AiStudioPage() {
   const [publishes, setPublishes] = React.useState([]);
   const [refresh, setRefresh] = React.useState(0);
   React.useEffect(() => setAllowed(sessionCan('AI') || sessionCan('SOCIAL')), []);
-  React.useEffect(() => { loadPublishes().then(setPublishes).catch(() => setPublishes([])); }, [refresh]);
+  React.useEffect(() => {
+    loadPublishes()
+      .then((res) => {
+        const rows = Array.isArray(res) ? res : (res?.rows || []);
+        setPublishes(rows);
+      })
+      .catch(() => setPublishes([]));
+  }, [refresh]);
   const load = React.useCallback((query) => loadGenerations(query), []);
 
   return <>
@@ -33,12 +40,12 @@ export default function AiStudioPage() {
         { header: 'Credits', cell: (row) => row.creditsSpent ?? '—' },
         { header: 'Status', cell: (row) => <StatusBadge status={String(row.status || '').toLowerCase()} /> },
       ]}
-      detail={(row) => <div className="space-y-2 text-sm"><p>{row.caption || 'No caption returned'}</p><p>{(row.hashtags || []).join(' ') || 'No hashtags returned'}</p>{row.mediaUrl && <a className="text-brand" href={row.mediaUrl} target="_blank" rel="noreferrer">Open media</a>}{row.errorMessage && <p className="text-rose-700">{row.errorMessage}</p>}</div>}
+      detail={(row) => <div className="space-y-2 text-sm"><p>{row.caption || 'No caption returned'}</p><p>{(Array.isArray(row.hashtags) ? row.hashtags.join(' ') : (row.hashtags || '')) || 'No hashtags returned'}</p>{row.mediaUrl && <a className="text-brand" href={row.mediaUrl} target="_blank" rel="noreferrer">Open media</a>}{row.errorMessage && <p className="text-rose-700">{row.errorMessage}</p>}</div>}
     />
     <div className="max-w-none min-w-0 w-full mt-4 space-y-4">
       {allowed && <Button onClick={() => setOpen(true)}>Generate content</Button>}
       <h2 className="text-sm font-semibold">Publishing history</h2>
-      <div className="overflow-x-auto"><DataTable label="Published posts" data={publishes} columns={[
+      <div className="overflow-x-auto"><DataTable label="Published posts" data={Array.isArray(publishes) ? publishes : (publishes?.rows || [])} columns={[
         { header: 'Publish', cell: (row) => row.publishId || row.id },
         { header: 'Customer', cell: (row) => row.customer?.companyName || row.customer?.name || '—' },
         { header: 'Account', cell: (row) => row.socialAccount?.accountName || '—' },
