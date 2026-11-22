@@ -384,7 +384,7 @@ export default function CustomersRoute() {
               ),
           },
           {
-            header: 'Assigned',
+            header: 'Assigned Employee',
             className: 'min-w-[160px]',
             cell: (row) => {
               const assignedName = personName(row.assignedEmployee) || row.assignedEmployee;
@@ -406,28 +406,41 @@ export default function CustomersRoute() {
             className: 'min-w-[170px]',
             cell: (row) => {
               const teamName = row.team?.name || row.assignedTeam?.name;
+              const teamCode = row.team?.code || row.assignedTeam?.code;
+              const teamLeader =
+                row.team?.leader?.name ||
+                (typeof row.team?.leader === 'string' ? row.team.leader : null) ||
+                row.assignedTeam?.leader?.name ||
+                (typeof row.assignedTeam?.leader === 'string' ? row.assignedTeam.leader : null);
+
               if (!teamName) {
                 return (
                   <button
                     type="button"
                     onClick={() => setAssignModalCustomer(row)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-2.5 py-1 text-xs font-medium text-slate-500 hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-800 transition-colors cursor-pointer"
-                    title="Click to assign team"
+                    title="Click to assign team pod"
                   >
                     <UsersRound className="size-3 text-slate-400" />
                     <span>Unassigned</span>
                   </button>
                 );
               }
+
               return (
                 <button
                   type="button"
                   onClick={() => setAssignModalCustomer(row)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/90 bg-emerald-50/70 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-300 transition-colors shadow-2xs group cursor-pointer"
-                  title={`Team Leader: ${row.team?.leader || 'Unassigned'} • Click to change`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/90 bg-[#EAF7EF] px-2.5 py-1 text-xs font-semibold text-[#173D30] hover:bg-[#d9f2e3] hover:border-emerald-300 transition-colors shadow-2xs group cursor-pointer"
+                  title={`Team Lead: ${teamLeader || 'Unassigned'} • Click to change`}
                 >
-                  <UsersRound className="size-3 text-emerald-600 group-hover:scale-110 transition-transform" />
-                  <span className="truncate max-w-[120px]">{teamName}</span>
+                  <UsersRound className="size-3 text-emerald-700 group-hover:scale-110 transition-transform" />
+                  <span className="truncate max-w-[130px]">{teamName}</span>
+                  {teamCode && (
+                    <span className="text-[10px] text-emerald-700/80 font-mono font-medium">
+                      [{teamCode}]
+                    </span>
+                  )}
                 </button>
               );
             },
@@ -606,7 +619,7 @@ export default function CustomersRoute() {
                 <option value="">Unassigned (No Team)</option>
                 {teams.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} {t.head && t.head !== 'Unassigned' ? `• Lead: ${t.head}` : ''}
+                    {t.name} {t.code ? `[${t.code}]` : ''} {t.head && t.head !== 'Unassigned' ? `• Lead: ${t.head}` : ''}
                   </option>
                 ))}
               </select>
@@ -833,6 +846,18 @@ function CustomerName({ row, onOpen }) {
             </Tooltip>
           </TooltipProvider>
         )}
+
+        {/* Mobile-only Assigned Team Pod display */}
+        <span className="block sm:hidden text-[11px] text-[#173D30] font-medium truncate mt-0.5">
+          {row.team?.name || row.assignedTeam?.name ? (
+            <span className="inline-flex items-center gap-1">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              {row.team?.name || row.assignedTeam?.name}
+            </span>
+          ) : (
+            <span className="text-slate-400">Pod: Unassigned</span>
+          )}
+        </span>
       </span>
     </div>
   );
