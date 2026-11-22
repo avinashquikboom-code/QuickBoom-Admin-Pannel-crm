@@ -64,7 +64,6 @@ import {
   validateCapture,
 } from '@/modules/data-capture/capture-api';
 import { CsvLeadImportDialog } from '@/modules/data-capture/CsvLeadImportDialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const STATUS_OPTIONS = [
   { value: 'CAPTURED', label: 'Pending / Captured' },
@@ -452,7 +451,7 @@ export default function DataCapturePage() {
                 {
                   label: 'Convert to Lead',
                   icon: faArrowUpRightFromSquare,
-                  disabled: !eligible(row),
+                  disabled: (r) => !eligible(r),
                   onSelect: (row) => {
                     setSelectedPlaces([row]);
                     setExtractOpen(true);
