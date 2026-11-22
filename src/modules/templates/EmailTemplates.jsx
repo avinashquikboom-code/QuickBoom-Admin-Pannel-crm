@@ -3,7 +3,7 @@
 import * as React from 'react';
 import api from '../../../lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { KpiGrid } from '@/components/common/KpiCard';
+import { KpiCard } from '@/components/common/KpiCard';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,12 +14,17 @@ import {
   faPaperPlane,
   faPlus,
   faEye,
+  faCircleCheck,
+  faCircleXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
+import { AnimatedCounter } from '@/components/dashboard/AnimatedCounter';
+import { sessionCan, sessionCanAction } from '@/modules/hrm/hrm-api';
 import {
   downloadCsv,
   rowsOf,
   pageOf,
+  envelope,
   Pager,
   Field,
   TemplateTable,
@@ -30,7 +35,17 @@ import { EmailRichTextEditor } from './EmailRichTextEditor';
 import { EmailTemplatePreviewDialog } from './EmailTemplatePreviewDialog';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
 
-const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE', 'ARCHIVED'];
+const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
+const DEFAULT_SORT = 'updatedAt:desc';
+const SORT_OPTIONS = [
+  { value: DEFAULT_SORT, label: 'Recently updated' },
+  { value: 'name:asc', label: 'Name A–Z' },
+  { value: 'name:desc', label: 'Name Z–A' },
+  { value: 'key:asc', label: 'Code A–Z' },
+  { value: 'key:desc', label: 'Code Z–A' },
+  { value: 'isActive:asc', label: 'Status: inactive first' },
+  { value: 'isActive:desc', label: 'Status: active first' },
+];
 
 const EMPTY_FORM = {
   name: '',
@@ -63,6 +78,7 @@ export function EmailTemplates() {
   const [search, setSearch] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [status, setStatus] = React.useState('ALL');
+  const [sort, setSort] = React.useState(DEFAULT_SORT);
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
   const [pages, setPages] = React.useState(1);
@@ -74,14 +90,37 @@ export function EmailTemplates() {
   const [fieldErrors, setFieldErrors] = React.useState({});
   const [saving, setSaving] = React.useState(false);
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [togglingId, setTogglingId] = React.useState(null);
+  const [previewData, setPreviewData] = React.useState(null);
+  const [busyRowId, setBusyRowId] = React.useState(null);
+  const [exporting, setExporting] = React.useState(false);
+  const [permissionReady, setPermissionReady] = React.useState(false);
+  const [permissions, setPermissions] = React.useState({
+    canView: false,
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+    canExport: false,
+  });
+  const requestId = React.useRef(0);
 
   React.useEffect(() => {
     const handle = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => window.clearTimeout(handle);
   }, [search]);
 
+  React.useEffect(() => {
+    setPermissions({
+      canView: sessionCan('EMAIL_TEMPLATE'),
+      canCreate: sessionCanAction('EMAIL_TEMPLATES', 'CREATE'),
+      canEdit: sessionCanAction('EMAIL_TEMPLATES', 'EDIT'),
+      canDelete: sessionCanAction('EMAIL_TEMPLATES', 'DELETE'),
+      canExport: sessionCanAction('EMAIL_TEMPLATES', 'EXPORT'),
+    });
+    setPermissionReady(true);
+  }, []);
+
   const load = React.useCallback(async () => {
+    const currentRequestId = ++requestId.current;
     setLoading(true);
     setError('');
     try {
@@ -91,12 +130,13 @@ export function EmailTemplates() {
           limit,
           search: debouncedSearch || undefined,
           status,
-          sort: 'updatedAt:desc',
+          sort,
         },
       });
-      const root = payload?.data && typeof payload.data === 'object' ? payload : payload;
+      const root = envelope(payload);
       const list = rowsOf(root);
       const pagination = pageOf(root, { page, totalPages: 1, total: list.length });
+      if (currentRequestId !== requestId.current) return;
       setRows(list);
       setPages(Math.max(1, Number(pagination.totalPages) || 1));
       setTotal(Number(pagination.total) || list.length);
@@ -111,15 +151,18 @@ export function EmailTemplates() {
         });
       }
     } catch (err) {
-      setError(err?.response?.data?.message || 'Email templates could not be loaded.');
+      if (currentRequestId === requestId.current) {
+        setError(err?.response?.data?.message || 'Email templates could not be loaded.');
+      }
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestId.current) setLoading(false);
     }
-  }, [page, limit, debouncedSearch, status]);
+  }, [page, limit, debouncedSearch, status, sort]);
 
   React.useEffect(() => {
+    if (!permissionReady || !permissions.canView) return;
     load();
-  }, [load]);
+  }, [load, permissionReady, permissions.canView]);
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -142,10 +185,20 @@ export function EmailTemplates() {
     setDrawer(true);
   };
 
+  const previewTemplate = (row) => {
+    setPreviewData({
+      subject: row.subject || '',
+      body: row.body || '',
+      key: row.key || row.identifierKey || '',
+    });
+    setPreviewOpen(true);
+  };
+
   const clearFilters = () => {
     setSearch('');
     setDebouncedSearch('');
     setStatus('ALL');
+    setSort(DEFAULT_SORT);
     setPage(1);
   };
 
@@ -179,7 +232,7 @@ export function EmailTemplates() {
   }
 
   async function toggleRowStatus(row) {
-    setTogglingId(row.id);
+    setBusyRowId(row.id);
     try {
       await api.patch(`/email/templates/${row.id}/status`, {
         isActive: row.deletedAt ? true : !row.isActive,
@@ -189,31 +242,121 @@ export function EmailTemplates() {
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Could not update status');
     } finally {
-      setTogglingId(null);
+      setBusyRowId(null);
+    }
+  }
+
+  async function deleteTemplate(row) {
+    setBusyRowId(row.id);
+    try {
+      await api.delete(`/email/templates/${row.id}`);
+      toast.success('Email template deleted');
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not delete the template');
+    } finally {
+      setBusyRowId(null);
+    }
+  }
+
+  async function exportTemplates() {
+    setExporting(true);
+    try {
+      const exportRows = [];
+      let exportPage = 1;
+      let totalPages = 1;
+      do {
+        const payload = await api.get('/email/templates', {
+          params: {
+            page: exportPage,
+            limit: 100,
+            search: debouncedSearch || undefined,
+            status,
+            sort,
+          },
+        });
+        const root = envelope(payload);
+        exportRows.push(...rowsOf(root));
+        const pagination = pageOf(root, { totalPages: 1 });
+        totalPages = Math.max(1, Number(pagination.totalPages) || 1);
+        exportPage += 1;
+      } while (exportPage <= totalPages);
+
+      if (exportRows.length === 0) {
+        toast.error('There are no email templates to export');
+        return;
+      }
+
+      downloadCsv(
+        'email-templates.csv',
+        [
+          { key: 'name', label: 'Name' },
+          { key: 'key', label: 'Code' },
+          { key: 'subject', label: 'Subject' },
+          { key: 'statusLabel', label: 'Status' },
+        ],
+        exportRows.map((row) => ({
+          ...row,
+          statusLabel: row.deletedAt ? 'Archived' : row.isActive === false ? 'Inactive' : 'Active',
+        })),
+      );
+      toast.success(`${exportRows.length} email templates exported`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Could not export email templates');
+    } finally {
+      setExporting(false);
     }
   }
 
   const filtersActive = Boolean(search.trim()) || status !== 'ALL';
 
+  if (permissionReady && !permissions.canView) {
+    return (
+      <div className="min-w-0 space-y-4">
+        <PageHeader
+          title="Email Templates"
+          icon={faEnvelope}
+          description="Database-backed email templates used by lead stage notifications."
+        />
+        <div role="alert" className="rounded-2xl border border-amber-200 bg-white p-5 text-sm text-amber-900 shadow-xs">
+          You do not have permission to view email templates.
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-w-0 w-full max-w-full space-y-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <PageHeader
-        title="Email Templates"
-        icon={faEnvelope}
-        description="Database-backed email templates used by lead stage notifications."
-      />
+    <div className="min-w-0 w-full max-w-full space-y-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="animate-in fade-in slide-in-from-top-2 duration-500 motion-reduce:animate-none">
+        <PageHeader
+          title="Email Templates"
+          icon={faEnvelope}
+          description="Database-backed email templates used by lead stage notifications."
+        />
+      </div>
 
-      <KpiGrid
-        className="grid-cols-1 min-[440px]:grid-cols-2 lg:grid-cols-4"
-        cards={[
-          { title: 'Total Templates', value: stats.total, icon: faEnvelope },
-          { title: 'Active', value: stats.active, icon: faEnvelope },
-          { title: 'Inactive', value: stats.inactive, icon: faEnvelope },
-          { title: 'Sent', value: stats.sent, icon: faPaperPlane },
-        ]}
-      />
+      <div className="grid min-w-0 grid-cols-1 gap-3 min-[440px]:grid-cols-2 min-[1200px]:grid-cols-4 sm:gap-4">
+        {[
+          { title: 'Total Templates', value: stats.total, icon: faEnvelope, iconColor: 'text-[#173D30]', iconBg: 'bg-emerald-50 border-emerald-100' },
+          { title: 'Active', value: stats.active, icon: faCircleCheck, iconColor: 'text-emerald-700', iconBg: 'bg-emerald-50 border-emerald-100' },
+          { title: 'Inactive', value: stats.inactive, icon: faCircleXmark, iconColor: 'text-slate-500', iconBg: 'bg-slate-50 border-slate-200' },
+          { title: 'Sent', value: stats.sent, icon: faPaperPlane, iconColor: 'text-teal-700', iconBg: 'bg-teal-50 border-teal-100' },
+        ].map((card, index) => (
+          <div
+            key={card.title}
+            className="animate-in fade-in slide-in-from-bottom-2 duration-500 motion-reduce:animate-none"
+            style={{ animationDelay: `${index * 70}ms` }}
+          >
+            <KpiCard
+              {...card}
+              value={<AnimatedCounter value={card.value} showIndicator={false} highlightOnChange={false} />}
+              className="min-h-[120px] hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+            />
+          </div>
+        ))}
+      </div>
 
-      <div className="flex min-w-0 w-full flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex min-w-0 w-full flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <TemplateToolbar
           search={search}
           onSearchChange={(value) => {
@@ -227,22 +370,26 @@ export function EmailTemplates() {
           }}
           statuses={STATUS_OPTIONS}
           onClear={clearFilters}
-          onExport={() =>
-            downloadCsv(
-              'email-templates.csv',
-              [
-                { key: 'name', label: 'Name' },
-                { key: 'key', label: 'Code' },
-                { key: 'subject', label: 'Subject' },
-              ],
-              rows,
-            )
-          }
+          sort={sort}
+          sortOptions={SORT_OPTIONS}
+          onSortChange={(value) => {
+            setSort(value);
+            setPage(1);
+          }}
+          onExport={exportTemplates}
+          exporting={exporting}
+          canExport={permissions.canExport}
         />
-        <Button type="button" className="h-10 w-full shrink-0 lg:w-auto" onClick={openCreate}>
-          <FontAwesomeIcon icon={faPlus} className="mr-2" />
-          Add Email Template
-        </Button>
+        {permissions.canCreate ? (
+          <Button
+            type="button"
+            className="h-10 w-full shrink-0 bg-[#163A2E] text-white transition hover:-translate-y-px hover:bg-[#0f2e24] active:translate-y-0 lg:w-auto"
+            onClick={openCreate}
+          >
+            <FontAwesomeIcon icon={faPlus} className="mr-2" />
+            Add Email Template
+          </Button>
+        ) : null}
       </div>
 
       {filtersActive ? (
@@ -256,9 +403,11 @@ export function EmailTemplates() {
           rows={rows}
           empty="No email templates match this view."
           columns={['Name', 'Code', 'Subject', 'Status', 'Actions']}
+          loadingSkeleton
+          onRetry={load}
           render={(row) => (
-            <tr key={row.id} className="border-t border-[#E2E8E5]">
-              <td className="max-w-[200px] px-3 py-3">
+            <tr key={row.id} className="border-t border-[#E2E8E5] transition-colors hover:bg-[#F7FAF8]">
+              <td className="max-w-[240px] px-3 py-3 sm:px-4">
                 <span className="font-medium">{row.name}</span>
                 {row.description ? (
                   <p className="mt-0.5 truncate text-xs text-slate-500" title={row.description}>
@@ -266,22 +415,34 @@ export function EmailTemplates() {
                   </p>
                 ) : null}
               </td>
-              <td className="px-3 py-3 font-mono text-xs">{row.key}</td>
-              <td className="max-w-xs px-3 py-3">
-                <span title={row.subject}>{truncate(row.subject, 56)}</span>
+              <td className="px-3 py-3 font-mono text-xs sm:px-4">{row.key}</td>
+              <td className="max-w-xs px-3 py-3 sm:px-4">
+                <span className="block max-w-[360px] truncate" title={row.subject}>{truncate(row.subject, 56)}</span>
               </td>
-              <td className="px-3 py-3">
+              <td className="px-3 py-3 sm:px-4">
                 <StatusBadge row={row} />
               </td>
-              <td className="whitespace-nowrap px-3 py-3 text-right">
+              <td className="whitespace-nowrap px-3 py-3 text-right sm:px-4">
                 <AdminRowActions
                   record={row}
                   recordName={row.name}
-                  onEdit={() => openEdit(row)}
+                  permissions={{
+                    canView: true,
+                    canEdit: permissions.canEdit,
+                    canDelete: permissions.canDelete && !row.isSystem,
+                    canToggle: permissions.canEdit,
+                  }}
+                  onView={() => previewTemplate(row)}
+                  viewLabel="Preview"
+                  viewIcon={faEye}
+                  onEdit={permissions.canEdit ? () => openEdit(row) : undefined}
                   editLabel="Edit Template"
-                  onToggleStatus={() => toggleRowStatus(row)}
+                  onToggleStatus={permissions.canEdit ? () => toggleRowStatus(row) : undefined}
                   statusLabel={row.deletedAt ? 'Restore Template' : row.isActive ? 'Deactivate Template' : 'Activate Template'}
-                  disabled={togglingId === row.id}
+                  onDelete={permissions.canDelete && !row.isSystem ? () => deleteTemplate(row) : undefined}
+                  deleteLabel="Delete Template"
+                  deleteDescription={`Delete "${row.name}"? Lead-stage automation may reference this template.`}
+                  disabled={busyRowId === row.id}
                 />
               </td>
             </tr>
@@ -291,41 +452,69 @@ export function EmailTemplates() {
 
       <div className="space-y-3 md:hidden">
         {loading ? (
-          <p className="rounded-xl border border-[#E2E8E5] bg-white p-5 text-sm text-[#718078]">Loading templates…</p>
+          <div role="status" aria-label="Loading email templates" className="space-y-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="space-y-3 rounded-xl border border-[#E2E8E5] bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+                  <div className="h-6 w-16 animate-pulse rounded-full bg-slate-100 motion-reduce:animate-none" />
+                </div>
+                <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+                <div className="h-3 w-full animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+              </div>
+            ))}
+          </div>
         ) : error ? (
-          <p className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-700">{error}</p>
+          <div role="alert" className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-700">
+            <p>{error}</p>
+            <Button type="button" variant="outline" className="mt-3 min-h-10" onClick={load}>Try again</Button>
+          </div>
         ) : rows.length === 0 ? (
-          <p className="rounded-xl border border-[#E2E8E5] bg-white p-5 text-sm text-[#718078]">No email templates match this view.</p>
+          <div className="rounded-xl border border-dashed border-[#D5E2DB] bg-white px-5 py-8 text-center">
+            <FontAwesomeIcon icon={faEnvelope} className="text-xl text-[#7C9B8C]" />
+            <p className="mt-3 text-sm font-semibold text-[#172B24]">No email templates found</p>
+            <p className="mt-1 text-sm text-[#718078]">Try changing the search or status filter.</p>
+          </div>
         ) : (
           rows.map((row) => (
             <article
               key={row.id}
-              className="min-w-0 space-y-3 rounded-xl border border-[#E2E8E5] bg-white p-4"
+              className="min-w-0 space-y-3 rounded-xl border border-[#E2E8E5] bg-white p-4 shadow-xs transition-all hover:-translate-y-px hover:border-emerald-200 hover:shadow-sm"
             >
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <h3 className="min-w-0 break-words text-base font-semibold text-[#172B24]">{row.name}</h3>
-                <StatusBadge row={row} />
+                <div className="flex shrink-0 items-center gap-2">
+                  <StatusBadge row={row} />
+                  <AdminRowActions
+                    record={row}
+                    recordName={row.name}
+                    permissions={{
+                      canView: true,
+                      canEdit: permissions.canEdit,
+                      canDelete: permissions.canDelete && !row.isSystem,
+                      canToggle: permissions.canEdit,
+                    }}
+                    onView={() => previewTemplate(row)}
+                    viewLabel="Preview"
+                    viewIcon={faEye}
+                    onEdit={permissions.canEdit ? () => openEdit(row) : undefined}
+                    editLabel="Edit Template"
+                    onToggleStatus={permissions.canEdit ? () => toggleRowStatus(row) : undefined}
+                    statusLabel={row.isActive ? 'Deactivate Template' : 'Activate Template'}
+                    onDelete={permissions.canDelete && !row.isSystem ? () => deleteTemplate(row) : undefined}
+                    deleteLabel="Delete Template"
+                    deleteDescription={`Delete "${row.name}"? Lead-stage automation may reference this template.`}
+                    disabled={busyRowId === row.id}
+                  />
+                </div>
               </div>
               <p className="break-all font-mono text-xs text-slate-600">{row.key}</p>
+              {row.description ? <p className="break-words text-xs text-slate-500">{row.description}</p> : null}
               <p className="break-words text-sm text-slate-700">
                 <span className="text-xs font-semibold uppercase text-slate-400">Subject</span>
                 <br />
                 {row.subject}
               </p>
-              <div className="flex min-w-0 flex-wrap gap-2">
-                <Button type="button" variant="outline" className="min-h-10 flex-1" onClick={() => openEdit(row)}>
-                  Edit
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-10 flex-1"
-                  disabled={togglingId === row.id}
-                  onClick={() => toggleRowStatus(row)}
-                >
-                  {row.deletedAt ? 'Restore' : row.isActive ? 'Deactivate' : 'Activate'}
-                </Button>
-              </div>
             </article>
           ))
         )}
@@ -362,7 +551,14 @@ export function EmailTemplates() {
               size="sm"
               disabled={saving}
               className="mr-auto h-9 w-full sm:w-auto"
-              onClick={() => setPreviewOpen(true)}
+              onClick={() => {
+                setPreviewData({
+                  subject: form.subject,
+                  body: form.body,
+                  key: form.key,
+                });
+                setPreviewOpen(true);
+              }}
             >
               <FontAwesomeIcon icon={faEye} className="mr-2" />
               Preview
@@ -437,10 +633,13 @@ export function EmailTemplates() {
 
       <EmailTemplatePreviewDialog
         open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        subject={form.subject}
-        body={form.body}
-        code={form.key}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (!open) setPreviewData(null);
+        }}
+        subject={previewData?.subject ?? form.subject}
+        body={previewData?.body ?? form.body}
+        code={previewData?.key ?? form.key}
       />
     </div>
   );
