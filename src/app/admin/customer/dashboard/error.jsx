@@ -15,7 +15,7 @@ export default function CustomerDashboardError({ error, reset }) {
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 mb-4 border border-rose-100 shadow-xs">
         <AlertTriangle className="h-7 w-7" />
       </div>
-      <h2 className="text-xl font-bold text-slate-900 mb-2">Customer Dashboard Failed to Load</h2>
+      <h2 className="text-xl font-bold text-slate-900 mb-2">Dashboard Failed to Load</h2>
       <p className="max-w-md text-sm text-slate-500 mb-6">
         {error?.message || 'An unexpected rendering or network error occurred while loading this dashboard.'}
       </p>

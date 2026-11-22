@@ -2,7 +2,7 @@ import { faBuilding, faBullseye, faClock, faIndianRupeeSign, faGauge, faLocation
 import { faCalendar, faCalendarCheck, faCalendarXmark, faFileLines } from '@fortawesome/free-regular-svg-icons';
 export const navigation = [
         {
-            name: 'HRM Dashboard',
+            name: 'Dashboard',
             href: '/admin/hrm/dashboard',
             icon: faGauge,
             matchExact: true,

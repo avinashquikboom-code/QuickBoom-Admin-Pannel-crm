@@ -1,6 +1,6 @@
 import { faChartLine, faClock, faFileInvoiceDollar, faShieldHalved, faTicket, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 export const navigation = [
-    { name: 'Customer Dashboard', href: '/admin/customer/dashboard', icon: faUserGroup },
+    { name: 'Dashboard', href: '/admin/customer/dashboard', icon: faUserGroup },
     { name: 'Invoices & Billing', href: '/admin/customer/invoices', icon: faFileInvoiceDollar },
     { name: 'Coupons', href: '/admin/customer/coupons', icon: faTicket },
     { name: 'Active Subscriptions', href: '/admin/customer/subscriptions', icon: faShieldHalved },

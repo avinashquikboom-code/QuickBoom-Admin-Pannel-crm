@@ -89,7 +89,7 @@ const DEFAULT_ICON_MAP = {
   'salary targets': BarChart3,
   'late mark reports': Clock,
   announcements: Megaphone,
-  'hrm dashboard': LayoutDashboard,
+  'dashboard': LayoutDashboard,
 
   // Marketing
   'whatsapp marketing': MessageSquare,

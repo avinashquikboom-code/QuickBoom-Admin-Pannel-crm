@@ -14,7 +14,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 export const navigation = [
-    { name: 'CRM Dashboard', href: '/admin/crm', matchExact: true, icon: faGauge },
+    { name: 'Dashboard', href: '/admin/crm', matchExact: true, icon: faGauge },
     { name: 'Leads', href: '/admin/crm/leads', icon: faUsers },
     { name: 'Customers', href: '/admin/crm/customers', icon: faUserGroup },
     { name: 'Deals', href: '/admin/crm/deals', icon: faHandshake },
