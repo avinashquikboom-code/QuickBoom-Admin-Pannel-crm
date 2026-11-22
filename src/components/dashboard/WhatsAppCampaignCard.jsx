@@ -69,7 +69,7 @@ export function WhatsAppCampaignCard({ stats, loading }) {
             </div>
           </div>
           <Link
-            href="/admin/crm/whatsapp"
+            href="/admin/sections/meta-templates/campaigns"
             className="inline-flex items-center gap-1 text-xs font-semibold text-[#163A2E] hover:underline"
           >
             Campaigns <ArrowUpRight className="size-3.5" />
