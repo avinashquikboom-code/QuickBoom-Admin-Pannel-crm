@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/common/Badge';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { SlideOverDrawer } from '@/components/common/Drawer';
+import { cn } from '@/lib/utils';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import {
   faTags,
@@ -260,16 +262,18 @@ export function CouponsScreen() {
     setSelectedIds(next);
   };
 
-  // Form Open: Create or Edit
+  // Form Open: Create or Edit & Unsaved Changes Tracking
+  const initialValuesRef = React.useRef(null);
+
   const openCreateModal = () => {
     setEditingCoupon(null);
     setForm(initialFormData);
+    initialValuesRef.current = JSON.stringify(initialFormData);
     setIsFormOpen(true);
   };
 
   const openEditModal = (coupon) => {
-    setEditingCoupon(coupon);
-    setForm({
+    const editData = {
       name: coupon.name || '',
       code: coupon.code || '',
       description: coupon.description || '',
@@ -281,12 +285,20 @@ export function CouponsScreen() {
       planIds: Array.isArray(coupon.planIds) ? coupon.planIds : [],
       usageLimit: coupon.usageLimit ?? coupon.maxRedemptions ?? 100,
       perCustomerLimit: coupon.perCustomerLimit ?? 1,
-      startDate: coupon.startsAt ? new Date(coupon.startsAt).toISOString().split('T')[0] : '',
-      endDate: coupon.expiresAt ? new Date(coupon.expiresAt).toISOString().split('T')[0] : '',
+      startDate: coupon.startsAt ? new Date(coupon.startsAt).toISOString().split('T')[0] : (coupon.startDate ? String(coupon.startDate).slice(0, 10) : ''),
+      endDate: coupon.expiresAt ? new Date(coupon.expiresAt).toISOString().split('T')[0] : (coupon.endDate ? String(coupon.endDate).slice(0, 10) : ''),
       isActive: coupon.isActive !== false,
-    });
+    };
+    setEditingCoupon(coupon);
+    setForm(editData);
+    initialValuesRef.current = JSON.stringify(editData);
     setIsFormOpen(true);
   };
+
+  const isFormDirty = React.useMemo(() => {
+    if (!isFormOpen || !initialValuesRef.current) return false;
+    return JSON.stringify(form) !== initialValuesRef.current;
+  }, [form, isFormOpen]);
 
   // Form Submit
   const handleFormSubmit = async (e) => {
@@ -349,7 +361,11 @@ export function CouponsScreen() {
         toast.success(`Coupon ${payload.code} created successfully.`);
       }
 
+      initialValuesRef.current = null;
       setIsFormOpen(false);
+      setEditingCoupon(null);
+      setForm(initialFormData);
+      setRefreshKey((k) => k + 1);
       setRefreshKey((k) => k + 1);
     } catch (err) {
       toast.error(billingError(err) || 'Failed to save coupon. Please verify all fields.');
@@ -1244,104 +1260,164 @@ export function CouponsScreen() {
         )}
       </div>
 
-      {/* ── Create / Edit Coupon Drawer / Modal ────────────────────── */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="relative w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/50">
-              <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-50 text-[#16A34A] border border-emerald-100">
-                  <FontAwesomeIcon icon={editingCoupon ? faPenToSquare : faPlus} className="text-sm" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-900">
-                    {editingCoupon ? 'Edit Coupon' : 'Create New Coupon'}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    {editingCoupon
-                      ? `Update configuration for coupon ${editingCoupon.code}`
-                      : 'Configure promotional discount code and plan eligibility'}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsFormOpen(false)}
-                className="text-slate-400 hover:text-slate-600 rounded-lg p-1"
-              >
-                <FontAwesomeIcon icon={faXmark} className="text-base" />
-              </button>
+      {/* ── Create / Edit Coupon Right-Side Slide-Over Drawer ────── */}
+      <SlideOverDrawer
+        open={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingCoupon(null);
+          setForm(initialFormData);
+          initialValuesRef.current = null;
+        }}
+        title={editingCoupon ? 'Edit Coupon' : 'Create New Coupon'}
+        subtitle="Configure promotional discount code and plan eligibility"
+        icon={
+          <FontAwesomeIcon
+            icon={editingCoupon ? faPenToSquare : faPlus}
+            className="text-base text-[#16A34A]"
+          />
+        }
+        iconBg="bg-emerald-50 border-emerald-100"
+        iconColor="text-[#16A34A]"
+        isDirty={isFormDirty}
+        discardTitle="Discard Unsaved Changes?"
+        discardDescription="You have unsaved changes in this coupon configuration. If you close now, your changes will be lost."
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+        loading={formBusy}
+        widthClass="w-full md:w-[80vw] md:max-w-[750px] lg:w-[720px] lg:max-w-[750px]"
+        footer={({ attemptClose, loading: isSubmitting }) => (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={attemptClose}
+              disabled={isSubmitting}
+              className="border-slate-200 rounded-xl px-4 text-xs font-semibold text-slate-700 hover:bg-slate-100 h-10 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="coupon-slideover-form"
+              disabled={isSubmitting}
+              className="bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl font-semibold shadow-xs h-10 px-5 text-xs transition-colors cursor-pointer"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faRotate} className="animate-spin text-xs" />
+                  Saving...
+                </span>
+              ) : editingCoupon ? (
+                'Save Changes'
+              ) : (
+                'Create Coupon'
+              )}
+            </Button>
+          </>
+        )}
+      >
+        <form id="coupon-slideover-form" onSubmit={handleFormSubmit} className="space-y-5">
+          {/* ── Section 1: Coupon Information ── */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A] text-xs font-bold">
+                1
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Coupon Information
+              </h3>
             </div>
-
-            {/* Modal Form Body */}
-            <form onSubmit={handleFormSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-              {/* Row 1: Code & Name */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                  <span>
                     Coupon Code <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    required
-                    placeholder="e.g. SUMMER20"
-                    value={form.code}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, code: e.target.value.toUpperCase().replace(/\s+/g, '') }))
-                    }
-                    className="h-10 font-mono uppercase font-bold tracking-wider rounded-xl border-slate-200"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Display Name <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    required
-                    placeholder="e.g. Summer Special 20%"
-                    value={form.name}
-                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                    className="h-10 rounded-xl border-slate-200"
-                  />
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">Alphanumeric</span>
+                </label>
+                <Input
+                  required
+                  placeholder="e.g. SUMMER20"
+                  value={form.code}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      code: e.target.value.toUpperCase().replace(/\s+/g, ''),
+                    }))
+                  }
+                  className="h-10 font-mono uppercase font-bold tracking-wider rounded-xl border-slate-200 focus-visible:ring-emerald-500 focus-visible:border-emerald-500 text-sm"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Unique promotional code entered by customers at checkout.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Display Name <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  required
+                  placeholder="e.g. Summer Special 20%"
+                  value={form.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className="h-10 rounded-xl border-slate-200 focus-visible:ring-emerald-500 focus-visible:border-emerald-500 text-sm"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Internal marketing title shown across coupons table and invoices.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 2: Discount Configuration ── */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A] text-xs font-bold">
+                2
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Discount Configuration
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Discount Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, discountType: 'PERCENTAGE' }))}
+                    className={cn(
+                      'h-10 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer select-none',
+                      form.discountType === 'PERCENTAGE'
+                        ? 'bg-[#EAF7EF] border-[#16A34A] text-[#173D30] shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    )}
+                  >
+                    <FontAwesomeIcon icon={faPercent} className="text-xs text-emerald-600" />
+                    Percentage (%)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, discountType: 'FIXED' }))}
+                    className={cn(
+                      'h-10 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer select-none',
+                      form.discountType === 'FIXED'
+                        ? 'bg-[#EAF7EF] border-[#16A34A] text-[#173D30] shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    )}
+                  >
+                    <FontAwesomeIcon icon={faIndianRupeeSign} className="text-xs text-emerald-600" />
+                    Fixed Amount (₹)
+                  </button>
                 </div>
               </div>
 
-              {/* Row 2: Discount Type & Value */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Discount Type</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, discountType: 'PERCENTAGE' }))}
-                      className={`h-10 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
-                        form.discountType === 'PERCENTAGE'
-                          ? 'bg-emerald-50 border-[#16A34A] text-[#16A34A]'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <FontAwesomeIcon icon={faPercent} className="text-xs" />
-                      Percentage (%)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, discountType: 'FIXED' }))}
-                      className={`h-10 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
-                        form.discountType === 'FIXED'
-                          ? 'bg-emerald-50 border-[#16A34A] text-[#16A34A]'
-                          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <FontAwesomeIcon icon={faIndianRupeeSign} className="text-xs" />
-                      Fixed Amount (₹)
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Discount Value <span className="text-rose-500">*</span>
-                  </label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Discount Value <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
                   <Input
                     type="number"
                     min="1"
@@ -1350,212 +1426,285 @@ export function CouponsScreen() {
                     placeholder={form.discountType === 'PERCENTAGE' ? 'e.g. 20' : 'e.g. 500'}
                     value={form.discountValue}
                     onChange={(e) => setForm((prev) => ({ ...prev, discountValue: e.target.value }))}
-                    className="h-10 rounded-xl border-slate-200 font-semibold"
+                    className="h-10 rounded-xl border-slate-200 pr-9 font-semibold text-sm"
                   />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                    {form.discountType === 'PERCENTAGE' ? '%' : '₹'}
+                  </span>
                 </div>
+                <p className="text-[11px] text-slate-400">
+                  {form.discountType === 'PERCENTAGE'
+                    ? 'Enter percentage value between 1% and 100%.'
+                    : 'Enter rupee deduction applied directly to invoice.'}
+                </p>
               </div>
 
-              {/* Row 3: Caps & Minimums */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {form.discountType === 'PERCENTAGE' && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">
-                      Maximum Discount Cap (₹)
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      placeholder="Optional, e.g. 1000"
-                      value={form.maximumDiscountAmount}
-                      onChange={(e) =>
-                        setForm((prev) => ({ ...prev, maximumDiscountAmount: e.target.value }))
-                      }
-                      className="h-10 rounded-xl border-slate-200"
-                    />
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Minimum Package Amount (₹)
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    placeholder="Optional, e.g. 1999"
-                    value={form.minimumAmount}
-                    onChange={(e) => setForm((prev) => ({ ...prev, minimumAmount: e.target.value }))}
-                    className="h-10 rounded-xl border-slate-200"
-                  />
-                </div>
-              </div>
-
-              {/* Row 4: Plan Eligibility */}
-              <div className="rounded-xl border border-slate-200 p-3.5 space-y-3 bg-slate-50/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-slate-800">
-                      Applies to all subscription plans
-                    </span>
-                    <p className="text-[11px] text-slate-500">
-                      Toggle off to restrict this coupon to specific plans
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={form.appliesToAllPlans}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, appliesToAllPlans: e.target.checked }))
-                    }
-                    className="size-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                  />
-                </div>
-
-                {!form.appliesToAllPlans && (
-                  <div className="pt-2 border-t border-slate-200 space-y-1.5">
-                    <span className="text-xs font-semibold text-slate-700">
-                      Select Eligible Plans <span className="text-rose-500">*</span>
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
-                      {availablePlans.map((plan) => {
-                        const isSelected = form.planIds.includes(plan.id);
-                        return (
-                          <label
-                            key={plan.id}
-                            className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-                              isSelected
-                                ? 'bg-emerald-50/60 border-emerald-300 text-emerald-900 font-semibold'
-                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                const next = e.target.checked
-                                  ? [...form.planIds, plan.id]
-                                  : form.planIds.filter((id) => id !== plan.id);
-                                setForm((prev) => ({ ...prev, planIds: next }));
-                              }}
-                              className="rounded text-emerald-600 focus:ring-emerald-500"
-                            />
-                            <span className="truncate">{plan.name}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Row 5: Usage Limits */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Total Redemption Limit <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    required
-                    placeholder="e.g. 100"
-                    value={form.usageLimit}
-                    onChange={(e) => setForm((prev) => ({ ...prev, usageLimit: e.target.value }))}
-                    className="h-10 rounded-xl border-slate-200"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Per Customer Limit <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    required
-                    placeholder="e.g. 1"
-                    value={form.perCustomerLimit}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, perCustomerLimit: e.target.value }))
-                    }
-                    className="h-10 rounded-xl border-slate-200"
-                  />
-                </div>
-              </div>
-
-              {/* Row 6: Validity Dates */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Start Date</label>
-                  <Input
-                    type="date"
-                    value={form.startDate}
-                    onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))}
-                    className="h-10 rounded-xl border-slate-200"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">Expiry Date</label>
-                  <Input
-                    type="date"
-                    value={form.endDate}
-                    onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                    className="h-10 rounded-xl border-slate-200"
-                  />
-                </div>
-              </div>
-
-              {/* Row 7: Description */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">
+                <label className="text-xs font-semibold text-slate-700">
+                  Maximum Discount Cap (₹)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder={form.discountType === 'PERCENTAGE' ? 'Optional, e.g. 1000' : 'N/A for fixed amount'}
+                  disabled={form.discountType === 'FIXED'}
+                  value={form.discountType === 'FIXED' ? '' : form.maximumDiscountAmount}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, maximumDiscountAmount: e.target.value }))
+                  }
+                  className="h-10 rounded-xl border-slate-200 text-sm disabled:bg-slate-50 disabled:text-slate-400"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Upper rupee ceiling for percentage discounts (optional).
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Minimum Package Amount (₹)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="Optional, e.g. 1999"
+                  value={form.minimumAmount}
+                  onChange={(e) => setForm((prev) => ({ ...prev, minimumAmount: e.target.value }))}
+                  className="h-10 rounded-xl border-slate-200 text-sm"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Minimum subscription amount required before discount applies.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 3: Plan Eligibility ── */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A] text-xs font-bold">
+                3
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Plan Eligibility
+              </h3>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl bg-slate-50/70 border border-slate-200 p-3.5">
+              <div>
+                <span className="text-xs font-bold text-slate-800">
+                  Applies to all subscription plans
+                </span>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Toggle off to restrict this discount coupon to specific subscription plans.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+                <input
+                  type="checkbox"
+                  checked={form.appliesToAllPlans}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, appliesToAllPlans: e.target.checked }))
+                  }
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-[#16A34A]" />
+              </label>
+            </div>
+
+            {!form.appliesToAllPlans && (
+              <div className="pt-2 space-y-2 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Select Eligible Plans <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    {form.planIds.length} of {availablePlans.length} selected
+                  </span>
+                </div>
+
+                {availablePlans.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-3 text-center">
+                    Loading subscription plans...
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto p-1.5 bg-slate-50/50 rounded-xl border border-slate-200">
+                    {availablePlans.map((plan) => {
+                      const isSelected = form.planIds.includes(plan.id);
+                      return (
+                        <label
+                          key={plan.id}
+                          className={cn(
+                            'flex items-center gap-2.5 p-2.5 rounded-lg border text-xs cursor-pointer transition-all',
+                            isSelected
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-semibold shadow-2xs'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...form.planIds, plan.id]
+                                : form.planIds.filter((id) => id !== plan.id);
+                              setForm((prev) => ({ ...prev, planIds: next }));
+                            }}
+                            className="size-4 rounded border-slate-300 text-[#16A34A] focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-slate-800 truncate">{plan.name}</div>
+                            <div className="text-[10px] text-slate-500 truncate">
+                              {plan.code ? `${plan.code} • ` : ''}
+                              {plan.monthlyPrice ? `₹${Number(plan.monthlyPrice).toLocaleString()}/mo` : ''}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {!form.appliesToAllPlans && form.planIds.length === 0 && (
+                  <p className="text-[11px] text-rose-500 font-medium">
+                    Please select at least one eligible plan.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Section 4: Redemption Limits ── */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A] text-xs font-bold">
+                4
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Redemption Limits
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Total Redemption Limit <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  required
+                  placeholder="e.g. 100"
+                  value={form.usageLimit}
+                  onChange={(e) => setForm((prev) => ({ ...prev, usageLimit: e.target.value }))}
+                  className="h-10 rounded-xl border-slate-200 text-sm"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Maximum total redemptions permitted across all customer checkouts.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Per Customer Limit <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  required
+                  placeholder="e.g. 1"
+                  value={form.perCustomerLimit}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, perCustomerLimit: e.target.value }))
+                  }
+                  className="h-10 rounded-xl border-slate-200 text-sm"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Maximum redemptions allowed per tenant customer account.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 5: Validity ── */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A] text-xs font-bold">
+                5
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Validity & Schedule
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Start Date</label>
+                <Input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                  className="h-10 rounded-xl border-slate-200 text-sm"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Coupon becomes redeemable starting from this date (optional).
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Expiry Date</label>
+                <Input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                  className="h-10 rounded-xl border-slate-200 text-sm"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Coupon ceases to be valid after 23:59 on this date (optional).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 6: Additional Information ── */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A] text-xs font-bold">
+                6
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Additional Information
+              </h3>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">
                   Description / Internal Notes
                 </label>
                 <Textarea
-                  rows={2}
-                  placeholder="Optional internal note or customer-facing description..."
+                  rows={3}
+                  placeholder="Optional internal notes, campaign promotion details, or special terms..."
                   value={form.description}
                   onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                  className="rounded-xl border-slate-200 text-sm"
+                  className="rounded-xl border-slate-200 text-sm resize-none"
                 />
               </div>
 
-              {/* Row 8: Active Toggle */}
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 p-3">
+              <div className="flex items-center justify-between rounded-xl bg-slate-50/70 border border-slate-200 p-3.5">
                 <div>
                   <span className="text-xs font-bold text-slate-800">Coupon Active Status</span>
-                  <p className="text-[11px] text-slate-500">
-                    When active, customers can redeem this code during subscription purchase
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    When active, customers can enter and redeem this code during checkout.
                   </p>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
-                  className="size-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                />
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+                  <input
+                    type="checkbox"
+                    checked={form.isActive}
+                    onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-[#16A34A]" />
+                </label>
               </div>
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsFormOpen(false)}
-                  disabled={formBusy}
-                  className="border-slate-200 rounded-xl"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={formBusy}
-                  className="bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl font-semibold shadow-xs"
-                >
-                  {formBusy ? 'Saving...' : editingCoupon ? 'Save Changes' : 'Create Coupon'}
-                </Button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        </form>
+      </SlideOverDrawer>
 
       {/* ── View Details Modal ─────────────────────────────────────── */}
       {viewCoupon && (
