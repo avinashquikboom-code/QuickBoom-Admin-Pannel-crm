@@ -6,7 +6,7 @@ import { billingGaps, loadResourceUsage } from '@/modules/customer/billing-api';
 
 export default function ResourceUsagePage() {
   const load = React.useCallback((query) => loadResourceUsage({ page: query.page, limit: 20, search: query.search || undefined, status: query.status || undefined, dateFrom: query.dateFrom || undefined, dateTo: query.dateTo || undefined }), []);
-  return <CrmScreen title="Resource Usage" description="Employee, lead, and storage usage against the limits returned for each customer." canCreate={false} load={load}
+  return <CrmScreen title="Resource Usage" description="Employee, lead, and storage usage against the limits returned for each customer." canCreate={false} loadingSkeleton load={load}
     gap={{ title: 'Usage coverage', detail: billingGaps.usageApi }}
     stats={(result) => [{ label: 'Customers', value: result.summary?.totalCustomers }, { label: 'Active', value: result.summary?.activeCustomers }, { label: 'Seat use', value: result.summary?.overallSeatUtilization }, { label: 'Storage', value: result.summary?.totalStorage }]}
     filters={[{ key: 'status', label: 'All statuses', options: ['ACTIVE', 'INACTIVE', 'UPCOMING', 'COMPLETED'].map((value) => ({ value, label: value })) }]}

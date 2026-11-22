@@ -1,7 +1,19 @@
 'use client';
 
-export function HrmNotice({ error, loading, onRetry, empty, children }) {
+export function HrmNotice({ error, loading, onRetry, empty, children, loadingSkeleton = false }) {
   if (loading) {
+    if (loadingSkeleton) {
+      return (
+        <div role="status" aria-label="Loading resource usage" className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+          <span className="sr-only">Loading resource usage…</span>
+          <div className="h-5 w-44 animate-pulse rounded bg-slate-100" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-xl bg-slate-100" />)}
+          </div>
+          <div className="h-48 animate-pulse rounded-xl bg-slate-100" />
+        </div>
+      );
+    }
     return <div role="status" className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Loading HRM records…</div>;
   }
   if (error) {
