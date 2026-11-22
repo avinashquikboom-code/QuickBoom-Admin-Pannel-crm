@@ -211,6 +211,7 @@ export function saveCustomer(values, id) {
     status: values.status || undefined,
     isActive: values.isActive !== undefined ? values.isActive : undefined,
     assignedEmployeeId: values.assignedEmployeeId ? Number(values.assignedEmployeeId) : undefined,
+    assignedTeamId: values.assignedTeamId ? Number(values.assignedTeamId) : values.assignedTeamId === null ? null : undefined,
     address: values.address || undefined,
     city: values.city || undefined,
     state: values.state || undefined,
@@ -228,6 +229,22 @@ export const removeCustomer = (id) => api.delete(`/customers/${id}`).then((res) 
   notifyCustomersChanged();
   return res;
 });
+
+export function assignCustomerTeam(customerId, teamId, reassignPendingTasks = false) {
+  return api
+    .patch(`/customers/${customerId}/assign-team`, {
+      teamId: teamId ? Number(teamId) : null,
+      reassignPendingTasks,
+    })
+    .then((res) => {
+      notifyCustomersChanged();
+      return res.data?.data || res.data;
+    });
+}
+
+export function getCustomerAssignedTeam(customerId) {
+  return api.get(`/customers/${customerId}/assign-team`).then((res) => res.data?.data || res.data);
+}
 
 export const bulkDeleteCustomers = async (ids = []) => {
   const results = await Promise.allSettled(ids.map((id) => api.delete(`/customers/${id}`)));
