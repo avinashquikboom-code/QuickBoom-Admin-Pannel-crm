@@ -1,4 +1,4 @@
-import { MessageSquare, Mail, Layers, PlusCircle, Megaphone, FileText } from 'lucide-react';
+import { MessageSquare, Mail, Layers, PlusCircle, Megaphone, FileText, Video } from 'lucide-react';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { faCalendar } from '@fortawesome/free-regular-svg-icons';
 import {
@@ -73,6 +73,33 @@ export const emailMarketingNavigation = [
     { name: 'Email Templates', href: '/admin/sections/email-templates', icon: FileText },
 ];
 
+export const contentNavigation = [
+    { name: 'Trending Content', href: '/admin/content/trending', icon: faChartBar },
+    { name: 'Home Banners', href: '/admin/content/banners', icon: faImage },
+    { name: 'Marketing Videos', href: '/admin/content/videos', icon: faVideo },
+];
+
+export const marketingNavigation = [
+    {
+        name: 'Content Management',
+        icon: Video,
+        href: '/admin/content/trending',
+        children: contentNavigation,
+    },
+    {
+        name: 'WhatsApp Marketing',
+        icon: MessageSquare,
+        href: '/admin/sections/meta-templates',
+        children: whatsAppMarketingNavigation,
+    },
+    {
+        name: 'Email Marketing',
+        icon: Mail,
+        href: '/admin/sections/email-templates',
+        children: emailMarketingNavigation,
+    },
+];
+
 /** @deprecated Replaced by whatsAppMarketingNavigation and emailMarketingNavigation */
 export const templatesNavigation = [
     ...emailMarketingNavigation,
@@ -94,12 +121,6 @@ export const influencerNavigation = [
     { name: 'Influencer Hub', href: '/admin/influencers', icon: faIdBadge },
     { name: 'Influencer Applications', href: '/admin/influencers/applications', icon: faUsers },
     { name: 'Influencer Bookings', href: '/admin/influencers/bookings', icon: faClock },
-];
-
-export const contentNavigation = [
-    { name: 'Trending Content', href: '/admin/content/trending', icon: faChartBar },
-    { name: 'Home Banners', href: '/admin/content/banners', icon: faImage },
-    { name: 'Marketing Videos', href: '/admin/content/videos', icon: faVideo },
 ];
 
 export const settingsNavigation = [

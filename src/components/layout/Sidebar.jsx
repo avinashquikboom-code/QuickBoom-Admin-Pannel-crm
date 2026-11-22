@@ -5,7 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { MessageSquare, Mail } from 'lucide-react';
+import { MessageSquare, Mail, Megaphone, Video } from 'lucide-react';
 import {
     faBriefcase,
     faBullhorn,
@@ -33,6 +33,7 @@ import {
     dataCaptureNavigation,
     emailMarketingNavigation,
     influencerNavigation,
+    marketingNavigation,
     masterNavigation,
     settingsNavigation,
     whatsAppMarketingNavigation,
@@ -50,11 +51,9 @@ const groups = [
     { name: 'Data Capture', icon: faBullseye, items: dataCaptureNavigation },
     { name: 'CRM', icon: faUser, items: crm },
     { name: 'Customers', icon: faFileLines, items: customer },
-    { name: 'WhatsApp Marketing', icon: MessageSquare, items: whatsAppMarketingNavigation },
-    { name: 'Email Marketing', icon: Mail, items: emailMarketingNavigation },
+    { name: 'Marketing', icon: Megaphone, items: marketingNavigation },
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
-    { name: 'Content Management', icon: faVideo, items: contentNavigation },
     { name: 'Reports', icon: faChartBar, href: '/admin/reports' },
     { name: 'Settings', icon: faGear, items: settingsNavigation },
 ];
@@ -158,12 +157,19 @@ function NavExpandableItem({ item, pathname, collapsed, onNavigate }) {
                 aria-expanded={open}
                 aria-controls={contentId}
                 className={cn(
-                    'flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer select-none',
-                    parentActive ? 'bg-brand-light/70 text-brand-dark' : 'text-slate-600 hover:bg-brand-light/80',
+                    'flex min-h-10 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand cursor-pointer select-none',
+                    parentActive ? 'bg-brand-light/70 text-brand-dark font-semibold' : 'text-slate-700 hover:bg-slate-50',
                 )}
             >
                 {item.icon ? (
-                    <SidebarIcon icon={item.icon} size={16} className={cn('shrink-0 pointer-events-none', parentActive ? 'text-brand-dark' : 'text-slate-400')} />
+                    <span
+                        className={cn(
+                            'flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors pointer-events-none',
+                            parentActive ? 'bg-brand text-primary-foreground' : 'bg-slate-100 text-slate-500'
+                        )}
+                    >
+                        <SidebarIcon icon={item.icon} size={14} className="shrink-0 pointer-events-none" />
+                    </span>
                 ) : null}
                 <span className="min-w-0 flex-1 truncate pointer-events-none">{item.name}</span>
                 <FontAwesomeIcon icon={faChevronDown} className={cn('size-3 text-slate-400 transition-transform duration-200 pointer-events-none', open && 'rotate-180')} />
