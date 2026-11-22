@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   Users,
   Handshake,
@@ -429,60 +430,56 @@ export default function CrmDashboardPage() {
 
   return (
     <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6 pb-24 overflow-x-hidden">
-      {/* 1. Dashboard Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900">
-            CRM Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-[#718078]">
-            Get a real-time view of your leads, deals, pipeline and team performance.
-          </p>
-        </div>
+      {/* 1. Page Title Card */}
+      <PageTitleCard
+        moduleName="CRM"
+        title="CRM Dashboard"
+        description="Get a real-time view of your leads, deals, pipeline and team performance."
+        icon={Users}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Date Range Selector Pills */}
+            <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
+              {['7D', '30D', '90D', 'This Month'].map((range) => (
+                <button
+                  key={range}
+                  type="button"
+                  onClick={() => setDateRange(range)}
+                  className={cn(
+                    'rounded-lg px-3 py-1 text-xs font-semibold transition-all',
+                    dateRange === range
+                      ? 'bg-[#173D30] text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  )}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
 
-        {/* Right-side Controls: Date Range Selector & Create Lead Button */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Date Range Selector Pills */}
-          <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
-            {['7D', '30D', '90D', 'This Month'].map((range) => (
-              <button
-                key={range}
-                type="button"
-                onClick={() => setDateRange(range)}
-                className={cn(
-                  'rounded-lg px-3 py-1 text-xs font-semibold transition-all',
-                  dateRange === range
-                    ? 'bg-[#173D30] text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                )}
-              >
-                {range}
-              </button>
-            ))}
+            {/* Refresh Action */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              aria-label="Refresh dashboard"
+              className="size-10 p-0 border-slate-200 bg-white text-slate-600 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] rounded-xl shadow-2xs"
+            >
+              <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
+            </Button>
+
+            {/* Create Lead Button */}
+            <Button
+              onClick={() => setCreateLeadOpen(true)}
+              className="h-10 px-4 text-xs font-semibold bg-[#173D30] hover:bg-[#122e25] text-white shadow-xs gap-1.5 rounded-xl"
+            >
+              <Plus className="size-4 text-[#20C466]" />
+              <span>Create Lead</span>
+            </Button>
           </div>
-
-          {/* Refresh Action */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing || loading}
-            aria-label="Refresh dashboard"
-            className="size-9 p-0 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl"
-          >
-            <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
-          </Button>
-
-          {/* Create Lead Button */}
-          <Button
-            onClick={() => setCreateLeadOpen(true)}
-            className="h-9 px-4 text-xs font-semibold bg-[#173D30] hover:bg-[#122e25] text-white shadow-2xs gap-1.5 rounded-xl"
-          >
-            <Plus className="size-3.5 text-[#20C466]" />
-            <span>Create Lead</span>
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Error state alert if API fails */}
       {error && (

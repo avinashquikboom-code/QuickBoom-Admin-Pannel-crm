@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   Search,
   Filter,
@@ -632,54 +633,43 @@ export default function FollowUpsRoute() {
 
   return (
     <div className="space-y-5 pb-28 w-full min-w-0">
-      {/* 1. Page Header with Title, Subtitle, Export and Primary Log Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>CRM</span>
-            <span>/</span>
-            <span className="font-semibold text-[#173D30]">Follow-ups</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#173D30] tracking-tight">
-              Follow-ups
-            </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-[#173D30] border border-emerald-200">
-              <span className="size-1.5 rounded-full bg-[#20C466]" />
-              {kpiStats.total} Total
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Scheduled lead follow-ups. Completed calls stay in history and are not treated as the next follow-up.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => exportFollowUpsToCsv(sortedRows)}
-            disabled={loading || sortedRows.length === 0}
-            className="h-9 gap-1.5 rounded-xl border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#173D30] shadow-2xs"
-          >
-            <Download className="size-3.5 text-slate-500" />
-            <span>Export Follow-ups</span>
-          </Button>
-
-          {allowed && (
+      {/* 1. Page Title Card */}
+      <PageTitleCard
+        moduleName="CRM"
+        breadcrumb="Follow-ups"
+        title="Follow-ups"
+        description="Scheduled lead follow-ups. Completed calls stay in history and are not treated as the next follow-up."
+        icon={PhoneCall}
+        badge={`${kpiStats.total} Total`}
+        badgeVariant="green"
+        actions={
+          <>
             <Button
               type="button"
+              variant="outline"
               size="sm"
-              onClick={() => handleOpenLogDrawer(null)}
-              className="h-9 gap-1.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold shadow-xs"
+              onClick={() => exportFollowUpsToCsv(sortedRows)}
+              disabled={loading || sortedRows.length === 0}
+              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] shadow-2xs"
             >
-              <Phone className="size-3.5 text-[#20C466]" />
-              <span>Log Follow-up</span>
+              <Download className="size-3.5 text-slate-500" />
+              <span>Export Follow-ups</span>
             </Button>
-          )}
-        </div>
-      </div>
+
+            {allowed && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleOpenLogDrawer(null)}
+                className="h-10 gap-1.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold shadow-xs"
+              >
+                <Phone className="size-3.5 text-[#20C466]" />
+                <span>Log Follow-up</span>
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* 2. Four Responsive KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">

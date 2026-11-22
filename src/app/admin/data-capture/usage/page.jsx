@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   CheckCircle2,
   ShieldCheck,
@@ -293,50 +294,47 @@ export default function UsageQuotaPage() {
 
   return (
     <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6 pb-12">
-      {/* 1. Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Usage & Quota
-          </h1>
-          <p className="mt-1 text-sm text-[#718078]">
-            Extraction usage and remaining quota for the signed-in tenant.
-          </p>
-        </div>
+      {/* 1. Page Title Card */}
+      <PageTitleCard
+        moduleName="DATA CAPTURE"
+        breadcrumb="Usage & Quota"
+        title="Usage & Quota"
+        description="Extraction usage and remaining quota for the signed-in tenant."
+        icon={Zap}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Date Selector Presets */}
+            <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
+              {['7D', '30D', '90D', 'Month'].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setDateRange(preset)}
+                  className={cn(
+                    'rounded-lg px-3 py-1 text-xs font-semibold transition-all',
+                    dateRange === preset
+                      ? 'bg-[#173D30] text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  )}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
 
-        {/* Right Actions: Date Selector & Refresh */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Date Selector Presets */}
-          <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
-            {['7D', '30D', '90D', 'Month'].map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => setDateRange(preset)}
-                className={cn(
-                  'rounded-lg px-3 py-1 text-xs font-semibold transition-all',
-                  dateRange === preset
-                    ? 'bg-[#173D30] text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                )}
-              >
-                {preset}
-              </button>
-            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="h-10 px-3.5 rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] transition-colors shadow-2xs gap-1.5"
+            >
+              <RotateCw className={cn('size-3.5 text-slate-500', refreshing && 'animate-spin')} />
+              <span>{refreshing ? 'Refreshing…' : 'Refresh'}</span>
+            </Button>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="h-9 px-3.5 rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs gap-1.5"
-          >
-            <RotateCw className={cn('size-3.5 text-slate-500', refreshing && 'animate-spin')} />
-            <span>{refreshing ? 'Refreshing…' : 'Refresh'}</span>
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Error alert if any */}
       {error && (

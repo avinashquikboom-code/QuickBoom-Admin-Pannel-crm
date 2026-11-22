@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   Search,
   Filter,
@@ -554,59 +555,48 @@ export default function DealsRoute() {
 
   return (
     <div className="space-y-5 pb-28 w-full min-w-0">
-      {/* 1. Header with Breadcrumbs, Title, Subtitle & Primary Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>CRM</span>
-            <span>/</span>
-            <span className="font-semibold text-[#173D30]">Deals</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#173D30] tracking-tight">
-              Deals
-            </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-[#173D30] border border-emerald-200">
-              <span className="size-1.5 rounded-full bg-[#20C466]" />
-              {totalDealsCount} Total
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Sales pipeline, including deals waiting on a final customer decision.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => downloadDealsCsv(rows)}
-            disabled={rows.length === 0}
-            className="h-9 gap-1.5 rounded-xl border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#173D30] shadow-2xs"
-          >
-            <Download className="size-3.5 text-slate-500" />
-            <span>Export</span>
-          </Button>
-
-          {allowed && (
+      {/* 1. Page Title Card */}
+      <PageTitleCard
+        moduleName="CRM"
+        breadcrumb="Deals"
+        title="Deals"
+        description="Sales pipeline, including deals waiting on a final customer decision."
+        icon={Handshake}
+        badge={`${totalDealsCount} Total`}
+        badgeVariant="green"
+        actions={
+          <>
             <Button
+              variant="outline"
               size="sm"
-              onClick={() => {
-                setEditingId(null);
-                setForm({
-                  ...blankDeal,
-                  stageId: stages[0]?.id ? String(stages[0].id) : '',
-                });
-                setFormOpen(true);
-              }}
-              className="h-9 gap-1.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold shadow-xs"
+              onClick={() => downloadDealsCsv(rows)}
+              disabled={rows.length === 0}
+              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] shadow-2xs"
             >
-              <Plus className="size-4 text-[#20C466]" />
-              <span>Add Deal</span>
+              <Download className="size-3.5 text-slate-500" />
+              <span>Export</span>
             </Button>
-          )}
-        </div>
-      </div>
+
+            {allowed && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm({
+                    ...blankDeal,
+                    stageId: stages[0]?.id ? String(stages[0].id) : '',
+                  });
+                  setFormOpen(true);
+                }}
+                className="h-10 gap-1.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold shadow-xs"
+              >
+                <Plus className="size-4 text-[#20C466]" />
+                <span>Add Deal</span>
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* 2. Four KPI Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

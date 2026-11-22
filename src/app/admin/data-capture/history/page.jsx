@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   Layers,
   Target,
@@ -458,50 +459,46 @@ export default function CaptureHistoryPage() {
 
   return (
     <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6 pb-14 overflow-x-hidden">
-      {/* 1. Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900">
-            Capture History
-          </h1>
-          <p className="mt-1 text-sm text-[#718078]">
-            Track captured records, sources, imports and capture activity.
-          </p>
-        </div>
+      {/* 1. Page Title Card */}
+      <PageTitleCard
+        moduleName="DATA CAPTURE"
+        breadcrumb="Capture History"
+        title="Capture History"
+        description="Track captured records, sources, imports and capture activity across this tenant."
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('csv')}
+              disabled={busyAction === 'csv' || loading}
+              className="h-10 px-3.5 text-xs font-semibold border-slate-200 bg-white text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] shadow-2xs gap-1.5 rounded-xl"
+            >
+              {busyAction === 'csv' ? (
+                <RefreshCw className="size-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="size-3.5 text-emerald-600" />
+              )}
+              <span>Export CSV</span>
+            </Button>
 
-        {/* Right Actions: Export CSV & PDF */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport('csv')}
-            disabled={busyAction === 'csv' || loading}
-            className="h-9 px-3.5 text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs gap-1.5"
-          >
-            {busyAction === 'csv' ? (
-              <RefreshCw className="size-3.5 animate-spin" />
-            ) : (
-              <FileSpreadsheet className="size-3.5 text-emerald-600" />
-            )}
-            <span>Export CSV</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport('pdf')}
-            disabled={busyAction === 'pdf' || loading}
-            className="h-9 px-3.5 text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs gap-1.5"
-          >
-            {busyAction === 'pdf' ? (
-              <RefreshCw className="size-3.5 animate-spin" />
-            ) : (
-              <FileText className="size-3.5 text-rose-600" />
-            )}
-            <span>Export PDF</span>
-          </Button>
-        </div>
-      </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport('pdf')}
+              disabled={busyAction === 'pdf' || loading}
+              className="h-10 px-3.5 text-xs font-semibold border-slate-200 bg-white text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] shadow-2xs gap-1.5 rounded-xl"
+            >
+              {busyAction === 'pdf' ? (
+                <RefreshCw className="size-3.5 animate-spin" />
+              ) : (
+                <FileText className="size-3.5 text-rose-600" />
+              )}
+              <span>Export PDF</span>
+            </Button>
+          </div>
+        }
+      />
 
       {/* Error state banner if API fails */}
       {error && (

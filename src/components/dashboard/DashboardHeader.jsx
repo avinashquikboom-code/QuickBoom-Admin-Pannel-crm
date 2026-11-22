@@ -90,16 +90,28 @@ export function DashboardHeader({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-[#F7F9F8] to-emerald-50/30 p-4 sm:p-6 shadow-xs">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8E5] bg-gradient-to-r from-[#F0F7F4] via-white to-[#F0F7F4] p-4 sm:p-6 lg:p-7 shadow-xs">
+      {/* Decorative Wave Accent */}
+      <div
+        className="pointer-events-none absolute -right-6 -top-6 h-44 w-64 sm:h-56 sm:w-80 select-none text-emerald-600/10 sm:block hidden"
+        aria-hidden="true"
+      >
+        <svg viewBox="0 0 320 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full">
+          <path d="M40 0C120 40 180 140 320 120V0H40Z" fill="currentColor" />
+          <path d="M0 60C100 100 190 210 320 180V0H0V60Z" fill="currentColor" fillOpacity="0.5" />
+          <circle cx="250" cy="50" r="40" stroke="currentColor" strokeWidth="8" strokeDasharray="6 6" fill="none" opacity="0.4" />
+        </svg>
+      </div>
+
+      <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         {/* Left: Greeting, Date & Live Badge */}
         <div className="min-w-0 space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-100/70 text-[#163A2E]">
-              <Sparkles className="size-4 text-[#163A2E]" />
+            <span className="flex size-9 sm:size-11 items-center justify-center rounded-xl bg-[#EAF7EF] text-[#173D30] border border-emerald-100 shadow-2xs">
+              <Sparkles className="size-4 sm:size-5 text-[#173D30]" />
             </span>
-            <h1 className="truncate text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
-              {greeting}, <span className="text-[#163A2E]">{adminName}</span>
+            <h1 className="truncate text-xl sm:text-2xl lg:text-[28px] font-extrabold tracking-tight text-slate-900">
+              {greeting}, <span className="text-[#173D30]">{adminName}</span>
             </h1>
 
             {/* Live Indicator Pill */}
