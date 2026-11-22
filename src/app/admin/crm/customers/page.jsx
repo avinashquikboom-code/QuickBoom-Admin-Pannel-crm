@@ -308,48 +308,14 @@ export default function CustomersRoute() {
           {
             header: 'Customer',
             accessorKey: 'name',
-            className: 'w-[240px] max-w-[240px]',
-            meta: { className: 'w-[240px] max-w-[240px]' },
+            className: 'w-[260px] min-w-[220px]',
+            meta: { className: 'w-[260px] min-w-[220px]' },
             cell: (row) => <CustomerName row={row} onOpen={() => open(row)} />,
-          },
-          {
-            header: 'Company',
-            accessorKey: 'companyName',
-            className: 'w-[180px] max-w-[180px]',
-            meta: { className: 'w-[180px] max-w-[180px]' },
-            cell: (row) =>
-              row.companyName ? (
-                <TooltipProvider delay={150}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span
-                        title={row.companyName}
-                        className="inline-flex max-w-[160px] items-center gap-1.5 text-sm font-medium text-slate-700 cursor-default"
-                      >
-                        <Building2 className="size-3.5 shrink-0 text-slate-400" />
-                        <span className="truncate">{row.companyName}</span>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      align="start"
-                      className="z-50 max-w-xs sm:max-w-sm rounded-xl border border-slate-800 bg-slate-900/95 px-3 py-1.5 text-xs font-medium text-white shadow-xl backdrop-blur-xs break-words"
-                    >
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
-                        Company Name
-                      </span>
-                      <span>{row.companyName}</span>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ) : (
-                <span className="text-slate-400">—</span>
-              ),
           },
           {
             header: 'Phone',
             accessorKey: 'phone',
-            className: 'min-w-[150px]',
+            className: 'min-w-[160px]',
             cell: (row) =>
               row.phone ? (
                 <a
@@ -366,12 +332,12 @@ export default function CustomersRoute() {
           {
             header: 'Email',
             accessorKey: 'email',
-            className: 'min-w-[190px]',
+            className: 'min-w-[200px]',
             cell: (row) =>
               row.email ? (
                 <a
                   href={`mailto:${row.email}`}
-                  className="inline-flex max-w-[180px] items-center gap-1.5 text-sm text-slate-600 transition hover:text-[#173D30]"
+                  className="inline-flex max-w-[190px] items-center gap-1.5 text-sm text-slate-600 transition hover:text-[#173D30]"
                 >
                   <Mail className="size-3.5 shrink-0 text-slate-400" />
                   <span className="truncate">{row.email}</span>
