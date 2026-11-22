@@ -518,660 +518,637 @@ export default function LeadLimitsRoute() {
         </div>
       )}
 
-      {/* 4. Main Section with Tables & Right-Side Presets Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
-        {/* Left Column (3 Spans): Tabbed Limits Table */}
-        <div className="lg:col-span-3 space-y-4">
-          <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
-            {/* Tab Bar & Search Header */}
-            <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('employees');
-                    setCurrentPage(1);
-                  }}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-                    activeTab === 'employees'
-                      ? 'bg-white text-[#173D30] shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  )}
-                >
-                  <Users className="size-3.5" />
-                  <span>Employee Limits</span>
-                  <span className="size-4 rounded-full bg-emerald-50 text-[#173D30] text-[10px] font-bold flex items-center justify-center">
-                    {filteredEmployees.length}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('roles');
-                    setCurrentPage(1);
-                  }}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-                    activeTab === 'roles'
-                      ? 'bg-white text-[#173D30] shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  )}
-                >
-                  <ShieldCheck className="size-3.5" />
-                  <span>Role Limits</span>
-                  <span className="size-4 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center">
-                    {filteredRoles.length}
-                  </span>
-                </button>
-              </div>
-
-              {/* Search input */}
-              <div className="relative sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
-                <Input
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder={
-                    activeTab === 'employees'
-                      ? 'Search by name, ID or role...'
-                      : 'Search by role name...'
-                  }
-                  className="pl-8.5 pr-8 h-8.5 text-xs rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCurrentPage(1);
-                    }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="size-3" />
-                  </button>
+      {/* 4. Main Section: Two-Column Responsive Layout with Exact Vertical Alignment */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,69fr)_minmax(0,31fr)] gap-5 items-start">
+        {/* Left Column (approx 69% width): Employee & Role Limits Tabbed Table Card */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col">
+          {/* Header & Controls: Horizontally Aligned Tabs & Search */}
+          <div className="min-h-16 px-4 py-3 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
+            {/* Tab bar */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('employees');
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                  activeTab === 'employees'
+                    ? 'bg-white text-[#173D30] shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 )}
-              </div>
+              >
+                <Users className="size-3.5" />
+                <span>Employee Limits</span>
+                <span className="min-w-4 px-1.5 h-4 rounded-full bg-emerald-50 text-[#173D30] text-[10px] font-bold flex items-center justify-center border border-emerald-200">
+                  {employees.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('roles');
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                  activeTab === 'roles'
+                    ? 'bg-white text-[#173D30] shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                )}
+              >
+                <ShieldCheck className="size-3.5" />
+                <span>Role Limits</span>
+                <span className="min-w-4 px-1.5 h-4 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center">
+                  {roles.length}
+                </span>
+              </button>
             </div>
 
-            {/* TAB 1: EMPLOYEE LIMITS TABLE */}
-            {activeTab === 'employees' && (
-              <div>
-                {loading ? (
-                  <div className="w-full overflow-x-auto min-w-0">
-                    <table className="w-full text-left text-xs text-slate-700 border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-600">
-                          <th className="py-3 px-3.5">Employee</th>
-                          <th className="py-3 px-3">Role</th>
-                          <th className="py-3 px-3">Daily Limit</th>
-                          <th className="py-3 px-3">Used Today</th>
-                          <th className="py-3 px-3">Remaining Today</th>
-                          <th className="py-3 px-3">Monthly Limit</th>
-                          <th className="py-3 px-3">Used This Month</th>
-                          <th className="py-3 px-3">Remaining</th>
-                          <th className="py-3 px-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <tr key={i} className="animate-pulse">
-                            <td className="py-3.5 px-3.5">
-                              <div className="h-3.5 w-28 bg-slate-200 rounded" />
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="h-3 w-20 bg-slate-200 rounded" />
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="h-4 w-12 bg-slate-200 rounded" />
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="h-4 w-10 bg-slate-200 rounded" />
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="h-4 w-12 bg-slate-200 rounded" />
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="h-4 w-12 bg-slate-200 rounded" />
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="h-4 w-10 bg-slate-200 rounded" />
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="h-4 w-12 bg-slate-200 rounded" />
-                            </td>
-                            <td className="py-3.5 px-3 text-right">
-                              <div className="h-6 w-16 bg-slate-200 rounded ml-auto" />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : error ? (
-                  <div className="p-10 text-center text-xs text-rose-700 bg-rose-50/50 space-y-2">
-                    <AlertTriangle className="size-6 text-rose-500 mx-auto" />
-                    <p className="font-semibold">{error}</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRefresh((v) => v + 1)}
-                      className="mt-2 text-xs"
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                ) : paginatedEmployees.length === 0 ? (
-                  <div className="p-12 text-center text-xs text-slate-500 space-y-2">
-                    <Users className="size-8 text-slate-300 mx-auto" />
-                    <p className="font-semibold text-slate-700">No employees match this search</p>
-                    <p className="text-[11px] text-slate-400">
-                      Try adjusting the search query to find employees.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="w-full overflow-x-auto min-w-0">
-                    <table className="w-full text-left text-xs text-slate-700 border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-600 select-none">
-                          <th
-                            className="py-3 px-3.5 cursor-pointer hover:text-slate-900 transition-colors min-w-[170px]"
-                            onClick={() => handleSort('name')}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span>Employee</span>
-                              {sortKey === 'name' ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="size-3 text-[#173D30]" />
-                                ) : (
-                                  <ArrowDown className="size-3 text-[#173D30]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="size-3 text-slate-400" />
-                              )}
-                            </span>
-                          </th>
+            {/* Search input: Vertically centered with tabs */}
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder={
+                  activeTab === 'employees'
+                    ? 'Search by name, ID or role...'
+                    : 'Search by role name...'
+                }
+                className="pl-8.5 pr-8 h-8.5 text-xs rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </div>
+          </div>
 
-                          <th
-                            className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[130px]"
-                            onClick={() => handleSort('role')}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span>Role</span>
-                              {sortKey === 'role' ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="size-3 text-[#173D30]" />
-                                ) : (
-                                  <ArrowDown className="size-3 text-[#173D30]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="size-3 text-slate-400" />
-                              )}
-                            </span>
-                          </th>
-
-                          <th
-                            className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[95px]"
-                            onClick={() => handleSort('effectiveDailyLimit')}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span>Daily Limit</span>
-                              {sortKey === 'effectiveDailyLimit' ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="size-3 text-[#173D30]" />
-                                ) : (
-                                  <ArrowDown className="size-3 text-[#173D30]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="size-3 text-slate-400" />
-                              )}
-                            </span>
-                          </th>
-
-                          <th
-                            className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[95px]"
-                            onClick={() => handleSort('usedToday')}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span>Used Today</span>
-                              {sortKey === 'usedToday' ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="size-3 text-[#173D30]" />
-                                ) : (
-                                  <ArrowDown className="size-3 text-[#173D30]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="size-3 text-slate-400" />
-                              )}
-                            </span>
-                          </th>
-
-                          <th
-                            className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[110px]"
-                            onClick={() => handleSort('remainingToday')}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span>Remaining Today</span>
-                              {sortKey === 'remainingToday' ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="size-3 text-[#173D30]" />
-                                ) : (
-                                  <ArrowDown className="size-3 text-[#173D30]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="size-3 text-slate-400" />
-                              )}
-                            </span>
-                          </th>
-
-                          <th
-                            className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[100px]"
-                            onClick={() => handleSort('effectiveMonthlyLimit')}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span>Monthly Limit</span>
-                              {sortKey === 'effectiveMonthlyLimit' ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="size-3 text-[#173D30]" />
-                                ) : (
-                                  <ArrowDown className="size-3 text-[#173D30]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="size-3 text-slate-400" />
-                              )}
-                            </span>
-                          </th>
-
-                          <th
-                            className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[110px]"
-                            onClick={() => handleSort('usedThisMonth')}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span>Used This Month</span>
-                              {sortKey === 'usedThisMonth' ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="size-3 text-[#173D30]" />
-                                ) : (
-                                  <ArrowDown className="size-3 text-[#173D30]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="size-3 text-slate-400" />
-                              )}
-                            </span>
-                          </th>
-
-                          <th
-                            className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[100px]"
-                            onClick={() => handleSort('remainingThisMonth')}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span>Remaining</span>
-                              {sortKey === 'remainingThisMonth' ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="size-3 text-[#173D30]" />
-                                ) : (
-                                  <ArrowDown className="size-3 text-[#173D30]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="size-3 text-slate-400" />
-                              )}
-                            </span>
-                          </th>
-
-                          <th className="py-3 px-3 text-right min-w-[95px]">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {paginatedEmployees.map((emp) => {
-                          const initial = (emp.name || 'E')[0]?.toUpperCase();
-                          const isDailyExhausted = emp.remainingToday <= 0;
-                          const isMonthlyExhausted = emp.remainingThisMonth <= 0;
-
-                          return (
-                            <tr
-                              key={emp.employeeId}
-                              className="hover:bg-slate-50/70 transition-colors"
-                            >
-                              {/* 1. Employee */}
-                              <td className="py-3 px-3.5">
-                                <div className="flex items-center gap-2.5">
-                                  <span className="flex size-7 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-[#173D30] border border-emerald-200 shrink-0">
-                                    {initial}
-                                  </span>
-                                  <div className="min-w-0">
-                                    <p className="font-bold text-slate-900 text-xs truncate">
-                                      {emp.name}
-                                    </p>
-                                    <p className="text-[10px] text-slate-400 font-mono">
-                                      {emp.employeeCode || `ID #${emp.employeeId}`}
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* 2. Role */}
-                              <td className="py-3 px-3">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 whitespace-nowrap">
-                                    {emp.role}
-                                  </span>
-                                  {emp.isCustom && (
-                                    <span
-                                      className="inline-flex rounded bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 text-[9px] font-bold"
-                                      title="Custom quota configured for this employee"
-                                    >
-                                      Custom
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-
-                              {/* 3. Daily Limit */}
-                              <td className="py-3 px-3 font-semibold text-slate-800">
-                                {emp.effectiveDailyLimit}
-                              </td>
-
-                              {/* 4. Used Today */}
-                              <td className="py-3 px-3 text-slate-700">
-                                <span className="font-medium">{emp.usedToday}</span>
-                              </td>
-
-                              {/* 5. Remaining Today */}
-                              <td className="py-3 px-3">
-                                <span
-                                  className={cn(
-                                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border shadow-2xs',
-                                    isDailyExhausted
-                                      ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                  )}
-                                >
-                                  <span
-                                    className={cn(
-                                      'size-1.5 rounded-full',
-                                      isDailyExhausted ? 'bg-rose-500' : 'bg-emerald-500'
-                                    )}
-                                  />
-                                  {emp.remainingToday}
-                                </span>
-                              </td>
-
-                              {/* 6. Monthly Limit */}
-                              <td className="py-3 px-3 font-semibold text-slate-800">
-                                {emp.effectiveMonthlyLimit}
-                              </td>
-
-                              {/* 7. Used This Month */}
-                              <td className="py-3 px-3 text-slate-700">
-                                <span className="font-medium">{emp.usedThisMonth}</span>
-                              </td>
-
-                              {/* 8. Remaining Monthly */}
-                              <td className="py-3 px-3">
-                                <span
-                                  className={cn(
-                                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border shadow-2xs',
-                                    isMonthlyExhausted
-                                      ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                      : 'bg-blue-50 text-blue-800 border-blue-200'
-                                  )}
-                                >
-                                  <span
-                                    className={cn(
-                                      'size-1.5 rounded-full',
-                                      isMonthlyExhausted ? 'bg-rose-500' : 'bg-blue-500'
-                                    )}
-                                  />
-                                  {emp.remainingThisMonth}
-                                </span>
-                              </td>
-
-                              {/* 9. Actions */}
-                              <td className="py-3 px-3 text-right">
-                                {allowed && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenEmployeeEdit(emp)}
-                                    className="h-7 text-[11px] px-2 gap-1 border-slate-200 text-slate-700 hover:text-[#173D30] hover:bg-slate-50"
-                                  >
-                                    <Edit className="size-3" />
-                                    <span>Set Limit</span>
-                                  </Button>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Pagination */}
-                <div className="p-3 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      Showing{' '}
-                      <span className="font-semibold text-slate-800">
-                        {sortedEmployees.length === 0
-                          ? 0
-                          : (currentPage - 1) * rowsPerPage + 1}
-                      </span>{' '}
-                      to{' '}
-                      <span className="font-semibold text-slate-800">
-                        {Math.min(currentPage * rowsPerPage, sortedEmployees.length)}
-                      </span>{' '}
-                      of{' '}
-                      <span className="font-semibold text-slate-800">
-                        {sortedEmployees.length}
-                      </span>{' '}
-                      employees
-                    </div>
-
-                    <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
-                      <span>Rows:</span>
-                      <select
-                        aria-label="Rows per page"
-                        value={rowsPerPage}
-                        onChange={(e) => {
-                          setRowsPerPage(Number(e.target.value));
-                          setCurrentPage(1);
-                        }}
-                        className="h-7 rounded border border-slate-200 bg-white px-1.5 text-xs text-slate-700"
-                      >
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage <= 1}
-                      onClick={() => setCurrentPage((p) => p - 1)}
-                      className="h-8 gap-1 rounded-lg text-xs"
-                    >
-                      <ChevronLeft className="size-3.5" />
-                      <span>Previous</span>
-                    </Button>
-
-                    <span className="px-2 font-medium text-slate-700">
-                      Page {currentPage} of {totalEmployeePages}
-                    </span>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage >= totalEmployeePages}
-                      onClick={() => setCurrentPage((p) => p + 1)}
-                      className="h-8 gap-1 rounded-lg text-xs"
-                    >
-                      <span>Next</span>
-                      <ChevronRight className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: ROLE LIMITS TABLE */}
-            {activeTab === 'roles' && (
-              <div className="w-full overflow-x-auto min-w-0">
-                <table className="w-full text-left text-xs text-slate-700 border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-600">
-                      <th className="py-3 px-3.5 min-w-[160px]">Role Name</th>
-                      <th className="py-3 px-3 min-w-[110px]">Daily Limit</th>
-                      <th className="py-3 px-3 min-w-[110px]">Monthly Limit</th>
-                      <th className="py-3 px-3 min-w-[100px]">Status</th>
-                      <th className="py-3 px-3 text-right min-w-[110px]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredRoles.map((r) => {
-                      const name = r.roleName || r.name;
-                      const isActive = r.isActive !== false;
-
-                      return (
-                        <tr key={r.id || name} className="hover:bg-slate-50/70 transition-colors">
+          {/* TAB 1: EMPLOYEE LIMITS TABLE */}
+          {activeTab === 'employees' && (
+            <div>
+              {loading ? (
+                <div className="w-full overflow-x-auto min-w-0">
+                  <table className="w-full text-left text-xs text-slate-700 border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-600">
+                        <th className="py-3 px-3.5">Employee</th>
+                        <th className="py-3 px-3">Role</th>
+                        <th className="py-3 px-3">Daily Limit</th>
+                        <th className="py-3 px-3">Used Today</th>
+                        <th className="py-3 px-3">Remaining Today</th>
+                        <th className="py-3 px-3">Monthly Limit</th>
+                        <th className="py-3 px-3">Used This Month</th>
+                        <th className="py-3 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <tr key={i} className="animate-pulse">
                           <td className="py-3.5 px-3.5">
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="size-4 text-[#20C466]" />
-                              <div>
-                                <p className="font-bold text-slate-900 text-xs">{name}</p>
-                                {r.isCustom && (
-                                  <span className="text-[10px] text-slate-400">
-                                    Custom configured
+                            <div className="h-3.5 w-28 bg-slate-200 rounded" />
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="h-3 w-20 bg-slate-200 rounded" />
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="h-4 w-12 bg-slate-200 rounded" />
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="h-4 w-10 bg-slate-200 rounded" />
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="h-4 w-12 bg-slate-200 rounded" />
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="h-4 w-12 bg-slate-200 rounded" />
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="h-4 w-10 bg-slate-200 rounded" />
+                          </td>
+                          <td className="py-3.5 px-3 text-right">
+                            <div className="h-6 w-16 bg-slate-200 rounded ml-auto" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : error ? (
+                <div className="p-10 text-center text-xs text-rose-700 bg-rose-50/50 space-y-2">
+                  <AlertTriangle className="size-6 text-rose-500 mx-auto" />
+                  <p className="font-semibold">{error}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRefresh((v) => v + 1)}
+                    className="mt-2 text-xs"
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ) : paginatedEmployees.length === 0 ? (
+                <div className="p-12 text-center text-xs text-slate-500 space-y-2">
+                  <Users className="size-8 text-slate-300 mx-auto" />
+                  <p className="font-semibold text-slate-700">No employees match this search</p>
+                  <p className="text-[11px] text-slate-400">
+                    Try adjusting the search query to find employees.
+                  </p>
+                </div>
+              ) : (
+                <div className="w-full overflow-x-auto min-w-0">
+                  <table className="w-full text-left text-xs text-slate-700 border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-600 select-none">
+                        <th
+                          className="py-3 px-3.5 cursor-pointer hover:text-slate-900 transition-colors min-w-[170px]"
+                          onClick={() => handleSort('name')}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>Employee</span>
+                            {sortKey === 'name' ? (
+                              sortDir === 'asc' ? (
+                                <ArrowUp className="size-3 text-[#173D30]" />
+                              ) : (
+                                <ArrowDown className="size-3 text-[#173D30]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="size-3 text-slate-400" />
+                            )}
+                          </span>
+                        </th>
+
+                        <th
+                          className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[130px]"
+                          onClick={() => handleSort('role')}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>Role</span>
+                            {sortKey === 'role' ? (
+                              sortDir === 'asc' ? (
+                                <ArrowUp className="size-3 text-[#173D30]" />
+                              ) : (
+                                <ArrowDown className="size-3 text-[#173D30]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="size-3 text-slate-400" />
+                            )}
+                          </span>
+                        </th>
+
+                        <th
+                          className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[95px]"
+                          onClick={() => handleSort('effectiveDailyLimit')}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>Daily Limit</span>
+                            {sortKey === 'effectiveDailyLimit' ? (
+                              sortDir === 'asc' ? (
+                                <ArrowUp className="size-3 text-[#173D30]" />
+                              ) : (
+                                <ArrowDown className="size-3 text-[#173D30]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="size-3 text-slate-400" />
+                            )}
+                          </span>
+                        </th>
+
+                        <th
+                          className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[95px]"
+                          onClick={() => handleSort('usedToday')}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>Used Today</span>
+                            {sortKey === 'usedToday' ? (
+                              sortDir === 'asc' ? (
+                                <ArrowUp className="size-3 text-[#173D30]" />
+                              ) : (
+                                <ArrowDown className="size-3 text-[#173D30]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="size-3 text-slate-400" />
+                            )}
+                          </span>
+                        </th>
+
+                        <th
+                          className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[110px]"
+                          onClick={() => handleSort('remainingToday')}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>Remaining Today</span>
+                            {sortKey === 'remainingToday' ? (
+                              sortDir === 'asc' ? (
+                                <ArrowUp className="size-3 text-[#173D30]" />
+                              ) : (
+                                <ArrowDown className="size-3 text-[#173D30]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="size-3 text-slate-400" />
+                            )}
+                          </span>
+                        </th>
+
+                        <th
+                          className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[100px]"
+                          onClick={() => handleSort('effectiveMonthlyLimit')}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>Monthly Limit</span>
+                            {sortKey === 'effectiveMonthlyLimit' ? (
+                              sortDir === 'asc' ? (
+                                <ArrowUp className="size-3 text-[#173D30]" />
+                              ) : (
+                                <ArrowDown className="size-3 text-[#173D30]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="size-3 text-slate-400" />
+                            )}
+                          </span>
+                        </th>
+
+                        <th
+                          className="py-3 px-3 cursor-pointer hover:text-slate-900 transition-colors min-w-[110px]"
+                          onClick={() => handleSort('usedThisMonth')}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span>Used This Month</span>
+                            {sortKey === 'usedThisMonth' ? (
+                              sortDir === 'asc' ? (
+                                <ArrowUp className="size-3 text-[#173D30]" />
+                              ) : (
+                                <ArrowDown className="size-3 text-[#173D30]" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="size-3 text-slate-400" />
+                            )}
+                          </span>
+                        </th>
+
+                        <th className="py-3 px-3 text-right min-w-[95px]">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedEmployees.map((emp) => {
+                        const initial = (emp.name || 'E')[0]?.toUpperCase();
+                        const isDailyExhausted = emp.remainingToday <= 0;
+
+                        return (
+                          <tr
+                            key={emp.employeeId}
+                            className="hover:bg-slate-50/70 transition-colors"
+                          >
+                            {/* 1. Employee */}
+                            <td className="py-3 px-3.5">
+                              <div className="flex items-center gap-2.5">
+                                <span className="flex size-7 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-[#173D30] border border-emerald-200 shrink-0">
+                                  {initial}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-slate-900 text-xs truncate">
+                                    {emp.name}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-mono">
+                                    {emp.employeeCode || `ID #${emp.employeeId}`}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* 2. Role */}
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                                  {emp.role}
+                                </span>
+                                {emp.isCustom && (
+                                  <span
+                                    className="inline-flex rounded bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 text-[9px] font-bold"
+                                    title="Custom quota configured for this employee"
+                                  >
+                                    Custom
                                   </span>
                                 )}
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          <td className="py-3.5 px-3 font-semibold text-slate-800">
-                            {r.dailyLimit} leads/day
-                          </td>
+                            {/* 3. Daily Limit */}
+                            <td className="py-3 px-3 font-semibold text-slate-800">
+                              {emp.effectiveDailyLimit}
+                            </td>
 
-                          <td className="py-3.5 px-3 font-semibold text-slate-800">
-                            {r.monthlyLimit} leads/month
-                          </td>
+                            {/* 4. Used Today */}
+                            <td className="py-3 px-3 text-slate-700">
+                              <span className="font-medium">{emp.usedToday}</span>
+                            </td>
 
-                          <td className="py-3.5 px-3">
-                            <span
-                              className={cn(
-                                'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border shadow-2xs',
-                                isActive
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                  : 'bg-slate-100 text-slate-600 border-slate-200'
-                              )}
-                            >
+                            {/* 5. Remaining Today */}
+                            <td className="py-3 px-3">
                               <span
                                 className={cn(
-                                  'size-1.5 rounded-full',
-                                  isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border shadow-2xs',
+                                  isDailyExhausted
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                 )}
-                              />
-                              {isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-3 text-right">
-                            {allowed && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleRoleSelect(name)}
-                                className="h-7 text-[11px] px-2.5 gap-1 border-slate-200 text-slate-700 hover:text-[#173D30] hover:bg-slate-50"
                               >
-                                <Edit className="size-3" />
-                                <span>Edit Quota</span>
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                                <span
+                                  className={cn(
+                                    'size-1.5 rounded-full',
+                                    isDailyExhausted ? 'bg-rose-500' : 'bg-emerald-500'
+                                  )}
+                                />
+                                {emp.remainingToday}
+                              </span>
+                            </td>
+
+                            {/* 6. Monthly Limit */}
+                            <td className="py-3 px-3 font-semibold text-slate-800">
+                              {emp.effectiveMonthlyLimit}
+                            </td>
+
+                            {/* 7. Used This Month */}
+                            <td className="py-3 px-3 text-slate-700">
+                              <span className="font-medium">{emp.usedThisMonth}</span>
+                            </td>
+
+                            {/* 8. Actions */}
+                            <td className="py-3 px-3 text-right">
+                              {allowed && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenEmployeeEdit(emp)}
+                                  className="h-7 text-[11px] px-2 gap-1 border-slate-200 text-slate-700 hover:text-[#173D30] hover:bg-slate-50"
+                                >
+                                  <Edit className="size-3" />
+                                  <span>Set Limit</span>
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Pagination Footer inside Employee card */}
+              <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div>
+                    Showing{' '}
+                    <span className="font-semibold text-slate-800">
+                      {sortedEmployees.length === 0
+                        ? 0
+                        : (currentPage - 1) * rowsPerPage + 1}
+                    </span>{' '}
+                    to{' '}
+                    <span className="font-semibold text-slate-800">
+                      {Math.min(currentPage * rowsPerPage, sortedEmployees.length)}
+                    </span>{' '}
+                    of{' '}
+                    <span className="font-semibold text-slate-800">
+                      {sortedEmployees.length}
+                    </span>{' '}
+                    employees
+                  </div>
+
+                  <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                    <span>Rows per page:</span>
+                    <select
+                      aria-label="Rows per page"
+                      value={rowsPerPage}
+                      onChange={(e) => {
+                        setRowsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#173D30]"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    className="h-8 gap-1 rounded-lg text-xs border-slate-200 text-slate-700 hover:text-[#173D30]"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                    <span>Previous</span>
+                  </Button>
+
+                  <span className="px-2 font-medium text-slate-700">
+                    Page {currentPage} of {totalEmployeePages}
+                  </span>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage >= totalEmployeePages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    className="h-8 gap-1 rounded-lg text-xs border-slate-200 text-slate-700 hover:text-[#173D30]"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="size-3.5" />
+                  </Button>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* TAB 2: ROLE LIMITS TABLE */}
+          {activeTab === 'roles' && (
+            <div className="w-full overflow-x-auto min-w-0">
+              <table className="w-full text-left text-xs text-slate-700 border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-600">
+                    <th className="py-3 px-3.5 min-w-[160px]">Role Name</th>
+                    <th className="py-3 px-3 min-w-[110px]">Daily Limit</th>
+                    <th className="py-3 px-3 min-w-[110px]">Monthly Limit</th>
+                    <th className="py-3 px-3 min-w-[100px]">Status</th>
+                    <th className="py-3 px-3 text-right min-w-[110px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredRoles.map((r) => {
+                    const name = r.roleName || r.name;
+                    const isActive = r.isActive !== false;
+
+                    return (
+                      <tr key={r.id || name} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-3.5">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="size-4 text-[#20C466]" />
+                            <div>
+                              <p className="font-bold text-slate-900 text-xs">{name}</p>
+                              {r.isCustom && (
+                                <span className="text-[10px] text-slate-400">
+                                  Custom configured
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-3 font-semibold text-slate-800">
+                          {r.dailyLimit} leads/day
+                        </td>
+
+                        <td className="py-3.5 px-3 font-semibold text-slate-800">
+                          {r.monthlyLimit} leads/month
+                        </td>
+
+                        <td className="py-3.5 px-3">
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border shadow-2xs',
+                              isActive
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : 'bg-slate-100 text-slate-600 border-slate-200'
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'size-1.5 rounded-full',
+                                isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                              )}
+                            />
+                            {isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-3 text-right">
+                          {allowed && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRoleSelect(name)}
+                              className="h-7 text-[11px] px-2.5 gap-1 border-slate-200 text-slate-700 hover:text-[#173D30] hover:bg-slate-50"
+                            >
+                              <Edit className="size-3" />
+                              <span>Edit Quota</span>
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Right Column (1 Span): Role Limits Presets Panel */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <div className="flex items-center gap-2">
+        {/* Right Column (approx 31% width): Role Limits Presets Panel */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden flex flex-col">
+          {/* Header: Exact Same Vertical Position, Height & Divider Line as Left Header */}
+          <div className="min-h-16 px-4 py-3 border-b border-slate-200/80 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-xl bg-emerald-50 text-[#173D30] flex items-center justify-center border border-emerald-200 shrink-0">
                 <Layers className="size-4 text-[#20C466]" />
-                <h3 className="font-bold text-xs text-slate-900">Role Limits Presets</h3>
               </div>
-              <span className="text-[10px] font-semibold text-slate-400">
-                {roles.length} Roles
-              </span>
+              <div>
+                <h3 className="font-bold text-xs text-slate-900 leading-tight">Role Limits Presets</h3>
+                <p className="text-[10px] text-slate-400 leading-tight">Default role quotas</p>
+              </div>
             </div>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-[#173D30] border border-emerald-200 shrink-0">
+              {roles.length} Roles
+            </span>
+          </div>
 
-            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-              {roles.map((r) => {
-                const name = r.roleName || r.name;
-                const isCurrent =
-                  roleForm.roleName?.toLowerCase() === name?.toLowerCase();
+          {/* Independent Scrollable Role Cards List */}
+          <div className="p-3.5 space-y-2.5 overflow-y-auto max-h-[580px] scrollbar-thin">
+            {roles.map((r) => {
+              const name = r.roleName || r.name;
+              const isCurrent =
+                roleForm.roleName?.toLowerCase() === name?.toLowerCase();
+              const isActive = r.isActive !== false;
 
-                return (
-                  <div
-                    key={r.id || name}
-                    onClick={() => handleRoleSelect(name)}
-                    className={cn(
-                      'p-2.5 rounded-xl border text-xs cursor-pointer transition-all space-y-1',
-                      isCurrent
-                        ? 'bg-emerald-50/60 border-emerald-300 ring-1 ring-[#20C466]/40'
-                        : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/70'
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 truncate max-w-[140px]" title={name}>
-                        {name}
-                      </span>
+              return (
+                <div
+                  key={r.id || name}
+                  onClick={() => handleRoleSelect(name)}
+                  className={cn(
+                    'p-3 rounded-xl border text-xs cursor-pointer transition-all space-y-1.5 select-none',
+                    isCurrent
+                      ? 'bg-emerald-50/70 border-emerald-300 ring-1 ring-[#20C466]/40 shadow-2xs'
+                      : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/70 hover:border-slate-300'
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-900 truncate" title={name}>
+                      {name}
+                    </span>
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                        isActive
+                          ? 'bg-emerald-100/70 text-emerald-800 border-emerald-200'
+                          : 'bg-slate-200/70 text-slate-600 border-slate-300'
+                      )}
+                    >
                       <span
                         className={cn(
-                          'text-[10px] font-bold px-1.5 py-0.2 rounded',
-                          r.isActive !== false
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-slate-200 text-slate-600'
+                          'size-1.5 rounded-full',
+                          isActive ? 'bg-emerald-500' : 'bg-slate-400'
                         )}
-                      >
-                        {r.isActive !== false ? 'Active' : 'Off'}
-                      </span>
-                    </div>
+                      />
+                      {isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
-                      <span>Daily: <strong className="text-slate-800">{r.dailyLimit}</strong></span>
-                      <span>Monthly: <strong className="text-slate-800">{r.monthlyLimit}</strong></span>
+                  <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200/50 text-[11px] text-slate-500">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Daily Limit</span>
+                      <strong className="text-slate-800 font-semibold">{r.dailyLimit} leads</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Monthly Limit</span>
+                      <strong className="text-slate-800 font-semibold">{r.monthlyLimit} leads</strong>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
+          </div>
 
-            <div className="pt-2 border-t border-slate-100">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab('roles')}
-                className="w-full h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#173D30]"
-              >
-                View All Roles
-              </Button>
-            </div>
+          {/* Fixed Bottom View All Roles Button: Remains inside right panel */}
+          <div className="p-3.5 border-t border-slate-100 bg-slate-50/50 mt-auto shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setActiveTab('roles');
+              }}
+              className="w-full h-8.5 text-xs font-semibold rounded-xl border-slate-200 text-slate-700 hover:text-[#173D30] hover:bg-white shadow-2xs"
+            >
+              View All Roles
+            </Button>
           </div>
         </div>
       </div>
