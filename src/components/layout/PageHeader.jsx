@@ -83,6 +83,7 @@ const routeRegistry = {
     'influencer-bookings': { category: 'INFLUENCER MANAGEMENT', title: 'Influencer Bookings', icon: faCalendar },
     'trending-content': { category: 'CONTENT MANAGEMENT', title: 'Trending Content', icon: faChartBar },
     'home-banners': { category: 'CONTENT MANAGEMENT', title: 'Home Banners', icon: faImage },
+    'banners': { category: 'CONTENT MANAGEMENT', title: 'Home Banners', icon: faImage },
     'marketing-videos': { category: 'CONTENT MANAGEMENT', title: 'Marketing Videos', icon: faVideo },
 
     // Workforce & HRM Sections

@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import api from '../../../../lib/api';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
@@ -421,70 +422,43 @@ export function MetaWhatsAppCampaigns() {
 
   return (
     <div className="min-w-0 w-full max-w-full space-y-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
-      {/* ── Top Header (WhatsApp Campaigns Dashboard Hero Banner) ── */}
-      <section
-        aria-label="WhatsApp Campaigns Dashboard"
-        className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#0B3323] via-[#0F442F] to-[#0D3B29] p-5 sm:p-7 md:p-8 text-white shadow-md border border-emerald-900/40"
-      >
-        {/* Subtle decorative glow highlights */}
-        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 size-72 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div aria-hidden="true" className="pointer-events-none absolute right-1/4 -bottom-16 size-60 rounded-full bg-emerald-400/10 blur-2xl" />
-
-        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          {/* Left: Pill Badge + Title + Description */}
-          <div className="space-y-2.5 max-w-2xl">
-            {/* Meta Cloud API Broadcasts Pill */}
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#08291c]/90 border border-[#14593b] px-3 py-1 text-xs font-medium text-emerald-300 shadow-xs">
-              <FontAwesomeIcon icon={faWhatsapp} className="text-[#25D366] text-sm" />
-              <span>Meta Cloud API Broadcasts</span>
-            </div>
-
-            {/* Main Heading */}
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight">
-              WhatsApp Campaigns Dashboard
-            </h1>
-
-            {/* Description Subtitle */}
-            <p className="text-xs sm:text-sm text-emerald-100/80 leading-relaxed">
-              Target your CRM leads or custom phone lists with personalized variables, scheduled delivery, and real-time send tracking via approved WhatsApp business templates.
-            </p>
-          </div>
-
-          {/* Right: Actions */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+      {/* ── Top Header ────────────────────────────────────────────── */}
+      <PageHeader
+        category="TEMPLATES & ASSETS"
+        title="WhatsApp Campaigns"
+        icon={faBullhorn}
+        description="Create, manage and track WhatsApp messaging campaigns using approved Meta templates."
+        actions={
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <Button
               type="button"
-              className="bg-[#059669] hover:bg-[#047857] text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all inline-flex items-center gap-2 text-sm border-0"
+              className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white shadow-sm transition-all"
               onClick={openCreate}
             >
-              <FontAwesomeIcon icon={faPlus} className="text-xs" />
-              <span>New Campaign</span>
+              <FontAwesomeIcon icon={faPlus} className="mr-2" />
+              Create Campaign
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={exportCampaignsCsv}
               disabled={!rows.length}
-              className="bg-white/10 hover:bg-white/15 border-white/20 hover:border-white/30 text-white font-medium px-4 py-2.5 rounded-xl transition-all inline-flex items-center gap-2 text-sm disabled:opacity-40"
+              className="w-full sm:w-auto border-slate-200"
             >
-              <FontAwesomeIcon icon={faDownload} className="text-xs text-emerald-200" />
-              <span>Export CSV</span>
+              <FontAwesomeIcon icon={faDownload} className="mr-2" />
+              Export CSV
             </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="bg-white/10 hover:bg-white/15 border-white/20 hover:border-white/30 text-white font-medium px-3.5 py-2.5 rounded-xl transition-all inline-flex items-center gap-2 text-sm"
-            >
+            <Button asChild variant="outline" className="w-full sm:w-auto border-slate-200">
               <Link href="/admin/sections/meta-templates">
-                <FontAwesomeIcon icon={faRotateLeft} className="text-xs" />
-                <span className="hidden sm:inline">All Templates</span>
+                <FontAwesomeIcon icon={faRotateLeft} className="mr-2" />
+                All Templates
               </Link>
             </Button>
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="bg-white/10 hover:bg-white/15 border-white/20 hover:border-white/30 text-white rounded-xl transition-all"
+              className="hidden sm:inline-flex border-slate-200 text-slate-600 hover:text-slate-900"
               onClick={load}
               disabled={loading}
               title="Refresh"
@@ -492,8 +466,8 @@ export function MetaWhatsAppCampaigns() {
               <FontAwesomeIcon icon={faRotate} className={loading ? 'animate-spin' : ''} />
             </Button>
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* ── KPI Cards Grid ────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
