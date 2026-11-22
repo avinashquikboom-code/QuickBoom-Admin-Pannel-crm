@@ -10,8 +10,6 @@ export default function ActivitiesLoading() {
           <div key={item} className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white" />
         ))}
       </div>
-      {/* Banner Skeleton */}
-      <div className="h-16 animate-pulse rounded-2xl border border-amber-200/50 bg-amber-50/50" />
       {/* Filter Toolbar Skeleton */}
       <div className="h-20 animate-pulse rounded-2xl border border-slate-200 bg-white" />
       {/* Table Skeleton */}

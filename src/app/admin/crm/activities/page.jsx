@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Smartphone,
   AlertTriangle,
-  Info,
   Search,
   Filter,
   RotateCw,
@@ -743,20 +742,7 @@ export default function ActivitiesPage() {
         </div>
       </div>
 
-      {/* 3. Activity Information Banner */}
-      <div className="flex items-start gap-3.5 rounded-2xl border border-amber-200/90 bg-amber-50/80 p-4 sm:p-4.5 text-amber-900 shadow-xs">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-amber-300/70 bg-amber-100/90 text-amber-800">
-          <Info className="size-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h4 className="text-sm font-bold text-amber-950">Creating an Activity</h4>
-          <p className="mt-0.5 text-xs sm:text-sm text-amber-900/90 leading-relaxed">
-            CRM activity history is the audit log. There is no separate create-activity endpoint. Tasks, visits, and lead follow-ups are the records that can be created.
-          </p>
-        </div>
-      </div>
-
-      {/* 4. Search and Advanced Filters Panel */}
+      {/* 3. Search and Advanced Filters Panel */}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs space-y-3.5">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Main Search Input */}
@@ -963,7 +949,7 @@ export default function ActivitiesPage() {
         </div>
       </div>
 
-      {/* 5. Activities Table Section */}
+      {/* 4. Activities Table Section */}
       <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
         {/* Error State */}
         {error && (
@@ -1273,7 +1259,7 @@ export default function ActivitiesPage() {
         )}
       </div>
 
-      {/* 7. Slide-over Activity Detail Drawer */}
+      {/* 5. Slide-over Activity Detail Drawer */}
       <ActivityDetailDrawer
         activity={selectedActivity}
         open={isDetailOpen}
