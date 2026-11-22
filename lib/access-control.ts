@@ -205,10 +205,10 @@ export const adminNavigation: {
       ],
     },
 
-    // 9. Content Management
+    // 9. In App AD's
     {
       id: 'content-management',
-      category: 'Content Management',
+      category: "In App AD's",
       sectionIcon: Video,
       roles: ['Super Admin'],
       items: [

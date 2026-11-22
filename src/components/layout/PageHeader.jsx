@@ -81,10 +81,10 @@ const routeRegistry = {
     'influencer-hub': { category: 'INFLUENCER MANAGEMENT', title: 'Influencer Hub', icon: faIdBadge },
     'influencer-applications': { category: 'INFLUENCER MANAGEMENT', title: 'Influencer Applications', icon: faUsers },
     'influencer-bookings': { category: 'INFLUENCER MANAGEMENT', title: 'Influencer Bookings', icon: faCalendar },
-    'trending-content': { category: 'CONTENT MANAGEMENT', title: 'Trending Content', icon: faChartBar },
-    'home-banners': { category: 'CONTENT MANAGEMENT', title: 'Home Banners', icon: faImage },
-    'banners': { category: 'CONTENT MANAGEMENT', title: 'Home Banners', icon: faImage },
-    'marketing-videos': { category: 'CONTENT MANAGEMENT', title: 'Marketing Videos', icon: faVideo },
+    'trending-content': { category: "IN APP AD'S", title: 'Trending Content', icon: faChartBar },
+    'home-banners': { category: "IN APP AD'S", title: 'Home Banners', icon: faImage },
+    'banners': { category: "IN APP AD'S", title: 'Home Banners', icon: faImage },
+    'marketing-videos': { category: "IN APP AD'S", title: 'Marketing Videos', icon: faVideo },
 
     // Workforce & HRM Sections
     'office-management': { category: 'WORKFORCE MANAGEMENT', title: 'Office Management', icon: faBuilding },

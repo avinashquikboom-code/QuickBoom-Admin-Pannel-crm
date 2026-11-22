@@ -95,6 +95,8 @@ const DEFAULT_ICON_MAP = {
   'whatsapp marketing': MessageSquare,
   whatsapp: MessageSquare,
   'email marketing': Mail,
+  'in app ad\'s': Sparkles,
+  'in app ads': Sparkles,
   'content management': Sparkles,
   'trending content': Sparkles,
   'home banners': Layers,
