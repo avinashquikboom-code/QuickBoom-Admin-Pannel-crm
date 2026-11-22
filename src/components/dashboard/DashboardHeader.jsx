@@ -21,32 +21,36 @@ export function DashboardHeader({
   const [sessionUser, setSessionUser] = React.useState(null);
   const [activePreset, setActivePreset] = React.useState('30D');
   const [showCustomRange, setShowCustomRange] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+  const [todayStr, setTodayStr] = React.useState('');
 
   React.useEffect(() => {
+    setMounted(true);
     const user = readSession()?.user;
     if (user) setSessionUser(user);
+    setTodayStr(
+      new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    );
   }, []);
 
-  const adminName =
-    authUser?.firstName ||
-    authUser?.fullName ||
-    sessionUser?.firstName ||
-    sessionUser?.fullName ||
-    sessionUser?.name ||
-    'Super Admin';
+  const adminName = mounted
+    ? (authUser?.firstName ||
+       authUser?.fullName ||
+       sessionUser?.firstName ||
+       sessionUser?.fullName ||
+       sessionUser?.name ||
+       'Super Admin')
+    : 'Super Admin';
 
   const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-
-  const todayStr = React.useMemo(() => {
-    return new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  }, []);
+  const greeting = mounted
+    ? (hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening')
+    : 'Welcome';
 
   const presets = [
     { key: 'Today', label: 'Today' },
@@ -146,13 +150,13 @@ export function DashboardHeader({
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span className="flex items-center gap-1.5 font-medium text-slate-600">
               <Calendar className="size-3.5 text-slate-400" />
-              {todayStr}
+              {todayStr || 'Today'}
             </span>
             <span className="text-slate-300 hidden sm:inline">•</span>
           <p className="text-xs sm:text-sm text-slate-500 font-medium">
             Here&apos;s what&apos;s happening across your business today.
           </p>
-            {lastUpdated && (
+            {mounted && lastUpdated && (
               <>
                 <span className="text-slate-300 hidden sm:inline">•</span>
                 <span className="text-[11px] text-slate-400">
