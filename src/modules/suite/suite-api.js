@@ -11,7 +11,25 @@ export const saveTrending = (values, id) => id ? api.patch(`/admin/trending/${id
 export const removeTrending = (id) => api.delete(`/admin/trending/${id}`);
 export const publishTrending = (id, isPublished) => api.patch(`/admin/trending/${id}/publish`, { isPublished });
 
-export const loadBanners = (query = {}) => {
+function bannerListRows(payload) {
+  const candidates = [
+    payload,
+    payload?.items,
+    payload?.banners,
+    payload?.data,
+    payload?.data?.items,
+    payload?.data?.banners,
+    payload?.data?.data,
+    payload?.data?.data?.items,
+  ];
+  const rows = candidates.find(Array.isArray);
+  if (!rows) {
+    throw new Error('The banner list API returned an unexpected response format.');
+  }
+  return rows;
+}
+
+export const loadBanners = async (query = {}) => {
   let isActive = undefined;
   let isPublished = undefined;
   if (query.status === 'ACTIVE') isActive = true;
@@ -19,17 +37,28 @@ export const loadBanners = (query = {}) => {
   else if (query.status === 'PUBLISHED') isPublished = true;
   else if (query.status === 'UNPUBLISHED') isPublished = false;
 
-  return list('/admin/marketing/banners', {
+  const payload = await api.get('/admin/marketing/banners', { params: {
     search: query.search || undefined,
     isActive: query.isActive !== undefined ? query.isActive : isActive,
     isPublished: query.isPublished !== undefined ? query.isPublished : isPublished,
     page: query.page || 1,
     limit: query.limit || 20,
-  });
+  } });
+  return {
+    rows: bannerListRows(payload),
+    pagination: pageOf(payload),
+    payload,
+  };
 };
 
-export const loadBannerStats = () =>
-  api.get('/admin/marketing/banners/stats').then((res) => res?.data || res);
+export const loadBannerStats = async () => {
+  const response = await api.get('/admin/marketing/banners/stats');
+  const stats = response?.data?.stats || response?.data || response?.stats || response;
+  if (!stats || typeof stats.total !== 'number' || typeof stats.active !== 'number' || typeof stats.inactive !== 'number') {
+    throw new Error('The banner statistics API returned an unexpected response format.');
+  }
+  return stats;
+};
 
 export const getBanner = (id) =>
   api.get(`/admin/marketing/banners/${id}`).then((res) => res?.data || res);
@@ -38,24 +67,30 @@ export const saveBanner = (values, id, file = null) => {
   if (file instanceof File) {
     const formData = new FormData();
     formData.append('image', file);
-    if (values.title) formData.append('title', values.title.trim());
-    if (values.subtitle) formData.append('subtitle', values.subtitle.trim());
-    if (values.description) formData.append('description', values.description.trim());
-    if (values.ctaText) formData.append('ctaText', values.ctaText.trim());
-    if (values.ctaUrl) formData.append('ctaUrl', values.ctaUrl.trim());
-    if (values.actionType) formData.append('actionType', values.actionType.trim());
-    if (values.priority !== undefined && values.priority !== '')
-      formData.append('priority', String(Number(values.priority) || 0));
+    if (values.title !== undefined) formData.append('title', values.title?.trim() || '');
+    if (values.subtitle !== undefined) formData.append('subtitle', values.subtitle?.trim() || '');
+    if (values.description !== undefined) formData.append('description', values.description?.trim() || '');
+    if (values.ctaText !== undefined) formData.append('ctaText', values.ctaText?.trim() || '');
+    if (values.ctaUrl !== undefined) formData.append('ctaUrl', values.ctaUrl?.trim() || '');
+    if (values.actionType !== undefined) formData.append('actionType', values.actionType?.trim() || '');
+    formData.append(
+      'priority',
+      String(values.priority !== undefined && values.priority !== '' ? Number(values.priority) || 0 : 0),
+    );
     if (values.isActive !== undefined)
       formData.append('isActive', String(Boolean(values.isActive)));
     if (values.isPublished !== undefined)
       formData.append('isPublished', String(Boolean(values.isPublished)));
-    if (values.startAt || values.startDate)
-      formData.append('startAt', new Date(values.startAt || values.startDate).toISOString());
-    if (values.endAt || values.endDate)
-      formData.append('endAt', new Date(values.endAt || values.endDate).toISOString());
-    if (values.couponCode) formData.append('couponCode', values.couponCode.trim());
-    if (values.discount) formData.append('discount', values.discount.trim());
+    formData.append(
+      'startAt',
+      values.startAt || values.startDate ? new Date(values.startAt || values.startDate).toISOString() : '',
+    );
+    formData.append(
+      'endAt',
+      values.endAt || values.endDate ? new Date(values.endAt || values.endDate).toISOString() : '',
+    );
+    if (values.couponCode !== undefined) formData.append('couponCode', values.couponCode?.trim() || '');
+    if (values.discount !== undefined) formData.append('discount', values.discount?.trim() || '');
 
     return id
       ? api.patch(`/admin/marketing/banners/${id}`, formData)
@@ -157,20 +192,20 @@ function bannerBody(values) {
   const startAt = values.startAt || values.startDate;
   const endAt = values.endAt || values.endDate;
   return {
-    title: values.title?.trim() || undefined,
-    subtitle: values.subtitle?.trim() || undefined,
-    description: values.description?.trim() || undefined,
+    title: values.title !== undefined ? (values.title?.trim() || '') : undefined,
+    subtitle: values.subtitle !== undefined ? (values.subtitle?.trim() || '') : undefined,
+    description: values.description !== undefined ? (values.description?.trim() || '') : undefined,
     imageUrl: values.imageUrl?.trim() || values.image?.trim() || undefined,
-    ctaText: values.ctaText?.trim() || undefined,
-    ctaUrl: values.ctaUrl?.trim() || undefined,
-    actionType: values.actionType?.trim() || undefined,
-    priority: values.priority !== undefined && values.priority !== '' ? Number(values.priority) : 0,
+    ctaText: values.ctaText !== undefined ? (values.ctaText?.trim() || '') : undefined,
+    ctaUrl: values.ctaUrl !== undefined ? (values.ctaUrl?.trim() || '') : undefined,
+    actionType: values.actionType !== undefined ? (values.actionType?.trim() || '') : undefined,
+    priority: values.priority !== undefined && values.priority !== '' ? Number(values.priority) || 0 : 0,
     isActive: values.isActive !== false && values.isActive !== 'false',
     isPublished: values.isPublished !== false && values.isPublished !== 'false',
-    startAt: startAt ? new Date(startAt).toISOString() : undefined,
-    endAt: endAt ? new Date(endAt).toISOString() : undefined,
-    couponCode: values.couponCode?.trim() || undefined,
-    discount: values.discount?.trim() || undefined,
+    startAt: startAt ? new Date(startAt).toISOString() : null,
+    endAt: endAt ? new Date(endAt).toISOString() : null,
+    couponCode: values.couponCode !== undefined ? (values.couponCode?.trim() || '') : undefined,
+    discount: values.discount !== undefined ? (values.discount?.trim() || '') : undefined,
   };
 }
 function videoBody(values) {
