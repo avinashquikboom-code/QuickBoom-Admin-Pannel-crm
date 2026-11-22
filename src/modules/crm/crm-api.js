@@ -192,6 +192,9 @@ export async function loadCustomers(params = {}) {
   if (normalized.status === 'ALL' || normalized.status === '') {
     delete normalized.status;
   }
+  if (normalized.assignedEmployee === 'ALL' || normalized.assignedEmployee === '') {
+    delete normalized.assignedEmployee;
+  }
   const [list, metrics] = await Promise.all([api.get('/customers', { params: normalized }), api.get('/customers/metrics')]);
   const counts = list?.meta?.counts || list?.data?.meta?.counts || {};
   return { rows: listFrom(list), metrics: bodyOf(metrics), pagination: pageOf(list), counts };
@@ -206,13 +209,32 @@ export function saveCustomer(values, id) {
     customerType: values.customerType || undefined,
     industry: values.industry || undefined,
     status: values.status || undefined,
+    isActive: values.isActive !== undefined ? values.isActive : undefined,
     assignedEmployeeId: values.assignedEmployeeId ? Number(values.assignedEmployeeId) : undefined,
     address: values.address || undefined,
     city: values.city || undefined,
+    state: values.state || undefined,
+    country: values.country || undefined,
+    pincode: values.pincode || undefined,
     notes: values.notes || undefined,
   };
-  return id ? api.patch(`/customers/${id}`, body) : api.post('/customers', body);
+  return (id ? api.patch(`/customers/${id}`, body) : api.post('/customers', body)).then((res) => {
+    notifyCustomersChanged();
+    return res;
+  });
 }
+
+export const removeCustomer = (id) => api.delete(`/customers/${id}`).then((res) => {
+  notifyCustomersChanged();
+  return res;
+});
+
+export const bulkDeleteCustomers = async (ids = []) => {
+  const results = await Promise.allSettled(ids.map((id) => api.delete(`/customers/${id}`)));
+  notifyCustomersChanged();
+  const successful = results.filter((r) => r.status === 'fulfilled').length;
+  return { deletedCount: successful };
+};
 
 export const customerRelations = async (id) => {
   const [deals, visits, activities] = await Promise.all([
