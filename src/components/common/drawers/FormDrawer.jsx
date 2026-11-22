@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { Sheet, SheetContent } from "@/components/common/Drawer";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { DrawerHeader } from "./DrawerHeader";
 import { DrawerFooter } from "./DrawerFooter";
 import { cn } from "@/lib/utils";
