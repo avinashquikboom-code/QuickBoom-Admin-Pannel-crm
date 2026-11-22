@@ -865,7 +865,10 @@ export default function CustomerDashboardPage() {
                                   >
                                     {getInitials(displayName)}
                                   </div>
-                                  <span className="font-semibold text-slate-900 truncate max-w-[130px]">
+                                  <span
+                                    title={displayName}
+                                    className="font-semibold text-slate-900 truncate max-w-[130px]"
+                                  >
                                     {displayName}
                                   </span>
                                 </div>

@@ -21,6 +21,7 @@ import {
 } from '@/modules/crm/crm-api';
 import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
 import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Building2,
   CalendarDays,
@@ -307,19 +308,40 @@ export default function CustomersRoute() {
           {
             header: 'Customer',
             accessorKey: 'name',
-            className: 'min-w-[220px]',
+            className: 'w-[240px] max-w-[240px]',
+            meta: { className: 'w-[240px] max-w-[240px]' },
             cell: (row) => <CustomerName row={row} onOpen={() => open(row)} />,
           },
           {
             header: 'Company',
             accessorKey: 'companyName',
-            className: 'min-w-[170px]',
+            className: 'w-[180px] max-w-[180px]',
+            meta: { className: 'w-[180px] max-w-[180px]' },
             cell: (row) =>
               row.companyName ? (
-                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                  <Building2 className="size-3.5 text-slate-400" />
-                  <span className="truncate max-w-[150px]">{row.companyName}</span>
-                </span>
+                <TooltipProvider delay={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        title={row.companyName}
+                        className="inline-flex max-w-[160px] items-center gap-1.5 text-sm font-medium text-slate-700 cursor-default"
+                      >
+                        <Building2 className="size-3.5 shrink-0 text-slate-400" />
+                        <span className="truncate">{row.companyName}</span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      align="start"
+                      className="z-50 max-w-xs sm:max-w-sm rounded-xl border border-slate-800 bg-slate-900/95 px-3 py-1.5 text-xs font-medium text-white shadow-xl backdrop-blur-xs break-words"
+                    >
+                      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+                        Company Name
+                      </span>
+                      <span>{row.companyName}</span>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ) : (
                 <span className="text-slate-400">—</span>
               ),
@@ -626,6 +648,7 @@ export default function CustomersRoute() {
 
 function CustomerName({ row, onOpen }) {
   const name = row.name || 'Unnamed Customer';
+  const company = row.companyName || '';
   const initials = name
     .trim()
     .split(/\s+/)
@@ -643,17 +666,58 @@ function CustomerName({ row, onOpen }) {
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onOpen();
       }}
-      className="flex min-w-0 cursor-pointer items-center gap-3 text-left group"
+      className="flex min-w-0 max-w-[240px] cursor-pointer items-center gap-3 text-left group"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#EAF7EF] text-xs font-bold text-[#173D30] transition group-hover:bg-[#d9f2e3]">
         {initials || 'CU'}
       </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold text-[#172033] group-hover:text-[#173D30] group-hover:underline">
-          {name}
-        </span>
-        {row.companyName && (
-          <span className="block truncate text-xs text-slate-400">{row.companyName}</span>
+      <span className="min-w-0 flex-1 overflow-hidden">
+        <TooltipProvider delay={150}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                title={name}
+                className="block truncate max-w-[170px] sm:max-w-[185px] text-sm font-semibold text-[#172033] group-hover:text-[#173D30] group-hover:underline"
+              >
+                {name}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              align="start"
+              className="z-50 max-w-xs sm:max-w-sm rounded-xl border border-slate-800 bg-slate-900/95 px-3 py-1.5 text-xs font-medium text-white shadow-xl backdrop-blur-xs break-words"
+            >
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-0.5">
+                Customer Name
+              </span>
+              <span>{name}</span>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {company && (
+          <TooltipProvider delay={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  title={company}
+                  className="block truncate max-w-[170px] sm:max-w-[185px] text-xs text-slate-400 mt-0.5"
+                >
+                  {company}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                align="start"
+                className="z-50 max-w-xs sm:max-w-sm rounded-xl border border-slate-800 bg-slate-900/95 px-3 py-1.5 text-xs font-medium text-white shadow-xl backdrop-blur-xs break-words"
+              >
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+                  Company Name
+                </span>
+                <span>{company}</span>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </span>
     </div>
@@ -699,9 +763,9 @@ function CustomerDetail({ row }) {
               .join('')
               .toUpperCase()}
           </span>
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-bold text-[#172033]">{row.name}</h3>
-            <p className="truncate text-xs text-slate-500">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-bold text-[#172033] break-words">{row.name}</h3>
+            <p className="text-xs text-slate-500 break-words mt-0.5">
               {row.companyName ? `${row.companyName} · ` : ''}
               {row.customerType || 'Customer'}
             </p>
