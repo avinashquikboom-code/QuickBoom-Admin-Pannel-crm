@@ -27,8 +27,8 @@ export function summaryOf(payload) {
   return {};
 }
 
-export async function loadCustomerMetrics() {
-  return summaryOf(await api.get('/customers/metrics'));
+export async function loadCustomerMetrics(params = {}) {
+  return summaryOf(await api.get('/customers/metrics', { params }));
 }
 
 export async function loadCustomers(params = {}) {
@@ -101,14 +101,16 @@ export async function loadResourceUsage(params = {}) {
 
 export async function loadBillingOverview(params = {}) {
   const [customers, invoices, subscriptions, revenue] = await Promise.all([
-    api.get('/customers/metrics'),
+    api.get('/customers/metrics', { params }),
     api.get('/invoices', { params: { page: 1, limit: 8, ...params } }),
     api.get('/admin/subscriptions', { params: { page: 1, limit: 8 } }),
     api.get('/reports/summary', { params }),
   ]);
   const recentCustomers = await api.get('/customers', { params: { page: 1, limit: 8, sortBy: 'createdAt', sortOrder: 'desc', dateFrom: params.dateFrom, dateTo: params.dateTo, status: params.status } });
+  const customerSummary = summaryOf(customers);
   return {
-    customers: summaryOf(customers),
+    customers: customerSummary,
+    monthlyGrowth: customerSummary?.monthlyGrowth || customers?.data?.monthlyGrowth || customers?.monthlyGrowth || [],
     invoices: summaryOf(invoices),
     recentInvoices: rowsOf(invoices),
     subscriptions: subscriptions?.counts || subscriptions?.data?.counts || {},

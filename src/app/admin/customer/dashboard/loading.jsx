@@ -12,6 +12,11 @@ export default function CustomerDashboardLoading() {
           <div key={i} className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white" />
         ))}
       </div>
+      {/* 2 Animated Analytics Graphs Skeleton */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6 w-full">
+        <div className="h-[420px] animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <div className="h-[420px] animate-pulse rounded-2xl border border-slate-200 bg-white" />
+      </div>
       {/* 3 Invoice Summary Cards Skeleton */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full">
         {[...Array(3)].map((_, i) => (

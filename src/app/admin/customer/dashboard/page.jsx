@@ -33,6 +33,8 @@ import { Input } from '@/components/common/Input';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { billingError, loadBillingOverview } from '@/modules/customer/billing-api';
 import { cn } from '@/lib/utils';
+import { CustomerGrowthCard } from './components/CustomerGrowthCard';
+import { CustomerStatusCard } from './components/CustomerStatusCard';
 
 // Currency formatter
 const inr = (value) => {
@@ -568,6 +570,10 @@ export default function CustomerDashboardPage() {
               <div key={i} className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white" />
             ))}
           </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6 w-full">
+            <div className="h-[420px] animate-pulse rounded-2xl border border-slate-200 bg-white" />
+            <div className="h-[420px] animate-pulse rounded-2xl border border-slate-200 bg-white" />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white" />
@@ -660,6 +666,23 @@ export default function CustomerDashboardPage() {
               tone="border-emerald-300 bg-emerald-100/80 text-[#173D30]"
               description="Settled invoice totals"
               delay={350}
+            />
+          </div>
+
+          {/* Dedicated Customer Analytics Section: 2 Animated Graphs */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 sm:gap-6 w-full items-stretch">
+            {/* Graph 1: Customer Growth */}
+            <CustomerGrowthCard
+              monthlyGrowth={data?.monthlyGrowth || data?.customers?.monthlyGrowth || []}
+              totalCustomers={customers.totalCustomers ?? 0}
+              newCustomers={customers.newCustomers ?? 0}
+              loading={loading && !data}
+            />
+
+            {/* Graph 2: Customers by Status */}
+            <CustomerStatusCard
+              customers={customers}
+              loading={loading && !data}
             />
           </div>
 
