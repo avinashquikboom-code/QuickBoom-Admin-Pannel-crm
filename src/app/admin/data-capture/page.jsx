@@ -125,7 +125,9 @@ export default function DataCapturePage() {
         setUsageError(false);
       })
       .catch((error) => {
-        console.error('[DataCaptureUsage]', error);
+        console.error('[DataCaptureUsage]', {
+          status: error?.response?.status ?? 'network-error',
+        });
         if (active) setUsageError(true);
       });
     return () => {
