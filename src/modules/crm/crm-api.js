@@ -347,6 +347,7 @@ export async function loadCompanies(params = {}) {
 export function saveCompany(values, id) {
   const body = {
     name: values.name,
+    domain: values.domain || (values.website ? values.website.replace(/^https?:\/\//, '').replace(/\/.*$/, '') : undefined),
     industry: values.industry || undefined,
     website: values.website || undefined,
     email: values.email || undefined,
@@ -354,6 +355,8 @@ export function saveCompany(values, id) {
     address: values.address || undefined,
     city: values.city || undefined,
     state: values.state || undefined,
+    country: values.country || undefined,
+    postalCode: values.postalCode || undefined,
     status: values.status || undefined,
     notes: values.notes || undefined,
   };
