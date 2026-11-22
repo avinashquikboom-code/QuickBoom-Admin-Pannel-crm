@@ -891,77 +891,110 @@ export default function DataManagementPage() {
 
       {/* TAB 3: DATA CLEANUP */}
       {!loading && !error && tab === 'cleanup' && (
-        <div className="space-y-4 max-w-4xl">
-          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs space-y-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">Periodic Data Cleanup</h2>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Clean stale transient sessions, expired tokens, and obsolete failed capture records safely.
-            </p>
+        <div className="space-y-4 sm:space-y-5 max-w-4xl w-full min-w-0">
+          {/* Header Card */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs space-y-1.5 min-w-0">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-lg bg-emerald-50 text-[#163A2E] flex items-center justify-center border border-emerald-100 shrink-0">
+                <FontAwesomeIcon icon={faTrashCan} className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">Periodic Data Cleanup</h2>
+                <p className="text-xs sm:text-sm text-slate-500">
+                  Clean stale transient sessions, expired tokens, and obsolete failed capture records safely.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="grid gap-3">
+          {/* Cleanup Items List */}
+          <div className="grid gap-3 sm:gap-3.5 min-w-0">
             {[
               ['expired-refresh-tokens', 'Expired Refresh Tokens', 'Purges revoked and expired authentication refresh tokens.'],
               ['stale-sessions', 'Stale User Sessions', 'Invalidates abandoned web and mobile sessions.'],
               ['stale-failed-captures', 'Expired Failed Captures', 'Cleans unretryable failed data capture payloads.'],
               ['old-email-logs', 'Email Logs Older Than 180 Days', 'Archives historic notification dispatch logs.'],
               ['duplicate-leads', 'Duplicate Leads for Review', 'Surfaces identical lead entries without deleting them.'],
-            ].map(([id, label, desc]) => (
-              <div key={id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <h3 className="text-sm font-bold text-slate-900">{label}</h3>
-                  <p className="text-xs text-slate-500">{desc}</p>
-                  {cleanup[id]?.records !== undefined && (
-                    <span className="inline-block mt-1 text-xs font-semibold text-[#163A2E] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                      {cleanup[id].records} matching records
-                    </span>
-                  )}
-                </div>
+            ].map(([id, label, desc]) => {
+              const count = cleanup[id]?.records;
+              const isLeadReview = id === 'duplicate-leads';
 
-                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={Boolean(busy)}
-                    onClick={() => run('cleanup-preview', async () => {
-                      const response = await previewDataCleanup(id);
-                      setCleanup((current) => ({ ...current, [id]: dataOf(response) }));
-                      return response;
-                    })}
-                    className="h-8 text-xs border-slate-200"
-                  >
-                    Preview
-                  </Button>
-                  {id !== 'duplicate-leads' && (
+              return (
+                <div
+                  key={id}
+                  className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 min-w-0 transition-colors hover:border-slate-300"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900 break-words">{label}</h3>
+                      {count !== undefined && (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-[#163A2E] border border-emerald-200">
+                          {Number(count).toLocaleString()} matching {count === 1 ? 'record' : 'records'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed break-words">{desc}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                     <Button
                       type="button"
+                      variant="outline"
                       size="sm"
-                      disabled={Boolean(busy) || cleanupConfirmation !== 'CLEANUP'}
-                      onClick={() => run('cleanup', () => executeDataCleanup({ operation: id, confirmation: 'CLEANUP', idempotencyKey: crypto.randomUUID() }))}
-                      className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                      disabled={Boolean(busy)}
+                      onClick={() => run('cleanup-preview', async () => {
+                        const response = await previewDataCleanup(id);
+                        setCleanup((current) => ({ ...current, [id]: dataOf(response) }));
+                        return response;
+                      })}
+                      className="flex-1 sm:flex-none h-9 sm:h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:bg-[#E8F1EC] hover:text-[#163A2E] cursor-pointer"
                     >
-                      Clean up
+                      Preview
                     </Button>
-                  )}
+                    {!isLeadReview && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={Boolean(busy) || cleanupConfirmation !== 'CLEANUP'}
+                        onClick={() => run('cleanup', () => executeDataCleanup({ operation: id, confirmation: 'CLEANUP', idempotencyKey: crypto.randomUUID() }))}
+                        className="flex-1 sm:flex-none h-9 sm:h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        Clean up
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-[#F7F9F8] p-4 space-y-2">
-            <label className="block text-xs font-semibold text-slate-800">
-              Type <code className="font-mono text-rose-600 font-bold bg-rose-50 px-1 py-0.5 rounded border border-rose-200">CLEANUP</code> to enable cleanup buttons
-            </label>
-            <Input
-              placeholder="Type CLEANUP"
-              value={cleanupConfirmation}
-              onChange={(e) => setCleanupConfirmation(e.target.value)}
-              className="h-9 text-xs font-mono max-w-xs bg-white"
-            />
-            <p className="text-[11px] text-slate-400">
-              Payroll, invoices, expense claims, and system audit logs are never modified or purged by cleanup.
-            </p>
+          {/* Cleanup Confirmation Card */}
+          <div className="rounded-2xl border border-slate-200/90 bg-[#F7F9F8] p-4 sm:p-5 shadow-xs space-y-3 min-w-0">
+            <div className="space-y-1">
+              <label htmlFor="cleanup-confirmation-input" className="block text-xs font-bold text-slate-800">
+                Type <code className="font-mono text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">CLEANUP</code> to enable cleanup buttons
+              </label>
+              <p className="text-[11px] text-slate-500">
+                This verification guard prevents accidental execution of data cleanup routines.
+              </p>
+            </div>
+
+            <div className="w-full sm:max-w-xs">
+              <Input
+                id="cleanup-confirmation-input"
+                placeholder="Type CLEANUP"
+                value={cleanupConfirmation}
+                onChange={(e) => setCleanupConfirmation(e.target.value)}
+                className="h-9.5 text-xs font-mono w-full bg-white border-slate-200 focus-visible:ring-rose-500"
+              />
+            </div>
+
+            <div className="flex items-start gap-2 pt-2 border-t border-slate-200/70 text-[11px] text-slate-500">
+              <FontAwesomeIcon icon={faShieldHalved} className="size-3.5 text-emerald-700 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                Payroll, invoices, expense claims, and system audit logs are never modified or purged by cleanup.
+              </p>
+            </div>
           </div>
         </div>
       )}
