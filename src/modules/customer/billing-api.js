@@ -119,6 +119,41 @@ export async function loadBillingOverview(params = {}) {
   };
 }
 
+export async function loadCoupons(params = {}) {
+  const payload = await api.get('/admin/coupons', { params });
+  return {
+    rows: rowsOf(payload),
+    pagination: pageOf(payload),
+    summary: summaryOf(payload),
+  };
+}
+
+export async function loadCouponStats() {
+  const payload = await api.get('/admin/coupons/stats');
+  return payload?.data || payload || { total: 0, active: 0, inactive: 0, used: 0 };
+}
+
+export async function getCoupon(id) {
+  const payload = await api.get(`/admin/coupons/${id}`);
+  return payload?.data || payload;
+}
+
+export function createCoupon(data) {
+  return api.post('/admin/coupons', data);
+}
+
+export function updateCoupon(id, data) {
+  return api.patch(`/admin/coupons/${id}`, data);
+}
+
+export function setCouponStatus(id, isActive) {
+  return api.patch(`/admin/coupons/${id}/status`, { isActive });
+}
+
+export function deleteCoupon(id) {
+  return api.delete(`/admin/coupons/${id}`);
+}
+
 export const billingGaps = {
   coupons: 'A coupon record exists in the database, but there is no coupon list, create, update, or delete API. Banner coupon codes are a different marketing feature.',
   invoiceTotals: 'Invoice totals are stored by the invoice API. This screen sends the amounts you enter and does not recalculate tax or balance.',

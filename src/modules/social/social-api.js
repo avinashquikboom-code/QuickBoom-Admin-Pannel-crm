@@ -80,6 +80,7 @@ export const generateContent = (values, customerId, file) => {
       tone: values.tone || undefined,
       language: values.language || undefined,
       cta: values.cta || undefined,
+      instructions: values.instructions || undefined,
     },
     { headers }
   );
