@@ -47,7 +47,9 @@ import {
   XCircle,
   Briefcase,
   Check,
+  CreditCard,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import api from '../../../../../lib/api';
 
 const CUSTOMER_STATUSES = ['ACTIVE', 'INACTIVE', 'UPCOMING'];
@@ -427,6 +429,54 @@ export default function CustomersRoute() {
                   <UsersRound className="size-3 text-emerald-600 group-hover:scale-110 transition-transform" />
                   <span className="truncate max-w-[120px]">{teamName}</span>
                 </button>
+              );
+            },
+          },
+          {
+            header: 'Plan',
+            className: 'min-w-[150px]',
+            cell: (row) => {
+              const planName = row.planName || row.plan || row.currentSubscription?.plan?.name;
+              const subStatus = String(row.subscriptionStatus || row.currentSubscription?.status || '').toUpperCase();
+              if (!planName || planName === 'Not Purchased' || subStatus === 'NOT_PURCHASED') {
+                return (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-500">
+                    <span className="size-1.5 rounded-full bg-slate-400" />
+                    Not Purchased
+                  </span>
+                );
+              }
+              const isExpired = subStatus === 'EXPIRED';
+              const isCancelled = subStatus === 'CANCELLED';
+              const isActive = subStatus === 'ACTIVE';
+
+              let badgeStyle = 'bg-slate-50 text-slate-700 border-slate-200';
+              let dotStyle = 'bg-slate-400';
+              if (isActive) {
+                badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                dotStyle = 'bg-emerald-500';
+              } else if (isExpired) {
+                badgeStyle = 'bg-amber-50 text-amber-800 border-amber-200';
+                dotStyle = 'bg-amber-500';
+              } else if (isCancelled) {
+                badgeStyle = 'bg-rose-50 text-rose-800 border-rose-200';
+                dotStyle = 'bg-rose-500';
+              }
+
+              return (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold max-w-[160px] truncate',
+                    badgeStyle
+                  )}
+                  title={planName}
+                >
+                  <span className={cn('size-1.5 rounded-full shrink-0', dotStyle)} />
+                  <span className="truncate">
+                    {planName}
+                    {isExpired ? ' (Expired)' : isCancelled ? ' (Cancelled)' : ''}
+                  </span>
+                </span>
               );
             },
           },
@@ -936,6 +986,19 @@ function CustomerDetail({ row, onAssignTeam }) {
               </button>
             </div>
             <Detail icon={MapPin} label="Location" value={[row.address, row.city, row.state, row.country].filter(Boolean).join(', ')} />
+            <Detail
+              icon={CreditCard}
+              label="Subscription Plan"
+              value={
+                row.planName || row.plan || row.currentSubscription?.plan?.name
+                  ? `${row.planName || row.plan || row.currentSubscription?.plan?.name}${
+                      row.subscriptionStatus && row.subscriptionStatus !== 'ACTIVE'
+                        ? ` (${titleCase(row.subscriptionStatus)})`
+                        : ''
+                    }`
+                  : 'Not Purchased'
+              }
+            />
             <Detail icon={CalendarDays} label="Created At" value={formatDate(row.createdAt)} />
             <Detail icon={Clock} label="Category Status" value={titleCase(row.status || 'ACTIVE')} />
           </div>

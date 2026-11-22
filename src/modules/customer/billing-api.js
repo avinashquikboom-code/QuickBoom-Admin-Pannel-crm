@@ -106,7 +106,7 @@ export async function loadBillingOverview(params = {}) {
     api.get('/admin/subscriptions', { params: { page: 1, limit: 8 } }),
     api.get('/reports/summary', { params }),
   ]);
-  const recentCustomers = await api.get('/customers', { params: { page: 1, limit: 8, sortBy: 'createdAt', sortOrder: 'desc', dateFrom: params.dateFrom, dateTo: params.dateTo, status: params.status } });
+  const recentCustomers = await api.get('/customers', { params: { page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc', dateFrom: params.dateFrom, dateTo: params.dateTo, status: params.status } });
   const customerSummary = summaryOf(customers);
   return {
     customers: customerSummary,

@@ -277,6 +277,86 @@ function InvoiceSummaryCard({ title, count, status, icon: Icon, tone, subtext })
   );
 }
 
+// Customer Plan Badge Component
+function CustomerPlanBadge({ row }) {
+  const planName = row.planName || row.plan || row.currentSubscription?.plan?.name;
+  const status = String(row.subscriptionStatus || row.currentSubscription?.status || '').toUpperCase();
+  const startDate = row.subscriptionStartDate || row.startDate || row.currentSubscription?.startDate;
+  const endDate = row.subscriptionEndDate || row.endDate || row.currentSubscription?.endDate;
+  const hasInconsistency = Boolean(row.isMultipleActiveDetected);
+
+  const isNotPurchased = !planName || planName === 'Not Purchased' || status === 'NOT_PURCHASED';
+
+  if (isNotPurchased) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-500">
+        <span className="size-1.5 rounded-full bg-slate-400" />
+        Not Purchased
+      </span>
+    );
+  }
+
+  const isExpired = status === 'EXPIRED';
+  const isCancelled = status === 'CANCELLED';
+  const isActive = status === 'ACTIVE';
+
+  let badgeClasses = 'bg-slate-50 text-slate-700 border-slate-200';
+  let dotColor = 'bg-slate-400';
+  let statusSuffix = '';
+
+  if (isActive) {
+    badgeClasses = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+    dotColor = 'bg-emerald-500';
+  } else if (isExpired) {
+    badgeClasses = 'bg-amber-50 text-amber-800 border-amber-200';
+    dotColor = 'bg-amber-500';
+    statusSuffix = ' (Expired)';
+  } else if (isCancelled) {
+    badgeClasses = 'bg-rose-50 text-rose-800 border-rose-200';
+    dotColor = 'bg-rose-500';
+    statusSuffix = ' (Cancelled)';
+  } else if (status) {
+    badgeClasses = 'bg-sky-50 text-sky-800 border-sky-200';
+    dotColor = 'bg-sky-500';
+    statusSuffix = ` (${status.toLowerCase()})`;
+  }
+
+  const dateTooltip = [
+    startDate ? `Started: ${formatDisplayDate(startDate)}` : null,
+    endDate ? `Ends: ${formatDisplayDate(endDate)}` : null,
+  ].filter(Boolean).join(' • ');
+
+  return (
+    <div className="inline-flex flex-col gap-0.5">
+      <div className="flex items-center gap-1.5">
+        <span
+          title={dateTooltip || planName}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold max-w-[180px] truncate',
+            badgeClasses
+          )}
+        >
+          <span className={cn('size-1.5 rounded-full shrink-0', dotColor)} />
+          <span className="truncate">{planName}{statusSuffix}</span>
+        </span>
+        {hasInconsistency && (
+          <span
+            title="Warning: Multiple active subscriptions detected in database for this customer"
+            className="text-amber-500 hover:text-amber-600 inline-flex items-center"
+          >
+            <AlertTriangle className="size-3.5" />
+          </span>
+        )}
+      </div>
+      {endDate && (
+        <span className="text-[10px] text-slate-400 pl-1">
+          {isActive ? `Exp: ${formatDisplayDate(endDate)}` : isExpired ? `Expired ${formatDisplayDate(endDate)}` : ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // Column Visibility Dropdown Component
 function ColumnVisibilityToggle({ columns, visibility, onToggle }) {
   const [open, setOpen] = React.useState(false);
@@ -350,6 +430,7 @@ export default function CustomerDashboardPage() {
   const [customerColVisibility, setCustomerColVisibility] = React.useState({
     name: true,
     email: true,
+    plan: true,
     status: true,
     created: true,
   });
@@ -414,7 +495,8 @@ export default function CustomerDashboardPage() {
       const q = customerSearch.trim().toLowerCase();
       const name = (c.name || c.companyName || '').toLowerCase();
       const email = (c.email || '').toLowerCase();
-      const matchesSearch = !q || name.includes(q) || email.includes(q);
+      const plan = (c.planName || c.plan || c.currentSubscription?.planName || '').toLowerCase();
+      const matchesSearch = !q || name.includes(q) || email.includes(q) || plan.includes(q);
 
       const status = String(c.status || (c.isActive === false ? 'INACTIVE' : 'ACTIVE')).toUpperCase();
       const matchesStatus = !customerStatusFilter || status === customerStatusFilter;
@@ -806,6 +888,7 @@ export default function CustomerDashboardPage() {
                   columns={[
                     { key: 'name', label: 'Customer' },
                     { key: 'email', label: 'Email' },
+                    { key: 'plan', label: 'Plan' },
                     { key: 'status', label: 'Status' },
                     { key: 'created', label: 'Created Date' },
                   ]}
@@ -836,6 +919,7 @@ export default function CustomerDashboardPage() {
                       <tr className="border-b border-slate-200 bg-[#F8FBF9] text-[10px] font-bold uppercase tracking-wider text-slate-600">
                         {customerColVisibility.name && <th className="py-2.5 px-3">Customer</th>}
                         {customerColVisibility.email && <th className="py-2.5 px-3">Email</th>}
+                        {customerColVisibility.plan && <th className="py-2.5 px-3">Plan</th>}
                         {customerColVisibility.status && <th className="py-2.5 px-3">Status</th>}
                         {customerColVisibility.created && (
                           <th className="py-2.5 px-3 text-right">Created</th>
@@ -878,6 +962,12 @@ export default function CustomerDashboardPage() {
                             {customerColVisibility.email && (
                               <td className="py-2 px-3 whitespace-nowrap text-slate-500 truncate max-w-[140px]">
                                 {row.email || 'N/A'}
+                              </td>
+                            )}
+
+                            {customerColVisibility.plan && (
+                              <td className="py-2 px-3 whitespace-nowrap">
+                                <CustomerPlanBadge row={row} />
                               </td>
                             )}
 
