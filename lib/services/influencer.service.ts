@@ -306,4 +306,8 @@ export class InfluencerAdminService {
   static async updatePaymentStatus(id: number, paymentStatus: string): Promise<void> {
     await api.patch(`/admin/influencer-bookings/${id}/payment-status`, { paymentStatus });
   }
+
+  static async updateBookingStatus(id: number, status: string): Promise<void> {
+    await api.patch(`/admin/influencer-bookings/${id}/status`, { status });
+  }
 }
