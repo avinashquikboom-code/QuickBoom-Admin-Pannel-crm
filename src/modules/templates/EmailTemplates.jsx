@@ -140,7 +140,16 @@ export function EmailTemplates() {
       setRows(list);
       setPages(Math.max(1, Number(pagination.totalPages) || 1));
       setTotal(Number(pagination.total) || list.length);
-      const statsPayload = root?.stats ?? root?.data?.stats;
+      let statsPayload = root?.stats ?? root?.data?.stats ?? payload?.stats ?? payload?.data?.stats;
+      if (!statsPayload || (statsPayload.total === 0 && list.length > 0)) {
+        try {
+          const statsRes = await api.get('/email/templates/stats');
+          const rawStats = statsRes?.data?.stats ?? statsRes?.data ?? statsRes?.stats ?? statsRes;
+          if (rawStats && typeof rawStats === 'object' && ('total' in rawStats || 'active' in rawStats)) {
+            statsPayload = rawStats;
+          }
+        } catch {}
+      }
       if (statsPayload) {
         setStats({
           total: Number(statsPayload.total) || 0,
