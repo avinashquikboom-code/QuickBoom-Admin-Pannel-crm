@@ -57,22 +57,22 @@ const PROTECTED_SYSTEM_ITEMS = [
   },
 ];
 
-export function ProtectedRecordsCard({ counts, dynamicRecords = [] }) {
+export function ProtectedRecordsCard({ counts, dynamicRecords = [], className = '' }) {
   const [expanded, setExpanded] = React.useState(false);
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs space-y-4">
+    <div className={`rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs space-y-4 min-w-0 w-full ${className}`}>
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2.5">
-          <div className="size-8 rounded-lg bg-emerald-50 text-[#163A2E] flex items-center justify-center border border-emerald-100">
+          <div className="size-8 rounded-lg bg-emerald-50 text-[#163A2E] flex items-center justify-center border border-emerald-100 shrink-0">
             <FontAwesomeIcon icon={faShieldHalved} className="size-4" />
           </div>
-          <div>
-            <h3 className="text-xs sm:text-sm font-bold text-slate-900">Protected Records</h3>
-            <p className="text-[11px] text-slate-500">Non-selectable · Always preserved</p>
+          <div className="min-w-0">
+            <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">Protected Records</h3>
+            <p className="text-[11px] text-slate-500 truncate">Non-selectable · Always preserved</p>
           </div>
         </div>
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+        <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 shrink-0">
           Shielded
         </span>
       </div>
@@ -86,14 +86,14 @@ export function ProtectedRecordsCard({ counts, dynamicRecords = [] }) {
         {(expanded ? PROTECTED_SYSTEM_ITEMS : PROTECTED_SYSTEM_ITEMS.slice(0, 4)).map((item) => (
           <div
             key={item.title}
-            className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-100 bg-[#F7F9F8] text-xs"
+            className="flex items-start gap-3 p-2.5 rounded-xl border border-slate-100 bg-[#F7F9F8] text-xs transition-colors hover:bg-slate-50"
           >
-            <div className="size-6 rounded-md bg-white border border-slate-200 text-[#163A2E] flex items-center justify-center shrink-0 mt-0.5">
-              <FontAwesomeIcon icon={item.icon} className="size-3" />
+            <div className="size-7 rounded-lg bg-white border border-slate-200 text-[#163A2E] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+              <FontAwesomeIcon icon={item.icon} className="size-3.5" />
             </div>
             <div className="min-w-0 flex-1">
               <span className="font-bold text-slate-800 block truncate">{item.title}</span>
-              <span className="text-[11px] text-slate-500 block leading-tight">{item.description}</span>
+              <span className="text-[11px] text-slate-500 block leading-tight mt-0.5">{item.description}</span>
             </div>
           </div>
         ))}
@@ -102,7 +102,7 @@ export function ProtectedRecordsCard({ counts, dynamicRecords = [] }) {
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full text-center text-xs font-semibold text-[#163A2E] hover:text-[#204C3D] py-1 border-t border-slate-100 cursor-pointer"
+        className="w-full text-center text-xs font-semibold text-[#163A2E] hover:text-[#204C3D] py-1.5 border-t border-slate-100 cursor-pointer transition-colors"
       >
         {expanded ? 'Show less protected categories' : `Show all ${PROTECTED_SYSTEM_ITEMS.length} protected categories`}
       </button>

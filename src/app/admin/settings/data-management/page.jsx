@@ -385,7 +385,7 @@ export default function DataManagementPage() {
 
       {/* TAB 1: RESET DATA */}
       {!loading && !error && tab === 'reset' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 min-w-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 items-start gap-5 sm:gap-6 min-w-0">
           {/* Left Column: Reset Selected Modules, Previews & Confirmation (70%) */}
           <div className="lg:col-span-8 space-y-5 sm:space-y-6 min-w-0">
             {/* Module Selection Card */}
@@ -723,161 +723,167 @@ export default function DataManagementPage() {
 
       {/* TAB 2: BACKUP & RESTORE */}
       {!loading && !error && tab === 'backup' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 min-w-0">
-          <div className="lg:col-span-8 space-y-6 min-w-0">
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.8fr)_minmax(300px,1fr)] xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] items-start gap-6 min-w-0">
+          {/* Left Column: Create Verified Database Backup Card */}
+          <div className="min-w-0 w-full rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs space-y-5">
+            <div className="space-y-1">
               <h2 className="text-base sm:text-lg font-bold text-slate-900">Create Verified Database Backup</h2>
               <p className="text-xs sm:text-sm text-slate-500">
                 Backups are checksum-verified snapshots of tenant tables. Integration secrets and passwords are excluded.
               </p>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  placeholder="Backup name (e.g. Pre-Q4 Reset Snapshot)"
-                  value={backupName}
-                  onChange={(e) => setBackupName(e.target.value)}
-                  className="h-10 text-xs sm:text-sm"
-                />
-                <Input
-                  placeholder="Description or notes"
-                  value={backupDescription}
-                  onChange={(e) => setBackupDescription(e.target.value)}
-                  className="h-10 text-xs sm:text-sm"
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                placeholder="Backup name (e.g. Pre-Q4 Reset Snapshot)"
+                value={backupName}
+                onChange={(e) => setBackupName(e.target.value)}
+                className="h-10 text-xs sm:text-sm"
+              />
+              <Input
+                placeholder="Description or notes"
+                value={backupDescription}
+                onChange={(e) => setBackupDescription(e.target.value)}
+                className="h-10 text-xs sm:text-sm"
+              />
+            </div>
 
-              <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                disabled={Boolean(busy)}
+                onClick={() => run('backup', () => createDataBackup({
+                  name: backupName || 'Manual backup',
+                  description: backupDescription,
+                  modules: selected.length ? selected : modules.filter((item) => item.available).map((item) => item.id),
+                }))}
+                className="bg-[#163A2E] hover:bg-[#204C3D] text-white text-xs font-semibold h-9"
+              >
+                Create Backup Now
+              </Button>
+              {isSuperAdmin && (
                 <Button
                   type="button"
+                  variant="outline"
                   size="sm"
                   disabled={Boolean(busy)}
                   onClick={() => run('backup', () => createDataBackup({
-                    name: backupName || 'Manual backup',
-                    description: backupDescription,
-                    modules: selected.length ? selected : modules.filter((item) => item.available).map((item) => item.id),
+                    name: backupName || 'Global backup',
+                    description: backupDescription || 'Every tenant snapshot',
+                    scope: 'global',
                   }))}
-                  className="bg-[#163A2E] hover:bg-[#204C3D] text-white text-xs font-semibold h-9"
+                  className="border-slate-300 text-xs font-semibold h-9"
                 >
-                  Create Backup Now
+                  Create Global Backup
                 </Button>
-                {isSuperAdmin && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={Boolean(busy)}
-                    onClick={() => run('backup', () => createDataBackup({
-                      name: backupName || 'Global backup',
-                      description: backupDescription || 'Every tenant snapshot',
-                      scope: 'global',
-                    }))}
-                    className="border-slate-300 text-xs font-semibold h-9"
-                  >
-                    Create Global Backup
-                  </Button>
-                )}
-              </div>
-
-              {/* Backups Table */}
-              <div className="pt-4 border-t border-slate-100 overflow-x-auto">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
-                  Existing Backups ({backups.length})
-                </span>
-                <table className="w-full min-w-[640px] text-left text-xs">
-                  <thead className="text-[11px] uppercase text-slate-500 bg-slate-50 border-y border-slate-200">
-                    <tr>
-                      <th className="py-2.5 px-3">Name</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3">Size</th>
-                      <th className="py-2.5 px-3">Created</th>
-                      <th className="py-2.5 px-3">By</th>
-                      <th className="py-2.5 px-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {backups.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/70">
-                        <td className="py-2.5 px-3 font-semibold text-slate-900">{item.name}</td>
-                        <td className="py-2.5 px-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
-                            {item.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 font-mono">{formatBytes(item.size)}</td>
-                        <td className="py-2.5 px-3 text-slate-500">{stamp(item.createdAt)}</td>
-                        <td className="py-2.5 px-3 text-slate-600">{item.createdBy}</td>
-                        <td className="py-2.5 px-3 text-right">
-                          <AdminRowActions
-                            record={item}
-                            recordName={item.name}
-                            actions={[
-                              {
-                                id: 'verify',
-                                label: 'Verify Backup',
-                                onClick: () => run('verify', () => verifyDataBackup(item.id)),
-                              },
-                              {
-                                id: 'download',
-                                label: 'Download Backup',
-                                onClick: () => saveFile(() => downloadDataBackup(item.id), `qb-backup-${item.id}.json.gz`),
-                              },
-                              {
-                                id: 'restore',
-                                label: 'Restore from Backup',
-                                onClick: () =>
-                                  run('restore-preview', async () => {
-                                    const response = await previewDataRestore(item.id);
-                                    setRestoreId(item.id);
-                                    setRestorePreview(dataOf(response));
-                                    return response;
-                                  }),
-                              },
-                            ]}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                    {!backups.length && (
-                      <tr>
-                        <td className="py-4 text-center text-slate-400" colSpan={6}>
-                          No backups recorded yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Restore Confirmation Box */}
-              {restorePreview && (
-                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
-                  <p className="font-bold text-amber-950 text-sm">
-                    Restore {restorePreview.estimatedRecords} records from backup #{restoreId}
-                  </p>
-                  <p className="text-xs text-amber-800">
-                    A safety snapshot is taken automatically before restore. Type <code className="font-bold">RESTORE</code> to proceed.
-                  </p>
-                  <Input
-                    placeholder="Type RESTORE"
-                    value={restoreConfirmation}
-                    onChange={(e) => setRestoreConfirmation(e.target.value)}
-                    className="h-9 text-xs font-mono bg-white"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={restoreConfirmation !== 'RESTORE' || Boolean(busy)}
-                    onClick={() => run('restore', () => executeDataRestore(restoreId, { confirmation: restoreConfirmation, idempotencyKey: crypto.randomUUID() }))}
-                    className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs h-9"
-                  >
-                    Execute Restore
-                  </Button>
-                </div>
               )}
             </div>
+
+            {/* Backups Table */}
+            <div className="pt-4 border-t border-slate-100 overflow-x-auto min-w-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
+                Existing Backups ({backups.length})
+              </span>
+              <table className="w-full min-w-[580px] text-left text-xs">
+                <thead className="text-[11px] uppercase text-slate-500 bg-slate-50 border-y border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-3">Name</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Size</th>
+                    <th className="py-2.5 px-3">Created</th>
+                    <th className="py-2.5 px-3">By</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {backups.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/70">
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">{item.name}</td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono">{formatBytes(item.size)}</td>
+                      <td className="py-2.5 px-3 text-slate-500">{stamp(item.createdAt)}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{item.createdBy}</td>
+                      <td className="py-2.5 px-3 text-right">
+                        <AdminRowActions
+                          record={item}
+                          recordName={item.name}
+                          actions={[
+                            {
+                              id: 'verify',
+                              label: 'Verify Backup',
+                              onClick: () => run('verify', () => verifyDataBackup(item.id)),
+                            },
+                            {
+                              id: 'download',
+                              label: 'Download Backup',
+                              onClick: () => saveFile(() => downloadDataBackup(item.id), `qb-backup-${item.id}.json.gz`),
+                            },
+                            {
+                              id: 'restore',
+                              label: 'Restore from Backup',
+                              onClick: () =>
+                                run('restore-preview', async () => {
+                                  const response = await previewDataRestore(item.id);
+                                  setRestoreId(item.id);
+                                  setRestorePreview(dataOf(response));
+                                  return response;
+                                }),
+                            },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                  {!backups.length && (
+                    <tr>
+                      <td className="py-8 text-center text-slate-400" colSpan={6}>
+                        <div className="flex flex-col items-center justify-center gap-1.5">
+                          <FontAwesomeIcon icon={faDatabase} className="size-5 text-slate-300" />
+                          <span className="font-medium text-slate-500">No backups recorded yet.</span>
+                          <span className="text-[11px] text-slate-400">Created backups will be listed here with verification status and restore options.</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Restore Confirmation Box */}
+            {restorePreview && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
+                <p className="font-bold text-amber-950 text-sm">
+                  Restore {restorePreview.estimatedRecords} records from backup #{restoreId}
+                </p>
+                <p className="text-xs text-amber-800">
+                  A safety snapshot is taken automatically before restore. Type <code className="font-bold">RESTORE</code> to proceed.
+                </p>
+                <Input
+                  placeholder="Type RESTORE"
+                  value={restoreConfirmation}
+                  onChange={(e) => setRestoreConfirmation(e.target.value)}
+                  className="h-9 text-xs font-mono bg-white"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={restoreConfirmation !== 'RESTORE' || Boolean(busy)}
+                  onClick={() => run('restore', () => executeDataRestore(restoreId, { confirmation: restoreConfirmation, idempotencyKey: crypto.randomUUID() }))}
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs h-9"
+                >
+                  Execute Restore
+                </Button>
+              </div>
+            )}
           </div>
 
-          <div className="lg:col-span-4 space-y-5">
+          {/* Right Column: Protected Records Card */}
+          <div className="min-w-0 w-full">
             <ProtectedRecordsCard dynamicRecords={protectedRecords} />
           </div>
         </div>
