@@ -5,7 +5,6 @@ import {
     faBell,
     faBolt,
     faBoxesStacked,
-    faBuilding,
     faBullhorn,
     faCartShopping,
     faChartBar,
@@ -125,7 +124,6 @@ export const influencerNavigation = [
 
 export const settingsNavigation = [
     { name: 'General Settings', href: '/admin/settings', icon: faGear, matchExact: true },
-    { name: 'Company Settings', href: '/admin/settings/company', icon: faBuilding },
     { name: 'Integrations', href: '/admin/settings/integrations', icon: faBolt },
     { name: 'Google Maps Management', href: '/admin/settings/google-maps', icon: faLocationDot },
     { name: 'Notifications', href: '/admin/settings/notifications', icon: faBell },

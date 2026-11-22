@@ -811,24 +811,6 @@ export const adminSections = {
     // -------------------------------------------------------------
     // SETTINGS & GOVERNANCE
     // -------------------------------------------------------------
-    'company-settings': {
-        id: 'company-settings',
-        name: 'Company Settings',
-        slug: 'company-settings',
-        category: 'SYSTEM & SETTINGS',
-        title: 'Company Settings',
-        icon: faBuilding,
-        singular: 'Organization Setting',
-        description: 'Corporate legal entity details, GSTIN, PAN numbers, registered addresses, and branding.',
-        permissions: ['admin', 'superadmin'],
-        actions: ['create', 'edit', 'delete', 'export'],
-        headLabel: 'Parameter Scope',
-        metricLabel: 'Version Code',
-        initialRecords: [
-            { id: 'SET-01', name: 'QB Suite Technologies Corporate Profile', code: 'CORP-MAIN', head: 'Global Entity Headquarters', members: 1, status: 'Active', createdOn: '01 Jan 2026', description: 'Corporate entity registration, tax codes, and primary domains.' },
-            { id: 'SET-02', name: 'Statutory GSTIN & Tax Matrix', code: 'TAX-GST', head: 'Ministry of Corporate Affairs', members: 3, status: 'Active', createdOn: '01 Jan 2026', description: 'Goods & Services Tax registrations across states.' },
-        ],
-    },
     'user-management': {
         id: 'user-management',
         name: 'User Management',
