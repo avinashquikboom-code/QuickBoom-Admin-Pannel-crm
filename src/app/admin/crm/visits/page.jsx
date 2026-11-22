@@ -194,7 +194,7 @@ export default function VisitsRoute() {
             header: 'Assigned Employee',
             className: 'min-w-[170px]',
             cell: (row) => {
-              const name = row.assignedVisitor?.name || personName(row.employee);
+              const name = row.assignedFieldSalesExecutive?.name || row.assignedVisitor?.name || personName(row.employee);
               return name ? (
                 <span className="inline-flex items-center gap-2 text-sm text-slate-700">
                   <User className="size-3.5 shrink-0 text-slate-400" />
@@ -469,7 +469,7 @@ function CustomerIdentity({ row }) {
 
 function VisitDetail({ row }) {
   const mapsUrl = getGoogleMapsUrl(row);
-  const employeeName = row.assignedVisitor?.name || personName(row.employee);
+  const employeeName = row.assignedFieldSalesExecutive?.name || row.assignedVisitor?.name || personName(row.employee);
 
   return (
     <div className="space-y-4">
@@ -484,7 +484,7 @@ function VisitDetail({ row }) {
           label="Visit Date & Time"
           value={`${formatVisitDate(row.date)} at ${formatVisitTime(row.date, row.time)}`}
         />
-        <Detail icon={User} label="Assigned Visitor" value={employeeName || 'Unassigned'} />
+        <Detail icon={User} label="Field Sales Executive" value={employeeName || 'Unassigned'} />
         <Detail icon={Building2} label="Company" value={row.company?.name} />
         <Detail
           icon={MapPin}
@@ -667,7 +667,7 @@ function exportVisitsToCsv(rows, query) {
         escapeCell(row.location || ''),
         escapeCell(row.latitude ?? ''),
         escapeCell(row.longitude ?? ''),
-        escapeCell(row.assignedVisitor?.name || personName(row.employee) || ''),
+        escapeCell(row.assignedFieldSalesExecutive?.name || row.assignedVisitor?.name || personName(row.employee) || ''),
         escapeCell(row.status),
         escapeCell(row.notes || ''),
         escapeCell(row.completedBy || ''),
