@@ -130,7 +130,11 @@ export async function loadCoupons(params = {}) {
 
 export async function loadCouponStats() {
   const payload = await api.get('/admin/coupons/stats');
-  return payload?.data || payload || { total: 0, active: 0, inactive: 0, used: 0 };
+  const stats = payload?.data || payload;
+  if (!stats || typeof stats !== 'object') {
+    throw new Error('Coupon statistics response was empty or invalid.');
+  }
+  return stats;
 }
 
 export async function getCoupon(id) {
