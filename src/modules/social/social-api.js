@@ -37,18 +37,106 @@ export const cancelBooking = (id, reason) => api.post(`/admin/influencer-booking
 export const updateBookingStatus = (id, status) => api.patch(`/admin/influencer-bookings/${id}/status`, { status });
 
 export async function loadGenerations(query = {}) {
-  const limit = 20;
+  const limit = query.limit || 20;
   const page = Number(query.page) || 1;
-  const payload = await api.get('/admin/ai/generations', { params: { status: query.status, type: query.type, limit, offset: (page - 1) * limit } });
+  const payload = await api.get('/admin/ai/generations', {
+    params: {
+      status: query.status || undefined,
+      type: query.type || undefined,
+      search: query.search || undefined,
+      customerId: query.customerId || undefined,
+      limit,
+      offset: (page - 1) * limit,
+    },
+  });
   return paged(payload, page, limit);
 }
-export const generateContent = (values) => api.post('/ai/generate', { type: values.type, prompt: values.prompt, product: values.product || values.prompt, platform: values.platform || undefined, objective: values.objective || undefined });
-export const updateGeneration = (id, values) => api.patch(`/ai/generations/${id}`, { caption: values.caption, hashtags: values.hashtags });
+
+export const generateContent = (values, customerId, file) => {
+  const headers = customerId ? { 'x-customer-id': String(customerId) } : {};
+  if (file) {
+    const formData = new FormData();
+    formData.append('type', values.type || 'POST');
+    formData.append('prompt', values.prompt || values.product || '');
+    formData.append('product', values.product || values.prompt || '');
+    if (values.platform) formData.append('platform', values.platform);
+    if (values.objective) formData.append('objective', values.objective);
+    if (values.tone) formData.append('tone', values.tone);
+    if (values.language) formData.append('language', values.language);
+    if (values.cta) formData.append('cta', values.cta);
+    formData.append('image', file);
+    return api.post('/ai/generate', formData, {
+      headers: { ...headers, 'Content-Type': 'multipart/form-data' },
+    });
+  }
+  return api.post(
+    '/ai/generate',
+    {
+      type: values.type || 'POST',
+      prompt: values.prompt || values.product || '',
+      product: values.product || values.prompt || '',
+      platform: values.platform || undefined,
+      objective: values.objective || undefined,
+      tone: values.tone || undefined,
+      language: values.language || undefined,
+      cta: values.cta || undefined,
+    },
+    { headers }
+  );
+};
+
+export const updateGeneration = (id, values, customerId) => {
+  const headers = customerId ? { 'x-customer-id': String(customerId) } : {};
+  return api.patch(`/ai/generations/${id}`, {
+    caption: values.caption,
+    hashtags: values.hashtags,
+  }, { headers });
+};
 
 export async function loadPublishes(query = {}) {
-  const payload = await api.get('/admin/social/publishes', { params: { status: query.status, platform: query.platform, limit: 20, offset: 0 } });
-  return rowsOf(payload);
+  const limit = query.limit || 20;
+  const page = Number(query.page) || 1;
+  const payload = await api.get('/admin/social/publishes', {
+    params: {
+      status: query.status || undefined,
+      platform: query.platform || undefined,
+      search: query.search || undefined,
+      customerId: query.customerId || undefined,
+      limit,
+      offset: (page - 1) * limit,
+    },
+  });
+  return {
+    rows: rowsOf(payload),
+    pagination: pageOf(payload).total ? pageOf(payload) : {
+      page,
+      limit,
+      total: rowsOf(payload).length,
+      totalPages: Math.max(1, Math.ceil(rowsOf(payload).length / limit)),
+    },
+  };
 }
+
+export const publishSocialPost = (body, customerId) => {
+  const headers = customerId ? { 'x-customer-id': String(customerId) } : {};
+  return api.post(
+    '/social/publish',
+    {
+      socialAccountId: Number(body.socialAccountId),
+      accountIds: [Number(body.socialAccountId)],
+      generationId: body.generationId ? Number(body.generationId) : undefined,
+      content: body.content,
+      mediaUrls: body.mediaUrls || [],
+      scheduledFor: body.scheduledFor || undefined,
+    },
+    { headers }
+  );
+};
+
+export const cancelScheduledPublish = (id, customerId) => {
+  const headers = customerId ? { 'x-customer-id': String(customerId) } : {};
+  return api.delete(`/social/publishes/${id}`, { headers });
+};
 
 export async function loadCreditTransactions(query = {}) {
   const limit = 20;

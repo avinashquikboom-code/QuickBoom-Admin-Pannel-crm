@@ -1,16 +1,14 @@
 'use client';
-import { formatCurrency } from "@/lib/currency";
 
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { faBars, faBell, faBuilding, faCheckDouble, faGear, faMagnifyingGlass, faPlus, faRightFromBracket, faTableCellsLarge, faUserTie, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faBuilding, faGear, faMagnifyingGlass, faPlus, faRightFromBracket, faTableCellsLarge, faUserTie, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Input } from '@/components/common/Input';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/common/Drawer';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, } from '@/components/common/Dropdown';
-import { Popover, PopoverContent, PopoverTrigger, } from '@/components/common/Popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/Dropdown';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
 import { Badge } from '@/components/common/Badge';
 import { toast } from '@/hooks/use-toast';
@@ -19,7 +17,7 @@ import { logoutAdmin } from '@/lib/auth/admin-login';
 import { readSession, updateSessionUser } from '@/lib/auth/admin-session';
 import { adminProfile } from '@/lib/auth/admin-profile';
 import { useSidebarStore } from '@/hooks/use-sidebar-store';
-import { loadAnnouncements } from '@/modules/hrm/hrm-api';
+import { NotificationDropdown } from './NotificationDropdown';
 import api from '../../../lib/api';
 export function Header() {
     const router = useRouter();
@@ -65,46 +63,6 @@ export function Header() {
     }, []);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
-    const sampleNotifications = [
-        {
-            id: 1,
-            title: 'New Overtime Request',
-            time: '10m ago',
-            desc: 'Sarah Jenkins applied for 4.5h overtime on Cloud Infra v3.',
-            unread: true,
-        },
-        {
-            id: 2,
-            title: 'New Enterprise Deal',
-            time: '1h ago',
-            desc: `Deal DEAL-804 with Aegean Advisory moved to Won (${formatCurrency(29000)}).`,
-            unread: true,
-        },
-        {
-            id: 3,
-            title: 'Expense Claim Pending',
-            time: '3h ago',
-            desc: `Liam Chen submitted an expense claim of ${formatCurrency(845.50)} for travel.`,
-            unread: false,
-        },
-    ];
-    const [announcements, setAnnouncements] = React.useState([]);
-    React.useEffect(() => {
-        let active = true;
-        loadAnnouncements({ status: 'PUBLISHED', limit: 5, page: 1 })
-            .then((result) => { if (active) setAnnouncements(result.rows || []); })
-            .catch(() => { if (active) setAnnouncements([]); });
-        return () => { active = false; };
-    }, []);
-    const announcementNotifications = announcements.map((announcement) => ({
-        id: `announcement-${announcement.id}`,
-        title: announcement.title || 'Company announcement',
-        time: announcement.publishAt ? new Date(announcement.publishAt).toLocaleDateString() : 'Announcement',
-        desc: announcement.description || 'A new company announcement is available.',
-        unread: false,
-        href: '/admin/hrm/announcements',
-    }));
-    const notifications = [...announcementNotifications, ...sampleNotifications];
     const handleSearchSubmit = (e) => {
         e.preventDefault();
         if (!searchQuery.trim())
@@ -236,48 +194,8 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Notifications Popover */}
-            <Popover>
-              <PopoverTrigger aria-label="Notifications" className="relative flex size-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
-                <FontAwesomeIcon icon={faBell} className="size-4.5"/>
-                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-primary-foreground shadow-xs">
-                  2
-                </span>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-[min(340px,calc(100vw-2rem))] p-0 bg-white border border-slate-200 shadow-xl rounded-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-slate-50/50 rounded-t-xl">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-900">
-                  Notifications
-                </span>
-                <Badge className="bg-brand-light text-brand-dark text-[10px] font-bold h-4 px-1.5 shadow-none">
-                  2 New
-                </Badge>
-              </div>
-              <button onClick={() => toast.success('All marked as read')} className="text-xs text-brand hover:text-brand-dark flex items-center gap-1 font-medium">
-                <FontAwesomeIcon icon={faCheckDouble} className="size-3.5"/>
-                Mark read
-              </button>
-            </div>
-            <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-              {notifications.map((n) => (<Link href={n.href || '/admin/hrm/announcements'} key={n.id} className={`block p-3 text-xs hover:bg-slate-50/80 transition-colors ${n.unread ? 'bg-brand-light/30' : ''}`}>
-                  <div className="flex items-center justify-between font-medium text-slate-900">
-                    <span className="flex items-center gap-1.5">
-                      {n.unread && (<span className="size-1.5 rounded-full bg-brand shrink-0"/>)}
-                      {n.title}
-                    </span>
-                    <span className="text-[10px] text-slate-400">{n.time}</span>
-                  </div>
-                  <p className="mt-1 text-slate-500 leading-relaxed">{n.desc}</p>
-                </Link>))}
-            </div>
-            <div className="p-2 border-t border-slate-100 text-center bg-slate-50/40 rounded-b-xl">
-              <Link href="/hrm/announcements" className="text-xs font-semibold text-brand hover:text-brand-dark">
-                View all company updates →
-              </Link>
-            </div>
-          </PopoverContent>
-        </Popover>
+            {/* Notifications Popover connected to real backend */}
+            <NotificationDropdown />
 
         {/* Admin Profile Dropdown */}
         <DropdownMenu>

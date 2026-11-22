@@ -385,7 +385,7 @@ export default function DataManagementPage() {
 
       {/* TAB 1: RESET DATA */}
       {!loading && !error && tab === 'reset' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 min-w-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 items-start gap-5 sm:gap-6 min-w-0">
           {/* Left Column: Reset Selected Modules, Previews & Confirmation (70%) */}
           <div className="lg:col-span-8 space-y-5 sm:space-y-6 min-w-0">
             {/* Module Selection Card */}
@@ -723,161 +723,167 @@ export default function DataManagementPage() {
 
       {/* TAB 2: BACKUP & RESTORE */}
       {!loading && !error && tab === 'backup' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 min-w-0">
-          <div className="lg:col-span-8 space-y-6 min-w-0">
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.8fr)_minmax(300px,1fr)] xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] items-start gap-6 min-w-0">
+          {/* Left Column: Create Verified Database Backup Card */}
+          <div className="min-w-0 w-full rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs space-y-5">
+            <div className="space-y-1">
               <h2 className="text-base sm:text-lg font-bold text-slate-900">Create Verified Database Backup</h2>
               <p className="text-xs sm:text-sm text-slate-500">
                 Backups are checksum-verified snapshots of tenant tables. Integration secrets and passwords are excluded.
               </p>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  placeholder="Backup name (e.g. Pre-Q4 Reset Snapshot)"
-                  value={backupName}
-                  onChange={(e) => setBackupName(e.target.value)}
-                  className="h-10 text-xs sm:text-sm"
-                />
-                <Input
-                  placeholder="Description or notes"
-                  value={backupDescription}
-                  onChange={(e) => setBackupDescription(e.target.value)}
-                  className="h-10 text-xs sm:text-sm"
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                placeholder="Backup name (e.g. Pre-Q4 Reset Snapshot)"
+                value={backupName}
+                onChange={(e) => setBackupName(e.target.value)}
+                className="h-10 text-xs sm:text-sm"
+              />
+              <Input
+                placeholder="Description or notes"
+                value={backupDescription}
+                onChange={(e) => setBackupDescription(e.target.value)}
+                className="h-10 text-xs sm:text-sm"
+              />
+            </div>
 
-              <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                disabled={Boolean(busy)}
+                onClick={() => run('backup', () => createDataBackup({
+                  name: backupName || 'Manual backup',
+                  description: backupDescription,
+                  modules: selected.length ? selected : modules.filter((item) => item.available).map((item) => item.id),
+                }))}
+                className="bg-[#163A2E] hover:bg-[#204C3D] text-white text-xs font-semibold h-9"
+              >
+                Create Backup Now
+              </Button>
+              {isSuperAdmin && (
                 <Button
                   type="button"
+                  variant="outline"
                   size="sm"
                   disabled={Boolean(busy)}
                   onClick={() => run('backup', () => createDataBackup({
-                    name: backupName || 'Manual backup',
-                    description: backupDescription,
-                    modules: selected.length ? selected : modules.filter((item) => item.available).map((item) => item.id),
+                    name: backupName || 'Global backup',
+                    description: backupDescription || 'Every tenant snapshot',
+                    scope: 'global',
                   }))}
-                  className="bg-[#163A2E] hover:bg-[#204C3D] text-white text-xs font-semibold h-9"
+                  className="border-slate-300 text-xs font-semibold h-9"
                 >
-                  Create Backup Now
+                  Create Global Backup
                 </Button>
-                {isSuperAdmin && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={Boolean(busy)}
-                    onClick={() => run('backup', () => createDataBackup({
-                      name: backupName || 'Global backup',
-                      description: backupDescription || 'Every tenant snapshot',
-                      scope: 'global',
-                    }))}
-                    className="border-slate-300 text-xs font-semibold h-9"
-                  >
-                    Create Global Backup
-                  </Button>
-                )}
-              </div>
-
-              {/* Backups Table */}
-              <div className="pt-4 border-t border-slate-100 overflow-x-auto">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
-                  Existing Backups ({backups.length})
-                </span>
-                <table className="w-full min-w-[640px] text-left text-xs">
-                  <thead className="text-[11px] uppercase text-slate-500 bg-slate-50 border-y border-slate-200">
-                    <tr>
-                      <th className="py-2.5 px-3">Name</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3">Size</th>
-                      <th className="py-2.5 px-3">Created</th>
-                      <th className="py-2.5 px-3">By</th>
-                      <th className="py-2.5 px-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {backups.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/70">
-                        <td className="py-2.5 px-3 font-semibold text-slate-900">{item.name}</td>
-                        <td className="py-2.5 px-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
-                            {item.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 font-mono">{formatBytes(item.size)}</td>
-                        <td className="py-2.5 px-3 text-slate-500">{stamp(item.createdAt)}</td>
-                        <td className="py-2.5 px-3 text-slate-600">{item.createdBy}</td>
-                        <td className="py-2.5 px-3 text-right">
-                          <AdminRowActions
-                            record={item}
-                            recordName={item.name}
-                            actions={[
-                              {
-                                id: 'verify',
-                                label: 'Verify Backup',
-                                onClick: () => run('verify', () => verifyDataBackup(item.id)),
-                              },
-                              {
-                                id: 'download',
-                                label: 'Download Backup',
-                                onClick: () => saveFile(() => downloadDataBackup(item.id), `qb-backup-${item.id}.json.gz`),
-                              },
-                              {
-                                id: 'restore',
-                                label: 'Restore from Backup',
-                                onClick: () =>
-                                  run('restore-preview', async () => {
-                                    const response = await previewDataRestore(item.id);
-                                    setRestoreId(item.id);
-                                    setRestorePreview(dataOf(response));
-                                    return response;
-                                  }),
-                              },
-                            ]}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                    {!backups.length && (
-                      <tr>
-                        <td className="py-4 text-center text-slate-400" colSpan={6}>
-                          No backups recorded yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Restore Confirmation Box */}
-              {restorePreview && (
-                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
-                  <p className="font-bold text-amber-950 text-sm">
-                    Restore {restorePreview.estimatedRecords} records from backup #{restoreId}
-                  </p>
-                  <p className="text-xs text-amber-800">
-                    A safety snapshot is taken automatically before restore. Type <code className="font-bold">RESTORE</code> to proceed.
-                  </p>
-                  <Input
-                    placeholder="Type RESTORE"
-                    value={restoreConfirmation}
-                    onChange={(e) => setRestoreConfirmation(e.target.value)}
-                    className="h-9 text-xs font-mono bg-white"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={restoreConfirmation !== 'RESTORE' || Boolean(busy)}
-                    onClick={() => run('restore', () => executeDataRestore(restoreId, { confirmation: restoreConfirmation, idempotencyKey: crypto.randomUUID() }))}
-                    className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs h-9"
-                  >
-                    Execute Restore
-                  </Button>
-                </div>
               )}
             </div>
+
+            {/* Backups Table */}
+            <div className="pt-4 border-t border-slate-100 overflow-x-auto min-w-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-2">
+                Existing Backups ({backups.length})
+              </span>
+              <table className="w-full min-w-[580px] text-left text-xs">
+                <thead className="text-[11px] uppercase text-slate-500 bg-slate-50 border-y border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-3">Name</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Size</th>
+                    <th className="py-2.5 px-3">Created</th>
+                    <th className="py-2.5 px-3">By</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {backups.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/70">
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">{item.name}</td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono">{formatBytes(item.size)}</td>
+                      <td className="py-2.5 px-3 text-slate-500">{stamp(item.createdAt)}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{item.createdBy}</td>
+                      <td className="py-2.5 px-3 text-right">
+                        <AdminRowActions
+                          record={item}
+                          recordName={item.name}
+                          actions={[
+                            {
+                              id: 'verify',
+                              label: 'Verify Backup',
+                              onClick: () => run('verify', () => verifyDataBackup(item.id)),
+                            },
+                            {
+                              id: 'download',
+                              label: 'Download Backup',
+                              onClick: () => saveFile(() => downloadDataBackup(item.id), `qb-backup-${item.id}.json.gz`),
+                            },
+                            {
+                              id: 'restore',
+                              label: 'Restore from Backup',
+                              onClick: () =>
+                                run('restore-preview', async () => {
+                                  const response = await previewDataRestore(item.id);
+                                  setRestoreId(item.id);
+                                  setRestorePreview(dataOf(response));
+                                  return response;
+                                }),
+                            },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                  {!backups.length && (
+                    <tr>
+                      <td className="py-8 text-center text-slate-400" colSpan={6}>
+                        <div className="flex flex-col items-center justify-center gap-1.5">
+                          <FontAwesomeIcon icon={faDatabase} className="size-5 text-slate-300" />
+                          <span className="font-medium text-slate-500">No backups recorded yet.</span>
+                          <span className="text-[11px] text-slate-400">Created backups will be listed here with verification status and restore options.</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Restore Confirmation Box */}
+            {restorePreview && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
+                <p className="font-bold text-amber-950 text-sm">
+                  Restore {restorePreview.estimatedRecords} records from backup #{restoreId}
+                </p>
+                <p className="text-xs text-amber-800">
+                  A safety snapshot is taken automatically before restore. Type <code className="font-bold">RESTORE</code> to proceed.
+                </p>
+                <Input
+                  placeholder="Type RESTORE"
+                  value={restoreConfirmation}
+                  onChange={(e) => setRestoreConfirmation(e.target.value)}
+                  className="h-9 text-xs font-mono bg-white"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={restoreConfirmation !== 'RESTORE' || Boolean(busy)}
+                  onClick={() => run('restore', () => executeDataRestore(restoreId, { confirmation: restoreConfirmation, idempotencyKey: crypto.randomUUID() }))}
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs h-9"
+                >
+                  Execute Restore
+                </Button>
+              </div>
+            )}
           </div>
 
-          <div className="lg:col-span-4 space-y-5">
+          {/* Right Column: Protected Records Card */}
+          <div className="min-w-0 w-full">
             <ProtectedRecordsCard dynamicRecords={protectedRecords} />
           </div>
         </div>
@@ -885,77 +891,110 @@ export default function DataManagementPage() {
 
       {/* TAB 3: DATA CLEANUP */}
       {!loading && !error && tab === 'cleanup' && (
-        <div className="space-y-4 max-w-4xl">
-          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs space-y-2">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">Periodic Data Cleanup</h2>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Clean stale transient sessions, expired tokens, and obsolete failed capture records safely.
-            </p>
+        <div className="space-y-4 sm:space-y-5 max-w-4xl w-full min-w-0">
+          {/* Header Card */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs space-y-1.5 min-w-0">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-lg bg-emerald-50 text-[#163A2E] flex items-center justify-center border border-emerald-100 shrink-0">
+                <FontAwesomeIcon icon={faTrashCan} className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">Periodic Data Cleanup</h2>
+                <p className="text-xs sm:text-sm text-slate-500">
+                  Clean stale transient sessions, expired tokens, and obsolete failed capture records safely.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="grid gap-3">
+          {/* Cleanup Items List */}
+          <div className="grid gap-3 sm:gap-3.5 min-w-0">
             {[
               ['expired-refresh-tokens', 'Expired Refresh Tokens', 'Purges revoked and expired authentication refresh tokens.'],
               ['stale-sessions', 'Stale User Sessions', 'Invalidates abandoned web and mobile sessions.'],
               ['stale-failed-captures', 'Expired Failed Captures', 'Cleans unretryable failed data capture payloads.'],
               ['old-email-logs', 'Email Logs Older Than 180 Days', 'Archives historic notification dispatch logs.'],
               ['duplicate-leads', 'Duplicate Leads for Review', 'Surfaces identical lead entries without deleting them.'],
-            ].map(([id, label, desc]) => (
-              <div key={id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <h3 className="text-sm font-bold text-slate-900">{label}</h3>
-                  <p className="text-xs text-slate-500">{desc}</p>
-                  {cleanup[id]?.records !== undefined && (
-                    <span className="inline-block mt-1 text-xs font-semibold text-[#163A2E] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                      {cleanup[id].records} matching records
-                    </span>
-                  )}
-                </div>
+            ].map(([id, label, desc]) => {
+              const count = cleanup[id]?.records;
+              const isLeadReview = id === 'duplicate-leads';
 
-                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={Boolean(busy)}
-                    onClick={() => run('cleanup-preview', async () => {
-                      const response = await previewDataCleanup(id);
-                      setCleanup((current) => ({ ...current, [id]: dataOf(response) }));
-                      return response;
-                    })}
-                    className="h-8 text-xs border-slate-200"
-                  >
-                    Preview
-                  </Button>
-                  {id !== 'duplicate-leads' && (
+              return (
+                <div
+                  key={id}
+                  className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 min-w-0 transition-colors hover:border-slate-300"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900 break-words">{label}</h3>
+                      {count !== undefined && (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-[#163A2E] border border-emerald-200">
+                          {Number(count).toLocaleString()} matching {count === 1 ? 'record' : 'records'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed break-words">{desc}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                     <Button
                       type="button"
+                      variant="outline"
                       size="sm"
-                      disabled={Boolean(busy) || cleanupConfirmation !== 'CLEANUP'}
-                      onClick={() => run('cleanup', () => executeDataCleanup({ operation: id, confirmation: 'CLEANUP', idempotencyKey: crypto.randomUUID() }))}
-                      className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                      disabled={Boolean(busy)}
+                      onClick={() => run('cleanup-preview', async () => {
+                        const response = await previewDataCleanup(id);
+                        setCleanup((current) => ({ ...current, [id]: dataOf(response) }));
+                        return response;
+                      })}
+                      className="flex-1 sm:flex-none h-9 sm:h-8 text-xs font-semibold border-slate-200 text-slate-700 hover:bg-[#E8F1EC] hover:text-[#163A2E] cursor-pointer"
                     >
-                      Clean up
+                      Preview
                     </Button>
-                  )}
+                    {!isLeadReview && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={Boolean(busy) || cleanupConfirmation !== 'CLEANUP'}
+                        onClick={() => run('cleanup', () => executeDataCleanup({ operation: id, confirmation: 'CLEANUP', idempotencyKey: crypto.randomUUID() }))}
+                        className="flex-1 sm:flex-none h-9 sm:h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        Clean up
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-[#F7F9F8] p-4 space-y-2">
-            <label className="block text-xs font-semibold text-slate-800">
-              Type <code className="font-mono text-rose-600 font-bold bg-rose-50 px-1 py-0.5 rounded border border-rose-200">CLEANUP</code> to enable cleanup buttons
-            </label>
-            <Input
-              placeholder="Type CLEANUP"
-              value={cleanupConfirmation}
-              onChange={(e) => setCleanupConfirmation(e.target.value)}
-              className="h-9 text-xs font-mono max-w-xs bg-white"
-            />
-            <p className="text-[11px] text-slate-400">
-              Payroll, invoices, expense claims, and system audit logs are never modified or purged by cleanup.
-            </p>
+          {/* Cleanup Confirmation Card */}
+          <div className="rounded-2xl border border-slate-200/90 bg-[#F7F9F8] p-4 sm:p-5 shadow-xs space-y-3 min-w-0">
+            <div className="space-y-1">
+              <label htmlFor="cleanup-confirmation-input" className="block text-xs font-bold text-slate-800">
+                Type <code className="font-mono text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">CLEANUP</code> to enable cleanup buttons
+              </label>
+              <p className="text-[11px] text-slate-500">
+                This verification guard prevents accidental execution of data cleanup routines.
+              </p>
+            </div>
+
+            <div className="w-full sm:max-w-xs">
+              <Input
+                id="cleanup-confirmation-input"
+                placeholder="Type CLEANUP"
+                value={cleanupConfirmation}
+                onChange={(e) => setCleanupConfirmation(e.target.value)}
+                className="h-9.5 text-xs font-mono w-full bg-white border-slate-200 focus-visible:ring-rose-500"
+              />
+            </div>
+
+            <div className="flex items-start gap-2 pt-2 border-t border-slate-200/70 text-[11px] text-slate-500">
+              <FontAwesomeIcon icon={faShieldHalved} className="size-3.5 text-emerald-700 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                Payroll, invoices, expense claims, and system audit logs are never modified or purged by cleanup.
+              </p>
+            </div>
           </div>
         </div>
       )}
