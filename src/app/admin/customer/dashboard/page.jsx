@@ -293,13 +293,13 @@ function ColumnVisibilityToggle({ columns, visibility, onToggle }) {
   }, [open]);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative shrink-0" ref={dropdownRef}>
       <Button
         type="button"
         variant="outline"
         size="sm"
         onClick={() => setOpen((prev) => !prev)}
-        className="h-8.5 rounded-lg border-slate-200 px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        className="h-9 rounded-xl border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
       >
         <SlidersHorizontal className="mr-1.5 size-3.5 text-slate-500" />
         <span>Columns</span>
@@ -354,6 +354,7 @@ export default function CustomerDashboardPage() {
 
   // Recent Invoices Section State
   const [invoiceSearch, setInvoiceSearch] = React.useState('');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = React.useState('');
   const [invoiceColVisibility, setInvoiceColVisibility] = React.useState({
     invoiceNo: true,
     customer: true,
@@ -433,9 +434,14 @@ export default function CustomerDashboardPage() {
       const q = invoiceSearch.trim().toLowerCase();
       const no = (inv.invoiceNo || inv.invoiceNumber || '').toLowerCase();
       const client = (inv.customerName || inv.clientName || '').toLowerCase();
-      return !q || no.includes(q) || client.includes(q);
+      const matchesSearch = !q || no.includes(q) || client.includes(q);
+
+      const status = String(inv.status || 'PENDING').toUpperCase();
+      const matchesStatus = !invoiceStatusFilter || status === invoiceStatusFilter;
+
+      return matchesSearch && matchesStatus;
     });
-  }, [rawInvoices, invoiceSearch]);
+  }, [rawInvoices, invoiceSearch, invoiceStatusFilter]);
 
   const invoiceTotalPages = Math.ceil(filteredInvoices.length / invoicePageSize) || 1;
   const paginatedInvoices = React.useMemo(() => {
@@ -501,7 +507,7 @@ export default function CustomerDashboardPage() {
               aria-label="Customer status"
               value={filters.status}
               onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-              className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
             >
               <option value="">All customer statuses</option>
               <option value="ACTIVE">Active</option>
@@ -708,25 +714,25 @@ export default function CustomerDashboardPage() {
             />
           </div>
 
-          {/* E & F. Two-Column Layout: Recent Customers & Recent Invoices */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full items-start">
+          {/* E & F. Two-Column Layout: Recent Customers & Recent Invoices (Equally stretched and aligned) */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full items-stretch">
             {/* Section E: Recent Customers */}
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full space-y-4">
               {/* Header */}
-              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A] border border-emerald-100">
-                    <UsersRound className="size-4" />
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-50 text-[#16A34A] border border-emerald-100 shrink-0">
+                    <UsersRound className="size-4.5" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-slate-900">Recent Customers</h2>
-                    <p className="text-[11px] text-slate-500">Latest tenant accounts registered</p>
+                    <h2 className="text-sm font-bold text-slate-900 leading-tight">Recent Customers</h2>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Latest tenant accounts registered</p>
                   </div>
                 </div>
 
                 <Link
                   href="/admin/crm/customers"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#16A34A] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#16A34A] hover:underline shrink-0"
                 >
                   <span>View all</span>
                   <ArrowUpRight className="size-3" />
@@ -734,10 +740,10 @@ export default function CustomerDashboardPage() {
               </div>
 
               {/* Toolbar */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                 {/* Search */}
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                <div className="relative flex-1 min-w-[160px]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
                   <Input
                     type="text"
                     value={customerSearch}
@@ -746,12 +752,12 @@ export default function CustomerDashboardPage() {
                       setCustomerPage(1);
                     }}
                     placeholder="Search customers..."
-                    className="h-8.5 w-full rounded-lg border-slate-200 bg-slate-50/70 pl-8 pr-7 text-xs focus-visible:bg-white"
+                    className="h-9 w-full rounded-xl border-slate-200 bg-slate-50/70 pl-8.5 pr-7 text-xs focus-visible:bg-white focus-visible:border-emerald-400 focus-visible:ring-emerald-100"
                   />
                   {customerSearch && (
                     <button
                       onClick={() => setCustomerSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
                       <X className="size-3" />
                     </button>
@@ -765,7 +771,7 @@ export default function CustomerDashboardPage() {
                     setCustomerStatusFilter(e.target.value);
                     setCustomerPage(1);
                   }}
-                  className="h-8.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 outline-none"
+                  className="h-9 w-[130px] shrink-0 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 >
                   <option value="">All Statuses</option>
                   <option value="ACTIVE">Active</option>
@@ -787,18 +793,18 @@ export default function CustomerDashboardPage() {
                 />
               </div>
 
-              {/* Table / List */}
-              <div className="overflow-x-auto min-w-0">
+              {/* Table / List Container */}
+              <div className="overflow-x-auto min-w-0 flex-1 flex flex-col justify-between">
                 {filteredCustomers.length === 0 ? (
-                  <div className="py-10 text-center space-y-2">
-                    <div className="inline-flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <div className="min-h-[260px] flex-1 flex flex-col items-center justify-center text-center space-y-2 py-8">
+                    <div className="inline-flex size-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 border border-slate-100">
                       <Users className="size-5" />
                     </div>
-                    <p className="text-xs font-semibold text-slate-700">No customers found</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-bold text-slate-800">No customers found</p>
+                    <p className="text-[11px] text-slate-500 max-w-xs">
                       {customerSearch || customerStatusFilter
-                        ? 'Try clearing your search or filter query'
-                        : 'No recent customer records in the database'}
+                        ? 'Try clearing your search or status query'
+                        : 'No customer accounts available in the database'}
                     </p>
                   </div>
                 ) : (
@@ -823,14 +829,14 @@ export default function CustomerDashboardPage() {
                         return (
                           <tr
                             key={row.id || row.email}
-                            className="hover:bg-[#F8FBF9] transition-colors"
+                            className="hover:bg-[#F8FBF9] transition-colors h-[52px]"
                           >
                             {customerColVisibility.name && (
-                              <td className="py-2.5 px-3 whitespace-nowrap">
-                                <div className="flex items-center gap-2">
+                              <td className="py-2 px-3 whitespace-nowrap">
+                                <div className="flex items-center gap-2.5">
                                   <div
                                     className={cn(
-                                      'flex size-7 items-center justify-center rounded-full bg-linear-to-br text-white font-bold text-[10px] shrink-0',
+                                      'flex size-7.5 items-center justify-center rounded-full bg-linear-to-br text-white font-bold text-[10px] shrink-0 shadow-2xs',
                                       getAvatarGradient(displayName)
                                     )}
                                   >
@@ -844,13 +850,13 @@ export default function CustomerDashboardPage() {
                             )}
 
                             {customerColVisibility.email && (
-                              <td className="py-2.5 px-3 whitespace-nowrap text-slate-500 truncate max-w-[140px]">
-                                {row.email || '—'}
+                              <td className="py-2 px-3 whitespace-nowrap text-slate-500 truncate max-w-[140px]">
+                                {row.email || 'N/A'}
                               </td>
                             )}
 
                             {customerColVisibility.status && (
-                              <td className="py-2.5 px-3 whitespace-nowrap">
+                              <td className="py-2 px-3 whitespace-nowrap">
                                 <span
                                   className={cn(
                                     'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border',
@@ -865,7 +871,7 @@ export default function CustomerDashboardPage() {
                             )}
 
                             {customerColVisibility.created && (
-                              <td className="py-2.5 px-3 text-right whitespace-nowrap text-slate-500 text-[11px]">
+                              <td className="py-2 px-3 text-right whitespace-nowrap text-slate-500 text-[11px]">
                                 {formatDisplayDate(row.createdAt)}
                               </td>
                             )}
@@ -877,71 +883,70 @@ export default function CustomerDashboardPage() {
                 )}
               </div>
 
-              {/* Customer Pagination */}
-              {filteredCustomers.length > 0 && (
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <span>Rows:</span>
-                    <select
-                      value={customerPageSize}
-                      onChange={(e) => {
-                        setCustomerPageSize(Number(e.target.value));
-                        setCustomerPage(1);
-                      }}
-                      className="rounded border border-slate-200 px-1.5 py-0.5 text-xs font-medium"
-                    >
-                      <option value={5}>5</option>
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                    </select>
-                  </div>
+              {/* Customer Pagination (Always present to anchor baseline) */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500 mt-auto">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-slate-500">Rows:</span>
+                  <select
+                    value={customerPageSize}
+                    onChange={(e) => {
+                      setCustomerPageSize(Number(e.target.value));
+                      setCustomerPage(1);
+                    }}
+                    disabled={filteredCustomers.length === 0}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 outline-none disabled:opacity-50"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                  </select>
+                </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px]">
-                      {customerPage} / {customerTotalPages}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={customerPage <= 1}
-                        onClick={() => setCustomerPage((p) => Math.max(1, p - 1))}
-                        className="h-7 size-7 p-0 rounded-md"
-                      >
-                        <ChevronLeft className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={customerPage >= customerTotalPages}
-                        onClick={() => setCustomerPage((p) => Math.min(customerTotalPages, p + 1))}
-                        className="h-7 size-7 p-0 rounded-md"
-                      >
-                        <ChevronRight className="size-3.5" />
-                      </Button>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-medium text-slate-600">
+                    {filteredCustomers.length === 0 ? '0 / 0' : `${customerPage} / ${customerTotalPages}`}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={customerPage <= 1 || filteredCustomers.length === 0}
+                      onClick={() => setCustomerPage((p) => Math.max(1, p - 1))}
+                      className="h-7 size-7 p-0 rounded-lg border-slate-200"
+                    >
+                      <ChevronLeft className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={customerPage >= customerTotalPages || filteredCustomers.length === 0}
+                      onClick={() => setCustomerPage((p) => Math.min(customerTotalPages, p + 1))}
+                      className="h-7 size-7 p-0 rounded-lg border-slate-200"
+                    >
+                      <ChevronRight className="size-3.5" />
+                    </Button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Section F: Recent Invoices */}
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs flex flex-col justify-between h-full space-y-4">
               {/* Header */}
-              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-teal-50 text-teal-700 border border-teal-100">
-                    <FileText className="size-4" />
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-50 text-[#16A34A] border border-emerald-100 shrink-0">
+                    <FileText className="size-4.5" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-slate-900">Recent Invoices</h2>
-                    <p className="text-[11px] text-slate-500">Billing records and payment statuses</p>
+                    <h2 className="text-sm font-bold text-slate-900 leading-tight">Recent Invoices</h2>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Billing records and payment statuses</p>
                   </div>
                 </div>
 
                 <Link
                   href="/admin/customer/invoices"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#16A34A] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#16A34A] hover:underline shrink-0"
                 >
                   <span>View all</span>
                   <ArrowUpRight className="size-3" />
@@ -949,10 +954,10 @@ export default function CustomerDashboardPage() {
               </div>
 
               {/* Toolbar */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                 {/* Search */}
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                <div className="relative flex-1 min-w-[160px]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
                   <Input
                     type="text"
                     value={invoiceSearch}
@@ -961,17 +966,32 @@ export default function CustomerDashboardPage() {
                       setInvoicePage(1);
                     }}
                     placeholder="Search invoices by number or client..."
-                    className="h-8.5 w-full rounded-lg border-slate-200 bg-slate-50/70 pl-8 pr-7 text-xs focus-visible:bg-white"
+                    className="h-9 w-full rounded-xl border-slate-200 bg-slate-50/70 pl-8.5 pr-7 text-xs focus-visible:bg-white focus-visible:border-emerald-400 focus-visible:ring-emerald-100"
                   />
                   {invoiceSearch && (
                     <button
                       onClick={() => setInvoiceSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
                       <X className="size-3" />
                     </button>
                   )}
                 </div>
+
+                {/* Status Filter */}
+                <select
+                  value={invoiceStatusFilter}
+                  onChange={(e) => {
+                    setInvoiceStatusFilter(e.target.value);
+                    setInvoicePage(1);
+                  }}
+                  className="h-9 w-[130px] shrink-0 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="PAID">Paid</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="OVERDUE">Overdue</option>
+                </select>
 
                 {/* Column Visibility */}
                 <ColumnVisibilityToggle
@@ -988,17 +1008,17 @@ export default function CustomerDashboardPage() {
                 />
               </div>
 
-              {/* Table / List */}
-              <div className="overflow-x-auto min-w-0">
+              {/* Table / List Container */}
+              <div className="overflow-x-auto min-w-0 flex-1 flex flex-col justify-between">
                 {filteredInvoices.length === 0 ? (
-                  <div className="py-10 text-center space-y-2">
-                    <div className="inline-flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <div className="min-h-[260px] flex-1 flex flex-col items-center justify-center text-center space-y-2 py-8">
+                    <div className="inline-flex size-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 border border-slate-100">
                       <FileText className="size-5" />
                     </div>
-                    <p className="text-xs font-semibold text-slate-700">No invoices found</p>
-                    <p className="text-[11px] text-slate-500">
-                      {invoiceSearch
-                        ? 'Try clearing your search query'
+                    <p className="text-xs font-bold text-slate-800">No invoices found</p>
+                    <p className="text-[11px] text-slate-500 max-w-xs">
+                      {invoiceSearch || invoiceStatusFilter
+                        ? 'Try clearing your search or status query'
                         : 'No recent billing invoices in the database'}
                     </p>
                   </div>
@@ -1029,28 +1049,28 @@ export default function CustomerDashboardPage() {
                         return (
                           <tr
                             key={inv.id || invoiceNum}
-                            className="hover:bg-[#F8FBF9] transition-colors"
+                            className="hover:bg-[#F8FBF9] transition-colors h-[52px]"
                           >
                             {invoiceColVisibility.invoiceNo && (
-                              <td className="py-2.5 px-3 whitespace-nowrap font-mono font-semibold text-slate-900">
+                              <td className="py-2 px-3 whitespace-nowrap font-mono font-semibold text-slate-900">
                                 {invoiceNum}
                               </td>
                             )}
 
                             {invoiceColVisibility.customer && (
-                              <td className="py-2.5 px-3 whitespace-nowrap font-medium text-slate-800 truncate max-w-[140px]">
+                              <td className="py-2 px-3 whitespace-nowrap font-medium text-slate-800 truncate max-w-[140px]">
                                 {clientName}
                               </td>
                             )}
 
                             {invoiceColVisibility.total && (
-                              <td className="py-2.5 px-3 whitespace-nowrap font-semibold text-slate-900">
+                              <td className="py-2 px-3 whitespace-nowrap font-semibold text-slate-900">
                                 {inr(inv.totalAmount)}
                               </td>
                             )}
 
                             {invoiceColVisibility.status && (
-                              <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                              <td className="py-2 px-3 text-right whitespace-nowrap">
                                 <span
                                   className={cn(
                                     'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border',
@@ -1076,52 +1096,51 @@ export default function CustomerDashboardPage() {
                 )}
               </div>
 
-              {/* Invoice Pagination */}
-              {filteredInvoices.length > 0 && (
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <span>Rows:</span>
-                    <select
-                      value={invoicePageSize}
-                      onChange={(e) => {
-                        setInvoicePageSize(Number(e.target.value));
-                        setInvoicePage(1);
-                      }}
-                      className="rounded border border-slate-200 px-1.5 py-0.5 text-xs font-medium"
-                    >
-                      <option value={5}>5</option>
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                    </select>
-                  </div>
+              {/* Invoice Pagination (Always present to anchor baseline) */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500 mt-auto">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-slate-500">Rows:</span>
+                  <select
+                    value={invoicePageSize}
+                    onChange={(e) => {
+                      setInvoicePageSize(Number(e.target.value));
+                      setInvoicePage(1);
+                    }}
+                    disabled={filteredInvoices.length === 0}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 outline-none disabled:opacity-50"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                  </select>
+                </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px]">
-                      {invoicePage} / {invoiceTotalPages}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={invoicePage <= 1}
-                        onClick={() => setInvoicePage((p) => Math.max(1, p - 1))}
-                        className="h-7 size-7 p-0 rounded-md"
-                      >
-                        <ChevronLeft className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={invoicePage >= invoiceTotalPages}
-                        onClick={() => setInvoicePage((p) => Math.min(invoiceTotalPages, p + 1))}
-                        className="h-7 size-7 p-0 rounded-md"
-                      >
-                        <ChevronRight className="size-3.5" />
-                      </Button>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-medium text-slate-600">
+                    {filteredInvoices.length === 0 ? '0 / 0' : `${invoicePage} / ${invoiceTotalPages}`}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={invoicePage <= 1 || filteredInvoices.length === 0}
+                      onClick={() => setInvoicePage((p) => Math.max(1, p - 1))}
+                      className="h-7 size-7 p-0 rounded-lg border-slate-200"
+                    >
+                      <ChevronLeft className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={invoicePage >= invoiceTotalPages || filteredInvoices.length === 0}
+                      onClick={() => setInvoicePage((p) => Math.min(invoiceTotalPages, p + 1))}
+                      className="h-7 size-7 p-0 rounded-lg border-slate-200"
+                    >
+                      <ChevronRight className="size-3.5" />
+                    </Button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </>
