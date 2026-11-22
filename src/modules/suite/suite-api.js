@@ -11,10 +11,69 @@ export const saveTrending = (values, id) => id ? api.patch(`/admin/trending/${id
 export const removeTrending = (id) => api.delete(`/admin/trending/${id}`);
 export const publishTrending = (id, isPublished) => api.patch(`/admin/trending/${id}/publish`, { isPublished });
 
-export const loadBanners = (query = {}) => list('/admin/marketing/banners', { search: query.search, page: query.page, limit: 20 });
-export const saveBanner = (values, id) => id ? api.patch(`/admin/marketing/banners/${id}`, bannerBody(values)) : api.post('/admin/marketing/banners', bannerBody(values));
+export const loadBanners = (query = {}) => {
+  let isActive = undefined;
+  let isPublished = undefined;
+  if (query.status === 'ACTIVE') isActive = true;
+  else if (query.status === 'INACTIVE') isActive = false;
+  else if (query.status === 'PUBLISHED') isPublished = true;
+  else if (query.status === 'UNPUBLISHED') isPublished = false;
+
+  return list('/admin/marketing/banners', {
+    search: query.search || undefined,
+    isActive: query.isActive !== undefined ? query.isActive : isActive,
+    isPublished: query.isPublished !== undefined ? query.isPublished : isPublished,
+    page: query.page || 1,
+    limit: query.limit || 20,
+  });
+};
+
+export const loadBannerStats = () =>
+  api.get('/admin/marketing/banners/stats').then((res) => res?.data || res);
+
+export const getBanner = (id) =>
+  api.get(`/admin/marketing/banners/${id}`).then((res) => res?.data || res);
+
+export const saveBanner = (values, id, file = null) => {
+  if (file instanceof File) {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (values.title) formData.append('title', values.title.trim());
+    if (values.subtitle) formData.append('subtitle', values.subtitle.trim());
+    if (values.description) formData.append('description', values.description.trim());
+    if (values.ctaText) formData.append('ctaText', values.ctaText.trim());
+    if (values.ctaUrl) formData.append('ctaUrl', values.ctaUrl.trim());
+    if (values.actionType) formData.append('actionType', values.actionType.trim());
+    if (values.priority !== undefined && values.priority !== '')
+      formData.append('priority', String(Number(values.priority) || 0));
+    if (values.isActive !== undefined)
+      formData.append('isActive', String(Boolean(values.isActive)));
+    if (values.isPublished !== undefined)
+      formData.append('isPublished', String(Boolean(values.isPublished)));
+    if (values.startAt || values.startDate)
+      formData.append('startAt', new Date(values.startAt || values.startDate).toISOString());
+    if (values.endAt || values.endDate)
+      formData.append('endAt', new Date(values.endAt || values.endDate).toISOString());
+    if (values.couponCode) formData.append('couponCode', values.couponCode.trim());
+    if (values.discount) formData.append('discount', values.discount.trim());
+
+    return id
+      ? api.patch(`/admin/marketing/banners/${id}`, formData)
+      : api.post('/admin/marketing/banners', formData);
+  }
+
+  const payload = bannerBody(values);
+  return id
+    ? api.patch(`/admin/marketing/banners/${id}`, payload)
+    : api.post('/admin/marketing/banners', payload);
+};
+
+export const setBannerStatus = (id, isActive) =>
+  api.patch(`/admin/marketing/banners/${id}/status`, { isActive });
+
 export const removeBanner = (id) => api.delete(`/admin/marketing/banners/${id}`);
-export const publishBanner = (id, isPublished) => api.patch(`/admin/marketing/banners/${id}/publish`, { isPublished });
+export const publishBanner = (id, isPublished) =>
+  api.patch(`/admin/marketing/banners/${id}/publish`, { isPublished });
 
 export const loadVideos = (query = {}) => list('/admin/marketing/videos', { search: query.search, page: query.page, limit: 20 });
 export const saveVideo = (values, id) => id ? api.patch(`/admin/marketing/videos/${id}`, videoBody(values)) : api.post('/admin/marketing/videos', videoBody(values));
@@ -95,7 +154,24 @@ function trendingBody(values) {
   return { title: values.title, description: values.description || undefined, category: values.category || undefined, thumbnailUrl: values.thumbnailUrl || undefined, mediaUrl: values.mediaUrl || undefined, mediaType: values.mediaType || undefined, ctaText: values.ctaText || undefined, ctaUrl: values.ctaUrl || undefined, platform: values.platform || undefined, priority: values.priority === '' ? undefined : Number(values.priority), isPublished: values.isPublished === true || values.isPublished === 'true' };
 }
 function bannerBody(values) {
-  return { title: values.title, description: values.description || undefined, imageUrl: values.imageUrl || undefined, ctaText: values.ctaText || undefined, ctaUrl: values.ctaUrl || undefined, priority: values.priority === '' ? undefined : Number(values.priority), isPublished: values.isPublished === true || values.isPublished === 'true', isActive: values.isActive !== false && values.isActive !== 'false', startDate: values.startDate || undefined, endDate: values.endDate || undefined };
+  const startAt = values.startAt || values.startDate;
+  const endAt = values.endAt || values.endDate;
+  return {
+    title: values.title?.trim() || undefined,
+    subtitle: values.subtitle?.trim() || undefined,
+    description: values.description?.trim() || undefined,
+    imageUrl: values.imageUrl?.trim() || values.image?.trim() || undefined,
+    ctaText: values.ctaText?.trim() || undefined,
+    ctaUrl: values.ctaUrl?.trim() || undefined,
+    actionType: values.actionType?.trim() || undefined,
+    priority: values.priority !== undefined && values.priority !== '' ? Number(values.priority) : 0,
+    isActive: values.isActive !== false && values.isActive !== 'false',
+    isPublished: values.isPublished !== false && values.isPublished !== 'false',
+    startAt: startAt ? new Date(startAt).toISOString() : undefined,
+    endAt: endAt ? new Date(endAt).toISOString() : undefined,
+    couponCode: values.couponCode?.trim() || undefined,
+    discount: values.discount?.trim() || undefined,
+  };
 }
 function videoBody(values) {
   return { title: values.title, description: values.description || undefined, videoUrl: values.videoUrl || undefined, thumbnailUrl: values.thumbnailUrl || undefined, priority: values.priority === '' ? undefined : Number(values.priority), status: values.status || undefined, isActive: values.isActive !== false && values.isActive !== 'false' };
