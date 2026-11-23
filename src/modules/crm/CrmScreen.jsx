@@ -8,7 +8,7 @@ import { Input } from '@/components/common/Input';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { HrmGap, HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
 import { crmError } from './crm-api';
-import { RotateCw, Search, SlidersHorizontal } from 'lucide-react';
+import { Plus, RotateCw, Search, SlidersHorizontal } from 'lucide-react';
 
 export function CrmScreen({ hideTitleCard = false, title, description, actionLabel, canCreate = true, load, columns, stats, filters = [], blank, renderForm, onSave, rowActions, detail, gap, below, headerActions, extraHeaderActions, enableSelection = false, onSelectionChange, toolbar, refreshToken = 0, toForm, appearance = 'default', collapsibleFilters = false, emptyState, loadingSkeleton = false }) {
   const [rows, setRows] = React.useState([]);
@@ -157,7 +157,7 @@ export function CrmScreen({ hideTitleCard = false, title, description, actionLab
             columns={typeof columns === 'function' ? columns({ open: setSelected }) : columns}
             data={rows}
             label={title}
-            className={isStyledAppearance ? 'rounded-2xl border-[#E2E8E5] shadow-sm [&_thead_tr]:bg-[#F3F8F5] [&_tbody_tr:hover]:bg-[#F8FBF9]' : undefined}
+            className={isStyledAppearance ? 'rounded-2xl border-[#E2E8E5] shadow-xs overflow-hidden [&_thead_tr]:bg-[#F4F9F6] [&_thead_tr]:border-b [&_thead_tr]:border-[#E2E8E5] [&_thead_th]:text-[#163A2E] [&_thead_th]:font-bold [&_thead_th]:text-xs [&_thead_th]:uppercase [&_thead_th]:tracking-wider [&_tbody_tr:hover]:bg-slate-50/70' : undefined}
             rowActions={[
               ...(detail ? [{ label: 'View', onSelect: setSelected }] : []),
               ...(onSave
