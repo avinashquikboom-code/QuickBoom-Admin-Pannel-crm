@@ -575,7 +575,6 @@ export function saveShift(values, id) {
     endTime: values.endTime,
     durationHours: values.durationHours === '' ? undefined : Number(values.durationHours),
     breakDurationMinutes: values.breakDurationMinutes === '' ? undefined : Number(values.breakDurationMinutes),
-    gracePeriodMinutes: values.gracePeriodMinutes === '' ? undefined : Number(values.gracePeriodMinutes),
     status: values.status || 'ACTIVE',
     isNightShift: Boolean(values.isNightShift),
     isRotational: Boolean(values.isRotational),

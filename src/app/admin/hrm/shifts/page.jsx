@@ -78,7 +78,6 @@ const emptyForm = {
   endTime: '06:30 PM',
   durationHours: 8,
   breakDurationMinutes: 60,
-  gracePeriodMinutes: 15,
   status: 'ACTIVE',
   isNightShift: false,
   isRotational: false,
@@ -304,7 +303,6 @@ export default function ShiftsPage() {
       endTime: row.endTime || '06:30 PM',
       durationHours: row.durationHours ?? 8,
       breakDurationMinutes: row.breakDurationMinutes ?? 60,
-      gracePeriodMinutes: row.gracePeriodMinutes ?? 15,
       status: row.status || 'ACTIVE',
       isNightShift: Boolean(row.isNightShift),
       isRotational: Boolean(row.isRotational),
@@ -1151,7 +1149,7 @@ export default function ShiftsPage() {
           </div>
 
           {/* Break and Hours */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <Label className="text-xs font-bold text-slate-700">
                 Break Duration (mins)
@@ -1163,21 +1161,6 @@ export default function ShiftsPage() {
                 value={form.breakDurationMinutes}
                 onChange={(e) =>
                   updateTimesAndHours('breakDurationMinutes', e.target.value)
-                }
-                className="mt-1 h-9 rounded-xl text-sm"
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-bold text-slate-700">
-                Grace Period (mins)
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                step="5"
-                value={form.gracePeriodMinutes}
-                onChange={(e) =>
-                  setForm({ ...form, gracePeriodMinutes: e.target.value })
                 }
                 className="mt-1 h-9 rounded-xl text-sm"
               />
