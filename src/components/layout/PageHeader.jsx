@@ -42,6 +42,7 @@ import {
     faGauge,
     faBullhorn,
     faClockRotateLeft,
+    faFileInvoice,
 } from '@fortawesome/free-solid-svg-icons';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { Badge } from '@/components/common/Badge';
@@ -66,6 +67,8 @@ const routeRegistry = {
 
     // Marketing & Templates
     'coupons': { category: 'CUSTOMER SUCCESS', title: 'Coupons', icon: faTags },
+    'invoices': { category: 'CUSTOMER SUCCESS', title: 'Invoices & Billing', icon: faFileInvoice },
+    'subscriptions': { category: 'CUSTOMER SUCCESS', title: 'Active Subscriptions', icon: faShieldHalved },
     'data-capture': { category: 'DATA CAPTURE ENGINE', title: 'Data Capture', icon: faDatabase },
     'usage-quota': { category: 'DATA CAPTURE ENGINE', title: 'Usage & Quotas', icon: faChartBar },
     'email-templates': { category: 'EMAIL MARKETING', title: 'Email Templates', icon: faEnvelope },
