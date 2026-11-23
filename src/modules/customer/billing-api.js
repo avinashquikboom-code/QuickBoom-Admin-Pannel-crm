@@ -60,6 +60,7 @@ export function updateInvoiceStatus(id, status) {
 }
 
 export const removeInvoice = (id) => api.delete(`/invoices/${id}`);
+export const bulkDeleteInvoices = (ids) => api.post('/invoices/bulk-delete', { ids });
 
 export async function downloadInvoice(id, invoiceNo) {
   const data = await api.get(`/invoices/${id}/download`, { responseType: 'blob' });
