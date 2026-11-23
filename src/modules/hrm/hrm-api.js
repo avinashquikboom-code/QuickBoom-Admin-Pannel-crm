@@ -141,18 +141,25 @@ export async function loadBreaks(date) {
   const rows = Array.isArray(body.allBreaks) ? body.allBreaks : listFrom(payload);
   return {
     active: body.onBreakCount || 0,
-    records: rows.map((item, index) => ({
-      id: String(item.id || `${item.employeeId}-${index}`),
-      employeeId: String(item.employeeCode || item.employeeId || ''),
-      employeeName: item.employeeName || 'Employee',
-      department: item.department || 'General',
-      breakType: 'Recorded break',
-      startTime: clock(item.breakStart),
-      endTime: item.breakEnd ? clock(item.breakEnd) : 'In progress',
-      duration: `${Number(item.duration || item.currentBreakMinutes || 0)}m`,
-      status: item.breakEnd ? 'completed' : 'active',
-      overstayMinutes: 0,
-    })),
+    activeBreaks: Array.isArray(body.activeBreaks) ? body.activeBreaks : [],
+    records: rows.map((item, index) => {
+      const dur = Number(item.duration || item.currentBreakMinutes || 0);
+      const isEnded = Boolean(item.breakEnd || item.endTime);
+      const isOverstay = Number(item.overstayMinutes || 0) > 0 || dur > 60;
+      const overstayMins = Number(item.overstayMinutes || (dur > 60 ? dur - 60 : 0));
+      return {
+        id: String(item.id || `${item.employeeId}-${index}`),
+        employeeId: String(item.employeeCode || item.employeeId || ''),
+        employeeName: item.employeeName || 'Employee',
+        department: item.department || 'General',
+        breakType: item.breakType || (dur > 30 ? 'Lunch Break' : 'Coffee Break'),
+        startTime: clock(item.breakStart || item.startTime),
+        endTime: isEnded ? clock(item.breakEnd || item.endTime) : '',
+        duration: `${dur}m`,
+        status: !isEnded ? 'active' : isOverstay ? 'exceeded' : 'completed',
+        overstayMinutes: overstayMins,
+      };
+    }),
   };
 }
 

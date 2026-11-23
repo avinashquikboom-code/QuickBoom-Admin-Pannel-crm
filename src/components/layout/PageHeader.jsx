@@ -71,6 +71,7 @@ const routeRegistry = {
     'email-templates': { category: 'EMAIL MARKETING', title: 'Email Templates', icon: faEnvelope },
     'meta-templates': { category: 'WHATSAPP MARKETING', title: 'WhatsApp Templates', icon: faMessage },
     'stage-notifications': { category: 'TEMPLATES & ASSETS', title: 'Stage Notifications', icon: faDiagramProject },
+    'stage-management': { category: 'SALES & CRM', title: 'Stage Management', icon: faDiagramProject },
 
     // AI & Social
     'ai-studio': { category: 'AI & SOCIAL STUDIO', title: 'AI Studio', icon: faStar },
