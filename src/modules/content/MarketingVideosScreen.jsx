@@ -263,10 +263,6 @@ export function MarketingVideosScreen() {
 
   const handleSaveVideo = async (e) => {
     if (e?.preventDefault) e.preventDefault();
-    if (!form.title.trim()) {
-      toast.error('Please enter a video title.');
-      return;
-    }
     if (videoMode === 'URL' && !form.videoUrl.trim()) {
       toast.error('Please enter a valid video media URL or upload a video file.');
       return;
@@ -278,7 +274,11 @@ export function MarketingVideosScreen() {
 
     setFormBusy(true);
     try {
-      await saveVideo(form, editingVideo?.id, { video: videoFile, thumbnail: thumbFile });
+      const payloadForm = {
+        ...form,
+        title: form.title.trim() || form.subtitle?.trim() || 'Marketing Video',
+      };
+      await saveVideo(payloadForm, editingVideo?.id, { video: videoFile, thumbnail: thumbFile });
       toast.success(editingVideo ? 'Video updated successfully.' : 'Video created successfully.');
       setIsFormOpen(false);
       setRefreshKey((k) => k + 1);
@@ -1030,14 +1030,13 @@ export function MarketingVideosScreen() {
           {/* Title */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Video Title <span className="text-rose-500">*</span>
+              Video Title (Optional)
             </label>
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="e.g., QuickBoom Enterprise Overview 2026"
               className="mt-1 h-10 rounded-xl border-slate-200 text-sm focus:border-[#107569]"
-              required
             />
           </div>
 
