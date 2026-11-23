@@ -106,11 +106,17 @@ export function TemplateTable({
       <table className="min-w-full text-left text-sm text-[#172B24]">
         <thead className="bg-[#F7F9F8] text-[#718078]">
           <tr>
-            {columns.map((column) => (
-              <th key={column} className="px-3 py-3 text-xs font-medium">
-                {column}
-              </th>
-            ))}
+            {columns.map((column, columnIndex) => {
+              const isObj = column && typeof column === 'object' && !React.isValidElement(column);
+              const headerKey = typeof column === 'string' ? column : (isObj && column.key) ? column.key : `col-${columnIndex}`;
+              const content = isObj ? (column.title || column.label || column.render) : column;
+              const colClassName = isObj ? column.className : '';
+              return (
+                <th key={headerKey} className={cn('px-3 py-3 text-xs font-medium', colClassName)}>
+                  {content}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -119,7 +125,7 @@ export function TemplateTable({
               Array.from({ length: 5 }, (_, rowIndex) => (
                 <tr key={`loading-${rowIndex}`} aria-hidden="true" className="border-t border-[#E2E8E5]">
                   {columns.map((column, columnIndex) => (
-                    <td key={`${column}-${columnIndex}`} className="px-3 py-4 sm:px-4">
+                    <td key={`skeleton-${columnIndex}`} className="px-3 py-4 sm:px-4">
                       <Skeleton className={cn('h-4', columnIndex === 0 ? 'w-36' : columnIndex === columns.length - 1 ? 'ml-auto w-10' : 'w-24')} />
                       {columnIndex === 0 ? <Skeleton className="mt-2 h-3 w-24" /> : null}
                     </td>

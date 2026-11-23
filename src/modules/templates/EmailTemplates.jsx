@@ -34,6 +34,9 @@ import {
 import { EmailRichTextEditor } from './EmailRichTextEditor';
 import { EmailTemplatePreviewDialog } from './EmailTemplatePreviewDialog';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { Trash2 } from 'lucide-react';
 
 const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'INACTIVE'];
 const DEFAULT_SORT = 'updatedAt:desc';
@@ -93,6 +96,14 @@ export function EmailTemplates() {
   const [previewData, setPreviewData] = React.useState(null);
   const [busyRowId, setBusyRowId] = React.useState(null);
   const [exporting, setExporting] = React.useState(false);
+
+  // Deletion and Selection state
+  const [selectedIds, setSelectedIds] = React.useState(new Set());
+  const [deletingTemplate, setDeletingTemplate] = React.useState(null);
+  const [deleteReason, setDeleteReason] = React.useState('');
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [bulkDeleting, setBulkDeleting] = React.useState(false);
+  const [bulkDeleteReason, setBulkDeleteReason] = React.useState('');
   const [permissionReady, setPermissionReady] = React.useState(false);
   const [permissions, setPermissions] = React.useState({
     canView: false,
@@ -255,17 +266,103 @@ export function EmailTemplates() {
     }
   }
 
-  async function deleteTemplate(row) {
-    setBusyRowId(row.id);
+  const isAllPageSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
+  const isSomePageSelected = rows.some((r) => selectedIds.has(r.id)) && !isAllPageSelected;
+
+  const handleToggleSelectAll = (checked) => {
+    const next = new Set(selectedIds);
+    if (checked) {
+      rows.forEach((r) => next.add(r.id));
+    } else {
+      rows.forEach((r) => next.delete(r.id));
+    }
+    setSelectedIds(next);
+  };
+
+  const handleToggleRow = (id) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  async function confirmDeleteTemplate() {
+    if (!deletingTemplate) return;
+    setBusyRowId(deletingTemplate.id);
     try {
-      await api.delete(`/email/templates/${row.id}`);
-      toast.success('Email template deleted');
+      const res = envelope(
+        await api.delete(`/email/templates/${deletingTemplate.id}`, {
+          data: { reason: deleteReason ? deleteReason.trim() : undefined },
+        }),
+      );
+      toast.success(res?.message || `Email template "${deletingTemplate.name}" permanently deleted.`);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deletingTemplate.id);
+        return next;
+      });
+      setDeletingTemplate(null);
+      setDeleteReason('');
+      if (rows.length === 1 && page > 1) {
+        setPage((p) => Math.max(1, p - 1));
+      }
       await load();
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Could not delete the template');
+      toast.error(err?.response?.data?.message || 'Could not permanently delete the template');
     } finally {
       setBusyRowId(null);
     }
+  }
+
+  async function handleBulkDelete() {
+    if (!selectedIds.size || bulkDeleting) return;
+    setBulkDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const response = envelope(
+        await api.delete('/email/templates/bulk', {
+          data: {
+            ids,
+            reason: bulkDeleteReason ? bulkDeleteReason.trim() : undefined,
+          },
+        }),
+      );
+
+      if (response?.success) {
+        if (response.failedCount > 0) {
+          toast.warning(response.message || `Deleted ${response.deletedCount} email templates. ${response.failedCount} failed.`);
+        } else {
+          toast.success(response.message || `Successfully permanently deleted ${response.deletedCount} email template(s).`);
+        }
+      } else {
+        toast.error(response?.message || 'Failed to delete selected templates.');
+      }
+
+      setBulkDeleteOpen(false);
+      setBulkDeleteReason('');
+      setSelectedIds(new Set());
+
+      if (rows.length <= ids.length && page > 1) {
+        setPage((p) => Math.max(1, p - 1));
+      }
+      await load();
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to execute bulk deletion.';
+      toast.error(Array.isArray(msg) ? msg.join(' ') : msg);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  async function deleteTemplate(row) {
+    setDeletingTemplate(row);
   }
 
   async function exportTemplates() {
@@ -405,17 +502,76 @@ export function EmailTemplates() {
         <p className="text-xs text-slate-500">Filters applied — pagination keeps your search and status.</p>
       ) : null}
 
+      {/* Bulk Action Bar (when rows are selected) */}
+      {selectedIds.size > 0 && permissions.canDelete && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50/80 border border-emerald-200/90 p-2.5 px-3.5 mb-3 animate-in fade-in slide-in-from-top-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#163A2E]">
+            <span className="size-2 rounded-full bg-[#20C466]" />
+            <span>
+              {selectedIds.size} {selectedIds.size === 1 ? 'template' : 'templates'} selected
+            </span>
+            <span className="text-[11px] text-slate-500 font-normal">
+              (Selection applies to current page)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClearSelection}
+              className="h-7 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+            >
+              Clear Selection
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setBulkDeleteOpen(true)}
+              disabled={bulkDeleting}
+              className="h-7.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Bulk Delete ({selectedIds.size})</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="hidden md:block">
         <TemplateTable
           loading={loading}
           error={error}
           rows={rows}
           empty="No email templates match this view."
-          columns={['Name', 'Code', 'Subject', 'Status', 'Actions']}
+          columns={[
+            {
+              key: 'checkbox',
+              className: 'w-12 text-center',
+              render: (
+                <Checkbox
+                  aria-label="Select all email templates on this page"
+                  checked={isAllPageSelected}
+                  indeterminate={isSomePageSelected}
+                  onCheckedChange={(checked) => handleToggleSelectAll(Boolean(checked))}
+                />
+              ),
+            },
+            'Name',
+            'Code',
+            'Subject',
+            'Status',
+            { key: 'actions', className: 'text-right', label: 'Actions' },
+          ]}
           loadingSkeleton
           onRetry={load}
           render={(row) => (
-            <tr key={row.id} className="border-t border-[#E2E8E5] transition-colors hover:bg-[#F7FAF8]">
+            <tr key={row.id} className={`border-t border-[#E2E8E5] transition-colors hover:bg-[#F7FAF8] ${selectedIds.has(row.id) ? 'bg-emerald-50/40' : ''}`}>
+              <td className="w-12 px-3 py-3 text-center sm:px-4">
+                <Checkbox
+                  aria-label={`Select template ${row.name}`}
+                  checked={selectedIds.has(row.id)}
+                  onCheckedChange={() => handleToggleRow(row.id)}
+                />
+              </td>
               <td className="max-w-[240px] px-3 py-3 sm:px-4">
                 <span className="font-medium">{row.name}</span>
                 {row.description ? (
@@ -449,8 +605,8 @@ export function EmailTemplates() {
                   onToggleStatus={permissions.canEdit ? () => toggleRowStatus(row) : undefined}
                   statusLabel={row.deletedAt ? 'Restore Template' : row.isActive ? 'Deactivate Template' : 'Activate Template'}
                   onDelete={permissions.canDelete && !row.isSystem ? () => deleteTemplate(row) : undefined}
-                  deleteLabel="Delete Template"
-                  deleteDescription={`Delete "${row.name}"? Lead-stage automation may reference this template.`}
+                  deleteLabel="Permanently Delete"
+                  deleteDescription={`Permanently delete "${row.name}"? This action cannot be undone.`}
                   disabled={busyRowId === row.id}
                 />
               </td>
@@ -488,10 +644,18 @@ export function EmailTemplates() {
           rows.map((row) => (
             <article
               key={row.id}
-              className="min-w-0 space-y-3 rounded-xl border border-[#E2E8E5] bg-white p-4 shadow-xs transition-all hover:-translate-y-px hover:border-emerald-200 hover:shadow-sm"
+              className={`min-w-0 space-y-3 rounded-xl border border-[#E2E8E5] bg-white p-4 shadow-xs transition-all hover:-translate-y-px hover:border-emerald-200 hover:shadow-sm ${selectedIds.has(row.id) ? 'border-emerald-300 ring-1 ring-emerald-400/30' : ''}`}
             >
               <div className="flex min-w-0 items-start justify-between gap-3">
-                <h3 className="min-w-0 break-words text-base font-semibold text-[#172B24]">{row.name}</h3>
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <Checkbox
+                    aria-label={`Select template ${row.name}`}
+                    checked={selectedIds.has(row.id)}
+                    onCheckedChange={() => handleToggleRow(row.id)}
+                    className="mt-1 shrink-0"
+                  />
+                  <h3 className="min-w-0 break-words text-base font-semibold text-[#172B24]">{row.name}</h3>
+                </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <StatusBadge row={row} />
                   <AdminRowActions
@@ -511,8 +675,8 @@ export function EmailTemplates() {
                     onToggleStatus={permissions.canEdit ? () => toggleRowStatus(row) : undefined}
                     statusLabel={row.isActive ? 'Deactivate Template' : 'Activate Template'}
                     onDelete={permissions.canDelete && !row.isSystem ? () => deleteTemplate(row) : undefined}
-                    deleteLabel="Delete Template"
-                    deleteDescription={`Delete "${row.name}"? Lead-stage automation may reference this template.`}
+                    deleteLabel="Permanently Delete"
+                    deleteDescription={`Permanently delete "${row.name}"? This action cannot be undone.`}
                     disabled={busyRowId === row.id}
                   />
                 </div>
@@ -650,6 +814,96 @@ export function EmailTemplates() {
         body={previewData?.body ?? form.body}
         code={previewData?.key ?? form.key}
       />
+
+      {/* ── Single Delete Confirmation Dialog ──────────────────────── */}
+      {deletingTemplate && (
+        <ConfirmDialog
+          open={Boolean(deletingTemplate)}
+          onOpenChange={(open) => {
+            if (!open && !busyRowId) {
+              setDeletingTemplate(null);
+              setDeleteReason('');
+            }
+          }}
+          title="Permanently Delete Template?"
+          description={`You are about to permanently delete "${deletingTemplate.name}". This action cannot be undone.`}
+          confirmLabel={busyRowId === deletingTemplate.id ? 'Deleting…' : 'Permanently Delete'}
+          variant="destructive"
+          loading={busyRowId === deletingTemplate.id}
+          closeOnConfirm={false}
+          onConfirm={confirmDeleteTemplate}
+          details={(
+            <div className="space-y-3 text-left">
+              <dl className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 text-xs">
+                <div><dt className="text-slate-400">Template Name</dt><dd className="font-semibold text-slate-800 break-words">{deletingTemplate.name}</dd></div>
+                <div><dt className="text-slate-400">Code</dt><dd className="font-semibold text-slate-800 font-mono">{deletingTemplate.key}</dd></div>
+                <div><dt className="text-slate-400">Category</dt><dd className="font-semibold text-slate-800">{deletingTemplate.category || 'General'}</dd></div>
+                <div><dt className="text-slate-400">Status</dt><dd className="font-semibold text-slate-800">{deletingTemplate.isActive ? 'Active' : 'Inactive'}</dd></div>
+              </dl>
+              <p className="text-xs text-rose-600">
+                This action will permanently delete this email template from the database. Existing email logs and dispatch history will be safely preserved without template references.
+              </p>
+            </div>
+          )}
+          note={{
+            label: 'Deletion reason (optional for audit log)',
+            value: deleteReason,
+            onChange: setDeleteReason,
+            placeholder: 'e.g., Obsolete or replaced with new design',
+          }}
+        />
+      )}
+
+      {/* ── Bulk Delete Confirmation Dialog ──────────────────────── */}
+      {bulkDeleteOpen && (
+        <ConfirmDialog
+          open={bulkDeleteOpen}
+          onOpenChange={(open) => {
+            if (!open && !bulkDeleting) {
+              setBulkDeleteOpen(false);
+              setBulkDeleteReason('');
+            }
+          }}
+          title="Permanently Delete Templates?"
+          description={`You are about to permanently delete ${selectedIds.size} selected template(s). This action cannot be undone.`}
+          confirmLabel={bulkDeleting ? 'Deleting…' : 'Permanently Delete'}
+          variant="destructive"
+          loading={bulkDeleting}
+          closeOnConfirm={false}
+          onConfirm={handleBulkDelete}
+          details={(
+            <div className="space-y-3 text-left">
+              <div className="rounded-lg bg-slate-50 p-3 text-xs space-y-1">
+                <p className="font-semibold text-slate-700">Selected templates ({selectedIds.size}):</p>
+                <ul className="list-disc pl-4 space-y-0.5 text-slate-600 max-h-32 overflow-y-auto">
+                  {rows
+                    .filter((r) => selectedIds.has(r.id))
+                    .slice(0, 8)
+                    .map((r) => (
+                      <li key={r.id} className="truncate">
+                        {r.name} <span className="font-mono text-slate-400">({r.key})</span>
+                      </li>
+                    ))}
+                  {selectedIds.size > 8 && (
+                    <li className="text-slate-400 italic">
+                      ...and {selectedIds.size - 8} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+              <p className="text-xs text-rose-600">
+                This action permanently removes the selected email templates from the database. Historical email logs will be preserved. System templates cannot be deleted.
+              </p>
+            </div>
+          )}
+          note={{
+            label: 'Deletion reason (optional for audit log)',
+            value: bulkDeleteReason,
+            onChange: setBulkDeleteReason,
+            placeholder: 'e.g., Bulk deletion of obsolete templates',
+          }}
+        />
+      )}
     </div>
   );
 }
