@@ -64,6 +64,7 @@ import { toast } from '@/hooks/use-toast';
 import { downloadCsv, envelope, pageOf, Pager, rowsOf } from '../template-shared';
 import { MetaTemplateDetails, WhatsAppPreview } from './meta-shared';
 import { MetaTemplateEdit } from './MetaTemplateEdit';
+import { WhatsAppTemplateModal } from './WhatsAppTemplateModal';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
 
 const LIST_TABS = [
@@ -379,6 +380,7 @@ export function MetaTemplatesAll() {
   const [syncingId, setSyncingId] = React.useState(null);
   const [selected, setSelected] = React.useState(null);
   const [editing, setEditing] = React.useState(null);
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [drawerTab, setDrawerTab] = React.useState('preview'); // 'preview' | 'test' | 'details'
   const [copiedCode, setCopiedCode] = React.useState(null);
   const [deletingTemplate, setDeletingTemplate] = React.useState(null);
@@ -754,13 +756,12 @@ export function MetaTemplatesAll() {
               {syncing ? 'Syncing with Meta…' : 'Sync with Meta'}
             </Button>
             <Button
-              asChild
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
               className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white shadow-sm transition-all font-semibold"
             >
-              <Link href="/admin/sections/meta-templates/create">
-                <FontAwesomeIcon icon={faPlus} className="mr-2" />
-                New WhatsApp Template
-              </Link>
+              <FontAwesomeIcon icon={faPlus} className="mr-2" />
+              New WhatsApp Template
             </Button>
             <Button
               asChild
@@ -1811,6 +1812,17 @@ export function MetaTemplatesAll() {
             value: bulkDeleteReason,
             onChange: setBulkDeleteReason,
             placeholder: 'e.g., Bulk deletion of obsolete templates',
+          }}
+        />
+      )}
+
+      {isCreateOpen && (
+        <WhatsAppTemplateModal
+          isOpen={true}
+          onClose={() => setIsCreateOpen(false)}
+          onSaved={() => {
+            setIsCreateOpen(false);
+            load();
           }}
         />
       )}
