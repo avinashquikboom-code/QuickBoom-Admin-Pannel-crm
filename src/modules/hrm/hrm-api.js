@@ -575,7 +575,6 @@ export function saveShift(values, id) {
     endTime: values.endTime,
     durationHours: values.durationHours === '' ? undefined : Number(values.durationHours),
     breakDurationMinutes: values.breakDurationMinutes === '' ? undefined : Number(values.breakDurationMinutes),
-    gracePeriodMinutes: values.gracePeriodMinutes === '' ? undefined : Number(values.gracePeriodMinutes),
     status: values.status || 'ACTIVE',
     isNightShift: Boolean(values.isNightShift),
     isRotational: Boolean(values.isRotational),
@@ -747,33 +746,57 @@ export function removeDeduction(id) {
 }
 
 export async function loadLoans(params = {}) {
-  const [list, metrics, types] = await Promise.all([
-    api.get('/admin/loans', { params }),
-    api.get('/admin/loans/metrics'),
-    api.get('/master/loan-types'),
+  const [listRes, metricsRes, typesRes] = await Promise.allSettled([
+    api.get('/admin/loans', { params }).catch(() => api.get('/loans', { params })),
+    api.get('/admin/loans/metrics').catch(() => api.get('/loans/metrics')).catch(() => null),
+    api.get('/master/loan-types').catch(() => null),
   ]);
+
+  const list = listRes.status === 'fulfilled' ? listRes.value : [];
+  const metrics = metricsRes.status === 'fulfilled' && metricsRes.value ? metricsRes.value : {};
+  const types = typesRes.status === 'fulfilled' && typesRes.value ? typesRes.value : [];
+
+  const rows = listFrom(list);
+  const total = list?.pagination?.total || list?.meta?.total || rows.length;
+  const page = Number(params.page) || 1;
+  const limit = Number(params.limit) || 20;
+
+  const computedMetrics = {
+    totalLoans: metrics?.totalLoans ?? total,
+    pendingLoans: metrics?.pendingLoans ?? rows.filter((r) => String(r.status || '').toUpperCase() === 'PENDING').length,
+    activeLoans: metrics?.activeLoans ?? rows.filter((r) => ['ACTIVE', 'APPROVED'].includes(String(r.status || '').toUpperCase())).length,
+    totalOutstanding: metrics?.totalOutstanding ?? rows.reduce((sum, r) => sum + (Number(r.remainingBalance) || Number(r.approvedAmount) || Number(r.loanAmount) || 0), 0),
+    ...objectFrom(metrics),
+  };
+
   return {
-    rows: listFrom(list),
-    metrics: objectFrom(metrics),
+    rows,
+    metrics: computedMetrics,
     types: listFrom(types),
-    pagination: list?.pagination || list?.meta || {},
+    pagination: list?.pagination || list?.meta || {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
   };
 }
 
 export function submitLoan(values) {
-  return api.post('/admin/loans', values);
+  return api.post('/admin/loans', values).catch(() => api.post('/loans', values));
 }
 
-export function approveLoan(id, values) {
-  return api.patch(`/admin/loans/${id}/approve`, values);
+export function approveLoan(id, values = {}) {
+  return api.patch(`/admin/loans/${id}/approve`, values).catch(() => api.patch(`/loans/${id}/approve`, values));
 }
 
 export function rejectLoan(id, rejectionReason) {
-  return api.patch(`/admin/loans/${id}/reject`, { rejectionReason });
+  const reasonText = typeof rejectionReason === 'string' ? rejectionReason : (rejectionReason?.rejectionReason || rejectionReason?.reason || 'Rejected by HR');
+  return api.patch(`/admin/loans/${id}/reject`, { rejectionReason: reasonText }).catch(() => api.patch(`/loans/${id}/reject`, { rejectionReason: reasonText }));
 }
 
 export function removeLoan(id) {
-  return api.delete(`/admin/loans/${id}`);
+  return api.delete(`/admin/loans/${id}`).catch(() => api.delete(`/loans/${id}`));
 }
 
 export async function loadOvertime(params = {}) {

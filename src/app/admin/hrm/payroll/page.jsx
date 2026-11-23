@@ -42,7 +42,6 @@ export default function PayrollPage() {
         isEnabled: true,
         deductionRatePerMin: 1.0,
         currency: 'INR',
-        gracePeriodMinutes: 0,
         calculationMethod: 'PER_MINUTE',
         applyTo: 'ALL',
         maxDailyDeduction: '',
@@ -61,7 +60,6 @@ export default function PayrollPage() {
                             isEnabled: data.isEnabled !== false,
                             deductionRatePerMin: data.deductionRatePerMin ?? 1.0,
                             currency: data.currency || 'INR',
-                            gracePeriodMinutes: 0,
                             calculationMethod: data.calculationMethod || 'PER_MINUTE',
                             applyTo: data.applyTo || 'ALL',
                             maxDailyDeduction: data.maxDailyDeduction != null ? String(data.maxDailyDeduction) : '',
@@ -82,7 +80,6 @@ export default function PayrollPage() {
             await saveLateMarkPolicy({
                 ...latePolicy,
                 deductionRatePerMin: Math.max(0, Number(latePolicy.deductionRatePerMin) || 1.0),
-                gracePeriodMinutes: 0,
                 maxDailyDeduction: latePolicy.maxDailyDeduction !== '' && !isNaN(Number(latePolicy.maxDailyDeduction)) ? Number(latePolicy.maxDailyDeduction) : null,
                 maxMonthlyDeduction: latePolicy.maxMonthlyDeduction !== '' && !isNaN(Number(latePolicy.maxMonthlyDeduction)) ? Number(latePolicy.maxMonthlyDeduction) : null,
             });
@@ -435,10 +432,6 @@ export default function PayrollPage() {
                     className="h-9 text-xs"
                   />
                   <span className="text-[10px] text-slate-400">Default: ₹1.00 per minute</span>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Grace Period</Label>
-                  <p className="text-xs text-slate-500">0 minutes — lateness starts at shift start.</p>
                 </div>
               </div>
 
