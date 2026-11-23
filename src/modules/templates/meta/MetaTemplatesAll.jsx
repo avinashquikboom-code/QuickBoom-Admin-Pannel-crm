@@ -761,7 +761,7 @@ export function MetaTemplatesAll() {
               className="w-full sm:w-auto bg-[#16A34A] hover:bg-[#15803D] text-white shadow-sm transition-all font-semibold"
             >
               <FontAwesomeIcon icon={faPlus} className="mr-2" />
-              New WhatsApp Template
+              Add Single Template
             </Button>
             <Button
               asChild
