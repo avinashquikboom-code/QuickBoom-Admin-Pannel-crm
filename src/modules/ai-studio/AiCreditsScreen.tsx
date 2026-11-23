@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import {
   Coins,
   CreditCard,
@@ -24,17 +23,13 @@ import {
   SlidersHorizontal,
   Wallet,
   AlertTriangle,
+  X,
+  RotateCcw,
 } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import {
   loadCreditTransactions,
@@ -44,6 +39,15 @@ import {
 } from '@/modules/social/social-api';
 import { AdjustCreditsDialog } from './AdjustCreditsDialog';
 import { TransactionDetailDrawer } from './TransactionDetailDrawer';
+import { TruncatedText } from '@/components/common/TruncatedText';
+
+const TX_TYPES = [
+  { id: 'ALL', label: 'All Transactions' },
+  { id: 'CONSUMED', label: 'Consumed' },
+  { id: 'PURCHASE', label: 'Purchases' },
+  { id: 'GRANT', label: 'Grants' },
+  { id: 'REFUND', label: 'Refunds' },
+];
 
 export function AiCreditsScreen() {
   const [allowed, setAllowed] = React.useState(false);
@@ -90,7 +94,12 @@ export function AiCreditsScreen() {
       const rows = Array.isArray(res) ? res : (res?.rows || res?.items || []);
       setTransactions(rows);
       if (res?.pagination) {
-        setPagination(res.pagination);
+        setPagination({
+          page: res.pagination.page || page,
+          limit: res.pagination.limit || 20,
+          total: res.pagination.total || rows.length,
+          totalPages: res.pagination.totalPages || Math.max(1, Math.ceil((res.pagination.total || rows.length) / 20)),
+        });
       } else {
         setPagination({
           page,
@@ -154,12 +163,12 @@ export function AiCreditsScreen() {
 
   // Export CSV
   const handleExportCSV = () => {
-    if (transactions.length === 0) {
+    if (filteredTransactions.length === 0) {
       toast.error('No transactions available to export');
       return;
     }
     const headers = ['Transaction ID', 'Customer ID', 'Customer Name', 'Type', 'Service Code', 'Credits Amount', 'Balance After', 'Notes', 'Date Time'];
-    const rows = transactions.map((t) => [
+    const rows = filteredTransactions.map((t) => [
       t.id,
       t.customerId,
       `"${t.customer?.companyName || t.customer?.name || ''}"`,
@@ -167,7 +176,7 @@ export function AiCreditsScreen() {
       t.serviceCode || '',
       t.amount,
       t.balanceAfter,
-      `"${t.notes || ''}"`,
+      `"${(t.notes || '').replace(/"/g, '""')}"`,
       t.createdAt ? new Date(t.createdAt).toLocaleString() : '',
     ]);
 
@@ -184,27 +193,33 @@ export function AiCreditsScreen() {
 
   // Filtered transactions by client search query
   const filteredTransactions = React.useMemo(() => {
-    if (!searchQuery.trim()) return transactions;
-    const q = searchQuery.toLowerCase();
-    return transactions.filter((t) => {
-      const cust = `${t.customer?.name || ''} ${t.customer?.companyName || ''} ${t.customerId}`.toLowerCase();
-      const code = `${t.serviceCode || ''}`.toLowerCase();
-      const notes = `${t.notes || ''}`.toLowerCase();
-      const id = `${t.id}`;
-      return cust.includes(q) || code.includes(q) || notes.includes(q) || id.includes(q);
-    });
-  }, [transactions, searchQuery]);
+    let result = transactions;
+    if (typeFilter !== 'ALL') {
+      result = result.filter((t) => (t.type || '').toUpperCase() === typeFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((t) => {
+        const cust = `${t.customer?.name || ''} ${t.customer?.companyName || ''} ${t.customerId}`.toLowerCase();
+        const code = `${t.serviceCode || ''}`.toLowerCase();
+        const notes = `${t.notes || ''}`.toLowerCase();
+        const id = `${t.id}`;
+        return cust.includes(q) || code.includes(q) || notes.includes(q) || id.includes(q);
+      });
+    }
+    return result;
+  }, [transactions, typeFilter, searchQuery]);
 
   // Aggregate stats
   const totalSpentAcrossTransactions = React.useMemo(() => {
     return transactions
-      .filter((t) => (t.amount || 0) < 0)
+      .filter((t) => (t.amount || 0) < 0 || t.type === 'CONSUMED')
       .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
   }, [transactions]);
 
   const totalGrantsAcrossTransactions = React.useMemo(() => {
     return transactions
-      .filter((t) => (t.amount || 0) > 0)
+      .filter((t) => (t.amount || 0) > 0 || t.type === 'PURCHASE' || t.type === 'GRANT')
       .reduce((sum, t) => sum + (t.amount || 0), 0);
   }, [transactions]);
 
@@ -213,514 +228,512 @@ export function AiCreditsScreen() {
   const activeBalance = activeWalletRecord?.balance ?? loadedWallet?.balance;
 
   return (
-    <div className="min-h-screen bg-slate-50/60 pb-28 space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="size-12 rounded-2xl bg-[#E8F1EC] text-[#163A2E] flex items-center justify-center shadow-xs shrink-0">
-                <Coins className="size-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold tracking-wider text-[#20C466] uppercase">
-                    AI & SOCIAL STUDIO
-                  </span>
-                  <Badge variant="outline" className="text-[10px] py-0 border-emerald-200 bg-emerald-50 text-emerald-800">
-                    Live Wallets
-                  </Badge>
-                </div>
-                <h1 className="text-2xl font-bold text-[#163A2E] mt-0.5">
-                  AI Credits Management
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">
-                  Manage customer AI credit wallets, grant or deduct credits, and audit the credit transaction ledger.
-                </p>
-              </div>
-            </div>
+    <div className="w-full space-y-6 pb-20">
+      {/* ── 1. Page Header ────────────────────────────────────────────── */}
+      <PageHeader
+        title="AI Credits Management"
+        category="AI & SOCIAL STUDIO"
+        description="Manage customer AI credit wallets, grant or deduct credits, and audit the credit transaction ledger."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="h-9 gap-1.5 rounded-xl border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
+            >
+              <Download className="size-3.5 text-slate-500" />
+              <span>Export CSV</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                fetchLedger(pagination.page, true);
+                if (loadedWallet) handleRefreshActiveWallet();
+              }}
+              disabled={refreshing}
+              className="h-9 gap-1.5 rounded-xl border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
+            >
+              <RefreshCw className={`size-3.5 text-slate-500 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() =>
+                setAdjustModal({
+                  open: true,
+                  customerId: loadedWallet ? (activeCustomer?.id || customerIdInput) : '',
+                  customerName: activeCustomer?.companyName || activeCustomer?.name || '',
+                  currentBalance: activeBalance ?? 0,
+                  initialMode: 'add',
+                })
+              }
+              className="h-9 gap-1.5 rounded-xl bg-[#16A34A] px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-[#15803D]"
+            >
+              <Plus className="size-3.5" />
+              <span>Adjust Credits</span>
+            </Button>
+          </div>
+        }
+      />
 
-            <div className="flex items-center gap-2 self-start md:self-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportCSV}
-                className="border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs"
-              >
-                <Download className="size-4 mr-1.5 text-slate-500" />
-                Export CSV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchLedger(pagination.page, true)}
-                disabled={refreshing}
-                className="border-slate-200 text-slate-700 hover:bg-slate-50 shadow-xs"
-              >
-                <RefreshCw className={`size-4 mr-1.5 text-slate-500 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              {allowed && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setAdjustModal({
-                      open: true,
-                      customerId: customerIdInput || '1',
-                      customerName: activeCustomer?.companyName || activeCustomer?.name || '',
-                      currentBalance: activeBalance || 0,
-                      initialMode: 'add',
-                    });
-                  }}
-                  className="bg-[#163A2E] hover:bg-[#163A2E]/90 text-white shadow-xs"
-                >
-                  <Plus className="size-4 mr-1.5" />
-                  Adjust Credits
-                </Button>
-              )}
+      {/* ── 2. Compact 4 KPI Statistics Cards ────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Card 1: Total Credits Granted */}
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Total Credits Granted
+            </span>
+            <div className="flex size-8 items-center justify-center rounded-xl bg-emerald-50 text-[#16A34A] ring-1 ring-emerald-200/60">
+              <ArrowUpRight className="size-4" />
             </div>
           </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black tracking-tight text-slate-900">
+              {totalGrantsAcrossTransactions}
+            </span>
+            <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+              Promotions & Grants
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">Credited to customer wallets</p>
+        </div>
+
+        {/* Card 2: Total Credits Used */}
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Total Credits Used
+            </span>
+            <div className="flex size-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600 ring-1 ring-amber-200/60">
+              <ArrowDownRight className="size-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black tracking-tight text-slate-900">
+              {totalSpentAcrossTransactions}
+            </span>
+            <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md">
+              Post & Media Generations
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">Consumed by AI engine requests</p>
+        </div>
+
+        {/* Card 3: Active Customer Balance */}
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              {loadedWallet ? 'Inspected Balance' : 'Net Credit Flow'}
+            </span>
+            <div className="flex size-8 items-center justify-center rounded-xl bg-emerald-50 text-[#16A34A] ring-1 ring-emerald-200/60">
+              <Coins className="size-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black tracking-tight text-[#16A34A]">
+              {loadedWallet ? `${activeBalance ?? 0}` : `${totalGrantsAcrossTransactions - totalSpentAcrossTransactions}`}
+            </span>
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+              {loadedWallet ? 'Active Wallet' : 'Audited Net'}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-slate-500 truncate">
+            {loadedWallet
+              ? (activeCustomer?.companyName || `Customer #${customerIdInput}`)
+              : 'Overall balance trend across ledger'}
+          </p>
+        </div>
+
+        {/* Card 4: Audited Transactions */}
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Audited Transactions
+            </span>
+            <div className="flex size-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+              <CreditCard className="size-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black tracking-tight text-slate-900">
+              {pagination.total || transactions.length}
+            </span>
+            <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md">
+              Ledger Entries
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">Immutable credit audit log</p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        {/* Summary KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs relative overflow-hidden flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Total Credits Granted
-              </p>
-              <h3 className="text-2xl font-bold text-[#163A2E]">
-                {loading ? '—' : totalGrantsAcrossTransactions}
-              </h3>
-              <p className="text-xs text-slate-400">Promotions, purchases & grants</p>
-            </div>
-            <div className="size-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <ArrowUpRight className="size-6" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs relative overflow-hidden flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Total Credits Used
-              </p>
-              <h3 className="text-2xl font-bold text-slate-900">
-                {loading ? '—' : totalSpentAcrossTransactions}
-              </h3>
-              <p className="text-xs text-slate-400">Post & media generations</p>
-            </div>
-            <div className="size-12 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
-              <ArrowDownRight className="size-6" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs relative overflow-hidden flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Audited Transactions
-              </p>
-              <h3 className="text-2xl font-bold text-[#163A2E]">
-                {loading ? '—' : pagination.total || transactions.length}
-              </h3>
-              <p className="text-xs text-slate-400">Ledger entries on record</p>
-            </div>
-            <div className="size-12 rounded-xl bg-[#E8F1EC] text-[#163A2E] flex items-center justify-center">
-              <CreditCard className="size-6" />
-            </div>
-          </div>
-        </div>
-
-        {/* Customer Wallet Lookup Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+      {/* ── 3. Customer Wallet Lookup & Live Panel ─────────────────────── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold text-[#163A2E] flex items-center gap-2">
-              <Wallet className="size-5 text-[#20C466]" />
-              Customer Wallet Lookup & Manual Adjustment
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Search by customer ID to inspect real-time wallet balances, grant promotional credits, or adjust usage.
+            <div className="flex items-center gap-2">
+              <div className="flex size-6 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A]">
+                <Wallet className="size-3.5" />
+              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Customer Wallet Lookup & Live Adjustment
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Enter a Customer ID to inspect real-time wallet balances, grant promotional credits, or adjust usage.
             </p>
           </div>
 
-          <form onSubmit={handleLoadWallet} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="relative flex-1 max-w-md">
-              <User className="size-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
+          {/* Quick Lookup Form */}
+          <form onSubmit={handleLoadWallet} className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+              <input
+                type="text"
                 placeholder="Enter Customer ID (e.g. 1, 2, 5...)"
                 value={customerIdInput}
                 onChange={(e) => setCustomerIdInput(e.target.value)}
-                className="pl-9 h-10 text-sm rounded-xl border-slate-200"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
             <Button
               type="submit"
-              disabled={lookupLoading}
-              className="bg-[#163A2E] hover:bg-[#163A2E]/90 text-white h-10 px-5 rounded-xl shadow-xs"
+              size="sm"
+              disabled={lookupLoading || !customerIdInput.trim()}
+              className="h-9 rounded-xl bg-[#064E3B] px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-[#064E3B]/90 shrink-0"
             >
-              {lookupLoading ? 'Loading Wallet...' : 'Load Wallet'}
+              {lookupLoading ? 'Loading…' : 'Load Wallet'}
             </Button>
           </form>
-
-          {/* Active Wallet Display */}
-          {activeWalletRecord && (
-            <div className="rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/20 via-white to-emerald-50/40 p-5 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-100">
-                <div className="flex items-center gap-3">
-                  <div className="size-10 rounded-xl bg-emerald-100 text-[#163A2E] flex items-center justify-center font-bold text-sm">
-                    {activeCustomer?.companyName?.charAt(0) || activeCustomer?.name?.charAt(0) || 'C'}
-                  </div>
-                  <div>
-                    <h4 className="text-base font-bold text-slate-900">
-                      {activeCustomer?.companyName || activeCustomer?.name || `Customer #${customerIdInput}`}
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      Customer ID: #{activeCustomer?.id || customerIdInput}
-                      {activeCustomer?.email && ` · ${activeCustomer.email}`}
-                    </p>
-                  </div>
-                </div>
-
-                {allowed && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setAdjustModal({
-                          open: true,
-                          customerId: activeCustomer?.id || customerIdInput,
-                          customerName: activeCustomer?.companyName || activeCustomer?.name || '',
-                          currentBalance: activeBalance || 0,
-                          initialMode: 'add',
-                        });
-                      }}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3 rounded-lg"
-                    >
-                      <Plus className="size-3.5 mr-1" />
-                      Add Credits
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setAdjustModal({
-                          open: true,
-                          customerId: activeCustomer?.id || customerIdInput,
-                          customerName: activeCustomer?.companyName || activeCustomer?.name || '',
-                          currentBalance: activeBalance || 0,
-                          initialMode: 'reduce',
-                        });
-                      }}
-                      className="border-rose-200 text-rose-700 hover:bg-rose-50 text-xs h-8 px-3 rounded-lg"
-                    >
-                      <Minus className="size-3.5 mr-1" />
-                      Reduce Credits
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* 3 Metric Cards for Wallet */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                      Available Balance
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={
-                        activeBalance === 0
-                          ? 'border-rose-200 bg-rose-50 text-rose-700 text-[10px]'
-                          : activeBalance <= 5
-                          ? 'border-amber-200 bg-amber-50 text-amber-700 text-[10px]'
-                          : 'border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px]'
-                      }
-                    >
-                      {activeBalance === 0
-                        ? 'Zero Balance'
-                        : activeBalance <= 5
-                        ? 'Low Credit'
-                        : 'Healthy'}
-                    </Badge>
-                  </div>
-                  <p className="text-2xl font-bold text-[#163A2E] mt-1">
-                    {activeBalance ?? '0'} <span className="text-xs font-normal text-slate-400">credits</span>
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                    Total Earned
-                  </span>
-                  <p className="text-2xl font-bold text-slate-800 mt-1">
-                    {activeWalletRecord?.totalEarned ?? '0'}{' '}
-                    <span className="text-xs font-normal text-slate-400">credits</span>
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200/80 p-4">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-                    Total Spent
-                  </span>
-                  <p className="text-2xl font-bold text-slate-800 mt-1">
-                    {activeWalletRecord?.totalSpent ?? '0'}{' '}
-                    <span className="text-xs font-normal text-slate-400">credits</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Notifications */}
-              {activeBalance === 0 && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-3 flex items-center gap-2.5 text-xs text-rose-800">
-                  <AlertCircle className="size-4 shrink-0 text-rose-600" />
-                  <span>This customer has depleted all AI credits. They cannot generate new content until credits are replenished.</span>
-                </div>
-              )}
-              {activeBalance > 0 && activeBalance <= 5 && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 flex items-center gap-2.5 text-xs text-amber-800">
-                  <AlertTriangle className="size-4 shrink-0 text-amber-600" />
-                  <span>Low balance warning: Customer has only {activeBalance} credits remaining.</span>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* Credit Transaction Ledger Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-base font-bold text-[#163A2E]">
-                Credit Transaction Ledger
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Audit trail of AI credit purchases, promotional grants, usage deductions, and refunds.
-              </p>
+        {/* Loaded Active Customer Wallet Banner */}
+        {loadedWallet && (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-white text-[#16A34A] shadow-xs border border-emerald-100">
+                <Building2 className="size-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-slate-900">
+                    {activeCustomer?.companyName || activeCustomer?.name || `Customer #${customerIdInput}`}
+                  </span>
+                  <Badge variant="outline" className="border-emerald-300 bg-emerald-100 text-emerald-800 text-[10px]">
+                    ID: #{activeCustomer?.id || customerIdInput}
+                  </Badge>
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                  <span>Current Available Balance:</span>
+                  <span className="font-black text-[#16A34A] text-sm">
+                    {activeBalance ?? 0} Credits
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Filter toolbar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="size-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  placeholder="Search ledger..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs rounded-lg border-slate-200"
-                />
-              </div>
-
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-9 w-full sm:w-[150px] text-xs rounded-lg border-slate-200">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Types</SelectItem>
-                  <SelectItem value="PURCHASE">Purchase</SelectItem>
-                  <SelectItem value="USAGE">Usage</SelectItem>
-                  <SelectItem value="GRANT">Grant</SelectItem>
-                  <SelectItem value="REFUND">Refund</SelectItem>
-                  <SelectItem value="ADJUSTMENT">Adjustment</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                onClick={() =>
+                  setAdjustModal({
+                    open: true,
+                    customerId: activeCustomer?.id || customerIdInput,
+                    customerName: activeCustomer?.companyName || activeCustomer?.name || '',
+                    currentBalance: activeBalance ?? 0,
+                    initialMode: 'add',
+                  })
+                }
+                className="h-8 gap-1 rounded-lg bg-[#16A34A] px-3 text-xs font-semibold text-white hover:bg-[#15803D]"
+              >
+                <Plus className="size-3" />
+                <span>Add Credits</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setAdjustModal({
+                    open: true,
+                    customerId: activeCustomer?.id || customerIdInput,
+                    customerName: activeCustomer?.companyName || activeCustomer?.name || '',
+                    currentBalance: activeBalance ?? 0,
+                    initialMode: 'reduce',
+                  })
+                }
+                className="h-8 gap-1 rounded-lg border-rose-200 text-rose-700 bg-white hover:bg-rose-50 text-xs font-semibold"
+              >
+                <Minus className="size-3" />
+                <span>Reduce</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setLoadedWallet(null);
+                  setCustomerIdInput('');
+                }}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="size-4" />
+              </Button>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Table */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden">
-            {loading ? (
-              <div className="p-12 text-center space-y-3">
-                <div className="size-8 mx-auto border-2 border-[#20C466] border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs text-slate-500">Loading transaction ledger...</p>
-              </div>
-            ) : filteredTransactions.length === 0 ? (
-              <div className="p-12 text-center space-y-3">
-                <div className="size-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
-                  <Coins className="size-6" />
-                </div>
-                <h4 className="text-sm font-semibold text-slate-800">No Transactions Found</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  {searchQuery || typeFilter !== 'ALL'
-                    ? 'No transactions match the selected filter criteria.'
-                    : 'No credit transactions have been recorded yet.'}
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Desktop View */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <table className="w-full text-left text-xs text-slate-600">
-                    <thead className="bg-slate-50/80 border-b border-slate-200 font-semibold text-slate-500 uppercase tracking-wider text-[11px]">
-                      <tr>
-                        <th className="py-3 px-4">Tx ID & Date</th>
-                        <th className="py-3 px-4">Customer</th>
-                        <th className="py-3 px-4">Type</th>
-                        <th className="py-3 px-4">Service</th>
-                        <th className="py-3 px-4">Credits</th>
-                        <th className="py-3 px-4">Balance After</th>
-                        <th className="py-3 px-4">Notes</th>
-                        <th className="py-3 px-4 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredTransactions.map((tx) => {
-                        const isPositive = (tx.amount || 0) > 0 || tx.type === 'PURCHASE' || tx.type === 'GRANT';
+      {/* ── 4. Credit Transaction Ledger ──────────────────────────────── */}
+      <div className="space-y-4">
+        {/* Ledger Title & Subtitle */}
+        <div>
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <span>Credit Transaction Ledger</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+              {filteredTransactions.length}
+            </span>
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Audit trail of AI credit purchases, promotional grants, usage deductions, and refunds.
+          </p>
+        </div>
 
-                        return (
-                          <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="py-3 px-4">
-                              <span className="font-semibold text-slate-900">#{tx.id}</span>
-                              <p className="text-[11px] text-slate-400">
-                                {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : '—'}
-                              </p>
-                            </td>
-
-                            <td className="py-3 px-4">
-                              <p className="font-medium text-slate-900">
-                                {tx.customer?.companyName || tx.customer?.name || `Customer #${tx.customerId}`}
-                              </p>
-                              <span className="text-[11px] text-slate-400">ID: #{tx.customerId}</span>
-                            </td>
-
-                            <td className="py-3 px-4">
-                              <Badge
-                                variant="outline"
-                                className={
-                                  isPositive
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px]'
-                                    : 'border-slate-200 bg-slate-100 text-slate-800 text-[10px]'
-                                }
-                              >
-                                {tx.type}
-                              </Badge>
-                            </td>
-
-                            <td className="py-3 px-4 font-mono text-[11px] text-slate-700">
-                              {tx.serviceCode || 'MANUAL'}
-                            </td>
-
-                            <td className="py-3 px-4">
-                              <span className={`font-bold ${isPositive ? 'text-emerald-700' : 'text-slate-800'}`}>
-                                {isPositive ? `+${Math.abs(tx.amount || 0)}` : `-${Math.abs(tx.amount || 0)}`}
-                              </span>
-                            </td>
-
-                            <td className="py-3 px-4 font-medium text-slate-900">
-                              {tx.balanceAfter ?? '—'}
-                            </td>
-
-                            <td className="py-3 px-4 max-w-xs truncate text-slate-500" title={tx.notes}>
-                              {tx.notes || '—'}
-                            </td>
-
-                            <td className="py-3 px-4 text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedTx(tx)}
-                                className="h-7 px-2 text-xs text-slate-600 hover:text-[#163A2E]"
-                              >
-                                <Eye className="size-3.5 mr-1" />
-                                Details
-                              </Button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile / Tablet Cards */}
-                <div className="lg:hidden divide-y divide-slate-100">
-                  {filteredTransactions.map((tx) => {
-                    const isPositive = (tx.amount || 0) > 0 || tx.type === 'PURCHASE' || tx.type === 'GRANT';
-
-                    return (
-                      <div key={tx.id} className="p-4 space-y-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <span className="font-bold text-slate-900 text-xs">Tx #{tx.id}</span>
-                            <p className="text-[11px] text-slate-400">
-                              {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : '—'}
-                            </p>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={
-                              isPositive
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px]'
-                                : 'border-slate-200 bg-slate-100 text-slate-800 text-[10px]'
-                            }
-                          >
-                            {tx.type}
-                          </Badge>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs">
-                          <div>
-                            <p className="font-semibold text-slate-800">
-                              {tx.customer?.companyName || tx.customer?.name || `Customer #${tx.customerId}`}
-                            </p>
-                            <span className="text-[11px] text-slate-400">ID: #{tx.customerId}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className={`font-bold text-sm ${isPositive ? 'text-emerald-700' : 'text-slate-800'}`}>
-                              {isPositive ? `+${Math.abs(tx.amount || 0)}` : `-${Math.abs(tx.amount || 0)}`}
-                            </span>
-                            <p className="text-[10px] text-slate-400">After: {tx.balanceAfter}</p>
-                          </div>
-                        </div>
-
-                        {tx.notes && (
-                          <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
-                            {tx.notes}
-                          </p>
-                        )}
-
-                        <div className="flex justify-end pt-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedTx(tx)}
-                            className="h-7 text-xs"
-                          >
-                            <Eye className="size-3.5 mr-1" />
-                            View Audit
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+        {/* Filter Bar & Pills */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
+          {/* Search Input */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search ledger by TX ID, customer, notes, or service..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="size-3.5" />
+              </button>
             )}
           </div>
 
+          {/* Type Filter Pills */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {TX_TYPES.map((t) => {
+              const isSelected = typeFilter === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTypeFilter(t.id)}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
+                    isSelected
+                      ? 'border-[#16A34A] bg-emerald-50 text-[#16A34A] shadow-xs ring-1 ring-[#16A34A]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+
+            {(typeFilter !== 'ALL' || searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setTypeFilter('ALL');
+                  setSearchQuery('');
+                }}
+                className="h-8 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              >
+                Reset
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Compact Table */}
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="border-b border-slate-200 bg-slate-50/80 font-bold uppercase tracking-wider text-slate-600">
+                <tr>
+                  <th className="px-4 py-3">TX ID & Date</th>
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Service</th>
+                  <th className="px-4 py-3 text-center">Credit Impact</th>
+                  <th className="px-4 py-3 text-center">Balance After</th>
+                  <th className="px-4 py-3">Notes / Reference</th>
+                  <th className="px-4 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-xs text-slate-400">
+                      <RefreshCw className="mx-auto mb-2 size-5 animate-spin text-emerald-600" />
+                      Loading credit transactions…
+                    </td>
+                  </tr>
+                ) : filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-14 text-center">
+                      <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-3">
+                        <CreditCard className="size-6" />
+                      </div>
+                      <p className="text-sm font-semibold text-slate-800">No credit transactions found</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {searchQuery || typeFilter !== 'ALL'
+                          ? 'Try adjusting your search query or filter.'
+                          : 'Transactions will appear here as AI features are consumed or granted.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map((tx) => {
+                    const isPositive = (tx.amount || 0) > 0 || tx.type === 'PURCHASE' || tx.type === 'GRANT';
+                    const customerName = tx.customer?.companyName || tx.customer?.name || `Customer #${tx.customerId}`;
+                    const dateFormatted = tx.createdAt
+                      ? new Date(tx.createdAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '—';
+
+                    return (
+                      <tr
+                        key={tx.id}
+                        className="transition-colors hover:bg-slate-50/70 cursor-pointer"
+                        onClick={() => setSelectedTx(tx)}
+                      >
+                        {/* TX ID & Date */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="font-mono text-xs font-bold text-slate-900">
+                            #{tx.id}
+                          </span>
+                          <div className="text-[11px] text-slate-400 mt-0.5">{dateFormatted}</div>
+                        </td>
+
+                        {/* Customer */}
+                        <td className="px-4 py-3 max-w-[190px]" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="size-3.5 text-slate-400 shrink-0" />
+                            <TruncatedText
+                              value={customerName}
+                              maxWidth="max-w-[160px]"
+                              label="Customer"
+                              className="font-semibold text-slate-800"
+                            />
+                          </div>
+                          {tx.customerId && (
+                            <span className="text-[10px] text-slate-400 font-mono">ID: #{tx.customerId}</span>
+                          )}
+                        </td>
+
+                        {/* Type */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                              isPositive
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}
+                          >
+                            {tx.type}
+                          </span>
+                        </td>
+
+                        {/* Service */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="font-mono text-[11px] text-slate-600 bg-slate-50 border border-slate-200/60 px-2 py-0.5 rounded">
+                            {tx.serviceCode || 'AI_ENGINE'}
+                          </span>
+                        </td>
+
+                        {/* Credit Impact */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <span
+                            className={`font-mono text-xs font-bold ${
+                              isPositive ? 'text-emerald-700' : 'text-slate-800'
+                            }`}
+                          >
+                            {isPositive ? `+${Math.abs(tx.amount || 0)}` : `-${Math.abs(tx.amount || 0)}`}
+                          </span>
+                        </td>
+
+                        {/* Balance After */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <span className="font-mono text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200/60 rounded px-2 py-0.5">
+                            {tx.balanceAfter != null ? `${tx.balanceAfter} Credits` : '—'}
+                          </span>
+                        </td>
+
+                        {/* Notes / Reference with TruncatedText */}
+                        <td className="px-4 py-3 max-w-[260px]" onClick={(e) => e.stopPropagation()}>
+                          <TruncatedText
+                            value={tx.notes || 'No description provided'}
+                            maxWidth="max-w-[240px]"
+                            label="Transaction Note"
+                            className="text-slate-600 text-[11px]"
+                          />
+                        </td>
+
+                        {/* Action */}
+                        <td className="px-4 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedTx(tx)}
+                            className="h-8 gap-1 rounded-lg px-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                          >
+                            <Eye className="size-3.5" />
+                            <span>Details</span>
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2 text-xs text-slate-500">
-              <span>
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
+          {!loading && filteredTransactions.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 bg-slate-50/50 text-xs text-slate-500">
+              <div>
+                Showing <span className="font-semibold text-slate-800">{filteredTransactions.length}</span> of{' '}
+                <span className="font-semibold text-slate-800">{pagination.total || filteredTransactions.length}</span> transactions
+              </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={pagination.page <= 1}
                   onClick={() => fetchLedger(pagination.page - 1)}
-                  className="h-8 text-xs"
+                  className="h-8 rounded-xl px-2.5 text-xs font-semibold"
                 >
                   Previous
                 </Button>
+                <span className="font-semibold text-slate-700 px-2">
+                  Page {pagination.page} of {pagination.totalPages || 1}
+                </span>
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={pagination.page >= pagination.totalPages}
                   onClick={() => fetchLedger(pagination.page + 1)}
-                  className="h-8 text-xs"
+                  className="h-8 rounded-xl px-2.5 text-xs font-semibold"
                 >
                   Next
                 </Button>
@@ -730,7 +743,7 @@ export function AiCreditsScreen() {
         </div>
       </div>
 
-      {/* Adjust Credits Dialog */}
+      {/* ── 5. Adjust Credits Dialog ──────────────────────────────────── */}
       <AdjustCreditsDialog
         open={adjustModal.open}
         onOpenChange={(open) => setAdjustModal((prev) => ({ ...prev, open }))}
@@ -741,7 +754,7 @@ export function AiCreditsScreen() {
         onSuccess={handleRefreshActiveWallet}
       />
 
-      {/* Transaction Details Drawer */}
+      {/* ── 6. Transaction Details Drawer ─────────────────────────────── */}
       <TransactionDetailDrawer
         transaction={selectedTx}
         open={Boolean(selectedTx)}
@@ -750,3 +763,5 @@ export function AiCreditsScreen() {
     </div>
   );
 }
+
+export default AiCreditsScreen;
