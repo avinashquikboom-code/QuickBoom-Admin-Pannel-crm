@@ -645,7 +645,7 @@ function designationForm(row) {
 }
 
 function catalogNotice(slug) {
-  if (slug === 'employee-types') return 'Employee types use master items of type EMPLOYEE_TYPE. Classification is the category field. Benefits tier and a separate employment class are not stored. Staff count is grouped from employees by code. Search, status, and sort run on the returned list. There is no archive or bulk API.';
+  if (slug === 'employee-types') return null;
   if (slug === 'work-types') return 'Work types use master items of type WORK_TYPE. Category is the stored category. Location model, schedule, and attendance settings are not separate fields. Item count comes from work records. There is no archive or bulk API.';
   if (slug === 'loan-types') return 'Interest, repayment months, and approval are stored in the loan type meta object. Maximum amount and eligibility rules are not fields on this API. Active borrower count is a tenant total, not a count per loan type. There is no archive or bulk API.';
   return 'Settlement type is the category. Mode is stored in meta. Razorpay and bank-transfer enabled state shown by the API can also follow payment settings, so a master status change does not reconfigure the gateway. There is no provider credential form, archive, or bulk API here.';
