@@ -70,6 +70,7 @@ const routeRegistry = {
     'invoices': { category: 'CUSTOMER SUCCESS', title: 'Invoices & Billing', icon: faFileInvoice },
     'subscriptions': { category: 'CUSTOMER SUCCESS', title: 'Active Subscriptions', icon: faShieldHalved },
     'offline-payments': { category: 'CUSTOMER SUCCESS', title: 'Offline Payment Requests', icon: faCreditCard },
+    'usage': { category: 'CUSTOMER SUCCESS', title: 'Resource Usage', icon: faChartBar },
     'data-capture': { category: 'DATA CAPTURE ENGINE', title: 'Data Capture', icon: faDatabase },
     'usage-quota': { category: 'DATA CAPTURE ENGINE', title: 'Usage & Quotas', icon: faChartBar },
     'email-templates': { category: 'EMAIL MARKETING', title: 'Email Templates', icon: faEnvelope },
