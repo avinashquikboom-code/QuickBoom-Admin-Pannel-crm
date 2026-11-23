@@ -1,10 +1,27 @@
 'use client';
 
 import * as React from 'react';
+import {
+  Layers,
+  Users,
+  Briefcase,
+  CheckCircle2,
+  Plus,
+  Search,
+  RefreshCw,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Check,
+  X,
+  SlidersHorizontal,
+  AlertCircle,
+  CircleDot,
+} from 'lucide-react';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { PageHeader } from '@/components/common/PageHeader';
-import { KpiGrid } from '@/components/common/KpiCard';
 import { Button } from '@/components/common/Button';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { Input } from '@/components/common/Input';
@@ -12,6 +29,14 @@ import { Label } from '@/components/common/Label';
 import { Textarea } from '@/components/common/Textarea';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/common/Select';
 import { toast } from '@/hooks/use-toast';
 import api from '../../../lib/api';
 import { bulkDealStages, crmError, loadDealStage, loadDealStages, loadLeadStage, loadLeadStages, reassignDealStage, reassignLeadStage, removeDealStage, removeLeadStage, saveDealStage, saveLeadStage } from '@/modules/crm/crm-api';
@@ -450,31 +475,31 @@ export function StageManagement() {
 
   const waStatusOf = (stage) => {
     if (stage.type === 'Deal') return null;
-    if (stage.whatsappEnabled === false) return { label: 'Disabled', cls: 'bg-slate-100 text-slate-600' };
+    if (stage.whatsappEnabled === false) return { label: 'Disabled', cls: 'bg-slate-100 text-slate-600 border border-slate-200' };
     const tplId = stage.whatsappTemplateId || stage.whatsappTemplate?.id;
     if (tplId) {
       const tpl = (stage.whatsappTemplate && String(stage.whatsappTemplate.id) === String(tplId))
         ? stage.whatsappTemplate
         : metaTemplates.find((item) => String(item.id) === String(tplId));
-      if (!tpl) return { label: 'Invalid configuration', cls: 'bg-rose-100 text-rose-700' };
-      if (tpl.isLocalActive === false) return { label: 'Inactive', cls: 'bg-amber-100 text-amber-800' };
+      if (!tpl) return { label: 'Invalid config', cls: 'bg-rose-50 text-rose-700 border border-rose-200' };
+      if (tpl.isLocalActive === false) return { label: 'Inactive', cls: 'bg-amber-50 text-amber-800 border border-amber-200' };
       const status = String(tpl.status || tpl.metaStatus || '').toUpperCase();
-      if (status && status !== 'APPROVED') return { label: `Template ${status.toLowerCase()}`, cls: 'bg-amber-100 text-amber-800' };
-      if (waTemplateUnusable(tpl)) return { label: 'Not approved on Meta', cls: 'bg-rose-100 text-rose-700' };
-      return { label: 'Configured', cls: 'bg-[#E8F1EC] text-[#163A2E]' };
+      if (status && status !== 'APPROVED') return { label: `Template ${status.toLowerCase()}`, cls: 'bg-amber-50 text-amber-800 border border-amber-200' };
+      if (waTemplateUnusable(tpl)) return { label: 'Not approved on Meta', cls: 'bg-rose-50 text-rose-700 border border-rose-200' };
+      return { label: 'Configured', cls: 'bg-emerald-50 text-emerald-800 border border-emerald-200' };
     }
-    return { label: 'Not configured', cls: 'bg-amber-100 text-amber-800' };
+    return { label: 'Not configured', cls: 'bg-amber-50 text-amber-800 border border-amber-200' };
   };
 
   const emailStatusOf = (stage) => {
     if (stage.type === 'Deal') return null;
-    if (stage.emailEnabled === false) return { label: 'Disabled', cls: 'bg-slate-100 text-slate-600' };
-    if (!stage.emailTemplateId && !stage.emailTemplate?.id) return { label: 'Not configured', cls: 'bg-amber-100 text-amber-800' };
+    if (stage.emailEnabled === false) return { label: 'Disabled', cls: 'bg-slate-100 text-slate-600 border border-slate-200' };
+    if (!stage.emailTemplateId && !stage.emailTemplate?.id) return { label: 'Not configured', cls: 'bg-amber-50 text-amber-800 border border-amber-200' };
     const tpl = stage.emailTemplate;
-    if (!tpl) return { label: 'Invalid template', cls: 'bg-rose-100 text-rose-700' };
-    if (tpl.isActive === false || tpl.deletedAt) return { label: 'Inactive', cls: 'bg-amber-100 text-amber-800' };
-    if (tpl.isActive !== true) return { label: 'Status unavailable', cls: 'bg-slate-100 text-slate-600' };
-    return { label: 'Configured', cls: 'bg-[#E8F1EC] text-[#163A2E]' };
+    if (!tpl) return { label: 'Invalid template', cls: 'bg-rose-50 text-rose-700 border border-rose-200' };
+    if (tpl.isActive === false || tpl.deletedAt) return { label: 'Inactive', cls: 'bg-amber-50 text-amber-800 border border-amber-200' };
+    if (tpl.isActive !== true) return { label: 'Status unavailable', cls: 'bg-slate-100 text-slate-600 border border-slate-200' };
+    return { label: 'Configured', cls: 'bg-emerald-50 text-emerald-800 border border-emerald-200' };
   };
 
   const whatsappTemplateFor = (stage) => {
@@ -488,11 +513,12 @@ export function StageManagement() {
     emailTemplates.find((item) => String(item.id) === String(stage.emailTemplateId));
 
   const mappingCell = (template, status, channel) => (
-    <div className="min-w-40 space-y-1">
-      <p className="max-w-56 truncate font-medium text-[#172B24]" title={template ? `${template.name || template.templateName} · ID ${template.id}` : ''}>
-        {template ? `${template.name || template.templateName} · #${template.id}` : 'No template mapped'}
+    <div className="min-w-[170px] space-y-1">
+      <p className="max-w-[200px] truncate font-semibold text-slate-900 text-xs" title={template ? `${template.name || template.templateName} · ID ${template.id}` : ''}>
+        {template ? `${template.name || template.templateName}` : 'No template mapped'}
       </p>
-      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${status?.cls || 'bg-slate-100 text-slate-600'}`}>
+      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${status?.cls || 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+        <span className={`size-1.5 rounded-full ${status?.label === 'Configured' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
         {status?.label || `${channel} unavailable`}
       </span>
     </div>
@@ -503,127 +529,557 @@ export function StageManagement() {
   const active = stages.filter((stage) => stage.isActive !== false).length;
   const allVisibleSelected = visible.length > 0 && visible.every((stage) => selected.includes(keyOf(stage)));
 
+  const handleExport = () => {
+    if (!filtered.length) {
+      toast.error('No stages to export');
+      return;
+    }
+    const headers = [
+      'Stage Name',
+      'Stage Key',
+      'Pipeline Type',
+      'Order',
+      'Probability (%)',
+      'Color',
+      'WhatsApp Template',
+      'WhatsApp Status',
+      'Email Template',
+      'Email Status',
+      'Status',
+    ];
+    const rows = filtered.map((s) => [
+      `"${(s.name || '').replace(/"/g, '""')}"`,
+      `"${(s.key || '').replace(/"/g, '""')}"`,
+      `"${s.type || 'Lead'}"`,
+      `"${s.order ?? s.sortOrder ?? 0}"`,
+      `"${s.probability ?? ''}"`,
+      `"${s.color || ''}"`,
+      `"${(whatsappTemplateFor(s)?.name || 'None').replace(/"/g, '""')}"`,
+      `"${(waStatusOf(s)?.label || 'N/A').replace(/"/g, '""')}"`,
+      `"${(emailTemplateFor(s)?.name || 'None').replace(/"/g, '""')}"`,
+      `"${(emailStatusOf(s)?.label || 'N/A').replace(/"/g, '""')}"`,
+      `"${s.isActive === false ? 'Inactive' : 'Active'}"`,
+    ]);
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `crm_stages_${stageType.toLowerCase()}_export.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Stages Exported', {
+      description: `Exported ${filtered.length} stages to CSV.`,
+    });
+  };
+
   return (
-    <div className="space-y-5">
-      <PageHeader title="Stage Management" description="Manage CRM lead and deal stages." actions={<Button type="button" onClick={() => open('create')}><FontAwesomeIcon icon={faPlus} className="mr-2 size-3.5" />Add Stage</Button>} />
-      <KpiGrid cards={[
-        { title: 'Total Stages', value: stages.length, description: 'All configured stages' },
-        { title: 'Lead Stages', value: leadStagesCount, description: 'Prospect lifecycle & automation' },
-        { title: 'Deal Stages', value: dealStagesCount, description: 'Revenue pipeline & win probability' },
-        { title: 'Active Stages', value: active, description: 'Available for new records' },
-      ]} />
-      <div className="overflow-hidden rounded-lg border border-[#E2E8E5] bg-white">
-        {/* Pipeline Type Filter Tabs */}
-        <div className="flex border-b border-[#E2E8E5] bg-[#F7F9F8] px-4 pt-2 gap-2">
+    <div className="w-full min-w-0 max-w-none space-y-5 sm:space-y-6 overflow-x-hidden">
+      {/* ── 1. Top Pipeline Switcher & Actions ───────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200/80 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => { setStageType('Lead'); setPage(1); }}
-            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition shadow-xs ${
               stageType === 'Lead'
-                ? 'border-[#163A2E] text-[#163A2E] font-semibold bg-white rounded-t-md border-t border-x'
-                : 'border-transparent text-[#718078] hover:text-[#172B24]'
+                ? 'bg-[#107569] text-white shadow-xs'
+                : 'border border-slate-200/90 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
-            Lead Stages ({leadStagesCount})
+            <Users className="size-4" />
+            <span>Lead Stages</span>
+            <span
+              className={`ml-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+                stageType === 'Lead' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {leadStagesCount}
+            </span>
           </button>
+
           <button
             type="button"
             onClick={() => { setStageType('Deal'); setPage(1); }}
-            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition shadow-xs ${
               stageType === 'Deal'
-                ? 'border-[#163A2E] text-[#163A2E] font-semibold bg-white rounded-t-md border-t border-x'
-                : 'border-transparent text-[#718078] hover:text-[#172B24]'
+                ? 'bg-[#107569] text-white shadow-xs'
+                : 'border border-slate-200/90 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
-            Deal Stages ({dealStagesCount})
+            <Briefcase className="size-4" />
+            <span>Deal Stages</span>
+            <span
+              className={`ml-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+                stageType === 'Deal' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {dealStagesCount}
+            </span>
           </button>
+
           <button
             type="button"
             onClick={() => { setStageType('ALL'); setPage(1); }}
-            className={`border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition shadow-xs ${
               stageType === 'ALL'
-                ? 'border-[#163A2E] text-[#163A2E] font-semibold bg-white rounded-t-md border-t border-x'
-                : 'border-transparent text-[#718078] hover:text-[#172B24]'
+                ? 'bg-[#107569] text-white shadow-xs'
+                : 'border border-slate-200/90 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
-            All Stages ({stages.length})
+            <Layers className="size-4" />
+            <span>All Stages</span>
+            <span
+              className={`ml-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+                stageType === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {stages.length}
+            </span>
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-[#E2E8E5] px-4 py-3">
-          <Input aria-label="Search stages" value={search} placeholder="Search stages" onChange={(event) => { setSearch(event.target.value); setPage(1); }} className="max-w-xs" />
-          <select aria-label="Stage status" className="h-8 rounded-md border border-[#E2E8E5] bg-white px-2 text-sm" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select>
-          <select aria-label="Sort stages" className="h-8 rounded-md border border-[#E2E8E5] bg-white px-2 text-sm" value={sort} onChange={(event) => setSort(event.target.value)}><option value="order">Display order</option><option value="name">Name</option><option value="status">Status</option><option value="created">Created date</option></select>
-          {selected.length > 0 && <div className="ml-auto flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setActive(selected, true)}>Activate</Button><Button type="button" variant="outline" onClick={() => setActive(selected, false)}>Deactivate</Button><Button type="button" variant="outline" className="text-rose-700" onClick={() => setConfirm({ ids: selected })}>Delete</Button></div>}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refresh}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-xl border-slate-200 text-xs font-semibold text-slate-600 hover:text-[#107569]"
+          >
+            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            onClick={handleExport}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#107569] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#0e6359]"
+          >
+            <Download className="size-3.5" />
+            <span>Export CSV</span>
+          </Button>
         </div>
+      </div>
+
+      {/* ── 2. Page Header ──────────────────────────────────────────────────── */}
+      <PageHeader
+        category="SALES & CRM"
+        title="Stage Management"
+        description="Configure sales lead and deal stages, win probabilities, automated WhatsApp & Email templates, and progression order."
+        actions={
+          <Button
+            onClick={() => open('create')}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#107569] px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-[#0e6359]"
+          >
+            <Plus className="size-4" />
+            <span>Add Stage</span>
+          </Button>
+        }
+      />
+
+      {/* ── 3. Four Dashboard Statistics Cards (Strictly Primary Brand Theme) ── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total Stages */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+          <div className="space-y-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Total Stages
+            </p>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#163A2E]">
+              {stages.length}
+            </p>
+            <p className="text-xs text-slate-400">All configured CRM stages</p>
+          </div>
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 ring-1 ring-slate-200/60">
+            <Layers className="size-6" />
+          </div>
+        </div>
+
+        {/* Lead Stages */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+          <div className="space-y-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Lead Stages
+            </p>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#163A2E]">
+              {leadStagesCount}
+            </p>
+            <p className="text-xs text-emerald-600 font-medium">Prospect lifecycle & automation</p>
+          </div>
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60">
+            <Users className="size-6" />
+          </div>
+        </div>
+
+        {/* Deal Stages */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+          <div className="space-y-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Deal Stages
+            </p>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-800">
+              {dealStagesCount}
+            </p>
+            <p className="text-xs text-slate-400">Revenue pipeline & win probability</p>
+          </div>
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 ring-1 ring-slate-200/60">
+            <Briefcase className="size-6" />
+          </div>
+        </div>
+
+        {/* Active Stages */}
+        <div className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+          <div className="space-y-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Active Stages
+            </p>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#163A2E]">
+              {active}
+            </p>
+            <p className="text-xs text-emerald-600 font-medium">
+              {stages.filter((s) => s.emailTemplateId || s.whatsappTemplateId).length} mapped with automation
+            </p>
+          </div>
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60">
+            <CheckCircle2 className="size-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── 4. Unified Filter & Bulk Actions Bar ──────────────────────────────── */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Search Box */}
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+            <Input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search stages by name, description, or key..."
+              className="h-10 pl-9 pr-3 text-xs sm:text-sm rounded-xl border-slate-200 bg-slate-50/60 focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-[#107569] w-full"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setPage(1); }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Right Dropdowns & Bulk Actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-full sm:w-36">
+              <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+                <SelectTrigger className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 bg-slate-50/60 focus:ring-[#107569]">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Statuses</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-full sm:w-40">
+              <Select value={sort} onValueChange={(v) => setSort(v)}>
+                <SelectTrigger className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 bg-slate-50/60 focus:ring-[#107569]">
+                  <SelectValue placeholder="Sort Order" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="order">Display Order</SelectItem>
+                  <SelectItem value="name">Stage Name</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="created">Created Date</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selected.length > 0 && (
+              <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+                <span className="text-xs font-semibold text-slate-700 mr-1">
+                  {selected.length} selected:
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActive(selected, true)}
+                  className="h-8 rounded-lg border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                >
+                  Activate
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActive(selected, false)}
+                  className="h-8 rounded-lg border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Deactivate
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirm({ ids: selected })}
+                  className="h-8 rounded-lg border-rose-200 bg-rose-50 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 5. Stages Table ──────────────────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs">
         <div className="overflow-x-auto">
-          <table className="min-w-[1040px] w-full text-left text-sm">
-            <thead className="bg-[#F7F9F8] text-xs uppercase tracking-wide text-[#718078]">
-              <tr>
-                <th className="px-4 py-3"><input aria-label="Select visible stages" type="checkbox" checked={allVisibleSelected} onChange={(event) => setSelected(event.target.checked ? [...new Set([...selected, ...visible.map(keyOf)])] : selected.filter((key) => !visible.some((stage) => keyOf(stage) === key)))} /></th>
-                {['Stage Name', 'Pipeline Type', 'Description', 'Color', 'Probability', 'Order', 'Status', 'WhatsApp Template', 'Email Template', 'Created', 'Actions'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}
+          <table className="w-full min-w-[1040px] text-left border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-[#E2E8E5] bg-[#F4F9F6] text-xs font-bold uppercase tracking-wider text-[#163A2E]">
+                <th className="py-3.5 pl-6 pr-3 w-10">
+                  <input
+                    aria-label="Select visible stages"
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={(event) =>
+                      setSelected(
+                        event.target.checked
+                          ? [...new Set([...selected, ...visible.map(keyOf)])]
+                          : selected.filter((key) => !visible.some((stage) => keyOf(stage) === key))
+                      )
+                    }
+                    className="size-4 rounded text-[#107569] focus:ring-emerald-400 accent-[#107569]"
+                  />
+                </th>
+                <th className="py-3.5 px-4">Stage Name</th>
+                <th className="py-3.5 px-4">Pipeline</th>
+                <th className="py-3.5 px-4">Description</th>
+                <th className="py-3.5 px-4">Color & Order</th>
+                <th className="py-3.5 px-4">Win Prob.</th>
+                <th className="py-3.5 px-4">WhatsApp Automation</th>
+                <th className="py-3.5 px-4">Email Automation</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 pl-4 pr-6 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {visible.map((stage) => (
-                <tr key={keyOf(stage)} className="border-t border-[#E2E8E5] hover:bg-slate-50/50">
-                  <td className="px-4 py-3"><input aria-label={`Select ${stage.name}`} type="checkbox" checked={selected.includes(keyOf(stage))} onChange={(event) => setSelected((current) => event.target.checked ? [...current, keyOf(stage)] : current.filter((key) => key !== keyOf(stage)))} /></td>
-                  <td className="px-4 py-3 font-medium text-[#172B24]">{stage.name}</td>
-                  <td className="px-4 py-3">
-                    {stage.type === 'Deal' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-200/60">
-                        <span className="size-1.5 rounded-full bg-indigo-500" />
-                        Deal Pipeline
+            <tbody className="divide-y divide-slate-100">
+              {visible.map((stage) => {
+                const isDeal = stage.type === 'Deal';
+                const isStageSelected = selected.includes(keyOf(stage));
+                return (
+                  <tr
+                    key={keyOf(stage)}
+                    className={`transition-colors hover:bg-slate-50/70 ${
+                      isStageSelected ? 'bg-emerald-50/30' : ''
+                    }`}
+                  >
+                    <td className="py-3.5 pl-6 pr-3">
+                      <input
+                        aria-label={`Select ${stage.name}`}
+                        type="checkbox"
+                        checked={isStageSelected}
+                        onChange={(event) =>
+                          setSelected((current) =>
+                            event.target.checked
+                              ? [...current, keyOf(stage)]
+                              : current.filter((key) => key !== keyOf(stage))
+                          )
+                        }
+                        className="size-4 rounded text-[#107569] focus:ring-emerald-400 accent-[#107569]"
+                      />
+                    </td>
+
+                    {/* Stage Name & Key */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-900 leading-tight">
+                          {stage.name}
+                        </span>
+                        {stage.key && (
+                          <span className="text-[11px] font-mono text-slate-400 mt-0.5">
+                            {stage.key}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Pipeline Type */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      {isDeal ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200">
+                          <span className="size-1.5 rounded-full bg-slate-500" />
+                          Deal Pipeline
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200/80">
+                          <span className="size-1.5 rounded-full bg-[#107569]" />
+                          Lead Stage
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Description */}
+                    <td className="py-3.5 px-4 max-w-[200px] truncate text-xs text-slate-500">
+                      {stage.description || '—'}
+                    </td>
+
+                    {/* Color & Step Order */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="size-3.5 rounded-full border border-slate-300 shadow-2xs shrink-0"
+                          style={{ background: stage.color || '#107569' }}
+                          title={`Color: ${stage.color}`}
+                        />
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg bg-emerald-50 text-[11px] font-bold text-[#107569] border border-emerald-200/60 font-mono">
+                          #{stage.order ?? stage.sortOrder ?? '0'}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Probability */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      {isDeal ? (
+                        <span className="inline-flex items-center rounded-lg bg-slate-50 border border-slate-200 px-2 py-0.5 text-xs font-bold text-[#163A2E]">
+                          {stage.probability ?? 0}%
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-mono">—</span>
+                      )}
+                    </td>
+
+                    {/* WhatsApp Template */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      {isDeal ? (
+                        <span className="text-xs text-slate-400 font-mono">—</span>
+                      ) : (
+                        mappingCell(whatsappTemplateFor(stage), waStatusOf(stage), 'WhatsApp')
+                      )}
+                    </td>
+
+                    {/* Email Template */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      {isDeal ? (
+                        <span className="text-xs text-slate-400 font-mono">—</span>
+                      ) : (
+                        mappingCell(emailTemplateFor(stage), emailStatusOf(stage), 'Email')
+                      )}
+                    </td>
+
+                    {/* Status */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          stage.isActive === false
+                            ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                            : 'bg-emerald-50 text-emerald-800 border border-emerald-200/80'
+                        }`}
+                      >
+                        <span
+                          className={`size-1.5 rounded-full ${
+                            stage.isActive === false ? 'bg-slate-400' : 'bg-emerald-500'
+                          }`}
+                        />
+                        {stage.isActive === false ? 'Inactive' : 'Active'}
                       </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200/60">
-                        <span className="size-1.5 rounded-full bg-emerald-600" />
-                        Lead Stage
-                      </span>
-                    )}
-                  </td>
-                  <td className="max-w-[220px] truncate px-4 py-3 text-[#64748B]">{stage.description || '—'}</td>
-                  <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><span className="size-3 rounded-full border border-[#E2E8E5]" style={{ background: stage.color || '#163A2E' }} />{stage.color || '—'}</span></td>
-                  <td className="px-4 py-3">{stage.type === 'Deal' ? `${stage.probability ?? 0}%` : '—'}</td>
-                  <td className="px-4 py-3 font-semibold text-[#163A2E]">{stage.order ?? stage.sortOrder ?? '—'}</td>
-                  <td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${stage.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-[#E8F1EC] text-[#163A2E]'}`}>{stage.isActive === false ? 'Inactive' : 'Active'}</span></td>
-                  <td className="px-4 py-3">{stage.type === 'Deal' ? '—' : mappingCell(whatsappTemplateFor(stage), waStatusOf(stage), 'WhatsApp')}</td>
-                  <td className="px-4 py-3">{stage.type === 'Deal' ? '—' : mappingCell(emailTemplateFor(stage), emailStatusOf(stage), 'Email')}</td>
-                  <td className="px-4 py-3 text-[#64748B]">{stage.createdAt ? new Date(stage.createdAt).toLocaleDateString('en-IN') : '—'}</td>
-                  <td className="px-4 py-3 text-right">
-                    <AdminRowActions
-                      record={stage}
-                      recordName={stage.name}
-                      onView={() => open('view', stage)}
-                      viewLabel="View Stage Details"
-                      onEdit={() => open('edit', stage)}
-                      editLabel="Edit Stage"
-                      onToggleStatus={() => setActive([keyOf(stage)], stage.isActive === false)}
-                      statusLabel={stage.isActive === false ? 'Activate Stage' : 'Deactivate Stage'}
-                      onDelete={() => {
-                        setTargetStageId('');
-                        setConfirm({
-                          ids: [keyOf(stage)],
-                          key: keyOf(stage),
-                          stageId: stage.id,
-                          name: stage.name,
-                          used: usageOf(stage),
-                          type: stage.type,
-                        });
-                      }}
-                      deleteLabel="Delete Stage"
-                      confirmDelete={false}
-                    />
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-3.5 pl-4 pr-6 text-right whitespace-nowrap">
+                      <AdminRowActions
+                        record={stage}
+                        recordName={stage.name}
+                        onView={() => open('view', stage)}
+                        viewLabel="View Stage Details"
+                        onEdit={() => open('edit', stage)}
+                        editLabel="Edit Stage"
+                        onToggleStatus={() => setActive([keyOf(stage)], stage.isActive === false)}
+                        statusLabel={stage.isActive === false ? 'Activate Stage' : 'Deactivate Stage'}
+                        onDelete={() => {
+                          setTargetStageId('');
+                          setConfirm({
+                            ids: [keyOf(stage)],
+                            key: keyOf(stage),
+                            stageId: stage.id,
+                            name: stage.name,
+                            used: usageOf(stage),
+                            type: stage.type,
+                          });
+                        }}
+                        deleteLabel="Delete Stage"
+                        confirmDelete={false}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {!loading && visible.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="p-16 text-center">
+                    <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-emerald-50 text-[#107569] ring-1 ring-emerald-200/60">
+                      <Layers className="size-7" />
+                    </div>
+                    <h3 className="mt-4 text-base font-bold text-slate-800">No stages found</h3>
+                    <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+                      {search || status !== 'ALL' || stageType !== 'ALL'
+                        ? 'No pipeline stages match the specified search or filter criteria.'
+                        : 'No pipeline stages configured yet. Click "Add Stage" to create one.'}
+                    </p>
                   </td>
                 </tr>
-              ))}
-              {!loading && visible.length === 0 && <tr><td colSpan={12} className="px-4 py-10 text-center text-[#718078]">{search || status !== 'ALL' || stageType !== 'ALL' ? 'No stages match these filters.' : 'No stages configured yet.'}</td></tr>}
+              )}
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between border-t border-[#E2E8E5] px-4 py-3 text-sm text-[#64748B]">
-          <span>{loading ? 'Loading stages…' : `${filtered.length} stages`}</span>
-          <div className="flex items-center gap-2"><Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><span>Page {page} of {pageCount}</span><Button type="button" size="sm" variant="outline" disabled={page >= pageCount} onClick={() => setPage(page + 1)}>Next</Button></div>
+
+        {/* Table Footer with Pagination */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/90 px-6 py-3.5 bg-slate-50/50 text-xs text-slate-500">
+          <div>
+            Showing <span className="font-semibold text-slate-700">{filtered.length > 0 ? (page - 1) * pageSize + 1 : 0}</span> to{' '}
+            <span className="font-semibold text-slate-700">{Math.min(page * pageSize, filtered.length)}</span> of{' '}
+            <span className="font-semibold text-slate-700">{filtered.length}</span> stages
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+              className="h-8 px-2 rounded-lg border-slate-200 text-slate-600 hover:text-[#107569] disabled:opacity-40"
+            >
+              <ChevronLeft className="size-3.5" />
+              <span className="sr-only">Previous</span>
+            </Button>
+
+            <div className="flex items-center px-2 font-medium text-slate-700">
+              <span className="flex size-7 items-center justify-center rounded-lg bg-[#107569] text-white text-xs font-bold">
+                {page}
+              </span>
+              <span className="mx-1 text-slate-400">/</span>
+              <span className="text-slate-600 font-semibold">{pageCount}</span>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= pageCount}
+              onClick={() => setPage(page + 1)}
+              className="h-8 px-2 rounded-lg border-slate-200 text-slate-600 hover:text-[#107569] disabled:opacity-40"
+            >
+              <ChevronRight className="size-3.5" />
+              <span className="sr-only">Next</span>
+            </Button>
+          </div>
         </div>
       </div>
       <FormDrawer open={Boolean(drawer)} onOpenChange={(open) => !open && setDrawer(null)} title={drawer?.mode === 'edit' ? 'Edit Stage' : drawer?.mode === 'view' ? 'Stage Details' : 'Add Stage'} description="Stage name is required." showFooter={!viewing} submitLabel={drawer?.mode === 'edit' ? 'Update Stage' : 'Save Stage'} loading={saving} onSubmit={save}>
@@ -644,7 +1100,7 @@ export function StageManagement() {
           ) : (
             <div className="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs">
               <span className="font-medium text-slate-600">Pipeline Type:</span>
-              <span className={`font-semibold ${form.type === 'Deal' ? 'text-indigo-700' : 'text-emerald-800'}`}>
+              <span className={`font-semibold ${form.type === 'Deal' ? 'text-slate-700' : 'text-[#107569]'}`}>
                 {form.type === 'Deal' ? 'Deal Pipeline' : 'Lead Stage'}
               </span>
             </div>
