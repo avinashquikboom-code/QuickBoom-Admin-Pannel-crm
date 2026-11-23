@@ -80,7 +80,7 @@ export const contentNavigation = [
 
 export const marketingNavigation = [
     {
-        name: "In App AD's",
+        name: "In App Ad's",
         icon: Video,
         href: '/admin/content/trending',
         children: contentNavigation,
