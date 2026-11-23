@@ -91,6 +91,7 @@ const routeRegistry = {
     'home-banners': { category: "IN APP AD'S", title: 'Home Banners', icon: faImage },
     'banners': { category: "IN APP AD'S", title: 'Home Banners', icon: faImage },
     'marketing-videos': { category: "IN APP AD'S", title: 'Marketing Videos', icon: faVideo },
+    'videos': { category: "IN APP AD'S", title: 'Marketing Videos', icon: faVideo },
 
     // Workforce & HRM Sections
     'office-management': { category: 'WORKFORCE MANAGEMENT', title: 'Office Management', icon: faBuilding },

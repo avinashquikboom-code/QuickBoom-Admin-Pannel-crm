@@ -154,10 +154,52 @@ export const publishBanner = (id, isPublished) =>
     (url) => api.patch(url, { isPublished })
   );
 
-export const loadVideos = (query = {}) => list('/admin/marketing/videos', { search: query.search, page: query.page, limit: 20 });
-export const saveVideo = (values, id) => id ? api.patch(`/admin/marketing/videos/${id}`, videoBody(values)) : api.post('/admin/marketing/videos', videoBody(values));
+export const loadVideos = async (query = {}) => {
+  const params = {
+    search: query.search?.trim() || undefined,
+    status: query.status && query.status !== 'ALL' ? query.status : undefined,
+    page: query.page || 1,
+    limit: query.limit || 10,
+  };
+  const res = await api.get('/admin/marketing/videos', { params });
+  const payload = res?.data || res;
+  const rows = rowsOf(payload);
+  const total = typeof payload?.total === 'number' ? payload.total : (typeof payload?.data?.total === 'number' ? payload.data.total : rows.length);
+  const page = payload?.page || query.page || 1;
+  const limit = payload?.limit || query.limit || 10;
+  const totalPages = payload?.totalPages || Math.ceil(total / limit) || 1;
+  return {
+    rows,
+    pagination: { total, page, limit, totalPages },
+    payload,
+  };
+};
+
+export const saveVideo = async (values, id, files = {}) => {
+  const videoFile = files?.video instanceof File ? files.video : null;
+  const thumbFile = files?.thumbnail instanceof File ? files.thumbnail : null;
+  if (videoFile || thumbFile) {
+    const formData = new FormData();
+    if (videoFile) formData.append('video', videoFile);
+    if (thumbFile) formData.append('thumbnail', thumbFile);
+    if (values.title !== undefined) formData.append('title', values.title?.trim() || '');
+    if (values.subtitle !== undefined) formData.append('subtitle', values.subtitle?.trim() || '');
+    if (values.description !== undefined) formData.append('description', values.description?.trim() || '');
+    if (values.videoUrl !== undefined && !videoFile) formData.append('videoUrl', values.videoUrl?.trim() || '');
+    if (values.thumbnailUrl !== undefined && !thumbFile) formData.append('thumbnailUrl', values.thumbnailUrl?.trim() || '');
+    formData.append('priority', String(values.priority !== undefined && values.priority !== '' ? Number(values.priority) || 0 : 0));
+    if (values.status) formData.append('status', values.status);
+    if (values.isActive !== undefined) formData.append('isActive', String(Boolean(values.isActive)));
+    if (values.isPublished !== undefined) formData.append('isPublished', String(Boolean(values.isPublished)));
+    return id ? api.patch(`/admin/marketing/videos/${id}`, formData) : api.post('/admin/marketing/videos', formData);
+  }
+  const body = videoBody(values);
+  return id ? api.patch(`/admin/marketing/videos/${id}`, body) : api.post('/admin/marketing/videos', body);
+};
+
 export const removeVideo = (id) => api.delete(`/admin/marketing/videos/${id}`);
 export const publishVideo = (id, isPublished) => api.patch(`/admin/marketing/videos/${id}/publish`, { isPublished });
+export const updateVideoStatus = (id, status) => api.patch(`/admin/marketing/videos/${id}/status`, { status });
 
 export const loadDataSummary = () => api.get('/admin/data-management/summary');
 export const loadDataHistory = () => api.get('/admin/data-management/history').then(rowsOf);
@@ -253,5 +295,15 @@ function bannerBody(values) {
   };
 }
 function videoBody(values) {
-  return { title: values.title, description: values.description || undefined, videoUrl: values.videoUrl || undefined, thumbnailUrl: values.thumbnailUrl || undefined, priority: values.priority === '' ? undefined : Number(values.priority), status: values.status || undefined, isActive: values.isActive !== false && values.isActive !== 'false' };
+  return {
+    title: values.title?.trim() || '',
+    subtitle: values.subtitle?.trim() || undefined,
+    description: values.description?.trim() || undefined,
+    videoUrl: values.videoUrl?.trim() || undefined,
+    thumbnailUrl: values.thumbnailUrl?.trim() || undefined,
+    priority: values.priority === '' || values.priority === undefined ? 0 : Number(values.priority) || 0,
+    status: values.status || 'ACTIVE',
+    isActive: values.isActive !== false && values.isActive !== 'false',
+    isPublished: values.isPublished !== false && values.isPublished !== 'false',
+  };
 }
