@@ -2,48 +2,95 @@
 
 import * as React from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { truncateWords } from '@/lib/truncate-words.mjs';
 
 export { truncateWords };
 
-export function TruncatedText({ value, text, maxWords = 10, className = '' }) {
-  const source = value === undefined ? text : value;
-  if (source == null || source === '') return null;
+/**
+ * TruncatedText
+ *
+ * Provides pure CSS single-line truncation with ellipsis (...) without slicing strings in JavaScript.
+ * On hover/focus: displays full text in a Radix/Base-UI Tooltip (and native title attribute fallback).
+ * On tap/click (mobile/touch devices): displays full text in an interactive Popover.
+ *
+ * @param {Object} props
+ * @param {string|number|null} [props.value]
+ * @param {string|number|null} [props.text]
+ * @param {React.ReactNode} [props.children]
+ * @param {string} [props.className]
+ * @param {string} [props.maxWidth]
+ * @param {string} [props.label]
+ */
+export function TruncatedText({
+  value = undefined,
+  text = undefined,
+  children = undefined,
+  className = '',
+  maxWidth = 'max-w-xs',
+  label = 'Full Details',
+} = {}) {
+  const raw = value !== undefined ? value : text !== undefined ? text : children;
+  if (raw == null || raw === '') {
+    return <span className="text-slate-400">—</span>;
+  }
 
-  const original = String(source);
-  const shortened = truncateWords(original, maxWords);
-  if (shortened === original) {
-    return (
-      <span className={`block max-w-full whitespace-normal break-words ${className}`}>
-        {original}
-      </span>
-    );
+  const original = String(raw).trim();
+  if (!original) {
+    return <span className="text-slate-400">—</span>;
   }
 
   return (
     <Popover>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <PopoverTrigger
-              aria-label={`${shortened} Show full text`}
-              className={`block max-w-full cursor-pointer appearance-none border-0 bg-transparent p-0 text-left align-baseline text-inherit underline decoration-dotted decoration-slate-400 underline-offset-2 focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 ${className}`}
-            />
-          }
-        >
-          {shortened}
-        </TooltipTrigger>
-        <TooltipContent className="max-w-[min(24rem,calc(100vw-2rem))] whitespace-pre-wrap break-words bg-slate-900 text-white">
-          {original}
-        </TooltipContent>
-      </Tooltip>
+      <TooltipProvider delay={150}>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <PopoverTrigger
+                type="button"
+                aria-label={`View full details: ${original}`}
+                className={`truncate-text block w-full min-w-0 text-left cursor-pointer border-0 bg-transparent p-0 font-inherit text-inherit transition-colors hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-emerald-600 focus-visible:rounded-xs ${maxWidth} ${className}`}
+              />
+            }
+          >
+            <span
+              title={original}
+              className="truncate-text block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+            >
+              {original}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            align="start"
+            className="z-50 max-w-[min(26rem,calc(100vw-2rem))] whitespace-pre-wrap break-words rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-xl"
+          >
+            {label ? (
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-0.5">
+                {label}
+              </span>
+            ) : null}
+            {original}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
       <PopoverContent
         align="start"
-        className="max-h-64 max-w-[min(24rem,calc(100vw-2rem))] overflow-auto whitespace-pre-wrap break-words border border-emerald-100 bg-white text-sm leading-5 text-slate-800 shadow-lg"
+        side="bottom"
+        className="z-50 max-h-72 w-80 max-w-[calc(100vw-2rem)] overflow-auto rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-800 shadow-xl"
       >
-        {original}
+        {label ? (
+          <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+            {label}
+          </div>
+        ) : null}
+        <div className="whitespace-pre-wrap break-words text-slate-700">
+          {original}
+        </div>
       </PopoverContent>
     </Popover>
   );
 }
+
+export default TruncatedText;

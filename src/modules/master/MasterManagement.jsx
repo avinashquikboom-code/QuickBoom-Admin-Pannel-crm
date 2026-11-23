@@ -22,6 +22,7 @@ import { DesignationsScreen } from './DesignationsScreen';
 import { loadOffices } from '@/modules/hrm/hrm-api';
 import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
 import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
+import { TruncatedText } from '@/components/common/TruncatedText';
 import {
   MASTER_MODULES,
   bulkDeleteDesignations,
@@ -89,20 +90,40 @@ function RecordCards({ rows, config, metric, onView, onEdit, onDelete }) {
   return (
     <div className="grid gap-3 md:hidden">
       {rows.map((row) => (
-        <article key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">{row.name}</p>
-              <p className="mt-1 font-mono text-[11px] text-slate-500">{row.code || '—'}</p>
+        <article key={row.id} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
+          <div className="flex items-start justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-emerald-200/70 bg-emerald-50 text-emerald-700">
+                <FontAwesomeIcon icon={config.icon} className="size-3.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-bold text-slate-900">{row.name}</p>
+                <p className="font-mono text-[10px] text-slate-500">{row.code || '—'}</p>
+              </div>
             </div>
             <StatusBadge status={row.status} />
           </div>
-          <p className="mt-2 line-clamp-2 text-xs text-slate-500">{row.description || 'No description'}</p>
-          <p className="mt-2 text-xs text-slate-600">{metric(row)}</p>
+
+          {row.description ? (
+            <div className="mt-2.5 rounded-lg bg-slate-50/80 p-2 border border-slate-100">
+              <TruncatedText
+                value={row.description}
+                maxWidth="w-full"
+                className="text-xs text-slate-600"
+                label="Description"
+              />
+            </div>
+          ) : null}
+
+          <div className="mt-2.5 flex items-center justify-between text-xs text-slate-600">
+            <span className="font-medium text-[11px] text-slate-500">Volume:</span>
+            <span className="font-semibold text-emerald-800">{metric(row)}</span>
+          </div>
+
           <div className="mt-3 flex gap-2">
-            <Button type="button" variant="outline" className="h-9 flex-1 text-xs" onClick={() => onView(row)}>View</Button>
-            <Button type="button" variant="outline" className="h-9 flex-1 text-xs" onClick={() => onEdit(row)}>Edit</Button>
-            <Button type="button" variant="outline" className="h-9 flex-1 text-xs text-rose-600" onClick={() => onDelete(row)}>Delete</Button>
+            <Button type="button" variant="outline" className="h-8 flex-1 text-xs rounded-lg" onClick={() => onView(row)}>View</Button>
+            <Button type="button" variant="outline" className="h-8 flex-1 text-xs rounded-lg" onClick={() => onEdit(row)}>Edit</Button>
+            <Button type="button" variant="outline" className="h-8 flex-1 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg" onClick={() => onDelete(row)}>Delete</Button>
           </div>
         </article>
       ))}
@@ -255,11 +276,16 @@ function MasterCatalog({ slug, config }) {
 
   const columns = React.useMemo(() => [
     nameColumn(config),
+    descriptionColumn(),
     codeColumn(),
     {
       accessorKey: 'category',
       header: ({ column }) => <DataTableColumnHeader column={column} title={module.categoryLabel} />,
-      cell: ({ row }) => <span className="text-xs text-slate-700">{row.original.category || '—'}</span>,
+      cell: ({ row }) => (
+        <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+          {row.original.category || '—'}
+        </span>
+      ),
     },
     metricColumn(slug, module),
     statusColumn(),
@@ -677,14 +703,33 @@ function nameColumn(config) {
     accessorKey: 'name',
     header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
     cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-brand/20 bg-brand/10">
-          <FontAwesomeIcon icon={config.icon} className="size-4 text-brand" />
+      <div className="flex items-center gap-2.5 min-w-0 max-w-[220px]">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-emerald-200/70 bg-emerald-50 text-emerald-700 shadow-2xs">
+          <FontAwesomeIcon icon={config.icon} className="size-3.5" />
         </div>
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-slate-900">{row.original.name}</p>
-          <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-400">{row.original.description || '—'}</p>
-        </div>
+        <span
+          title={row.original.name}
+          className="truncate text-xs font-semibold text-slate-900 hover:text-emerald-700 transition-colors"
+        >
+          {row.original.name}
+        </span>
+      </div>
+    ),
+  };
+}
+
+function descriptionColumn() {
+  return {
+    accessorKey: 'description',
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Description" />,
+    cell: ({ row }) => (
+      <div className="max-w-[260px] min-w-[140px]">
+        <TruncatedText
+          value={row.original.description}
+          maxWidth="max-w-[260px]"
+          className="text-xs text-slate-500"
+          label="Description"
+        />
       </div>
     ),
   };
@@ -694,7 +739,11 @@ function codeColumn() {
   return {
     accessorKey: 'code',
     header: ({ column }) => <DataTableColumnHeader column={column} title="Code" />,
-    cell: ({ row }) => <Badge variant="outline" className="font-mono text-[11px]">{row.original.code || '—'}</Badge>,
+    cell: ({ row }) => (
+      <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50/80 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700 shadow-2xs">
+        {row.original.code || '—'}
+      </span>
+    ),
   };
 }
 
@@ -711,13 +760,17 @@ function metricColumn(slug, module) {
     return {
       id: 'terms',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Terms" />,
-      cell: ({ row }) => <span className="text-xs">{row.original.interestRate}% · {row.original.maxMonths} months</span>,
+      cell: ({ row }) => <span className="text-xs font-medium text-slate-700">{row.original.interestRate}% · {row.original.maxMonths}m</span>,
     };
   }
   return {
     accessorKey: module.metricKey,
     header: ({ column }) => <DataTableColumnHeader column={column} title={module.metricLabel} />,
-    cell: ({ row }) => <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-bold">{row.original[module.metricKey] ?? 0}</span>,
+    cell: ({ row }) => (
+      <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200/60">
+        {row.original[module.metricKey] ?? 0}
+      </span>
+    ),
   };
 }
 

@@ -30,6 +30,7 @@ import { Textarea } from '@/components/common/Textarea';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { TruncatedText } from '@/components/common/TruncatedText';
 import {
   Select,
   SelectContent,
@@ -926,8 +927,13 @@ export function StageManagement() {
                     </td>
 
                     {/* Description */}
-                    <td className="py-3.5 px-4 max-w-[200px] truncate text-xs text-slate-500">
-                      {stage.description || '—'}
+                    <td className="py-3.5 px-4 min-w-[140px] max-w-[220px]">
+                      <TruncatedText
+                        value={stage.description}
+                        maxWidth="max-w-[220px]"
+                        className="text-xs text-slate-500"
+                        label="Stage Description"
+                      />
                     </td>
 
                     {/* Color & Step Order */}
