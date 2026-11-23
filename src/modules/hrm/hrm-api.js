@@ -55,6 +55,18 @@ export async function loadEmployees(params = {}) {
   const payload = await api.get('/employees', { params: { page: 1, limit: 100, ...params } });
   return listFrom(payload).map((employee) => {
     const status = String(employee.status || 'ACTIVE').toLowerCase();
+    const shiftName =
+      employee.shiftName ||
+      (typeof employee.shift === 'string' ? employee.shift : employee.shift?.name) ||
+      employee.shiftObj?.name ||
+      null;
+    const shiftTiming =
+      employee.shiftObj?.startTime && employee.shiftObj?.endTime
+        ? `${employee.shiftObj.startTime} - ${employee.shiftObj.endTime}`
+        : employee.shift?.startTime && employee.shift?.endTime
+        ? `${employee.shift.startTime} - ${employee.shift.endTime}`
+        : null;
+
     return {
       ...employee,
       recordId: employee.id,
@@ -64,6 +76,9 @@ export async function loadEmployees(params = {}) {
       name: personName(employee),
       department: typeof employee.department === 'string' ? employee.department : employee.departmentName || employee.department?.name || 'General',
       designation: employee.designationId === null ? '—' : (employee.designationObj?.name || employee.designationName || (typeof employee.designation === 'string' ? employee.designation : employee.designation?.name) || '—'),
+      shift: shiftName,
+      shiftName: shiftName,
+      shiftTiming: shiftTiming,
       status: status === 'active' ? 'active' : status === 'on_leave' || status === 'on leave' ? 'on_leave' : status,
       employmentType: employee.employmentType || '—',
       joinDate: employee.joiningDate ? String(employee.joiningDate).slice(0, 10) : '—',

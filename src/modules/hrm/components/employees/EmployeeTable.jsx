@@ -6,11 +6,12 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar';
 import { Input } from '@/components/common/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
-import { faMagnifyingGlass, faPhone } from '@fortawesome/free-solid-svg-icons';
+import { faClock, faMagnifyingGlass, faPhone } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope } from '@fortawesome/free-regular-svg-icons';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
 export function EmployeeTable({
     employees,
+    shifts = [],
     onSelectEmployee,
     onEditEmployee,
     onToggleStatus,
@@ -25,15 +26,18 @@ export function EmployeeTable({
     const [selectedStatus, setSelectedStatus] = React.useState('all');
     const filtered = React.useMemo(() => {
         return employees.filter((emp) => {
+            const shiftObj = shifts.find((s) => String(s.id) === String(emp.shiftId));
+            const shiftName = (emp.shift || emp.shiftName || shiftObj?.name || '').toLowerCase();
             const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase()) ||
                 emp.id.toLowerCase().includes(search.toLowerCase()) ||
                 emp.email.toLowerCase().includes(search.toLowerCase()) ||
-                emp.designation.toLowerCase().includes(search.toLowerCase());
+                emp.designation.toLowerCase().includes(search.toLowerCase()) ||
+                shiftName.includes(search.toLowerCase());
             const matchDept = selectedDept === 'All Departments' || emp.department === selectedDept;
             const matchStatus = selectedStatus === 'all' || emp.status === selectedStatus;
             return matchSearch && matchDept && matchStatus;
         });
-    }, [employees, search, selectedDept, selectedStatus]);
+    }, [employees, search, selectedDept, selectedStatus, shifts]);
     const columns = [
         {
             header: 'Employee',
@@ -62,6 +66,40 @@ export function EmployeeTable({
             {emp.department}
           </span>
         </div>),
+        },
+        {
+            header: 'Shift',
+            accessorFn: (employee) => {
+                const shiftObj = shifts.find((s) => String(s.id) === String(employee.shiftId));
+                return employee.shift || employee.shiftName || shiftObj?.name || '';
+            },
+            cell: (emp) => {
+                const shiftObj = shifts.find((s) => String(s.id) === String(emp.shiftId));
+                const shiftName = emp.shift || emp.shiftName || shiftObj?.name || emp.shiftObj?.name;
+                const shiftTiming = emp.shiftTiming || (shiftObj?.startTime && shiftObj?.endTime ? `${shiftObj.startTime} - ${shiftObj.endTime}` : null);
+
+                if (!shiftName) {
+                    return (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">
+                            Not assigned
+                        </span>
+                    );
+                }
+
+                return (
+                    <div className="flex flex-col text-xs space-y-0.5">
+                        <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800">
+                            <FontAwesomeIcon icon={faClock} className="size-3 text-[#107569] shrink-0" />
+                            <span className="truncate max-w-[130px]">{shiftName}</span>
+                        </span>
+                        {shiftTiming ? (
+                            <span className="text-[11px] text-slate-400 font-mono">
+                                {shiftTiming}
+                            </span>
+                        ) : null}
+                    </div>
+                );
+            },
         },
         {
             header: 'Contact Info',

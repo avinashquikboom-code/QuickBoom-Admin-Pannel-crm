@@ -101,8 +101,20 @@ export const deleteOfflineRequest = (id) => api.delete(`/admin/subscriptions/off
 export const bulkDeleteOfflineRequests = (ids) => api.post('/admin/subscriptions/offline-requests/bulk-delete', { ids });
 
 export async function loadResourceUsage(params = {}) {
-  const payload = await api.get('/customers/usage', { params });
-  return { rows: rowsOf(payload), pagination: pageOf(payload), summary: summaryOf(payload) };
+  try {
+    const payload = await api.get('/customers/usage', { params });
+    return { rows: rowsOf(payload), pagination: pageOf(payload), summary: summaryOf(payload) };
+  } catch (err) {
+    if (err?.response?.status === 404 || err?.status === 404) {
+      try {
+        const payload = await api.get('/customers/resource-consumption', { params });
+        return { rows: rowsOf(payload), pagination: pageOf(payload), summary: summaryOf(payload) };
+      } catch {
+        throw err;
+      }
+    }
+    throw err;
+  }
 }
 
 export async function loadBillingOverview(params = {}) {
