@@ -30,8 +30,10 @@ import {
   faCircleExclamation,
   faCheckDouble,
   faCode,
+  faTrashCan,
 } from '@fortawesome/free-solid-svg-icons';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -329,6 +331,7 @@ function TemplateRowActions({
           {
             id: 'delete',
             label: isDeleting ? 'Deleting…' : deletePending ? 'Retry Delete' : 'Delete Template',
+            icon: faTrashCan,
             variant: 'destructive',
             disabled: isDeleting,
             onClick: () => setDeletingTemplate(row),
@@ -384,6 +387,12 @@ export function MetaTemplatesAll() {
   const [deletePreview, setDeletePreview] = React.useState(null);
   const [deletePreviewError, setDeletePreviewError] = React.useState('');
   const [deletePreviewLoading, setDeletePreviewLoading] = React.useState(false);
+
+  // Bulk Delete state
+  const [selectedIds, setSelectedIds] = React.useState(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [bulkDeleting, setBulkDeleting] = React.useState(false);
+  const [bulkDeleteReason, setBulkDeleteReason] = React.useState('');
 
   // Test Send state
   const [testPhone, setTestPhone] = React.useState('');
@@ -516,6 +525,74 @@ export function MetaTemplatesAll() {
     }
   }
 
+  const pageRows = listTab === 'CAMPAIGN' ? campaignRows : rows;
+  const isAllPageSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.id));
+  const isSomePageSelected = pageRows.some((r) => selectedIds.has(r.id)) && !isAllPageSelected;
+
+  const handleToggleSelectAll = (checked) => {
+    const next = new Set(selectedIds);
+    if (checked) {
+      pageRows.forEach((r) => next.add(r.id));
+    } else {
+      pageRows.forEach((r) => next.delete(r.id));
+    }
+    setSelectedIds(next);
+  };
+
+  const handleToggleRow = (id) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  async function handleBulkDelete() {
+    if (!selectedIds.size || bulkDeleting) return;
+    setBulkDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const response = envelope(
+        await api.delete('/templates/meta/bulk', {
+          data: {
+            ids,
+            reason: bulkDeleteReason ? bulkDeleteReason.trim() : undefined,
+          },
+        }),
+      );
+
+      if (response?.success) {
+        if (response.failedCount > 0) {
+          toast.warning(response.message || `Deleted ${response.deletedCount} templates. ${response.failedCount} failed.`);
+        } else {
+          toast.success(response.message || `Successfully permanently deleted ${response.deletedCount} template(s).`);
+        }
+      } else {
+        toast.error(response?.message || 'Failed to delete selected templates.');
+      }
+
+      setBulkDeleteOpen(false);
+      setBulkDeleteReason('');
+      setSelectedIds(new Set());
+
+      if (rows.length <= ids.length && page > 1) {
+        setPage((p) => Math.max(1, p - 1));
+      }
+      await load();
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to execute bulk deletion.';
+      toast.error(Array.isArray(msg) ? msg.join(' ') : msg);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   async function handleDeleteTemplate(template) {
     const target = template || deletingTemplate;
     if (!target) return;
@@ -532,6 +609,14 @@ export function MetaTemplatesAll() {
         setDeleteReason('');
         setDeletePreview(null);
         if (selected?.id === target.id) setSelected(null);
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(target.id);
+          return next;
+        });
+        if (rows.length === 1 && page > 1) {
+          setPage((p) => Math.max(1, p - 1));
+        }
       }
       await load();
     } catch (err) {
@@ -953,6 +1038,40 @@ export function MetaTemplatesAll() {
         </div>
       </div>
 
+      {/* Bulk Action Bar (when rows are selected) */}
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50/80 border border-emerald-200/90 p-2.5 px-3.5 mb-3 animate-in fade-in slide-in-from-top-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#163A2E]">
+            <span className="size-2 rounded-full bg-[#20C466]" />
+            <span>
+              {selectedIds.size} {selectedIds.size === 1 ? 'template' : 'templates'} selected
+            </span>
+            <span className="text-[11px] text-slate-500 font-normal">
+              (Selection applies to current page)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClearSelection}
+              className="h-7 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+            >
+              Clear Selection
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setBulkDeleteOpen(true)}
+              disabled={bulkDeleting}
+              className="h-7.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Bulk Delete ({selectedIds.size})</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── Desktop & Tablet Table (>= 768px) ──────────────────────── */}
       <div className="hidden lg:block">
         <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-xs">
@@ -1048,6 +1167,14 @@ export function MetaTemplatesAll() {
             <table className="min-w-full text-left text-sm text-slate-800">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
+                  <th scope="col" className="w-12 px-4 py-3.5 text-center">
+                    <Checkbox
+                      aria-label="Select all templates on this page"
+                      checked={isAllPageSelected}
+                      indeterminate={isSomePageSelected}
+                      onCheckedChange={(checked) => handleToggleSelectAll(Boolean(checked))}
+                    />
+                  </th>
                   <th className="px-4 py-3.5">Template Name</th>
                   <th className="px-4 py-3.5">Meta Template Name</th>
                   <th className="px-4 py-3.5">Language</th>
@@ -1061,21 +1188,21 @@ export function MetaTemplatesAll() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                    <td colSpan={9} className="px-4 py-12 text-center text-slate-500">
                       <FontAwesomeIcon icon={faRotate} className="mr-2 animate-spin text-emerald-600" />
                       Loading WhatsApp templates…
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-rose-600">
+                    <td colSpan={9} className="px-4 py-8 text-center text-rose-600">
                       <FontAwesomeIcon icon={faCircleExclamation} className="mr-2" />
                       {error}
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
+                    <td colSpan={9} className="px-4 py-12 text-center">
                       <div className="mx-auto max-w-sm space-y-3">
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                           <FontAwesomeIcon icon={faMessage} className="text-xl" />
@@ -1111,8 +1238,17 @@ export function MetaTemplatesAll() {
                     return (
                       <tr
                         key={row.id}
-                        className="group transition-colors hover:bg-slate-50/70"
+                        className={`group transition-colors hover:bg-slate-50/70 ${selectedIds.has(row.id) ? 'bg-emerald-50/40' : ''}`}
                       >
+                        {/* Checkbox Column */}
+                        <td className="w-12 px-4 py-3.5 text-center">
+                          <Checkbox
+                            aria-label={`Select template ${row.name}`}
+                            checked={selectedIds.has(row.id)}
+                            onCheckedChange={() => handleToggleRow(row.id)}
+                          />
+                        </td>
+
                         {/* Name Column */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5">
@@ -1257,10 +1393,16 @@ export function MetaTemplatesAll() {
             return (
               <article
                 key={row.id}
-                className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs"
+                className={`space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs ${selectedIds.has(row.id) ? 'border-emerald-300 ring-1 ring-emerald-400/30' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
+                    <Checkbox
+                      aria-label={`Select template ${row.name}`}
+                      checked={selectedIds.has(row.id)}
+                      onCheckedChange={() => handleToggleRow(row.id)}
+                      className="shrink-0 mr-0.5"
+                    />
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
                       <FontAwesomeIcon icon={faWhatsapp} className="text-base" />
                     </div>
@@ -1562,7 +1704,7 @@ export function MetaTemplatesAll() {
         </div>
       )}
 
-      {/* ── Delete Confirmation Dialog ──────────────────────── */}
+      {/* ── Single Delete Confirmation Dialog ──────────────────────── */}
       {deletingTemplate && (
         <ConfirmDialog
           open={Boolean(deletingTemplate)}
@@ -1573,11 +1715,11 @@ export function MetaTemplatesAll() {
               setDeletePreview(null);
             }
           }}
-          title={deletingTemplate.deletionState === 'PENDING' ? 'Retry Template Deletion?' : 'Delete WhatsApp Template?'}
+          title={deletingTemplate.deletionState === 'PENDING' ? 'Retry Template Deletion?' : 'Permanently Delete Template?'}
           description={deletingTemplate.deletionState === 'PENDING'
-            ? 'Meta deletion already succeeded. This retry only finishes archiving the local record and does not call Meta again.'
-            : 'This action will permanently delete this template from your connected Meta WhatsApp Business Account and QB Suite database. This operation cannot be undone.'}
-          confirmLabel={deletingId === deletingTemplate.id ? 'Deleting…' : deletingTemplate.deletionState === 'PENDING' ? 'Retry Delete' : 'Delete Template'}
+            ? 'Meta deletion already succeeded. This retry finishes permanent deletion in the local database.'
+            : `You are about to permanently delete "${deletingTemplate.name}". This action cannot be undone.`}
+          confirmLabel={deletingId === deletingTemplate.id ? 'Deleting…' : 'Permanently Delete'}
           variant="destructive"
           loading={deletingId === deletingTemplate.id}
           closeOnConfirm={false}
@@ -1618,6 +1760,57 @@ export function MetaTemplatesAll() {
             value: deleteReason,
             onChange: setDeleteReason,
             placeholder: 'e.g., Obsolete or replaced with new promotional template',
+          }}
+        />
+      )}
+
+      {/* ── Bulk Delete Confirmation Dialog ──────────────────────── */}
+      {bulkDeleteOpen && (
+        <ConfirmDialog
+          open={bulkDeleteOpen}
+          onOpenChange={(open) => {
+            if (!open && !bulkDeleting) {
+              setBulkDeleteOpen(false);
+              setBulkDeleteReason('');
+            }
+          }}
+          title="Permanently Delete Templates?"
+          description={`You are about to permanently delete ${selectedIds.size} selected template(s). This action cannot be undone.`}
+          confirmLabel={bulkDeleting ? 'Deleting…' : 'Permanently Delete'}
+          variant="destructive"
+          loading={bulkDeleting}
+          closeOnConfirm={false}
+          onConfirm={handleBulkDelete}
+          details={(
+            <div className="space-y-3 text-left">
+              <div className="rounded-lg bg-slate-50 p-3 text-xs space-y-1">
+                <p className="font-semibold text-slate-700">Selected templates ({selectedIds.size}):</p>
+                <ul className="list-disc pl-4 space-y-0.5 text-slate-600 max-h-32 overflow-y-auto">
+                  {rows
+                    .filter((r) => selectedIds.has(r.id))
+                    .slice(0, 8)
+                    .map((r) => (
+                      <li key={r.id} className="truncate">
+                        {r.name} <span className="font-mono text-slate-400">({r.templateName || r.key})</span>
+                      </li>
+                    ))}
+                  {selectedIds.size > 8 && (
+                    <li className="text-slate-400 italic">
+                      ...and {selectedIds.size - 8} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+              <p className="text-xs text-rose-600">
+                This action permanently removes the selected templates from Meta WhatsApp (if synced) and the QB Suite database. System templates and templates with active campaign blockers cannot be deleted.
+              </p>
+            </div>
+          )}
+          note={{
+            label: 'Deletion reason (optional for audit log)',
+            value: bulkDeleteReason,
+            onChange: setBulkDeleteReason,
+            placeholder: 'e.g., Bulk deletion of obsolete templates',
           }}
         />
       )}
