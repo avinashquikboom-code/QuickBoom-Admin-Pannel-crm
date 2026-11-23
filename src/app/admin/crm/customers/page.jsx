@@ -294,10 +294,10 @@ export default function CustomersRoute() {
           const upcoming = counts.upcoming ?? 0;
 
           return [
-            { label: 'Total Customers', value: total, icon: UsersRound, iconTone: 'bg-[#EAF7EF] text-[#173D30]' },
-            { label: 'Active Customers', value: active, icon: CheckCircle2, iconTone: 'bg-emerald-50 text-emerald-700' },
-            { label: 'Inactive Customers', value: inactive, icon: CircleAlert, iconTone: 'bg-slate-100 text-slate-600' },
-            { label: 'Upcoming', value: upcoming, icon: CalendarDays, iconTone: 'bg-amber-50 text-amber-700' },
+            { label: 'Total Customers', value: total, icon: UsersRound, iconTone: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200/60' },
+            { label: 'Active Customers', value: active, icon: CheckCircle2, iconTone: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60' },
+            { label: 'Inactive Customers', value: inactive, icon: CircleAlert, iconTone: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200/60' },
+            { label: 'Upcoming', value: upcoming, icon: CalendarDays, iconTone: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60' },
           ];
         }}
         filters={[
@@ -393,7 +393,7 @@ export default function CustomersRoute() {
               }
               return (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                  <span className="flex size-6 items-center justify-center rounded-full bg-[#EAF7EF] text-[10px] font-bold text-[#173D30]">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-emerald-100/70 text-[10px] font-bold text-[#107569]">
                     {assignedName[0]?.toUpperCase() || 'U'}
                   </span>
                   <span className="truncate max-w-[120px]">{assignedName}</span>
@@ -418,7 +418,7 @@ export default function CustomersRoute() {
                   <button
                     type="button"
                     onClick={() => setAssignModalCustomer(row)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-2.5 py-1 text-xs font-medium text-slate-500 hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-800 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 px-2.5 py-1 text-xs font-medium text-slate-500 hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-[#107569] transition-colors cursor-pointer"
                     title="Click to assign team pod"
                   >
                     <UsersRound className="size-3 text-slate-400" />
@@ -431,13 +431,13 @@ export default function CustomersRoute() {
                 <button
                   type="button"
                   onClick={() => setAssignModalCustomer(row)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/90 bg-[#EAF7EF] px-2.5 py-1 text-xs font-semibold text-[#173D30] hover:bg-[#d9f2e3] hover:border-emerald-300 transition-colors shadow-2xs group cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200/90 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-[#107569] hover:bg-emerald-100 hover:border-emerald-300 transition-colors shadow-2xs group cursor-pointer"
                   title={`Team Lead: ${teamLeader || 'Unassigned'} • Click to change`}
                 >
-                  <UsersRound className="size-3 text-emerald-700 group-hover:scale-110 transition-transform" />
+                  <UsersRound className="size-3 text-[#107569] group-hover:scale-110 transition-transform" />
                   <span className="truncate max-w-[130px]">{teamName}</span>
                   {teamCode && (
-                    <span className="text-[10px] text-emerald-700/80 font-mono font-medium">
+                    <span className="text-[10px] text-emerald-800 font-mono font-medium">
                       [{teamCode}]
                     </span>
                   )}
@@ -785,6 +785,9 @@ function CustomerName({ row, onOpen }) {
     .join('')
     .toUpperCase();
 
+  const isDuplicateCompany =
+    Boolean(company) && company.trim().toLowerCase() === name.trim().toLowerCase();
+
   return (
     <div
       role="button"
@@ -793,62 +796,33 @@ function CustomerName({ row, onOpen }) {
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onOpen();
       }}
-      className="flex min-w-0 max-w-[240px] cursor-pointer items-center gap-3 text-left group"
+      className="flex min-w-0 max-w-[260px] cursor-pointer items-center gap-3 text-left group"
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#EAF7EF] text-xs font-bold text-[#173D30] transition group-hover:bg-[#d9f2e3]">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100/70 text-xs font-bold text-[#107569] ring-1 ring-emerald-200/60 transition group-hover:bg-emerald-200/70">
         {initials || 'CU'}
       </span>
-      <span className="min-w-0 flex-1 overflow-hidden">
-        <TooltipProvider delay={150}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                title={name}
-                className="block truncate max-w-[170px] sm:max-w-[185px] text-sm font-semibold text-[#172033] group-hover:text-[#173D30] group-hover:underline"
-              >
-                {name}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent
-              side="top"
-              align="start"
-              className="z-50 max-w-xs sm:max-w-sm rounded-xl border border-slate-800 bg-slate-900/95 px-3 py-1.5 text-xs font-medium text-white shadow-xl backdrop-blur-xs break-words"
-            >
-              <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-0.5">
-                Customer Name
-              </span>
-              <span>{name}</span>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {company && (
-          <TooltipProvider delay={150}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  title={company}
-                  className="block truncate max-w-[170px] sm:max-w-[185px] text-xs text-slate-400 mt-0.5"
-                >
-                  {company}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent
-                side="bottom"
-                align="start"
-                className="z-50 max-w-xs sm:max-w-sm rounded-xl border border-slate-800 bg-slate-900/95 px-3 py-1.5 text-xs font-medium text-white shadow-xl backdrop-blur-xs break-words"
-              >
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
-                  Company Name
-                </span>
-                <span>{company}</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+      <div className="flex flex-col min-w-0 flex-1">
+        <span
+          title={name}
+          className="truncate text-sm font-semibold text-slate-900 group-hover:text-[#107569] group-hover:underline transition-colors"
+        >
+          {name}
+        </span>
+        {company && !isDuplicateCompany ? (
+          <span
+            title={company}
+            className="truncate text-xs text-slate-400 font-medium"
+          >
+            {company}
+          </span>
+        ) : row.city ? (
+          <span className="truncate text-xs text-slate-400 font-medium">
+            {row.city}
+          </span>
+        ) : null}
 
         {/* Mobile-only Assigned Team Pod display */}
-        <span className="block sm:hidden text-[11px] text-[#173D30] font-medium truncate mt-0.5">
+        <span className="block sm:hidden text-[11px] text-[#107569] font-medium truncate mt-0.5">
           {row.team?.name || row.assignedTeam?.name ? (
             <span className="inline-flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-emerald-500" />
@@ -858,7 +832,7 @@ function CustomerName({ row, onOpen }) {
             <span className="text-slate-400">Pod: Unassigned</span>
           )}
         </span>
-      </span>
+      </div>
     </div>
   );
 }

@@ -75,19 +75,67 @@ export function CrmScreen({ hideTitleCard = false, title, description, actionLab
 
   return (
     <div className={`max-w-none w-full min-w-0 pb-28 overflow-x-hidden ${isCustomerAppearance ? 'space-y-5 sm:space-y-6' : 'space-y-4 sm:space-y-6'}`}>
-      {hideTitleCard ? <div className="flex flex-wrap justify-end gap-2">{headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>}</div> : <PageHeader title={title} description={description} actions={headerActions || <div className="flex flex-wrap gap-2">{canCreate && onSave ? <Button onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}>{actionLabel || 'Create'}</Button> : null}{extraHeaderActions}</div>} />}
+      {hideTitleCard ? (
+        <div className="flex flex-wrap justify-end gap-2">
+          {headerActions || (
+            <div className="flex flex-wrap items-center gap-2.5">
+              {canCreate && onSave ? (
+                <Button
+                  className={isStyledAppearance ? 'h-10 rounded-xl bg-[#107569] px-4 text-sm font-semibold text-white shadow-xs transition hover:bg-[#0e6359]' : undefined}
+                  onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}
+                >
+                  <Plus className="mr-1.5 size-4" />
+                  {actionLabel || 'Create'}
+                </Button>
+              ) : null}
+              {extraHeaderActions}
+            </div>
+          )}
+        </div>
+      ) : (
+        <PageHeader
+          title={title}
+          description={description}
+          actions={
+            headerActions || (
+              <div className="flex flex-wrap items-center gap-2.5">
+                {canCreate && onSave ? (
+                  <Button
+                    className={isStyledAppearance ? 'h-10 rounded-xl bg-[#107569] px-4 text-sm font-semibold text-white shadow-xs transition hover:bg-[#0e6359]' : undefined}
+                    onClick={() => { setEditing(null); setForm(blank || {}); setOpen(true); }}
+                  >
+                    <Plus className="mr-1.5 size-4" />
+                    {actionLabel || 'Create'}
+                  </Button>
+                ) : null}
+                {extraHeaderActions}
+              </div>
+            )
+          }
+        />
+      )}
       {stats && <HrmStats items={stats(payload)} layout={isContactAppearance || isCompaniesAppearance || isVisitsAppearance || isCaptureAppearance || isCustomerAppearance ? 'mobile-stack' : 'default'} />}
       {(() => { const item = typeof gap === 'function' ? gap(rows) : gap; return item ? <HrmGap title={item.title} detail={item.detail} /> : null; })()}
-      <div className={`grid w-full min-w-0 grid-cols-1 gap-2.5 border bg-white sm:grid-cols-2 ${isStyledAppearance ? 'rounded-2xl border-[#E2E8E5] p-3.5 shadow-sm' : 'rounded-xl border-slate-200 p-3 lg:grid-cols-4'} ${isCustomerAppearance ? 'lg:grid-cols-[minmax(0,1fr)_190px_190px_auto] lg:items-center' : ''} ${isContactAppearance ? 'lg:grid-cols-[minmax(0,1fr)_200px_200px_auto] lg:items-center' : ''} ${isCompaniesAppearance ? 'lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-center' : ''} ${isVisitsAppearance ? 'lg:grid-cols-[minmax(0,1fr)_180px_180px_auto] lg:items-center' : ''} ${isCaptureAppearance ? 'lg:grid-cols-[minmax(0,1fr)_180px_180px_auto] lg:items-center' : ''}`}>
-        <div className={isStyledAppearance ? 'relative min-w-0' : 'min-w-0'}>
+      <div className={`w-full min-w-0 border bg-white ${isStyledAppearance ? 'flex flex-col lg:flex-row lg:items-center justify-between gap-3 rounded-2xl border-[#E2E8E5] p-3.5 shadow-xs' : 'grid grid-cols-1 gap-2.5 rounded-xl border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-4'}`}>
+        <div className={`relative min-w-0 ${isStyledAppearance ? 'flex-1 min-w-[220px] max-w-md' : ''}`}>
           {isStyledAppearance && <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />}
-          <Input className={isStyledAppearance ? 'h-10 rounded-xl border-slate-200 bg-slate-50/70 pl-10 text-sm focus-visible:bg-white' : undefined} value={query.search} onChange={(event) => setQuery({ ...query, search: event.target.value, page: 1 })} placeholder={`Search ${title.toLowerCase()}${isCustomerAppearance ? ' by name, company, phone or email' : isContactAppearance ? ' by name, email, phone or company' : isCompaniesAppearance ? ' by name, domain, email or phone' : isVisitsAppearance ? ' by customer, company or location' : isCaptureAppearance ? ' by business name, phone, website or Place ID' : ''}`} />
+          <Input className={isStyledAppearance ? 'h-10 rounded-xl border-slate-200 bg-slate-50/70 pl-10 text-sm focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-[#107569]' : undefined} value={query.search} onChange={(event) => setQuery({ ...query, search: event.target.value, page: 1 })} placeholder={`Search ${title.toLowerCase()}${isCustomerAppearance ? ' by name, company, phone or email' : isContactAppearance ? ' by name, email, phone or company' : isCompaniesAppearance ? ' by name, domain, email or phone' : isVisitsAppearance ? ' by customer, company or location' : isCaptureAppearance ? ' by business name, phone, website or Place ID' : ''}`} />
         </div>
-        {collapsibleFilters && <Button type="button" variant="outline" className="h-10 rounded-xl border-slate-200 md:hidden" onClick={() => setFiltersExpanded((value) => !value)}><SlidersHorizontal className="mr-2 size-4" />{filtersExpanded ? 'Hide filters' : 'Filters'}</Button>}
-        <div className={collapsibleFilters ? `grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 ${filtersExpanded ? '' : 'hidden'} md:contents` : 'contents'}>
-          {filters.map((filter) => filter.type === 'date' ? <Input key={filter.key} type="date" aria-label={filter.label} className={isStyledAppearance ? 'h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100' : undefined} value={query[filter.key] || ''} onChange={(event) => setQuery({ ...query, [filter.key]: event.target.value, page: 1 })} /> : <select key={filter.key} aria-label={filter.label} className={isStyledAppearance ? 'h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100' : 'h-9 rounded-md border border-slate-200 bg-white px-2 text-sm'} value={query[filter.key] || ''} onChange={(event) => setQuery({ ...query, [filter.key]: event.target.value, page: 1 })}><option value="">{filter.label}</option>{(filter.options || []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>)}
+        {collapsibleFilters && <Button type="button" variant="outline" className="h-10 rounded-xl border-slate-200 lg:hidden" onClick={() => setFiltersExpanded((value) => !value)}><SlidersHorizontal className="mr-2 size-4" />{filtersExpanded ? 'Hide filters' : 'Filters'}</Button>}
+        <div className={isStyledAppearance ? `flex flex-wrap items-center gap-2.5 ${collapsibleFilters && !filtersExpanded ? 'hidden lg:flex' : ''}` : (collapsibleFilters ? `grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 ${filtersExpanded ? '' : 'hidden'} md:contents` : 'contents')}>
+          {filters.map((filter) => filter.type === 'date' ? (
+            <Input key={filter.key} type="date" aria-label={filter.label} className={isStyledAppearance ? 'h-10 w-full sm:w-auto rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#107569] focus:ring-1 focus:ring-[#107569]' : undefined} value={query[filter.key] || ''} onChange={(event) => setQuery({ ...query, [filter.key]: event.target.value, page: 1 })} />
+          ) : (
+            <select key={filter.key} aria-label={filter.label} className={isStyledAppearance ? 'h-10 w-full sm:w-44 rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm font-medium text-slate-700 outline-none transition focus:border-[#107569] focus:ring-1 focus:ring-[#107569]' : 'h-9 rounded-md border border-slate-200 bg-white px-2 text-sm'} value={query[filter.key] || ''} onChange={(event) => setQuery({ ...query, [filter.key]: event.target.value, page: 1 })}>
+              <option value="">{filter.label}</option>
+              {(filter.options || []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          ))}
+          <Button variant="outline" className={isStyledAppearance ? 'h-10 rounded-xl border-slate-200 bg-slate-50 px-3.5 text-xs font-semibold text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-[#107569]' : undefined} onClick={() => setRefresh((value) => value + 1)}>
+            {isStyledAppearance && <RotateCw className="mr-1.5 size-3.5" aria-hidden="true" />}
+            Refresh
+          </Button>
         </div>
-        <Button variant="outline" className={isStyledAppearance ? 'h-10 rounded-xl border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 hover:border-emerald-200 hover:bg-emerald-50' : undefined} onClick={() => setRefresh((value) => value + 1)}>{isStyledAppearance && <RotateCw className="mr-2 size-4" aria-hidden="true" />}Refresh</Button>
       </div>
       <HrmNotice loading={loading} loadingSkeleton={loadingSkeleton} error={error} empty={!loading && !error && rows.length === 0 ? (resolvedEmptyState || `No ${title.toLowerCase()} match these filters.`) : ''} onRetry={() => setRefresh((value) => value + 1)}>
         {below && <div className="mb-4">{below(rows, payload)}</div>}
