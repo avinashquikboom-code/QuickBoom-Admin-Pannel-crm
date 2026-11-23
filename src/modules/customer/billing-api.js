@@ -97,6 +97,8 @@ export async function loadOfflineRequests(params = {}) {
 
 export const approveOfflineRequest = (id) => api.post(`/admin/offline-requests/${id}/approve`);
 export const rejectOfflineRequest = (id, reason) => api.post(`/admin/offline-requests/${id}/reject`, { reason });
+export const deleteOfflineRequest = (id) => api.delete(`/admin/subscriptions/offline-requests/${id}`);
+export const bulkDeleteOfflineRequests = (ids) => api.post('/admin/subscriptions/offline-requests/bulk-delete', { ids });
 
 export async function loadResourceUsage(params = {}) {
   const payload = await api.get('/customers/usage', { params });
