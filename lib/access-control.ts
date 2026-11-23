@@ -208,7 +208,7 @@ export const adminNavigation: {
     // 9. In App AD's
     {
       id: 'content-management',
-      category: "In App AD's",
+      category: "In App Ad's",
       sectionIcon: Video,
       roles: ['Super Admin'],
       items: [

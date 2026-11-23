@@ -488,7 +488,7 @@ export function BannersScreen() {
     <div className="min-w-0 w-full max-w-full space-y-6 pb-12">
       {/* ── Page Header ────────────────────────────────────────────── */}
       <PageHeader
-        category="IN APP AD'S"
+        category="IN APP Ad'S"
         title="Home Banners"
         icon={faImage}
         description="Create, manage, and display promotional banners on customer platforms."
