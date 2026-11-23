@@ -19,6 +19,7 @@ import { toast } from '@/hooks/use-toast';
 import { getSectionConfig } from '@/config/admin-sections';
 import { StageManagement } from './StageManagement';
 import { DesignationsScreen } from './DesignationsScreen';
+import { LeaveTypesScreen } from './LeaveTypesScreen';
 import { loadOffices } from '@/modules/hrm/hrm-api';
 import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
 import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
@@ -42,6 +43,7 @@ import {
 } from './master-api';
 
 const LIVE = [
+  'leave-types',
   'employee-types',
   'designations',
   'leave-policies',
@@ -61,6 +63,7 @@ export function MasterManagement({ slug }) {
   const config = getSectionConfig(slug);
   if (slug === 'stage-management') return <StageManagement />;
   if (!config) return null;
+  if (slug === 'leave-types') return <LeaveTypesScreen config={config} />;
   if (slug === 'designations') return <DesignationsScreen config={config} />;
   if (slug === 'leave-policies') return <LeavePolicyScreen config={config} />;
   return <MasterCatalog config={config} slug={slug} />;
