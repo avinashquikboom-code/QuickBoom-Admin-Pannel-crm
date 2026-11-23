@@ -208,12 +208,35 @@ export async function loadLeaveTypes() {
     id: row.id ?? row.leaveTypeId,
     name: row.name,
     code: row.code,
+    daysAllowedPerYear: row.daysAllowedPerYear ?? (Number(String(row.head || '').match(/\d+/)?.[0]) || 0),
     head: row.daysAllowedPerYear != null ? `${row.daysAllowedPerYear} Days / Year` : '',
-    members: 0,
+    members: row.eligibleStaffCount ?? row.members ?? 0,
+    isPaid: row.isPaid !== false,
+    isCarryForward: Boolean(row.isCarryForward),
+    maxCarryForwardDays: row.maxCarryForwardDays ?? 0,
+    applicableGender: row.applicableGender || 'ALL',
     status: row.isActive === false ? 'Inactive' : 'Active',
     createdOn: row.createdAt ? String(row.createdAt).slice(0, 10) : '',
     description: row.description || '',
   }));
+}
+
+export async function saveLeaveType(data, editing = null) {
+  const body = {
+    name: String(data.name || '').trim(),
+    code: String(data.code || '').trim().toUpperCase(),
+    daysAllowedPerYear: Number(data.daysAllowedPerYear) || 0,
+    isPaid: data.isPaid !== false,
+    isCarryForward: Boolean(data.isCarryForward),
+    maxCarryForwardDays: Number(data.maxCarryForwardDays) || 0,
+    applicableGender: data.applicableGender || 'ALL',
+    description: data.description || '',
+    isActive: data.isActive !== false,
+  };
+  if (editing?.id) {
+    return api.patch(`/leaves/types/${editing.id}`, body);
+  }
+  return api.post('/leaves/types', body);
 }
 
 export const removeLeaveType = (id) => api.delete(`/leaves/types/${id}`);

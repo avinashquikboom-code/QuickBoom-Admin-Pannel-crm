@@ -19,6 +19,8 @@ import { toast } from '@/hooks/use-toast';
 import { getSectionConfig } from '@/config/admin-sections';
 import { StageManagement } from './StageManagement';
 import { DesignationsScreen } from './DesignationsScreen';
+import { LeaveTypesScreen } from './LeaveTypesScreen';
+import { LeavePoliciesScreen } from './LeavePoliciesScreen';
 import { loadOffices } from '@/modules/hrm/hrm-api';
 import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
 import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
@@ -31,17 +33,16 @@ import {
   loadDepartments,
   loadDesignation,
   loadDesignations,
-  loadLeavePolicyScreen,
   loadMasterItems,
   masterError,
   removeDesignation,
   removeMasterItem,
   saveDesignation,
-  saveLeavePolicy,
   saveMasterItem,
 } from './master-api';
 
 const LIVE = [
+  'leave-types',
   'employee-types',
   'designations',
   'leave-policies',
@@ -61,8 +62,9 @@ export function MasterManagement({ slug }) {
   const config = getSectionConfig(slug);
   if (slug === 'stage-management') return <StageManagement />;
   if (!config) return null;
+  if (slug === 'leave-types') return <LeaveTypesScreen config={config} />;
   if (slug === 'designations') return <DesignationsScreen config={config} />;
-  if (slug === 'leave-policies') return <LeavePolicyScreen config={config} />;
+  if (slug === 'leave-policies') return <LeavePoliciesScreen config={config} />;
   return <MasterCatalog config={config} slug={slug} />;
 }
 
@@ -389,165 +391,6 @@ function MasterCatalog({ slug, config }) {
   );
 }
 
-function LeavePolicyScreen({ config }) {
-  const [policy, setPolicy] = React.useState(null);
-  const [persisted, setPersisted] = React.useState(false);
-  const [types, setTypes] = React.useState([]);
-  const [offices, setOffices] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState('');
-  const [query, setQuery] = React.useState('');
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-  const [form, setForm] = React.useState(emptyLeaveForm());
-  const [refresh, setRefresh] = React.useState(0);
-  const debouncedQuery = useDebounced(query, 300);
-
-  React.useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError('');
-    loadLeavePolicyScreen()
-      .then((result) => {
-        if (!active) return;
-        setPolicy(result.policy);
-        setPersisted(result.persisted);
-        setTypes(result.types || result.leaveTypes || []);
-      })
-      .catch((err) => { if (active) setError(masterError(err)); })
-      .finally(() => { if (active) setLoading(false); });
-    loadOffices().then(setOffices).catch(() => setOffices([]));
-    return () => { active = false; };
-  }, [refresh]);
-
-  const visibleTypes = types.filter((type) => {
-    const needle = debouncedQuery.trim().toLowerCase();
-    if (!needle) return true;
-    return `${type.name} ${type.code}`.toLowerCase().includes(needle);
-  });
-
-  const edit = () => {
-    setForm(leaveForm(policy));
-    setDrawerOpen(true);
-  };
-
-  const save = async (event) => {
-    event.preventDefault();
-    if (saving) return;
-    setSaving(true);
-    try {
-      await saveLeavePolicy(form);
-      toast.success(persisted ? 'Leave policy updated' : 'Leave policy saved');
-      setDrawerOpen(false);
-      setRefresh((value) => value + 1);
-    } catch (err) {
-      toast.error(masterError(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const columns = React.useMemo(() => [
-    { accessorKey: 'name', header: ({ column }) => <DataTableColumnHeader column={column} title="Leave type" />, cell: ({ row }) => <span className="font-semibold">{row.original.name}</span> },
-    codeColumn(),
-    { accessorKey: 'daysAllowedPerYear', header: ({ column }) => <DataTableColumnHeader column={column} title="Annual allowance" />, cell: ({ row }) => row.original.daysAllowedPerYear },
-    { accessorKey: 'isCarryForward', header: ({ column }) => <DataTableColumnHeader column={column} title="Carry forward" />, cell: ({ row }) => (row.original.isCarryForward ? 'Yes' : 'No') },
-    statusColumn(),
-  ], []);
-
-  const typeRows = visibleTypes.map((type) => ({ ...type, status: type.isActive === false ? 'Inactive' : 'Active' }));
-
-  return (
-    <ScreenFrame
-      config={config}
-      loading={loading}
-      error={error}
-      onRefresh={() => setRefresh((value) => value + 1)}
-      onExport={() => policy ? downloadCsv('leave-policy.csv', [{ name: policy.name, persisted, ...flattenPolicy(policy) }, ...typeRows.map((type) => ({ leaveType: type.name, code: type.code, daysAllowedPerYear: type.daysAllowedPerYear, carryForward: type.isCarryForward }))]) : toast.error('No policy to export')}
-      onCreate={edit}
-      createLabel={persisted ? 'Edit leave policy' : 'Save leave policy'}
-      kpis={[
-        { title: 'Policy', value: policy?.name || '—', description: persisted ? 'Stored leave policy' : 'Default returned until saved' },
-        { title: 'Notice days', value: policy?.minNoticePeriodDays ?? '—', description: 'Minimum notice' },
-        { title: 'Consecutive days', value: policy?.maxConsecutiveDays ?? '—', description: 'Maximum consecutive leave' },
-        { title: 'Leave types', value: types.length, description: 'Active leave types for this tenant' },
-      ]}
-      query={query}
-      onQuery={setQuery}
-      placeholder="Search leave types"
-      notice="The leave policy API stores one policy per customer and office. It does not provide a policy code, employee class, accrual, encashment, or delete. Leave types are listed from the leave-types API and are not linked as policy mappings. Carry-forward exists on each leave type. Archived policies are not returned."
-    >
-      {error ? <ErrorState message={error} onRetry={() => setRefresh((value) => value + 1)} /> : null}
-      {policy && !error ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">{policy.name || 'Leave policy'}</h2>
-              <p className="mt-1 text-xs text-slate-500">{persisted ? `Record #${policy.id}` : 'This response has no id yet. Saving creates the tenant policy.'}</p>
-            </div>
-            <StatusBadge status={policy.isActive === false ? 'Inactive' : 'Active'} />
-          </div>
-          <dl className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {leaveLines(policy).map(([label, value]) => (
-              <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                <dt className="text-[11px] font-medium text-slate-500">{label}</dt>
-                <dd className="mt-1 text-xs font-semibold text-slate-800">{String(value)}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      ) : null}
-      {!error && !loading && typeRows.length === 0 ? <EmptyState query={debouncedQuery} tab="all" title="Leave types" /> : null}
-      <div className="grid gap-3 md:hidden">
-        {typeRows.map((type) => (
-          <article key={type.id || type.code} className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-sm font-semibold">{type.name}</p>
-            <p className="mt-1 text-xs text-slate-500">{type.code} · {type.daysAllowedPerYear} days · carry forward {type.isCarryForward ? 'yes' : 'no'}</p>
-          </article>
-        ))}
-      </div>
-      <div className={typeRows.length ? 'hidden md:block' : 'hidden'}>
-        <DataTable columns={columns} data={typeRows} hideSearch isLoading={loading} emptyState="" pageSize={10} />
-      </div>
-      <ItemDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Leave policy" description="Values are sent to the leave policy upsert endpoint." saving={saving} onSubmit={save} submitLabel="Save policy" size="medium">
-        <Field label="Policy name"><Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="h-9 text-xs" required /></Field>
-        <Field label="Office">
-          <Select value={form.officeId || 'company'} onValueChange={(value) => setForm({ ...form, officeId: value === 'company' ? '' : value })}>
-            <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="company">Company-wide</SelectItem>
-              {offices.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </Field>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <NumberField label="Max backdated days" value={form.maxBackdatedDays} onChange={(value) => setForm({ ...form, maxBackdatedDays: value })} />
-          <NumberField label="Max future days" value={form.maxFutureDays} onChange={(value) => setForm({ ...form, maxFutureDays: value })} />
-          <NumberField label="Minimum notice days" value={form.minNoticePeriodDays} onChange={(value) => setForm({ ...form, minNoticePeriodDays: value })} />
-          <NumberField label="Max consecutive days" value={form.maxConsecutiveDays} onChange={(value) => setForm({ ...form, maxConsecutiveDays: value })} />
-          <NumberField label="Attachment required above days" value={form.requiresAttachmentAboveDays} onChange={(value) => setForm({ ...form, requiresAttachmentAboveDays: value })} />
-        </div>
-        {[
-          ['allowHalfDay', 'Allow half day'],
-          ['allowBackdatedLeave', 'Allow backdated leave'],
-          ['allowFutureLeave', 'Allow future leave'],
-          ['allowProbationLeave', 'Allow leave during probation'],
-          ['includeHolidaysInLeave', 'Count holidays'],
-          ['includeWeekendsInLeave', 'Count weekends'],
-          ['requiresManagerApproval', 'Manager approval'],
-          ['requiresHrApproval', 'HR approval'],
-          ['isActive', 'Active'],
-        ].map(([key, label]) => (
-          <label key={key} className="flex items-center gap-2 text-xs font-medium text-slate-700">
-            <input type="checkbox" checked={form[key] === true} onChange={(event) => setForm({ ...form, [key]: event.target.checked })} />
-            {label}
-          </label>
-        ))}
-      </ItemDrawer>
-    </ScreenFrame>
-  );
-}
-
 function ScreenFrame({ config, kpis, tab, onTab, counts, query, onQuery, placeholder, notice, onRefresh, onExport, onCreate, createLabel, children }) {
   return (
     <div className="space-y-4 sm:space-y-6 w-full min-w-0 overflow-x-hidden">
@@ -799,56 +642,6 @@ function designationForm(row) {
     isActive: row.isActive !== false,
     crmMobileAccess: row.crmMobileAccess === true,
   };
-}
-
-function emptyLeaveForm() {
-  return leaveForm({});
-}
-
-function leaveForm(policy = {}) {
-  return {
-    name: policy.name || 'Standard Leave Policy',
-    officeId: policy.officeId ? String(policy.officeId) : '',
-    allowHalfDay: policy.allowHalfDay !== false,
-    allowBackdatedLeave: policy.allowBackdatedLeave === true,
-    maxBackdatedDays: policy.maxBackdatedDays ?? 3,
-    allowFutureLeave: policy.allowFutureLeave !== false,
-    maxFutureDays: policy.maxFutureDays ?? 90,
-    allowProbationLeave: policy.allowProbationLeave === true,
-    includeHolidaysInLeave: policy.includeHolidaysInLeave === true,
-    includeWeekendsInLeave: policy.includeWeekendsInLeave === true,
-    minNoticePeriodDays: policy.minNoticePeriodDays ?? 2,
-    maxConsecutiveDays: policy.maxConsecutiveDays ?? 10,
-    requiresManagerApproval: policy.requiresManagerApproval !== false,
-    requiresHrApproval: policy.requiresHrApproval !== false,
-    requiresAttachmentAboveDays: policy.requiresAttachmentAboveDays ?? 3,
-    isActive: policy.isActive !== false,
-  };
-}
-
-function leaveLines(policy) {
-  return [
-    ['Half day', yesNo(policy.allowHalfDay)],
-    ['Backdated leave', yesNo(policy.allowBackdatedLeave)],
-    ['Max backdated days', policy.maxBackdatedDays],
-    ['Future leave', yesNo(policy.allowFutureLeave)],
-    ['Max future days', policy.maxFutureDays],
-    ['Probation leave', yesNo(policy.allowProbationLeave)],
-    ['Holidays count', yesNo(policy.includeHolidaysInLeave)],
-    ['Weekends count', yesNo(policy.includeWeekendsInLeave)],
-    ['Manager approval', yesNo(policy.requiresManagerApproval)],
-    ['HR approval', yesNo(policy.requiresHrApproval)],
-    ['Attachment above days', policy.requiresAttachmentAboveDays],
-    ['Updated by', policy.updatedByName || '—'],
-  ];
-}
-
-function flattenPolicy(policy) {
-  return Object.fromEntries(leaveLines(policy));
-}
-
-function yesNo(value) {
-  return value ? 'Yes' : 'No';
 }
 
 function catalogNotice(slug) {
