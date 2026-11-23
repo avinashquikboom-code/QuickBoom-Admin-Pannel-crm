@@ -110,11 +110,25 @@ function extractVariables(text) {
     new Set(
       matches.map((m) => {
         const raw = m[1].trim();
-        // Support {{key | fallback}}
         return raw.split('|')[0].trim();
       })
     )
   ).filter(Boolean);
+}
+
+function getBlankForm() {
+  return {
+    name: '',
+    templateName: '',
+    key: '',
+    category: 'UTILITY',
+    language: 'en_US',
+    headerType: 'NONE',
+    headerContent: '',
+    body: '',
+    footer: '',
+    buttons: [],
+  };
 }
 
 export function WhatsAppTemplateModal({
@@ -130,56 +144,109 @@ export function WhatsAppTemplateModal({
 
   const isEdit = Boolean(template && !duplicate);
 
-  // Form State
+  // Initialize form cleanly: 100% blank for Create Mode, populated for Edit Mode
   const [form, setForm] = React.useState(() => {
-    let initialButtons = [
-      { type: 'URL', text: 'View Portfolio', url: 'https://qbunify.online/portfolio' },
-      { type: 'URL', text: 'Support Portal', url: 'https://qbunify.online/support' },
-    ];
-
-    if (template?.buttons && Array.isArray(template.buttons) && template.buttons.length > 0) {
-      initialButtons = template.buttons;
+    if (isEdit && template) {
+      return {
+        name: template.name || '',
+        templateName: template.templateName || '',
+        key: template.key || '',
+        category: template.category || 'UTILITY',
+        language: template.language || 'en_US',
+        headerType: template.headerType || 'NONE',
+        headerContent: template.headerContent || '',
+        body: template.body || '',
+        footer: template.footer || '',
+        buttons: Array.isArray(template.buttons) ? template.buttons : [],
+      };
     }
-
-    return {
-      name: duplicate ? `${template?.name || ''} copy` : template?.name || 'Investment Confirmed',
-      templateName: duplicate ? '' : template?.templateName || (isEdit ? '' : 'investment_confirmed_v1'),
-      key: duplicate ? '' : template?.key || '',
-      category: template?.category || 'UTILITY',
-      language: template?.language || 'en_US',
-      headerType: template?.headerType || 'NONE',
-      headerContent: template?.headerContent || '',
-      body:
-        template?.body ||
-        `Hello {{customer_name}},\nWelcome to QB Unify!\n\nCustomer ID: {{customer_id}}\n\nTeam QB Unify`,
-      footer: template?.footer || 'Team QB Unify · Secure Fintech',
-      buttons: initialButtons,
-    };
+    if (duplicate && template) {
+      return {
+        name: template.name ? `${template.name} copy` : '',
+        templateName: '',
+        key: '',
+        category: template.category || 'UTILITY',
+        language: template.language || 'en_US',
+        headerType: template.headerType || 'NONE',
+        headerContent: template.headerContent || '',
+        body: template.body || '',
+        footer: template.footer || '',
+        buttons: Array.isArray(template.buttons) ? [...template.buttons] : [],
+      };
+    }
+    return getBlankForm();
   });
 
   const [saving, setSaving] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
-  // Dynamic variable sample map for realistic preview
-  const [sampleVariables, setSampleVariables] = React.useState({
-    customer_name: 'John Doe',
-    customer_id: 'CUST-84920',
-  });
+  // Dynamic variable sample map for realistic preview - starts empty in Create Mode
+  const [sampleVariables, setSampleVariables] = React.useState({});
 
   // Variables search & category filter
   const [varSearch, setVarSearch] = React.useState('');
   const [activeCategory, setActiveCategory] = React.useState('All');
   const [copiedKey, setCopiedKey] = React.useState('');
 
+  // Lock background scroll when drawer is open
+  React.useEffect(() => {
+    if (isOpen && !isPageMode) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen, isPageMode]);
+
+  // Sync form state whenever modal opens or target template changes
+  React.useEffect(() => {
+    if (isOpen) {
+      if (isEdit && template) {
+        setForm({
+          name: template.name || '',
+          templateName: template.templateName || '',
+          key: template.key || '',
+          category: template.category || 'UTILITY',
+          language: template.language || 'en_US',
+          headerType: template.headerType || 'NONE',
+          headerContent: template.headerContent || '',
+          body: template.body || '',
+          footer: template.footer || '',
+          buttons: Array.isArray(template.buttons) ? template.buttons : [],
+        });
+      } else if (duplicate && template) {
+        setForm({
+          name: template.name ? `${template.name} copy` : '',
+          templateName: '',
+          key: '',
+          category: template.category || 'UTILITY',
+          language: template.language || 'en_US',
+          headerType: template.headerType || 'NONE',
+          headerContent: template.headerContent || '',
+          body: template.body || '',
+          footer: template.footer || '',
+          buttons: Array.isArray(template.buttons) ? [...template.buttons] : [],
+        });
+      } else {
+        // Completely blank state for new Create session
+        setForm(getBlankForm());
+        setSampleVariables({});
+      }
+    }
+  }, [isOpen, template?.id, isEdit, duplicate]);
+
   // Extract detected variables from body
   const detectedVariables = React.useMemo(() => extractVariables(form.body), [form.body]);
 
-  // Keep sample variables populated with defaults
+  // Keep sample variables synchronized ONLY with currently detected variables
   React.useEffect(() => {
     setSampleVariables((prev) => {
-      const next = { ...prev };
+      const next = {};
       detectedVariables.forEach((v) => {
-        if (!next[v]) {
+        if (prev[v]) {
+          next[v] = prev[v];
+        } else {
           const sys = SYSTEM_VARIABLES.find((sv) => sv.key === v);
           next[v] = sys?.sample || `[${v}]`;
         }
@@ -198,29 +265,39 @@ export function WhatsAppTemplateModal({
     });
   }
 
-  // Insert variable into message body at current cursor position
+  // Insert variable into message body at current cursor position (never duplicated)
   function insertVariable(variableKey) {
     const textarea = textareaRef.current;
     const token = `{{${variableKey}}}`;
 
     if (textarea) {
-      const start = textarea.selectionStart ?? form.body.length;
-      const end = textarea.selectionEnd ?? form.body.length;
-      const text = form.body;
-      const newBody = text.substring(0, start) + token + text.substring(end);
+      const start = textarea.selectionStart ?? (form.body || '').length;
+      const end = textarea.selectionEnd ?? (form.body || '').length;
+      const currentText = form.body || '';
+
+      const newBody = currentText.substring(0, start) + token + currentText.substring(end);
       patch('body', newBody);
 
       setTimeout(() => {
         textarea.focus();
         const nextPos = start + token.length;
         textarea.setSelectionRange(nextPos, nextPos);
-      }, 0);
+      }, 15);
     } else {
       patch('body', form.body ? `${form.body} ${token}` : token);
     }
 
-    // Copy indicator feedback
+    toast.success(`Inserted {{${variableKey}}}`);
+  }
+
+  // Copy variable to clipboard only (does not insert into body)
+  function handleCopyVariable(variableKey, e) {
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    navigator.clipboard.writeText(`{{${variableKey}}}`);
     setCopiedKey(variableKey);
+    toast.success(`Copied {{${variableKey}}} to clipboard`);
     setTimeout(() => setCopiedKey(''), 1500);
   }
 
@@ -352,14 +429,26 @@ export function WhatsAppTemplateModal({
       className={
         isPageMode
           ? 'w-full min-h-screen bg-slate-100/70 p-2 sm:p-4 md:p-6 flex items-start justify-center'
-          : 'fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto'
+          : 'fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300 overflow-hidden'
       }
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving && !submitting && !isPageMode) {
+          handleClose();
+        }
+      }}
     >
-      <div className="relative w-full max-w-7xl rounded-2xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[96vh]">
-        {/* ── Top Header ────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
+      {/* ── Slide-Over Drawer Container (Anchored to Right Edge) ──── */}
+      <div
+        className={
+          isPageMode
+            ? 'relative w-full max-w-7xl rounded-2xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col'
+            : 'relative flex h-full w-full sm:w-[94vw] md:w-[90vw] lg:w-[84vw] xl:w-[80vw] max-w-7xl flex-col bg-white shadow-2xl border-l border-slate-200/90 overflow-hidden animate-in slide-in-from-right duration-300'
+        }
+      >
+        {/* ── 1. Sticky Header ───────────────────────────────────── */}
+        <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#16A34A] text-white shadow-sm shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#16A34A] text-white shadow-sm shrink-0">
               <FontAwesomeIcon icon={faWhatsapp} className="text-xl" />
             </div>
             <div>
@@ -375,398 +464,419 @@ export function WhatsAppTemplateModal({
             type="button"
             onClick={handleClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
-            aria-label="Close"
+            aria-label="Close drawer"
           >
             <FontAwesomeIcon icon={faXmark} className="text-lg" />
           </button>
         </div>
 
-        {/* ── Main 3-Column Body ──────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 p-5 overflow-y-auto grow custom-scrollbar">
-          {/* ── Column 1: Template Form (approx 42% / 5 cols) ─────── */}
-          <div className="lg:col-span-5 space-y-4">
-            {/* Row 1: Template Name & Meta Template Name */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* ── 2. Scrollable 3-Column Content Body ────────────────── */}
+        <div className="flex-1 overflow-y-auto p-5 custom-scrollbar min-h-0 bg-slate-50/30">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* ── Column 1: Template Form (5 cols) ───────────────── */}
+            <div className="lg:col-span-5 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs">
+              {/* Row 1: Template Name & Meta Template Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Template Name <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => patch('name', e.target.value)}
+                    placeholder="e.g. Order Confirmation"
+                    className="h-9 text-xs sm:text-sm border-slate-200 focus-visible:ring-emerald-500 rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Meta Template Name <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    value={form.templateName}
+                    onChange={(e) => patch('templateName', slugTemplateName(e.target.value))}
+                    placeholder="e.g. order_confirmation_v1"
+                    className="h-9 text-xs sm:text-sm font-mono border-slate-200 focus-visible:ring-emerald-500 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Category, Language, Header Type */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-slate-700">Category</Label>
+                  <select
+                    value={form.category}
+                    onChange={(e) => patch('category', e.target.value)}
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-slate-700">Language</Label>
+                  <select
+                    value={form.language}
+                    onChange={(e) => patch('language', e.target.value)}
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    {LANGUAGES.map((l) => (
+                      <option key={l.value} value={l.value}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-slate-700">Header Type</Label>
+                  <select
+                    value={form.headerType}
+                    onChange={(e) => patch('headerType', e.target.value)}
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    {HEADER_TYPES.map((h) => (
+                      <option key={h.value} value={h.value}>
+                        {h.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Header Content Input if HeaderType !== NONE */}
+              {form.headerType !== 'NONE' && (
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    {form.headerType === 'TEXT' ? 'Header Text (max 60 chars)' : 'Media / Document Attachment URL'}
+                    <span className="text-rose-500"> *</span>
+                  </Label>
+                  <Input
+                    value={form.headerContent}
+                    onChange={(e) => patch('headerContent', e.target.value)}
+                    placeholder={
+                      form.headerType === 'TEXT'
+                        ? 'e.g. Important Account Notification'
+                        : 'https://example.com/assets/brochure.pdf'
+                    }
+                    className="h-9 text-xs border-slate-200 focus-visible:ring-emerald-500 rounded-xl"
+                  />
+                </div>
+              )}
+
+              {/* Row 3: Message Body */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Template Name <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => patch('name', e.target.value)}
-                  placeholder="e.g. Investment Confirmed"
-                  className="h-9 text-xs sm:text-sm border-slate-200 focus-visible:ring-emerald-500"
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-slate-700">
+                    Message Body <span className="text-rose-500">*</span>
+                  </Label>
+                  <span className="text-[11px] text-slate-400">Meta allows text + dynamic parameters</span>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={form.body}
+                  onChange={(e) => patch('body', e.target.value)}
+                  placeholder="Enter message text or click dynamic variables on the right to insert..."
+                  rows={6}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed custom-scrollbar"
                 />
               </div>
+
+              {/* Row 4: Footer Text */}
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Meta Template Name <span className="text-rose-500">*</span>
-                </Label>
+                <Label className="text-xs font-semibold text-slate-700">Footer Text (Optional)</Label>
                 <Input
-                  value={form.templateName}
-                  onChange={(e) => patch('templateName', slugTemplateName(e.target.value))}
-                  placeholder="investment_confirmed_v1"
-                  className="h-9 text-xs sm:text-sm font-mono border-slate-200 focus-visible:ring-emerald-500"
+                  value={form.footer}
+                  onChange={(e) => patch('footer', e.target.value)}
+                  placeholder="e.g. Reply STOP to unsubscribe"
+                  className="h-9 text-xs border-slate-200 focus-visible:ring-emerald-500 rounded-xl"
                 />
               </div>
-            </div>
 
-            {/* Row 2: Category, Language, Header Type */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Category</Label>
-                <select
-                  value={form.category}
-                  onChange={(e) => patch('category', e.target.value)}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
+              {/* Row 5: Dynamic Example inputs for detected variables ONLY */}
+              {detectedVariables.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Sample Variable Values (for preview & Meta review)
+                  </span>
+                  {detectedVariables.map((v) => (
+                    <div key={v} className="space-y-1">
+                      <Label className="text-[11px] font-medium text-slate-600">
+                        Example for <span className="font-mono text-emerald-700 font-bold">{`{{${v}}}`}</span>
+                      </Label>
+                      <Input
+                        value={sampleVariables[v] || ''}
+                        onChange={(e) =>
+                          setSampleVariables((prev) => ({
+                            ...prev,
+                            [v]: e.target.value,
+                          }))
+                        }
+                        placeholder={`e.g. Sample ${v}`}
+                        className="h-8 text-xs border-slate-200 focus-visible:ring-emerald-500 rounded-lg"
+                      />
+                    </div>
                   ))}
-                </select>
-              </div>
+                </div>
+              )}
 
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Language</Label>
-                <select
-                  value={form.language}
-                  onChange={(e) => patch('language', e.target.value)}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.value} value={l.value}>
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Header Type</Label>
-                <select
-                  value={form.headerType}
-                  onChange={(e) => patch('headerType', e.target.value)}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {HEADER_TYPES.map((h) => (
-                    <option key={h.value} value={h.value}>
-                      {h.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Header Content Input if HeaderType !== NONE */}
-            {form.headerType !== 'NONE' && (
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">
-                  {form.headerType === 'TEXT' ? 'Header Text (max 60 chars)' : 'Media / Document Attachment URL'}
-                  <span className="text-rose-500"> *</span>
-                </Label>
-                <Input
-                  value={form.headerContent}
-                  onChange={(e) => patch('headerContent', e.target.value)}
-                  placeholder={
-                    form.headerType === 'TEXT'
-                      ? 'e.g. Important Investment Update'
-                      : 'https://example.com/assets/sample-brochure.pdf'
-                  }
-                  className="h-9 text-xs border-slate-200 focus-visible:ring-emerald-500"
-                />
-              </div>
-            )}
-
-            {/* Row 3: Message Body */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Message Body <span className="text-rose-500">*</span>
-                </Label>
-                <span className="text-[11px] text-slate-400">Meta allows text + dynamic parameters</span>
-              </div>
-              <textarea
-                ref={textareaRef}
-                value={form.body}
-                onChange={(e) => patch('body', e.target.value)}
-                placeholder="Hello {{customer_name}}, welcome to our platform..."
-                rows={6}
-                className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed custom-scrollbar"
-              />
-            </div>
-
-            {/* Row 4: Footer Text */}
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Footer Text (Optional)</Label>
-              <Input
-                value={form.footer}
-                onChange={(e) => patch('footer', e.target.value)}
-                placeholder="Team QB Unify · Secure Fintech"
-                className="h-9 text-xs border-slate-200 focus-visible:ring-emerald-500"
-              />
-            </div>
-
-            {/* Row 5: Dynamic Example inputs for detected variables */}
-            {detectedVariables.length > 0 && (
-              <div className="space-y-2 pt-1 border-t border-slate-100">
-                {detectedVariables.map((v) => (
-                  <div key={v} className="space-y-1">
-                    <Label className="text-[11px] font-medium text-slate-600">
-                      Example for Body <span className="font-mono text-emerald-700">{`{{${v}}}`}</span> (optional for draft)
-                    </Label>
-                    <Input
-                      value={sampleVariables[v] || ''}
-                      onChange={(e) =>
-                        setSampleVariables((prev) => ({
+              {/* Row 6: Interactive Buttons Configurator */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Action Buttons (Optional)</Label>
+                    <p className="text-[10px] text-slate-400">Add up to 3 interactive CTA or quick reply buttons</p>
+                  </div>
+                  {form.buttons.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
                           ...prev,
-                          [v]: e.target.value,
+                          buttons: [...prev.buttons, { type: 'URL', text: 'Visit Website', url: 'https://' }],
                         }))
                       }
-                      placeholder={`e.g. ${v === 'customer_name' ? 'John Doe' : v === 'customer_id' ? 'CUST-84920' : v}`}
-                      className="h-8 text-xs border-slate-200 focus-visible:ring-emerald-500"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+                      className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200"
+                    >
+                      <FontAwesomeIcon icon={faPlus} className="text-[10px]" /> Add Button
+                    </button>
+                  )}
+                </div>
 
-            {/* Row 6: Interactive Buttons Configurator */}
-            <div className="space-y-2 pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-slate-700">Interactive Action Buttons</Label>
-                {form.buttons.length < 3 && (
+                {form.buttons.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic py-1">No action buttons added.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {form.buttons.map((btn, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 rounded-xl border border-slate-200/90 bg-slate-50/60 p-2 text-xs"
+                      >
+                        <select
+                          value={btn.type}
+                          onChange={(e) => {
+                            const next = [...form.buttons];
+                            next[idx] = { ...next[idx], type: e.target.value };
+                            setForm((prev) => ({ ...prev, buttons: next }));
+                          }}
+                          className="h-7 rounded-lg border border-slate-200 bg-white px-1.5 text-[11px] text-slate-700 font-medium"
+                        >
+                          <option value="URL">URL</option>
+                          <option value="QUICK_REPLY">Quick Reply</option>
+                          <option value="PHONE_NUMBER">Phone</option>
+                        </select>
+                        <Input
+                          value={btn.text}
+                          onChange={(e) => {
+                            const next = [...form.buttons];
+                            next[idx] = { ...next[idx], text: e.target.value };
+                            setForm((prev) => ({ ...prev, buttons: next }));
+                          }}
+                          placeholder="Button Label"
+                          className="h-7 text-xs grow border-slate-200 bg-white rounded-lg"
+                        />
+                        {btn.type !== 'QUICK_REPLY' && (
+                          <Input
+                            value={btn.url || btn.phoneNumber || ''}
+                            onChange={(e) => {
+                              const next = [...form.buttons];
+                              if (btn.type === 'PHONE_NUMBER') {
+                                next[idx] = { ...next[idx], phoneNumber: e.target.value };
+                              } else {
+                                next[idx] = { ...next[idx], url: e.target.value };
+                              }
+                              setForm((prev) => ({ ...prev, buttons: next }));
+                            }}
+                            placeholder={btn.type === 'PHONE_NUMBER' ? '+91...' : 'https://...'}
+                            className="h-7 text-xs grow border-slate-200 bg-white rounded-lg"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm((prev) => ({
+                              ...prev,
+                              buttons: prev.buttons.filter((_, i) => i !== idx),
+                            }));
+                          }}
+                          className="text-slate-400 hover:text-rose-600 px-1.5"
+                          title="Remove button"
+                        >
+                          <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Column 2: Dynamic Variables (3 cols) ───────────── */}
+            <div className="lg:col-span-3 rounded-2xl border border-slate-200/90 bg-white p-4 flex flex-col h-full space-y-3 shadow-2xs">
+              {/* Header */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold tracking-wider text-slate-800 uppercase">DYNAMIC VARIABLES</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Click to Insert
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500 leading-tight">
+                  Click <strong className="text-emerald-700">Insert</strong> to add at cursor position, or <strong className="text-slate-700">Copy</strong> to clipboard.
+                </p>
+              </div>
+
+              {/* Search Input */}
+              <div className="relative">
+                <FontAwesomeIcon
+                  icon={faMagnifyingGlass}
+                  className="absolute left-2.5 top-2.5 text-xs text-slate-400"
+                />
+                <Input
+                  value={varSearch}
+                  onChange={(e) => setVarSearch(e.target.value)}
+                  placeholder="Search variables (name, key, d...)"
+                  className="h-8 pl-8 text-xs border-slate-200 bg-slate-50/50 focus-visible:ring-emerald-500 rounded-xl"
+                />
+                {varSearch && (
                   <button
                     type="button"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        buttons: [...prev.buttons, { type: 'URL', text: 'New Button', url: 'https://' }],
-                      }))
-                    }
-                    className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                    onClick={() => setVarSearch('')}
+                    className="absolute right-2 top-2 text-xs text-slate-400 hover:text-slate-600"
                   >
-                    <FontAwesomeIcon icon={faPlus} className="text-[10px]" /> Add Button
+                    <FontAwesomeIcon icon={faXmark} />
                   </button>
                 )}
               </div>
-              <div className="space-y-2">
-                {form.buttons.map((btn, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 rounded-lg border border-slate-200/90 bg-slate-50/60 p-2 text-xs"
+
+              {/* Category Pills */}
+              <div className="flex flex-wrap gap-1 border-b border-slate-100 pb-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveCategory(cat)}
+                    className={`rounded-lg px-2 py-0.5 text-[10px] font-semibold transition-all ${
+                      activeCategory === cat
+                        ? 'bg-[#16A34A] text-white shadow-2xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
                   >
-                    <select
-                      value={btn.type}
-                      onChange={(e) => {
-                        const next = [...form.buttons];
-                        next[idx] = { ...next[idx], type: e.target.value };
-                        setForm((prev) => ({ ...prev, buttons: next }));
-                      }}
-                      className="h-7 rounded border border-slate-200 bg-white px-1.5 text-[11px] text-slate-700"
-                    >
-                      <option value="URL">URL</option>
-                      <option value="QUICK_REPLY">Quick Reply</option>
-                      <option value="PHONE_NUMBER">Phone</option>
-                    </select>
-                    <Input
-                      value={btn.text}
-                      onChange={(e) => {
-                        const next = [...form.buttons];
-                        next[idx] = { ...next[idx], text: e.target.value };
-                        setForm((prev) => ({ ...prev, buttons: next }));
-                      }}
-                      placeholder="Button Label"
-                      className="h-7 text-xs grow border-slate-200 bg-white"
-                    />
-                    {btn.type !== 'QUICK_REPLY' && (
-                      <Input
-                        value={btn.url || btn.phoneNumber || ''}
-                        onChange={(e) => {
-                          const next = [...form.buttons];
-                          if (btn.type === 'PHONE_NUMBER') {
-                            next[idx] = { ...next[idx], phoneNumber: e.target.value };
-                          } else {
-                            next[idx] = { ...next[idx], url: e.target.value };
-                          }
-                          setForm((prev) => ({ ...prev, buttons: next }));
-                        }}
-                        placeholder={btn.type === 'PHONE_NUMBER' ? '+91...' : 'https://...'}
-                        className="h-7 text-xs grow border-slate-200 bg-white"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setForm((prev) => ({
-                          ...prev,
-                          buttons: prev.buttons.filter((_, i) => i !== idx),
-                        }));
-                      }}
-                      className="text-slate-400 hover:text-rose-600 px-1"
-                    >
-                      <FontAwesomeIcon icon={faTrash} className="text-xs" />
-                    </button>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Scrollable Variable Cards */}
+              <div className="space-y-2 overflow-y-auto grow max-h-[520px] pr-1 custom-scrollbar">
+                {filteredVariables.map((variable) => (
+                  <div
+                    key={variable.key}
+                    className="group relative rounded-xl border border-slate-200/80 bg-slate-50/50 p-2.5 shadow-2xs transition-all hover:border-emerald-300 hover:bg-white"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="inline-block rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-800 truncate">
+                        {`{{${variable.key}}}`}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => insertVariable(variable.key)}
+                          className="inline-flex items-center gap-1 rounded-md bg-[#16A34A] text-white hover:bg-[#15803D] font-semibold px-2 py-0.5 text-[10px] shadow-2xs transition-colors"
+                          title="Insert into message body"
+                        >
+                          <FontAwesomeIcon icon={faPlus} className="text-[9px]" />
+                          <span>Insert</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopyVariable(variable.key, e)}
+                          className="inline-flex items-center gap-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold px-1.5 py-0.5 text-[10px] transition-colors"
+                          title="Copy to clipboard"
+                        >
+                          {copiedKey === variable.key ? (
+                            <FontAwesomeIcon icon={faCheck} className="text-emerald-600 text-[10px]" />
+                          ) : (
+                            <FontAwesomeIcon icon={faCopy} className="text-slate-400 text-[10px]" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-1 flex items-baseline justify-between text-[11px]">
+                      <span className="font-semibold text-slate-800">{variable.label}</span>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">{variable.category}</span>
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-slate-500 leading-normal line-clamp-2">
+                      {variable.desc}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
 
-          {/* ── Column 2: DYNAMIC VARIABLES (approx 28% / 3 cols) ─── */}
-          <div className="lg:col-span-3 rounded-2xl border border-slate-200/90 bg-[#F8FAFC] p-3.5 flex flex-col h-full space-y-3">
-            {/* Header */}
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold tracking-wider text-slate-800 uppercase">DYNAMIC VARIABLES</span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Real-time values
+            {/* ── Column 3: Real-Time Mobile Mockup (4 cols) ─────── */}
+            <div className="lg:col-span-4 flex flex-col items-center justify-start rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs">
+              <div className="w-full flex items-center justify-between pb-3 border-b border-slate-100">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <FontAwesomeIcon icon={faMobileScreen} className="text-[#16A34A]" />
+                  Real-Time Mobile Mockup
+                </span>
+                <span className="rounded-md bg-emerald-50 text-[#16A34A] border border-emerald-200 px-2 py-0.5 text-[10px] font-bold">
+                  WhatsApp Preview
                 </span>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500 leading-tight">
-                Click to insert <code className="font-mono text-emerald-700">{`{{key}}`}</code> into the template. For an optional value, use <code className="font-mono text-emerald-700">{`{{key | fallback}}`}</code>.
-              </p>
-            </div>
 
-            {/* Search Input */}
-            <div className="relative">
-              <FontAwesomeIcon
-                icon={faMagnifyingGlass}
-                className="absolute left-2.5 top-2.5 text-xs text-slate-400"
-              />
-              <Input
-                value={varSearch}
-                onChange={(e) => setVarSearch(e.target.value)}
-                placeholder="Search variables (name, key, d...)"
-                className="h-8 pl-8 text-xs border-slate-200 bg-white focus-visible:ring-emerald-500"
-              />
-              {varSearch && (
-                <button
-                  type="button"
-                  onClick={() => setVarSearch('')}
-                  className="absolute right-2 top-2 text-xs text-slate-400 hover:text-slate-600"
-                >
-                  <FontAwesomeIcon icon={faXmark} />
-                </button>
-              )}
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setActiveCategory(cat)}
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-all ${
-                    activeCategory === cat
-                      ? 'bg-[#16A34A] text-white shadow-xs'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Scrollable Variable Cards */}
-            <div className="space-y-2 overflow-y-auto grow max-h-[480px] pr-1 custom-scrollbar">
-              {filteredVariables.map((variable) => (
-                <div
-                  key={variable.key}
-                  onClick={() => insertVariable(variable.key)}
-                  className="group relative cursor-pointer rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs transition-all hover:border-emerald-400 hover:shadow-xs active:scale-[0.99]"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="inline-block rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-800">
-                      {`{{${variable.key}}}`}
-                    </span>
-                    <span className="text-slate-400 group-hover:text-emerald-600 transition-colors">
-                      {copiedKey === variable.key ? (
-                        <FontAwesomeIcon icon={faCheck} className="text-xs text-emerald-600" />
-                      ) : (
-                        <FontAwesomeIcon icon={faCopy} className="text-xs" />
-                      )}
-                    </span>
-                  </div>
-                  <div className="mt-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                      {variable.category}
-                    </span>
-                    <p className="text-xs font-semibold text-slate-800 leading-tight">{variable.label}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500 leading-snug line-clamp-1">{variable.desc}</p>
-                  </div>
+              {/* Mobile Phone Mockup Frame */}
+              <div className="mt-4 w-full max-w-[320px] rounded-[36px] bg-black p-3.5 shadow-2xl ring-1 ring-slate-800/80">
+                {/* Phone Speaker & Notch */}
+                <div className="flex items-center justify-center pb-2">
+                  <div className="h-1.5 w-16 rounded-full bg-slate-800" />
                 </div>
-              ))}
 
-              {filteredVariables.length === 0 && (
-                <div className="py-8 text-center text-xs text-slate-400">
-                  No dynamic variables match &quot;{varSearch}&quot;.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Column 3: Real-Time Mobile Mockup (approx 30% / 4 cols) */}
-          <div className="lg:col-span-4 flex flex-col items-center">
-            {/* Column Title */}
-            <div className="w-full flex items-center justify-center gap-2 mb-3">
-              <FontAwesomeIcon icon={faMobileScreen} className="text-slate-600 text-sm" />
-              <span className="text-sm font-semibold text-slate-800">Real-Time Mobile Mockup</span>
-            </div>
-
-            {/* Authentic Smartphone Chassis */}
-            <div className="relative w-full max-w-[310px] rounded-[40px] border-[10px] border-slate-900 bg-black shadow-2xl overflow-hidden flex flex-col min-h-[540px]">
-              {/* Phone Speaker Slit & Front Camera */}
-              <div className="w-full bg-black pt-2 pb-1.5 flex items-center justify-center relative shrink-0">
-                <div className="h-1.5 w-14 rounded-full bg-slate-800" />
-                <div className="absolute right-14 h-2 w-2 rounded-full bg-slate-900 border border-slate-800" />
-              </div>
-
-              {/* Phone Inside Screen Area */}
-              <div className="w-full grow flex flex-col bg-[#ECE5DD] overflow-hidden">
-                {/* WhatsApp Top Green Header Bar */}
-                <div className="bg-[#075E54] text-white px-3 py-2.5 flex items-center gap-2.5 shadow-sm shrink-0">
-                  <span className="text-xs text-white/90">←</span>
-                  <div className="h-7 w-7 rounded-full bg-emerald-700 border border-emerald-500 flex items-center justify-center font-bold text-xs text-white shrink-0">
-                    QB
-                  </div>
-                  <div className="min-w-0 grow">
-                    <div className="flex items-center gap-1 leading-tight">
-                      <span className="font-semibold text-xs text-white truncate">QB Unify Official</span>
-                      <FontAwesomeIcon icon={faCircleCheck} className="text-emerald-300 text-[10px] shrink-0" />
+                {/* WhatsApp App Inner Frame */}
+                <div className="flex flex-col h-[520px] rounded-[26px] bg-[#EFEAE2] overflow-hidden shadow-inner text-slate-800">
+                  {/* WhatsApp Top App Bar */}
+                  <div className="flex items-center gap-2 bg-[#075E54] px-3 py-2.5 text-white shrink-0">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700 font-bold text-xs">
+                      QB
                     </div>
-                    <span className="text-[9px] text-emerald-100/80 leading-tight block truncate">
-                      Official Business Account
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold leading-none truncate">QB Unify Official</span>
+                        <FontAwesomeIcon icon={faCircleCheck} className="text-[10px] text-emerald-400" />
+                      </div>
+                      <span className="text-[9px] text-emerald-200 leading-none">Official Business Account</span>
+                    </div>
                   </div>
-                </div>
 
-                {/* WhatsApp Chat Background Body */}
-                <div className="grow p-3 flex flex-col justify-between overflow-y-auto custom-scrollbar">
-                  <div>
-                    {/* Centered Date Badge */}
-                    <div className="text-center my-1.5">
-                      <span className="inline-block rounded-md bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-slate-600 shadow-2xs backdrop-blur-xs">
+                  {/* WhatsApp Chat Conversation Canvas */}
+                  <div className="flex-1 p-3 overflow-y-auto custom-scrollbar flex flex-col justify-start">
+                    {/* Date Pill */}
+                    <div className="flex justify-center mb-2">
+                      <span className="rounded-md bg-white/80 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 shadow-2xs">
                         TODAY
                       </span>
                     </div>
 
-                    {/* WhatsApp Message Bubble */}
-                    <div className="relative rounded-2xl rounded-tl-xs bg-white p-3 text-xs text-slate-800 shadow-sm border border-slate-100 max-w-[95%] space-y-1.5">
-                      {/* Optional Header Rendering */}
+                    {/* WhatsApp Incoming Message Bubble */}
+                    <div className="relative max-w-[95%] rounded-2xl rounded-tl-xs bg-white p-3 shadow-xs space-y-1.5">
+                      {/* Optional Header Attachment */}
                       {form.headerType !== 'NONE' && (
-                        <div className="mb-1">
+                        <div className="pb-1">
                           {form.headerType === 'TEXT' && (
-                            <p className="font-bold text-slate-900 leading-snug">
-                              {form.headerContent || 'Sample Header Title'}
-                            </p>
+                            <h4 className="font-bold text-slate-900 text-xs leading-snug">
+                              {form.headerContent || '[Header Text]'}
+                            </h4>
                           )}
                           {form.headerType === 'IMAGE' && (
-                            <div className="flex h-28 w-full items-center justify-center rounded-lg bg-slate-100 text-slate-400 text-[11px] overflow-hidden border border-slate-200">
-                              {form.headerContent?.startsWith('http') ? (
+                            <div className="h-28 w-full rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 text-slate-400 text-xs">
+                              {form.headerContent ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                   src={form.headerContent}
@@ -834,7 +944,7 @@ export function WhatsAppTemplateModal({
                   </div>
                 </div>
 
-                {/* Fake Home Indicator Bar */}
+                {/* Home Indicator Bar */}
                 <div className="bg-black py-1 flex justify-center shrink-0">
                   <div className="h-1 w-24 rounded-full bg-slate-700" />
                 </div>
@@ -843,8 +953,8 @@ export function WhatsAppTemplateModal({
           </div>
         </div>
 
-        {/* ── Bottom Modal Footer ───────────────────────────────── */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5 border-t border-slate-100 bg-white shrink-0">
+        {/* ── 3. Sticky Drawer Footer ────────────────────────────── */}
+        <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 px-6 py-3.5 border-t border-slate-100 bg-white shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
           {/* Status Label on Left */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 font-medium">Meta Status:</span>
@@ -860,7 +970,7 @@ export function WhatsAppTemplateModal({
               variant="ghost"
               onClick={handleClose}
               disabled={saving || submitting}
-              className="text-xs font-medium text-slate-600 hover:bg-slate-100"
+              className="text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl"
             >
               Cancel
             </Button>
@@ -869,7 +979,7 @@ export function WhatsAppTemplateModal({
               variant="outline"
               disabled={saving || submitting}
               onClick={() => handleSave(true)}
-              className="border-emerald-300 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold gap-1.5"
+              className="border-emerald-300 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold gap-1.5 rounded-xl"
             >
               <FontAwesomeIcon icon={faCheck} className="text-emerald-600 text-xs" />
               {submitting ? 'Submitting…' : 'Submit to Meta for Approval'}
@@ -878,7 +988,7 @@ export function WhatsAppTemplateModal({
               type="button"
               disabled={saving || submitting}
               onClick={() => handleSave(false)}
-              className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold shadow-sm px-4"
+              className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold shadow-sm px-4 rounded-xl"
             >
               {saving ? 'Saving…' : 'Save Template'}
             </Button>
@@ -888,3 +998,5 @@ export function WhatsAppTemplateModal({
     </div>
   );
 }
+
+export default WhatsAppTemplateModal;
