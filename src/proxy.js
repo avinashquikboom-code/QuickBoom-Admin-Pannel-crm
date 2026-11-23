@@ -21,10 +21,14 @@ export async function proxy(request) {
     }
     if (session.split('.').length === 3) {
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4000);
         const response = await fetch(`${API_BASE}/auth/profile`, {
           headers: { Authorization: `Bearer ${session}`, Accept: 'application/json' },
           cache: 'no-store',
+          signal: controller.signal,
         });
+        clearTimeout(timer);
         if (response.ok) return NextResponse.next();
       } catch {
         // Fail closed when the API cannot confirm the session.
