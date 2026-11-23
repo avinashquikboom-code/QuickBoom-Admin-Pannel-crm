@@ -16,6 +16,7 @@ import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
 import { AdminBulkSelectionToolbar, AdminBulkDeleteButton } from '@/components/admin/bulk-selection';
+import { TruncatedText } from '@/components/common/TruncatedText';
 import {
     DataTable,
     DataTableColumnHeader,
@@ -324,18 +325,27 @@ function SectionPageContent() {
                 accessorKey: 'name',
                 header: ({ column }) => <DataTableColumnHeader column={column} title={`${config.singular} Name`} />,
                 cell: ({ row }) => (
-                    <div className="flex items-center gap-3">
-                        <div className="size-9 rounded-xl bg-brand/10 text-brand-dark flex items-center justify-center font-bold text-xs shrink-0 border border-brand/20">
-                            <FontAwesomeIcon icon={config.icon} className="size-4 text-brand" />
+                    <div className="flex items-center gap-2.5 min-w-0 max-w-[220px]">
+                        <div className="size-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0 border border-emerald-200/70 shadow-2xs">
+                            <FontAwesomeIcon icon={config.icon} className="size-3.5" />
                         </div>
-                        <div className="flex flex-col min-w-0">
-                            <span className="font-semibold text-slate-900 leading-tight truncate">
-                                {row.original.name}
-                            </span>
-                            <span className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
-                                {row.original.description || row.original.head}
-                            </span>
-                        </div>
+                        <span className="font-semibold text-slate-900 leading-tight truncate text-xs hover:text-emerald-700 transition-colors" title={row.original.name}>
+                            {row.original.name}
+                        </span>
+                    </div>
+                ),
+            },
+            {
+                accessorKey: 'description',
+                header: ({ column }) => <DataTableColumnHeader column={column} title="Description" />,
+                cell: ({ row }) => (
+                    <div className="max-w-[260px] min-w-[140px]">
+                        <TruncatedText
+                            value={row.original.description || (row.original.head ? `Lead: ${row.original.head}` : '')}
+                            maxWidth="max-w-[260px]"
+                            className="text-xs text-slate-500"
+                            label="Description"
+                        />
                     </div>
                 ),
             },
@@ -343,9 +353,9 @@ function SectionPageContent() {
                 accessorKey: 'code',
                 header: ({ column }) => <DataTableColumnHeader column={column} title="Code" />,
                 cell: ({ row }) => (
-                    <Badge variant="outline" className="font-mono text-[11px] font-semibold bg-slate-50 text-slate-700 border-slate-200">
-                        {row.original.code}
-                    </Badge>
+                    <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50/80 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700 shadow-2xs">
+                        {row.original.code || '—'}
+                    </span>
                 ),
             },
             {

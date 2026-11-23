@@ -68,6 +68,7 @@ import {
   type Department,
 } from './department-api';
 import { PermanentDeleteDialog } from '@/components/common/PermanentDeleteDialog';
+import { TruncatedText } from '@/components/common/TruncatedText';
 import { cn } from '@/lib/utils';
 
 // Cast components that have untyped JS props in shadcn
@@ -136,6 +137,7 @@ export function DepartmentsScreen() {
   const [actionError, setActionError] = React.useState('');
 
   const [visibleColumns, setVisibleColumns] = React.useState({
+    description: true,
     code: true,
     employeesCount: true,
     isActive: true,
@@ -529,6 +531,15 @@ export function DepartmentsScreen() {
                 </div>
                 <DropdownMenuSeparator className="bg-slate-100" />
                 <MenuCheckboxItem
+                  checked={visibleColumns.description}
+                  onCheckedChange={(checked: boolean) =>
+                    setVisibleColumns((prev) => ({ ...prev, description: Boolean(checked) }))
+                  }
+                  className="text-xs p-2 rounded-lg cursor-pointer text-slate-700"
+                >
+                  Description
+                </MenuCheckboxItem>
+                <MenuCheckboxItem
                   checked={visibleColumns.code}
                   onCheckedChange={(checked: boolean) =>
                     setVisibleColumns((prev) => ({ ...prev, code: Boolean(checked) }))
@@ -650,7 +661,7 @@ export function DepartmentsScreen() {
                     </th>
 
                     {/* Department Name */}
-                    <th scope="col" className="px-4 py-3.5 min-w-[240px]">
+                    <th scope="col" className="px-4 py-3.5 min-w-[200px]">
                       <button
                         type="button"
                         onClick={() => handleSort('name')}
@@ -668,6 +679,13 @@ export function DepartmentsScreen() {
                         )}
                       </button>
                     </th>
+
+                    {/* Description */}
+                    {visibleColumns.description && (
+                      <th scope="col" className="px-4 py-3.5 min-w-[200px] max-w-[320px]">
+                        Description
+                      </th>
+                    )}
 
                     {/* Department Code */}
                     {visibleColumns.code && (
@@ -763,10 +781,14 @@ export function DepartmentsScreen() {
                               <div className="size-9 rounded-xl bg-slate-200 shrink-0" />
                               <div className="space-y-1.5 flex-1 min-w-0">
                                 <div className="h-3.5 bg-slate-200 rounded w-36" />
-                                <div className="h-2.5 bg-slate-100 rounded w-48" />
                               </div>
                             </div>
                           </td>
+                          {visibleColumns.description && (
+                            <td className="px-4 py-3.5">
+                              <div className="h-3.5 bg-slate-100 rounded w-44" />
+                            </td>
+                          )}
                           {visibleColumns.code && (
                             <td className="px-4 py-3.5">
                               <div className="h-5 bg-slate-100 rounded w-16" />
@@ -801,6 +823,7 @@ export function DepartmentsScreen() {
                       <td
                         colSpan={
                           3 +
+                          (visibleColumns.description ? 1 : 0) +
                           (visibleColumns.code ? 1 : 0) +
                           (visibleColumns.employeesCount ? 1 : 0) +
                           (visibleColumns.isActive ? 1 : 0) +
@@ -856,30 +879,34 @@ export function DepartmentsScreen() {
                             />
                           </td>
 
-                          {/* Department Name & Description */}
+                          {/* Department Name */}
                           <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-[#E8F8EE] text-[#163A2E] shadow-2xs">
-                                <Building2 className="size-4.5 text-[#163A2E]" />
+                            <div className="flex items-center gap-2.5 min-w-0 max-w-[220px]">
+                              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-emerald-100 bg-[#E8F8EE] text-[#163A2E] shadow-2xs">
+                                <Building2 className="size-4 text-[#163A2E]" />
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setDrawer({ id: department.id, mode: 'view' })}
-                                  className="font-bold text-sm text-slate-900 hover:text-emerald-700 transition-colors truncate block text-left cursor-pointer"
-                                  title={`View details for ${department.name}`}
-                                >
-                                  {department.name}
-                                </button>
-                                <p
-                                  className="text-xs text-slate-400 truncate max-w-xs sm:max-w-sm md:max-w-md mt-0.5"
-                                  title={department.description || 'No description added'}
-                                >
-                                  {department.description || 'No description added.'}
-                                </p>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setDrawer({ id: department.id, mode: 'view' })}
+                                className="font-semibold text-xs text-slate-900 hover:text-emerald-700 transition-colors truncate block text-left cursor-pointer"
+                                title={`View details for ${department.name}`}
+                              >
+                                {department.name}
+                              </button>
                             </div>
                           </td>
+
+                          {/* Description */}
+                          {visibleColumns.description && (
+                            <td className="px-4 py-3.5 min-w-[200px] max-w-[320px]">
+                              <TruncatedText
+                                value={department.description}
+                                maxWidth="max-w-[300px]"
+                                className="text-xs text-slate-500"
+                                label="Department Description"
+                              />
+                            </td>
+                          )}
 
                           {/* Department Code */}
                           {visibleColumns.code && (
