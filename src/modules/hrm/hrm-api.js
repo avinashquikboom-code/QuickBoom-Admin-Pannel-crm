@@ -567,8 +567,37 @@ export function removeShift(id) {
   return api.delete(`/shifts/${id}`);
 }
 
-export function assignShift(id, employeeIds) {
-  return api.post(`/shifts/${id}/assign`, { employeeIds: employeeIds.map(Number) });
+export function assignShift(id, employeeIds, options = {}) {
+  const body = {
+    employeeIds: employeeIds.map(Number),
+    ...(options.reason ? { reason: options.reason } : {}),
+    ...(options.effectiveFrom ? { effectiveFrom: options.effectiveFrom } : {}),
+  };
+  return api.post(`/shifts/${id}/assign`, body);
+}
+
+export function unassignShift(id, employeeIds, reason) {
+  const body = {
+    employeeIds: employeeIds.map(Number),
+    ...(reason ? { reason } : {}),
+  };
+  return api.post(id ? `/shifts/${id}/unassign` : '/shifts/unassign', body);
+}
+
+export async function loadShiftHistory(params = {}) {
+  const payload = await api.get('/shifts/history', { params });
+  return {
+    rows: listFrom(payload),
+    pagination: payload?.pagination || payload?.meta || { total: listFrom(payload).length },
+  };
+}
+
+export async function loadEmployeeShiftHistory(employeeId) {
+  const payload = await api.get(`/shifts/history/${employeeId}`);
+  return {
+    rows: listFrom(payload),
+    pagination: payload?.pagination || payload?.meta || { total: listFrom(payload).length },
+  };
 }
 
 export async function loadRemoteRequests(params = {}) {
@@ -863,7 +892,7 @@ export const missingHrmApis = {
   announcements: '',
   attendanceCorrection: 'The attendance API records punch in, punch out, and breaks. It does not provide an admin correction endpoint.',
   breakPolicy: 'Break history comes from live attendance. There is no separate break-policy configuration API.',
-  shiftHistory: 'Shift assignment is current. The API does not return a separate shift-change history.',
+  shiftHistory: '',
   loanRepayment: 'Loan records include EMI, tenure, and remaining balance. There is no repayment-transaction history API.',
   loanTypeField: 'Loan types come from master data. A loan record does not store a loan-type id, so the selected scheme is saved in the loan notes with its rate and tenure.',
   loanPayroll: 'Approving a loan stores EMI and remaining balance. Payroll does not expose a separate loan-deduction posting API.',
