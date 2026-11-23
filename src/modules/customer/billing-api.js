@@ -84,8 +84,11 @@ export async function loadPlans() {
 }
 
 export const deactivateSubscription = (id) => api.post(`/admin/subscriptions/${id}/deactivate`);
+export const activateSubscription = (id) => api.post(`/admin/subscriptions/${id}/activate`);
 export const renewSubscription = (id) => api.post(`/admin/subscriptions/${id}/renew`);
 export const changeSubscriptionPlan = (id, newPlanId) => api.post(`/admin/subscriptions/${id}/change-plan`, { newPlanId: Number(newPlanId) });
+export const deleteSubscription = (id) => api.delete(`/admin/subscriptions/${id}`);
+export const bulkDeleteSubscriptions = (ids) => api.post('/admin/subscriptions/bulk-delete', { ids });
 
 export async function loadOfflineRequests(params = {}) {
   const payload = await api.get('/admin/offline-requests', { params });
