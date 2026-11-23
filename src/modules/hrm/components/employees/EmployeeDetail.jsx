@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/common/Avatar'
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/common/Button';
 import { toast } from '@/hooks/use-toast';
-import { faIndianRupeeSign, faLocationDot, faPhone, faUser, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
+import { faClock, faIndianRupeeSign, faLocationDot, faPhone, faUser, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
 import { faCalendar, faEnvelope } from '@fortawesome/free-regular-svg-icons';
 export function EmployeeDetail({ employee, open, onOpenChange, }) {
     if (!employee)
@@ -102,6 +102,15 @@ export function EmployeeDetail({ employee, open, onOpenChange, }) {
                 </span>
                 <span className="font-semibold text-slate-900">
                   {employee.joinDate}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-slate-500">
+                  <FontAwesomeIcon icon={faClock} className="size-4 text-brand shrink-0"/>
+                  Assigned Shift
+                </span>
+                <span className="font-semibold text-slate-900">
+                  {employee.shift || employee.shiftName || (employee.shiftObj?.name ? `${employee.shiftObj.name} (${employee.shiftObj.startTime} - ${employee.shiftObj.endTime})` : 'Not assigned')}
                 </span>
               </div>
             </div>

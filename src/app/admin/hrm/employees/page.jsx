@@ -74,13 +74,12 @@ export default function EmployeesPage() {
     const [assignmentError, setAssignmentError] = React.useState('');
     React.useEffect(() => {
         let active = true;
-        if (!wizardOpen && !editEmployee) return;
         setAssignmentError('');
         Promise.all([loadOffices(), loadShifts()]).then(([officeRows, shiftResult]) => {
             if (active) { setOffices(officeRows); setShifts(shiftResult.rows); }
         }).catch((err) => { if (active) setAssignmentError(hrmError(err)); });
         return () => { active = false; };
-    }, [wizardOpen, editEmployee]);
+    }, [refresh]);
     const [saving, setSaving] = React.useState(false);
     const [canEdit, setCanEdit] = React.useState(false);
     const [canDelete, setCanDelete] = React.useState(false);
@@ -174,6 +173,7 @@ export default function EmployeesPage() {
       {!loading && !error && (
         <EmployeeTable
           employees={employees}
+          shifts={shifts}
           onSelectEmployee={handleSelectEmployee}
           onEditEmployee={(employee) => {
             setEditEmployee(employee);
