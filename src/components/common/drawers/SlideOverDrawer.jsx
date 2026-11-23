@@ -106,7 +106,13 @@ export function SlideOverDrawer({
                     iconColor
                   )}
                 >
-                  {icon}
+                  {React.isValidElement(icon) ? (
+                    icon
+                  ) : typeof icon === 'object' && icon !== null && (icon.iconName || icon.prefix) ? (
+                    <FontAwesomeIcon icon={icon} className="text-base" />
+                  ) : (
+                    icon
+                  )}
                 </div>
               )}
               <div className="min-w-0">

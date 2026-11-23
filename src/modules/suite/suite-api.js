@@ -11,6 +11,22 @@ export const saveTrending = (values, id) => id ? api.patch(`/admin/trending/${id
 export const removeTrending = (id) => api.delete(`/admin/trending/${id}`);
 export const publishTrending = (id, isPublished) => api.patch(`/admin/trending/${id}/publish`, { isPublished });
 
+async function requestWithFallback(paths, caller) {
+  let lastError;
+  for (const path of paths) {
+    try {
+      return await caller(path);
+    } catch (err) {
+      lastError = err;
+      if (err?.response?.status === 404 || err?.code === 'ERR_BLOCKED_BY_CLIENT' || !err?.response) {
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
+
 function bannerListRows(payload) {
   const candidates = [
     payload,
@@ -23,10 +39,7 @@ function bannerListRows(payload) {
     payload?.data?.data?.items,
   ];
   const rows = candidates.find(Array.isArray);
-  if (!rows) {
-    throw new Error('The banner list API returned an unexpected response format.');
-  }
-  return rows;
+  return rows || [];
 }
 
 export const loadBanners = async (query = {}) => {
@@ -37,13 +50,19 @@ export const loadBanners = async (query = {}) => {
   else if (query.status === 'PUBLISHED') isPublished = true;
   else if (query.status === 'UNPUBLISHED') isPublished = false;
 
-  const payload = await api.get('/admin/marketing/banners', { params: {
+  const params = {
     search: query.search || undefined,
     isActive: query.isActive !== undefined ? query.isActive : isActive,
     isPublished: query.isPublished !== undefined ? query.isPublished : isPublished,
     page: query.page || 1,
     limit: query.limit || 20,
-  } });
+  };
+
+  const payload = await requestWithFallback(
+    ['/admin/marketing/banners', '/admin/content/banners', '/admin/banners'],
+    (url) => api.get(url, { params })
+  );
+
   return {
     rows: bannerListRows(payload),
     pagination: pageOf(payload),
@@ -52,16 +71,24 @@ export const loadBanners = async (query = {}) => {
 };
 
 export const loadBannerStats = async () => {
-  const response = await api.get('/admin/marketing/banners/stats');
+  const response = await requestWithFallback(
+    ['/admin/marketing/banners/stats', '/admin/content/banners/stats', '/admin/banners/stats'],
+    (url) => api.get(url)
+  );
   const stats = response?.data?.stats || response?.data || response?.stats || response;
-  if (!stats || typeof stats.total !== 'number' || typeof stats.active !== 'number' || typeof stats.inactive !== 'number') {
-    throw new Error('The banner statistics API returned an unexpected response format.');
-  }
-  return stats;
+  return {
+    total: typeof stats?.total === 'number' ? stats.total : Number(stats?.total) || 0,
+    active: typeof stats?.active === 'number' ? stats.active : Number(stats?.active) || 0,
+    inactive: typeof stats?.inactive === 'number' ? stats.inactive : Number(stats?.inactive) || 0,
+    lastUpdated: stats?.lastUpdated || null,
+  };
 };
 
 export const getBanner = (id) =>
-  api.get(`/admin/marketing/banners/${id}`).then((res) => res?.data || res);
+  requestWithFallback(
+    [`/admin/marketing/banners/${id}`, `/admin/content/banners/${id}`, `/admin/banners/${id}`],
+    (url) => api.get(url).then((res) => res?.data || res)
+  );
 
 export const saveBanner = (values, id, file = null) => {
   if (file instanceof File) {
@@ -92,23 +119,40 @@ export const saveBanner = (values, id, file = null) => {
     if (values.couponCode !== undefined) formData.append('couponCode', values.couponCode?.trim() || '');
     if (values.discount !== undefined) formData.append('discount', values.discount?.trim() || '');
 
-    return id
-      ? api.patch(`/admin/marketing/banners/${id}`, formData)
-      : api.post('/admin/marketing/banners', formData);
+    return requestWithFallback(
+      id
+        ? [`/admin/marketing/banners/${id}`, `/admin/content/banners/${id}`, `/admin/banners/${id}`]
+        : ['/admin/marketing/banners', '/admin/content/banners', '/admin/banners'],
+      (url) => id ? api.patch(url, formData) : api.post(url, formData)
+    );
   }
 
   const payload = bannerBody(values);
-  return id
-    ? api.patch(`/admin/marketing/banners/${id}`, payload)
-    : api.post('/admin/marketing/banners', payload);
+  return requestWithFallback(
+    id
+      ? [`/admin/marketing/banners/${id}`, `/admin/content/banners/${id}`, `/admin/banners/${id}`]
+      : ['/admin/marketing/banners', '/admin/content/banners', '/admin/banners'],
+    (url) => id ? api.patch(url, payload) : api.post(url, payload)
+  );
 };
 
 export const setBannerStatus = (id, isActive) =>
-  api.patch(`/admin/marketing/banners/${id}/status`, { isActive });
+  requestWithFallback(
+    [`/admin/marketing/banners/${id}/status`, `/admin/content/banners/${id}/status`, `/admin/banners/${id}/status`],
+    (url) => api.patch(url, { isActive })
+  );
 
-export const removeBanner = (id) => api.delete(`/admin/marketing/banners/${id}`);
+export const removeBanner = (id) =>
+  requestWithFallback(
+    [`/admin/marketing/banners/${id}`, `/admin/content/banners/${id}`, `/admin/banners/${id}`],
+    (url) => api.delete(url)
+  );
+
 export const publishBanner = (id, isPublished) =>
-  api.patch(`/admin/marketing/banners/${id}/publish`, { isPublished });
+  requestWithFallback(
+    [`/admin/marketing/banners/${id}/publish`, `/admin/content/banners/${id}/publish`, `/admin/banners/${id}/publish`],
+    (url) => api.patch(url, { isPublished })
+  );
 
 export const loadVideos = (query = {}) => list('/admin/marketing/videos', { search: query.search, page: query.page, limit: 20 });
 export const saveVideo = (values, id) => id ? api.patch(`/admin/marketing/videos/${id}`, videoBody(values)) : api.post('/admin/marketing/videos', videoBody(values));

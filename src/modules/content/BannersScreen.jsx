@@ -875,7 +875,7 @@ export function BannersScreen() {
                   </td>
                 </tr>
               ) : (
-                banners.map((banner) => {
+                (banners || []).filter(Boolean).map((banner) => {
                   const img = banner.imageUrl || banner.image;
                   const isSelected = selectedIds.has(banner.id);
                   return (
@@ -911,8 +911,6 @@ export function BannersScreen() {
                                 className="size-full object-cover group-hover:scale-105 transition-transform duration-200"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
-                                  e.currentTarget.parentElement.classList.add('flex', 'items-center', 'justify-center');
-                                  e.currentTarget.parentElement.innerHTML = '<span class="text-slate-400 text-xs">No img</span>';
                                 }}
                               />
                             ) : (
@@ -1135,7 +1133,7 @@ export function BannersScreen() {
             )}
           </div>
         ) : (
-          banners.map((banner) => {
+          (banners || []).filter(Boolean).map((banner) => {
             const img = banner.imageUrl || banner.image;
             return (
               <div
@@ -1281,7 +1279,7 @@ export function BannersScreen() {
         onClose={() => setIsFormOpen(false)}
         title={editingBanner ? 'Edit Promotional Banner' : 'Create New Promotional Banner'}
         subtitle="Configure banner creative, target action, and scheduling."
-        icon={editingBanner ? faPenToSquare : faPlus}
+        icon={<FontAwesomeIcon icon={editingBanner ? faPenToSquare : faPlus} className="text-base" />}
         isDirty={isFormDirty}
         placement="left"
         widthClass="w-full md:w-[85vw] lg:w-[800px] lg:max-w-[85vw]"
