@@ -102,12 +102,6 @@ export const marketingNavigation = [
         children: contentNavigation,
     },
     {
-        name: "Business Ads",
-        icon: faArrowTrendUp,
-        href: '/admin/business-growth',
-        children: businessGrowthNavigation,
-    },
-    {
         name: 'WhatsApp Marketing',
         icon: MessageSquare,
         href: '/admin/sections/meta-templates',
