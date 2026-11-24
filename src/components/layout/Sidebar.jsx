@@ -54,7 +54,7 @@ const groups = [
     { name: 'CRM', icon: faUser, items: crm },
     { name: 'Customers', icon: faFileLines, items: customer },
     { name: 'Marketing', icon: Megaphone, items: marketingNavigation },
-    { name: 'Business Growth', icon: faArrowTrendUp, items: businessGrowthNavigation },
+    { name: 'Business Ads', icon: faArrowTrendUp, items: businessGrowthNavigation },
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
     { name: 'Reports', icon: faChartBar, href: '/admin/reports' },

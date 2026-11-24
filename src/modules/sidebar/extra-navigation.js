@@ -102,7 +102,7 @@ export const marketingNavigation = [
         children: contentNavigation,
     },
     {
-        name: 'Business Growth',
+        name: "Business Ads",
         icon: faArrowTrendUp,
         href: '/admin/business-growth',
         children: businessGrowthNavigation,

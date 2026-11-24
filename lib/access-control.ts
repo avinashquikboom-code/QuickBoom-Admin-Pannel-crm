@@ -220,8 +220,8 @@ export const adminNavigation: {
 
     // 10. Business Growth
     {
-      id: 'business-growth',
-      category: 'Business Growth',
+      id: 'business-ads',
+      category: 'Business Ads',
       sectionIcon: TrendingUp,
       roles: ['Super Admin'],
       items: [
