@@ -90,7 +90,7 @@ export async function listLeadPage(params = {}) {
 export async function loadLeads(params = {}) {
   const [list, metrics, sources] = await Promise.all([
     api.get('/leads', { params }),
-    api.get('/leads/metrics'),
+    params.includeCounts ? Promise.resolve(null) : api.get('/leads/metrics'),
     api.get('/master/lead-sources'),
   ]);
   return { rows: await withCapturePhotos(listFrom(list)), metrics: bodyOf(metrics), sources: listFrom(sources), pagination: pageOf(list) };
