@@ -428,7 +428,7 @@ export function MetaTemplateCreate() {
                       placeholder={
                         form.headerType === 'TEXT'
                           ? 'Important Update'
-                          : 'https://example.com/sample.pdf'
+                          : form.headerType === 'IMAGE' ? 'https://example.com/image.jpg' : form.headerType === 'VIDEO' ? 'https://example.com/video.mp4' : 'https://example.com/document.pdf'
                       }
                       maxLength={form.headerType === 'TEXT' ? 60 : undefined}
                       className="border-slate-300 focus-visible:ring-emerald-500"
