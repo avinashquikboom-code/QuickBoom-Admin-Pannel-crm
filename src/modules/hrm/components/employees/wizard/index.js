@@ -1,7 +1,7 @@
 // Export all wizard components for easy access
 export { EmployeeRegistrationWizard } from './EmployeeRegistrationWizard';
-export { WizardStepIndicator } from './WizardStepIndicator';
-export { FormField, InputField } from './FormField';
+export { WizardStepIndicator, DesktopStepNavigation, MobileStepNavigation, STEPS } from './WizardStepIndicator';
+export { FormField, InputField, SearchableSelect, SectionHeader } from './FormField';
 export { Step1PersonalInfo } from './Step1PersonalInfo';
 export { Step2EmploymentInfo } from './Step2EmploymentInfo';
 export { Step3OrganizationSalary } from './Step3OrganizationSalary';
