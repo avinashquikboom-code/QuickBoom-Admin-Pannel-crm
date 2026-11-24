@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { MessageSquare, Mail, Megaphone, Video } from 'lucide-react';
 import {
     faBriefcase,
@@ -54,21 +54,30 @@ const groups = [
     { name: 'CRM', icon: faUser, items: crm },
     { name: 'Customers', icon: faFileLines, items: customer },
     { name: 'Marketing', icon: Megaphone, items: marketingNavigation },
-    { name: 'Business Ads', icon: faArrowTrendUp, href: '/admin/business-growth' },
+    { name: 'Business Ads', icon: faArrowTrendUp, items: businessGrowthNavigation },
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
     { name: 'Reports', icon: faChartBar, href: '/admin/reports' },
     { name: 'Settings', icon: faGear, items: settingsNavigation },
 ];
 
-function isActive(item, pathname) {
+function isActive(item, pathname, currentSearch = '') {
+    if (!item?.href) return false;
+    if (item.href.includes('?')) {
+        const [itemPath, itemQuery] = item.href.split('?');
+        if (pathname !== itemPath) return false;
+        if (!currentSearch) {
+            return itemQuery.includes('overview') || itemQuery === 'tab=overview';
+        }
+        return currentSearch === itemQuery || currentSearch.includes(itemQuery);
+    }
     if (item.matchExact) return pathname === item.href;
     return pathname === item.href || pathname.startsWith(item.href + '/');
 }
 
-function itemActive(item, pathname) {
-    if (item.children) return item.children.some((child) => isActive(child, pathname));
-    return isActive(item, pathname);
+function itemActive(item, pathname, currentSearch = '') {
+    if (item.children) return item.children.some((child) => isActive(child, pathname, currentSearch));
+    return isActive(item, pathname, currentSearch);
 }
 
 function handleSidebarNavigation(event, href, onNavigate, router) {
@@ -92,9 +101,9 @@ function SidebarIcon({ icon, size = 16, className }) {
     return <IconComponent size={size} className={cn('shrink-0', className)} />;
 }
 
-function NavLink({ item, pathname, collapsed, onNavigate }) {
+function NavLink({ item, pathname, currentSearch = '', collapsed, onNavigate }) {
     const router = useRouter();
-    const active = isActive(item, pathname);
+    const active = isActive(item, pathname, currentSearch);
     return (
         <Link
             href={item.href}
@@ -131,21 +140,22 @@ function NavLink({ item, pathname, collapsed, onNavigate }) {
     );
 }
 
-function NavExpandableItem({ item, pathname, collapsed, onNavigate }) {
-    const childActive = item.children.some((child) => isActive(child, pathname));
-    const parentActive = item.href ? isActive(item, pathname) : childActive;
+function NavExpandableItem({ item, pathname, currentSearch = '', collapsed, onNavigate }) {
+    const childActive = item.children.some((child) => isActive(child, pathname, currentSearch));
+    const parentActive = item.href ? isActive(item, pathname, currentSearch) : childActive;
     const [open, setOpen] = React.useState(parentActive || childActive);
     const contentId = React.useId();
 
     React.useEffect(() => {
         if (childActive || parentActive) setOpen(true);
-    }, [pathname, childActive, parentActive]);
+    }, [pathname, currentSearch, childActive, parentActive]);
 
     if (collapsed) {
         return (
             <NavLink
                 item={{ ...item, href: item.href || item.children[0]?.href }}
                 pathname={pathname}
+                currentSearch={currentSearch}
                 collapsed
                 onNavigate={onNavigate}
             />
@@ -183,25 +193,25 @@ function NavExpandableItem({ item, pathname, collapsed, onNavigate }) {
                 className={cn('ml-3 space-y-0.5 border-l border-slate-200 py-1 pl-2', !open && 'hidden')}
             >
                 {item.children.map((child) => (
-                    <NavLink key={child.href} item={child} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
+                    <NavLink key={child.href} item={child} pathname={pathname} currentSearch={currentSearch} collapsed={false} onNavigate={onNavigate} />
                 ))}
             </div>
         </div>
     );
 }
 
-function NavItems({ items, pathname, collapsed, onNavigate }) {
+function NavItems({ items, pathname, currentSearch = '', collapsed, onNavigate }) {
     return items.map((item) =>
         item.children ? (
-            <NavExpandableItem key={item.name} item={item} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+            <NavExpandableItem key={item.name} item={item} pathname={pathname} currentSearch={currentSearch} collapsed={collapsed} onNavigate={onNavigate} />
         ) : (
-            <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} onNavigate={onNavigate} />
+            <NavLink key={item.href} item={item} pathname={pathname} currentSearch={currentSearch} collapsed={collapsed} onNavigate={onNavigate} />
         )
     );
 }
-function FlatLink({ group, pathname, collapsed, onNavigate }) {
+function FlatLink({ group, pathname, currentSearch = '', collapsed, onNavigate }) {
     const router = useRouter();
-    const active = isActive(group, pathname);
+    const active = isActive(group, pathname, currentSearch);
     return (
         <Link
             href={group.href}
@@ -226,19 +236,22 @@ function FlatLink({ group, pathname, collapsed, onNavigate }) {
     );
 }
 
-function NavGroup({ group, pathname, collapsed, onNavigate }) {
-    const containsActive = group.items.some((item) => itemActive(item, pathname));
+function NavGroup({ group, pathname, currentSearch = '', collapsed, onNavigate }) {
+    const containsActive = group.items.some((item) => {
+        if (pathname === '/admin/business-growth' && group.name === 'Business Ads') return true;
+        return itemActive(item, pathname, currentSearch);
+    });
     const [open, setOpen] = React.useState(containsActive);
     const contentId = React.useId();
 
     React.useEffect(() => {
         if (containsActive) setOpen(true);
-    }, [pathname, containsActive]);
+    }, [pathname, currentSearch, containsActive]);
 
     if (collapsed) {
         return (
             <div className="space-y-1 border-t border-slate-100 pt-2">
-                <NavItems items={group.items} pathname={pathname} collapsed onNavigate={onNavigate} />
+                <NavItems items={group.items} pathname={pathname} currentSearch={currentSearch} collapsed onNavigate={onNavigate} />
             </div>
         );
     }
@@ -268,7 +281,7 @@ function NavGroup({ group, pathname, collapsed, onNavigate }) {
                 hidden={!open}
                 className={cn('ml-6 space-y-0.5 border-l border-slate-200 py-1 pl-3', !open && 'hidden')}
             >
-                <NavItems items={group.items} pathname={pathname} collapsed={false} onNavigate={onNavigate} />
+                <NavItems items={group.items} pathname={pathname} currentSearch={currentSearch} collapsed={false} onNavigate={onNavigate} />
             </div>
         </section>
     );
@@ -284,6 +297,8 @@ export function Sidebar(props) {
 
 function SidebarContent({ className = '', onNavigate }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const currentSearch = searchParams ? searchParams.toString() : '';
     const router = useRouter();
     const [mounted, setMounted] = React.useState(false);
     const { collapsed, setCollapsed } = useSidebarStore();
@@ -367,6 +382,7 @@ function SidebarContent({ className = '', onNavigate }) {
                                 key={group.name}
                                 group={group}
                                 pathname={pathname}
+                                currentSearch={currentSearch}
                                 collapsed={isCollapsed}
                                 onNavigate={onNavigate}
                             />
@@ -375,6 +391,7 @@ function SidebarContent({ className = '', onNavigate }) {
                                 key={group.name}
                                 group={group}
                                 pathname={pathname}
+                                currentSearch={currentSearch}
                                 collapsed={isCollapsed}
                                 onNavigate={onNavigate}
                             />

@@ -475,7 +475,7 @@ export default function LoansPage() {
                 className="h-9 gap-1.5 rounded-xl bg-[#16A34A] px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-[#15803D]"
               >
                 <Plus className="size-3.5" />
-                <span>New Loan</span>
+                <span>Apply For Loan</span>
               </Button>
             )}
           </div>
@@ -703,7 +703,7 @@ export default function LoansPage() {
                         className="mt-4 h-8 gap-1 rounded-xl bg-[#16A34A] px-3 text-xs text-white hover:bg-[#15803D]"
                       >
                         <Plus className="size-3" />
-                        <span>New Loan</span>
+                        <span>Apply For Loan</span>
                       </Button>
                     )}
                   </td>
@@ -1037,7 +1037,7 @@ export default function LoansPage() {
       <FormDrawer
         open={formOpen}
         onOpenChange={setFormOpen}
-        title="New Loan Request"
+        title="Apply For Loan Request"
         description="Submit an employee loan or salary advance request with automatic EMI calculation."
         onSubmit={handleSubmitLoan}
         submitLabel={submittingLoan ? 'Submitting…' : 'Submit Loan'}
