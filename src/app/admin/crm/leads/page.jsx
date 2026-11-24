@@ -111,22 +111,6 @@ import {
 } from '@fortawesome/free-brands-svg-icons';
 import { cn } from '@/lib/utils';
 
-// Standard 12 lead stages from requirements + colors & aliases
-const STANDARD_STAGES = [
-  { key: 'NEW', name: 'New', color: '#0284C7', bgColor: '#E0F2FE', borderColor: '#BAE6FD', aliases: ['NEW'] },
-  { key: 'CONTACTED', name: 'Connected', color: '#0D9488', bgColor: '#CCFBF1', borderColor: '#99F6E4', aliases: ['CONNECTED', 'CONTACTED'] },
-  { key: 'DETAILS_SEND', name: 'Details Shared', color: '#4F46E5', bgColor: '#EEF2FF', borderColor: '#C7D2FE', aliases: ['DETAILS_SHARED', 'DETAILS_SEND', 'DETAILS_SENT'] },
-  { key: 'FOLLOW_UP', name: 'Follow-up', color: '#7C3AED', bgColor: '#F5F3FF', borderColor: '#DDD6FE', aliases: ['FOLLOW_UP', 'FOLLOW-UP', 'FOLLOWUP'] },
-  { key: 'VISIT_SCHEDULED', name: 'Visit Scheduled', color: '#0891B2', bgColor: '#ECFEFF', borderColor: '#A5F3FC', aliases: ['VISIT_SCHEDULED'] },
-  { key: 'VISIT_DONE', name: 'Visit Completed', color: '#10B981', bgColor: '#D1FAE5', borderColor: '#A7F3D0', aliases: ['VISIT_COMPLETED', 'VISIT_DONE'] },
-  { key: 'RE_FOLLOW_UP', name: 'Re-follow-up', color: '#8B5CF6', bgColor: '#EDE9FE', borderColor: '#DDD6FE', aliases: ['RE_FOLLOW_UP', 'RE-FOLLOW-UP', 'REFOLLOWUP'] },
-  { key: 'PROPOSAL_SENT', name: 'Proposal Sent', color: '#2563EB', bgColor: '#EFF6FF', borderColor: '#BFDBFE', aliases: ['PROPOSAL_SENT', 'PROPOSAL'] },
-  { key: 'NEGOTIATION', name: 'Negotiation', color: '#F59E0B', bgColor: '#FFFBEB', borderColor: '#FDE68A', aliases: ['NEGOTIATION'] },
-  { key: 'FINAL_CALL', name: 'Final Call', color: '#EA580C', bgColor: '#FFF7ED', borderColor: '#FFEDD5', aliases: ['FINAL_CALL'] },
-  { key: 'WON', name: 'Won', color: '#16A34A', bgColor: '#DCFCE7', borderColor: '#BBF7D0', aliases: ['WON', 'CONVERTED', 'QUALIFIED'] },
-  { key: 'LOST', name: 'Lost', color: '#DC2626', bgColor: '#FFE4E6', borderColor: '#FECDD3', aliases: ['LOST', 'CANCELLED'] },
-];
-
 function filtersFrom(query) {
   return {
     leadId:
@@ -139,7 +123,10 @@ function filtersFrom(query) {
         ? new URLSearchParams(window.location.search).get('captureJobId') || undefined
         : undefined),
     search: query.search || undefined,
-    status: query.status || undefined,
+    status: query.stageId ? undefined : query.status || undefined,
+    stageId: query.stageId || undefined,
+    employeeIds: query.employeeIds || undefined,
+    departmentId: query.departmentId || undefined,
     priority: query.priority || undefined,
     source: query.source || undefined,
     assignedToId: query.assignedToId || undefined,
@@ -236,12 +223,6 @@ function StageBadge({ stage, status, stages = [] }) {
         String(s.key || '').toUpperCase() === normStatus ||
         s.name === stage?.name ||
         s.name?.toUpperCase() === normStatus
-    ) ||
-    STANDARD_STAGES.find(
-      (s) =>
-        s.key === normStatus ||
-        s.aliases.includes(normStatus) ||
-        s.name.toUpperCase() === normStatus
     );
 
   const name = stage?.name || match?.name || stageLabel(status, stages);
@@ -400,8 +381,10 @@ export default function LeadsRoute() {
   const [canDelete, setCanDelete] = React.useState(false);
   const [sources, setSources] = React.useState([]);
   const [employees, setEmployees] = React.useState([]);
+  const [filterEmployees, setFilterEmployees] = React.useState([]);
   const [departments, setDepartments] = React.useState([]);
   const [stages, setStages] = React.useState([]);
+  const [stageError, setStageError] = React.useState('');
   const [importOpen, setImportOpen] = React.useState(false);
   const [quickAssignOpen, setQuickAssignOpen] = React.useState(false);
   const [quickAssignLeads, setQuickAssignLeads] = React.useState([]);
@@ -420,6 +403,9 @@ export default function LeadsRoute() {
     priority: '',
     source: '',
     assignedToId: '',
+    employeeIds: '',
+    departmentId: '',
+    stageId: '',
     from: '',
     to: '',
     page: 1,
@@ -428,6 +414,8 @@ export default function LeadsRoute() {
 
   // Debounced search text
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [employeeSearch, setEmployeeSearch] = React.useState('');
+  const requestSequence = React.useRef(0);
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -446,6 +434,8 @@ export default function LeadsRoute() {
   // Selection
   const [selectedIds, setSelectedIds] = React.useState([]);
 
+  React.useEffect(() => { setSelectedIds([]); }, [query.search, query.status, query.stageId, query.employeeIds, query.departmentId, query.priority, query.source, query.from, query.to]);
+
   // Detail Dossier Drawer
   const [selectedLead, setSelectedLead] = React.useState(null);
 
@@ -463,8 +453,9 @@ export default function LeadsRoute() {
     setAllowed(sessionCan('LEADS') || sessionCan('CRM'));
     setCanDelete(sessionCan('LEADS') || sessionCan('CRM'));
     loadEmployees({ salesOnly: true }).then(setEmployees).catch(() => setEmployees([]));
+    (async () => { const all = []; for (let page = 1; page <= 100; page++) { const batch = await loadEmployees({ page, limit: 100 }); all.push(...batch); if (batch.length < 100) break; } setFilterEmployees(all.sort((a, b) => Number(/sales/i.test(b.department)) - Number(/sales/i.test(a.department)) || a.name.localeCompare(b.name))); })().catch(() => toast.error('Could not load employees.'));
     loadDepartments().then(setDepartments).catch(() => setDepartments([]));
-    loadLeadStages().then(setStages).catch(() => setStages([]));
+    loadLeadStages().then(setStages).catch(() => { setStages([]); setStageError('Could not load pipeline stages. Refresh the page to retry.'); });
 
     // Check URL parameters for direct filters
     if (typeof window !== 'undefined') {
@@ -484,28 +475,43 @@ export default function LeadsRoute() {
 
   // Fetch Leads
   const fetchLeads = React.useCallback(async () => {
+    const requestId = ++requestSequence.current;
     setLoading(true);
+    setError('');
     try {
       const result = await loadLeads({
         page: query.page,
         limit: query.limit || 20,
         ...filtersFrom(query),
+        includeCounts: true,
       });
+      if (requestId !== requestSequence.current) return;
+      if (!Array.isArray(result.pagination?.counts)) throw new Error('Pipeline counts are unavailable. Please retry.');
       setRows(result.rows || []);
       setPayload(result);
       setSources(result.sources || []);
       setError('');
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(crmError(err));
       setRows([]);
+      setPayload({});
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [query]);
 
   React.useEffect(() => {
     fetchLeads();
+    return () => { requestSequence.current += 1; };
   }, [fetchLeads, reloadKey]);
+
+  React.useEffect(() => {
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') setReloadKey((value) => value + 1); };
+    window.addEventListener('focus', refreshWhenVisible);
+    const timer = window.setInterval(refreshWhenVisible, 60000);
+    return () => { window.removeEventListener('focus', refreshWhenVisible); window.clearInterval(timer); };
+  }, []);
 
   // Combined source options
   const sourceOptions = React.useMemo(() => {
@@ -518,63 +524,16 @@ export default function LeadsRoute() {
     return stages.filter((stage) => stage.isActive !== false);
   }, [stages]);
 
-  // Combined Stage Cards: 12 Standard Stages + Any Extra Tenant Custom Stages
+  // The list endpoint groups the full filtered database set, excluding only stage.
   const combinedStageCards = React.useMemo(() => {
-    const serverStages = stages.filter((s) => s.isActive !== false);
-    const metricStages = Array.isArray(payload.metrics?.stages) ? payload.metrics.stages : [];
-
-    const standardWithCounts = STANDARD_STAGES.map((std) => {
-      const match = serverStages.find((s) => {
-        const k = String(s.key || '').toUpperCase();
-        const n = String(s.name || '').toUpperCase();
-        return std.aliases.some((a) => a === k || a === n) || s.name === std.name;
-      });
-
-      const metricMatch = metricStages.find((ms) => {
-        const n = String(ms.name || '').toUpperCase();
-        return std.aliases.some((a) => a === n) || ms.name === std.name || ms.id === match?.id;
-      });
-
-      let count = match?.leadsCount ?? metricMatch?.count;
-      if (count == null || count === 0) {
-        if (std.key === 'NEW' && payload.metrics?.new != null) count = payload.metrics.new;
-        else if (std.key === 'CONTACTED' && payload.metrics?.contacted != null) count = payload.metrics.contacted;
-        else if (std.key === 'WON' && payload.metrics?.converted != null) count = payload.metrics.converted;
-        else if (std.key === 'LOST' && payload.metrics?.lost != null) count = payload.metrics.lost;
-        else count = 0;
-      }
-
-      return {
-        key: match?.key || std.key,
-        name: std.name,
-        color: match?.color || std.color,
-        bgColor: match?.bgColor || std.bgColor,
-        borderColor: match?.borderColor || std.borderColor,
-        count: Number(count || 0),
-        aliases: std.aliases,
-      };
+    const counts = payload.pagination?.counts || [];
+    return activeStages.map((stage) => {
+      const canonical = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const aliases = [canonical(stage.key), canonical(stage.name)];
+      const count = counts.filter((row) => Number(row.stageId) === Number(stage.id) || (row.stageId == null && aliases.includes(canonical(row.status)))).reduce((sum, row) => sum + Number(row.count || 0), 0);
+      return { id: String(stage.id), key: stage.key, name: stage.name, color: stage.color || '#20C466', count };
     });
-
-    const extras = serverStages
-      .filter((s) => {
-        const k = String(s.key || '').toUpperCase();
-        const n = String(s.name || '').toUpperCase();
-        return !STANDARD_STAGES.some(
-          (std) => std.aliases.some((a) => a === k || a === n) || std.name.toUpperCase() === n
-        );
-      })
-      .map((s) => ({
-        key: s.key || s.name,
-        name: s.name,
-        color: s.color || '#20C466',
-        bgColor: s.bgColor || '#ECFDF5',
-        borderColor: s.borderColor || '#A7F3D0',
-        count: Number(s.leadsCount || 0),
-        aliases: [String(s.key || '').toUpperCase(), String(s.name || '').toUpperCase()],
-      }));
-
-    return [...standardWithCounts, ...extras];
-  }, [stages, payload.metrics]);
+  }, [activeStages, payload.pagination]);
 
   // Sorted Rows
   const sortedRows = React.useMemo(() => {
@@ -634,6 +593,9 @@ export default function LeadsRoute() {
       priority: '',
       source: '',
       assignedToId: '',
+      employeeIds: '',
+      departmentId: '',
+      stageId: '',
       from: '',
       to: '',
       page: 1,
@@ -648,7 +610,9 @@ export default function LeadsRoute() {
     query.status,
     query.priority,
     query.source,
-    query.assignedToId,
+    query.employeeIds,
+    query.departmentId,
+    query.stageId,
     query.from,
     query.to,
   ].filter(Boolean).length;
@@ -685,7 +649,7 @@ export default function LeadsRoute() {
   };
 
   // Metrics from API
-  const totalLeadsCount = payload.metrics?.total ?? payload.pagination?.total ?? rows.length;
+  const totalLeadsCount = (payload.pagination?.counts || []).reduce((sum, item) => sum + Number(item.count || 0), 0);
 
   return (
     <div className="space-y-5 pb-28 w-full min-w-0">
@@ -696,7 +660,7 @@ export default function LeadsRoute() {
         title="Leads"
         description="Create leads manually and manage existing CRM leads individually or in bulk."
         icon={Users}
-        badge={`${totalLeadsCount} Total`}
+        badge={loading ? 'Loading…' : error ? 'Counts unavailable' : `${totalLeadsCount} Total`}
         badgeVariant="green"
         actions={
           <>
@@ -754,10 +718,10 @@ export default function LeadsRoute() {
             <Layers className="size-3.5 text-[#20C466]" />
             Pipeline Stages Overview
           </span>
-          {query.status && (
+          {(query.status || query.stageId) && (
             <button
               type="button"
-              onClick={() => setQuery((p) => ({ ...p, status: '', page: 1 }))}
+              onClick={() => setQuery((p) => ({ ...p, status: '', stageId: '', page: 1 }))}
               className="text-[11px] font-semibold text-[#173D30] hover:underline flex items-center gap-1"
             >
               <RotateCcw className="size-3" />
@@ -766,14 +730,16 @@ export default function LeadsRoute() {
           )}
         </div>
 
+        {stageError && <p role="alert" className="text-xs text-red-700">{stageError}</p>}
+        {error && <p role="alert" className="text-xs text-red-700">Pipeline counts unavailable: {error}</p>}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-2.5">
           {/* Total Leads Card */}
           <button
             type="button"
-            onClick={() => setQuery((p) => ({ ...p, status: '', page: 1 }))}
+            onClick={() => setQuery((p) => ({ ...p, status: '', stageId: '', page: 1 }))}
             className={cn(
               'flex flex-col text-left p-3 rounded-xl border transition-all shadow-2xs',
-              !query.status
+              !query.status && !query.stageId
                 ? 'bg-emerald-50/70 border-[#20C466] ring-2 ring-[#20C466]/30 shadow-xs'
                 : 'bg-white border-slate-200/90 hover:border-emerald-300'
             )}
@@ -783,20 +749,14 @@ export default function LeadsRoute() {
               <span className="size-2 rounded-full bg-[#20C466]" />
             </div>
             <span className="text-xl font-bold text-[#173D30] tracking-tight">
-              {totalLeadsCount}
+              {loading ? '…' : error ? '—' : totalLeadsCount}
             </span>
             <span className="text-[10px] text-slate-400 mt-0.5">Across all stages</span>
           </button>
 
           {/* Dynamic 12 Lead Stages Cards + Extras */}
           {combinedStageCards.map((card) => {
-            const isSelected =
-              Boolean(query.status) &&
-              (query.status === card.key ||
-                card.aliases?.some(
-                  (a) => a.toUpperCase() === String(query.status).toUpperCase()
-                ) ||
-                String(query.status).toUpperCase() === card.name.toUpperCase());
+            const isSelected = query.stageId === card.id || (!query.stageId && query.status === card.key);
 
             return (
               <button
@@ -805,7 +765,8 @@ export default function LeadsRoute() {
                 onClick={() => {
                   setQuery((prev) => ({
                     ...prev,
-                    status: isSelected ? '' : card.key,
+                    status: '',
+                    stageId: isSelected ? '' : card.id,
                     page: 1,
                   }));
                 }}
@@ -833,7 +794,7 @@ export default function LeadsRoute() {
                   />
                 </div>
                 <span className="text-xl font-bold text-slate-900 tracking-tight">
-                  {card.count}
+                  {loading ? '…' : error ? '—' : card.count}
                 </span>
                 <span className="text-[10px] text-slate-400 mt-0.5">
                   {isSelected ? 'Filtered' : 'Click to filter'}
@@ -874,13 +835,13 @@ export default function LeadsRoute() {
           <div>
             <select
               aria-label="Filter by stage"
-              value={query.status}
-              onChange={(e) => setQuery({ ...query, status: e.target.value, page: 1 })}
+              value={query.stageId || combinedStageCards.find((stage) => stage.key === query.status)?.id || ''}
+              onChange={(e) => setQuery({ ...query, status: '', stageId: e.target.value, page: 1 })}
               className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#173D30]"
             >
               <option value="">All stages</option>
               {combinedStageCards.map((s) => (
-                <option key={s.name} value={s.key}>
+                <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
@@ -921,22 +882,20 @@ export default function LeadsRoute() {
             </select>
           </div>
 
-          {/* Employee Filter */}
-          <div>
-            <select
-              aria-label="Filter by Sales employee"
-              value={query.assignedToId}
-              onChange={(e) => setQuery({ ...query, assignedToId: e.target.value, page: 1 })}
-              className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#173D30]"
-            >
-              <option value="">All Sales employees</option>
-              {employees.map((emp) => (
-                <option key={emp.recordId} value={String(emp.recordId)}>
-                  {emp.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <details className="relative">
+            <summary className="h-9 cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">{query.employeeIds ? `${query.employeeIds.split(',').length} selected` : 'All employees'}</summary>
+            <div className="absolute right-0 z-30 mt-1 w-72 max-w-[85vw] rounded-xl border bg-white p-2 shadow-lg">
+              <Input aria-label="Search employees" placeholder="Search name, code or department" value={employeeSearch} onChange={(e) => setEmployeeSearch(e.target.value)} className="h-9 text-xs" />
+              <div className="max-h-56 overflow-y-auto py-1 text-xs">
+                <button type="button" className="w-full rounded px-2 py-2 text-left hover:bg-emerald-50" onClick={() => setQuery((prev) => ({ ...prev, employeeIds: '', page: 1 }))}>All Employees</button>
+                {[{ recordId: 'unassigned', name: 'Unassigned Leads' }, ...filterEmployees.filter((employee) => [employee.name, employee.employeeCode, employee.department].some((value) => String(value || '').toLowerCase().includes(employeeSearch.toLowerCase())))].map((employee) => {
+                  const id = String(employee.recordId); const selected = query.employeeIds.split(',').filter(Boolean);
+                  return <label key={id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-2 hover:bg-emerald-50"><input type="checkbox" checked={selected.includes(id)} onChange={() => setQuery((prev) => { const current = prev.employeeIds.split(',').filter(Boolean); return { ...prev, employeeIds: (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]).join(','), page: 1 }; })} /><span>{employee.name}{employee.employeeCode ? ` · ${employee.employeeCode}` : ''}{employee.department ? ` · ${employee.department}` : ''}</span></label>;
+                })}
+              </div>
+            </div>
+          </details>
+          <select aria-label="Filter by department" value={query.departmentId} onChange={(e) => setQuery({ ...query, departmentId: e.target.value, page: 1 })} className="h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs"><option value="">All departments</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select>
         </div>
 
         {/* Secondary filters row: Dates & Quick Action buttons */}
@@ -1004,11 +963,11 @@ export default function LeadsRoute() {
                 </button>
               </span>
             )}
-            {query.status && (
+            {(query.status || query.stageId) && (
               <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md text-[11px]">
-                Stage: {stageLabel(query.status, stages)}
+                Stage: {query.stageId ? stages.find((stage) => String(stage.id) === query.stageId)?.name : stageLabel(query.status, stages)}
                 <button
-                  onClick={() => setQuery({ ...query, status: '', page: 1 })}
+                  onClick={() => setQuery({ ...query, status: '', stageId: '', page: 1 })}
                   className="hover:text-rose-600"
                 >
                   <X className="size-3" />
@@ -1037,19 +996,7 @@ export default function LeadsRoute() {
                 </button>
               </span>
             )}
-            {query.assignedToId && (
-              <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded-md text-[11px]">
-                Assigned:{' '}
-                {employees.find((e) => String(e.recordId) === query.assignedToId)?.name ||
-                  query.assignedToId}
-                <button
-                  onClick={() => setQuery({ ...query, assignedToId: '', page: 1 })}
-                  className="hover:text-rose-600"
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
-            )}
+            {query.employeeIds && <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-purple-800">Assigned: {query.employeeIds.split(',').map((id) => id === 'unassigned' ? 'Unassigned' : filterEmployees.find((e) => String(e.recordId) === id)?.name || id).join(', ')} <button type="button" aria-label="Clear employee filter" onClick={() => setQuery({ ...query, employeeIds: '', page: 1 })}><X className="size-3" /></button></span>}
             {(query.from || query.to) && (
               <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px]">
                 Date: {query.from || 'Start'} to {query.to || 'Now'}

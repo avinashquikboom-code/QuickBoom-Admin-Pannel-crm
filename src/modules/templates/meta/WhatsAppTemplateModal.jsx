@@ -573,7 +573,7 @@ export function WhatsAppTemplateModal({
                     placeholder={
                       form.headerType === 'TEXT'
                         ? 'e.g. Important Account Notification'
-                        : 'https://example.com/assets/brochure.pdf'
+                        : form.headerType === 'IMAGE' ? 'https://example.com/image.jpg' : form.headerType === 'VIDEO' ? 'https://example.com/video.mp4' : 'https://example.com/document.pdf'
                     }
                     className="h-9 text-xs border-slate-200 focus-visible:ring-emerald-500 rounded-xl"
                   />
