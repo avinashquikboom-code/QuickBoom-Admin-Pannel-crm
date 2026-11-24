@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { ManualLeadDrawer } from '@/modules/crm/ManualLeadDrawer';
 import { GooglePlacesPanel } from '@/modules/data-capture/GooglePlacesPanel';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
@@ -38,7 +37,6 @@ import {
   Mail,
   MapPin,
   Phone,
-  Plus,
   Sparkles,
   UserCheck,
   UsersRound,
@@ -90,8 +88,6 @@ const blank = {
 };
 
 export default function DataCapturePage() {
-  const [leadOpen, setLeadOpen] = React.useState(false);
-  const [canAddLead, setCanAddLead] = React.useState(false);
   const [canDelete, setCanDelete] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const deleteBusy = React.useRef(false);
@@ -106,7 +102,6 @@ export default function DataCapturePage() {
 
   React.useEffect(() => {
     setAllowed(sessionCan('DATA_CAPTURE'));
-    setCanAddLead(sessionCan('LEADS') || sessionCan('CRM'));
     setCanDelete(sessionCanAction('DATA_CAPTURE', 'DELETE'));
   }, []);
 
@@ -244,15 +239,6 @@ export default function DataCapturePage() {
         blank={blank}
         extraHeaderActions={
           <div className="flex flex-wrap items-center gap-2">
-            {canAddLead && (
-              <Button
-                onClick={() => setLeadOpen(true)}
-                className="h-9 px-3.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold shadow-xs gap-1.5 transition-colors"
-              >
-                <Plus className="size-3.5" />
-                <span>Add Lead</span>
-              </Button>
-            )}
             {allowed && (
               <Button
                 onClick={() => {
@@ -273,7 +259,6 @@ export default function DataCapturePage() {
               setSelectedPlaces(null);
               setExtractOpen(true);
             }}
-            onAddLead={() => setLeadOpen(true)}
             allowed={allowed}
           />
         )}
@@ -604,7 +589,6 @@ export default function DataCapturePage() {
         confirmLabel={deleting ? 'Deleting…' : 'Delete'}
         onConfirm={confirmDelete}
       />
-      <ManualLeadDrawer open={leadOpen} onOpenChange={setLeadOpen} />
       <GooglePlacesPanel
         open={extractOpen}
         onOpenChange={setExtractOpen}
@@ -850,7 +834,7 @@ function ImportStatusBadge({ row }) {
   );
 }
 
-function CaptureEmptyState({ onFindPlaces, onAddLead, allowed }) {
+function CaptureEmptyState({ onFindPlaces, allowed }) {
   return (
     <div className="rounded-2xl border border-dashed border-[#DCE8E0] bg-white px-5 py-12 text-center shadow-sm sm:py-16">
       <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-[#EAF7EF] text-[#173D30]">
@@ -868,13 +852,6 @@ function CaptureEmptyState({ onFindPlaces, onAddLead, allowed }) {
           >
             <Sparkles className="mr-2 size-4" />
             Find Leads from Google
-          </Button>
-          <Button
-            onClick={onAddLead}
-            className="h-10 rounded-xl bg-[#173D30] hover:bg-[#123026] px-4 font-semibold text-white shadow-xs"
-          >
-            <Plus className="mr-2 size-4" />
-            Add Lead
           </Button>
         </div>
       )}
