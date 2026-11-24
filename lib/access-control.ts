@@ -218,17 +218,19 @@ export const adminNavigation: {
       ],
     },
 
-    // 10. Business Ad's
+    // 10. Business Growth
     {
-      id: 'business-ads',
-      category: "Business Ad's",
-      sectionIcon: Megaphone,
+      id: 'business-growth',
+      category: 'Business Growth',
+      sectionIcon: TrendingUp,
       roles: ['Super Admin'],
       items: [
-        { name: 'All Business Ads', href: '/admin/business-ads', icon: Megaphone },
-        { name: 'Business Banners', href: '/admin/business-ads/banners', icon: ImageIcon },
-        { name: 'Sponsored Videos', href: '/admin/business-ads/videos', icon: Video },
-        { name: 'Ad Approvals', href: '/admin/business-ads/approvals', icon: CheckSquare },
+        { name: 'Overview', href: '/admin/business-growth?tab=overview', icon: Layers },
+        { name: 'Google Ads', href: '/admin/business-growth?tab=google-ads', icon: Megaphone },
+        { name: 'Business Profile', href: '/admin/business-growth?tab=business-profile', icon: Building2 },
+        { name: 'Reviews & Ratings', href: '/admin/business-growth?tab=reviews', icon: Sparkles },
+        { name: 'Analytics', href: '/admin/business-growth?tab=analytics', icon: BarChart3 },
+        { name: 'Settings', href: '/admin/business-growth?tab=settings', icon: Settings },
       ],
     },
 

@@ -23,14 +23,14 @@ import {
     faVideo,
     faBolt,
     faIndustry,
-    faRectangleAd,
+    faArrowTrendUp,
 } from '@fortawesome/free-solid-svg-icons';
 import { navigation as crm } from '@/modules/crm/navigation';
 import { navigation as hrm } from '@/modules/hrm/navigation';
 import { navigation as customer } from '@/modules/customer/navigation';
 import {
     aiSocialNavigation,
-    businessAdsNavigation,
+    businessGrowthNavigation,
     contentNavigation,
     dataCaptureNavigation,
     emailMarketingNavigation,
@@ -54,7 +54,7 @@ const groups = [
     { name: 'CRM', icon: faUser, items: crm },
     { name: 'Customers', icon: faFileLines, items: customer },
     { name: 'Marketing', icon: Megaphone, items: marketingNavigation },
-    { name: "Business Ad's", icon: faRectangleAd, items: businessAdsNavigation },
+    { name: 'Business Growth', icon: faArrowTrendUp, items: businessGrowthNavigation },
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
     { name: 'Reports', icon: faChartBar, href: '/admin/reports' },
