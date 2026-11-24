@@ -482,39 +482,6 @@ export default function LoansPage() {
         }
       />
 
-      {/* ── 2. Info Banner & 4 KPI Statistics Cards ──────────────────────── */}
-      <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/60 via-white to-emerald-50/30 p-3.5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-100/80 text-[#16A34A] shrink-0">
-            <Coins className="size-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-slate-900">Workforce Loan & Salary Advances</span>
-              <span className="rounded-full bg-emerald-100 text-[#16A34A] text-[10px] font-bold px-2 py-0.2">Payroll Synced</span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Loan records track monthly EMI, tenure, and live balances with automatic payroll deduction synchronization.
-            </p>
-          </div>
-        </div>
-        {canManage && (
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              onClick={() => {
-                setForm(emptyForm);
-                setFormOpen(true);
-              }}
-              className="h-8 gap-1.5 rounded-xl bg-[#16A34A] px-3 text-xs font-semibold text-white shadow-xs hover:bg-[#15803D]"
-            >
-              <Plus className="size-3.5" />
-              <span>Apply For Loan</span>
-            </Button>
-          </div>
-        )}
-      </div>
-
       {/* ── 2. Compact 4 KPI Statistics Cards ────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Total Loans */}
