@@ -123,6 +123,7 @@ const FIELDS = {
   GOOGLE_BUSINESS_GROWTH: [
     { key: 'clientId', label: 'GOOGLE_CLIENT_ID' },
     { key: 'clientSecret', label: 'GOOGLE_CLIENT_SECRET', secret: true },
+    { key: 'refreshToken', label: 'Google OAuth refresh token', secret: true },
     { key: 'redirectUri', label: 'GOOGLE_REDIRECT_URI', group: 'config' },
     { key: 'developerToken', label: 'GOOGLE_ADS_DEVELOPER_TOKEN', secret: true },
     { key: 'apiVersion', label: 'GOOGLE_ADS_API_VERSION', group: 'config', defaultValue: 'v26' },
