@@ -184,6 +184,8 @@ export function WhatsAppTemplateModal({
   const [mediaProgress, setMediaProgress] = React.useState(0);
   const [mediaError, setMediaError] = React.useState('');
   const [mediaFile, setMediaFile] = React.useState(null);
+  const [mediaPreview, setMediaPreview] = React.useState('');
+  const [previewError, setPreviewError] = React.useState('');
   const mediaRequest = React.useRef(0);
   const mediaInput = React.useRef(null);
 
@@ -201,13 +203,33 @@ export function WhatsAppTemplateModal({
       const response = await api.post('/templates/meta/media/image', data, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress: (event) => { if (request === mediaRequest.current && event.total) setMediaProgress(Math.round(event.loaded * 100 / event.total)); } });
       if (request !== mediaRequest.current) return;
       const result = response?.data?.url ? response.data : response;
-      if (!result?.url || !/^https:\/\//i.test(result.url)) throw new Error('Storage did not return a valid image URL.');
-      patch('headerContent', result.url);
+      if (!result?.reference?.startsWith('s3key:') || !/^https:\/\//i.test(result.previewUrl || '')) throw new Error('Storage did not return a valid image reference.');
+      setMediaPreview(result.previewUrl);
+      patch('headerContent', result.reference);
     } catch (error) {
       if (request === mediaRequest.current) setMediaError(error?.response?.data?.message || error?.message || 'Upload failed. Please retry.');
     } finally { if (request === mediaRequest.current) setMediaUploading(false); }
   }
 
+
+  React.useEffect(() => {
+    let active = true;
+    setPreviewError('');
+    const reference = form.headerType === 'IMAGE' ? String(form.headerContent || '').trim() : '';
+    if (!isOpen || !reference) { setMediaPreview(''); return () => { active = false; }; }
+    if (!reference.startsWith('s3key:') && !reference.includes('/meta-templates/')) { setMediaPreview(reference); return () => { active = false; }; }
+    const refreshPreview = async () => {
+      try {
+        const payload = await api.post('/templates/meta/media/preview', { reference });
+        const body = payload?.data?.url ? payload.data : payload;
+        if (!body?.url) throw new Error('Image preview is unavailable.');
+        if (active) { setMediaPreview(body.url); setPreviewError(''); }
+      } catch (error) { if (active) { setMediaPreview(''); setPreviewError(error?.response?.data?.message || 'Image preview could not be loaded.'); } }
+    };
+    refreshPreview();
+    const timer = window.setInterval(refreshPreview, 45 * 60 * 1000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [form.headerContent, form.headerType, isOpen]);
 
   // Dynamic variable sample map for realistic preview - starts empty in Create Mode
   const [sampleVariables, setSampleVariables] = React.useState(() => template?.sampleValues || {});
@@ -231,7 +253,7 @@ export function WhatsAppTemplateModal({
   // Sync form state whenever modal opens or target template changes
   React.useEffect(() => {
     if (isOpen) {
-      mediaRequest.current += 1; setMediaUploading(false); setMediaError(''); setMediaFile(null); setMediaMode(template?.headerContent ? 'url' : 'upload');
+      mediaRequest.current += 1; setMediaUploading(false); setMediaError(''); setMediaFile(null); setMediaMode(template?.headerContent && !String(template.headerContent).startsWith('s3key:') && !String(template.headerContent).includes('/meta-templates/') ? 'url' : 'upload');
       if (isEdit && template) {
         setSampleVariables(template.sampleValues || {});
         setForm({
@@ -370,7 +392,7 @@ export function WhatsAppTemplateModal({
   function validate() {
     if (mediaUploading) return 'Wait for the image upload to finish.';
     if (form.headerType === 'IMAGE' && mediaError && mediaMode === 'upload') return 'Fix the image upload or retry before saving.';
-    if (form.headerType === 'IMAGE' && !/^https:\/\//i.test(form.headerContent.trim())) return 'Upload an image or enter an HTTPS image URL.';
+    if (form.headerType === 'IMAGE' && !/^(https:\/\/|s3key:meta-templates\/)/i.test(form.headerContent.trim())) return 'Upload an image or enter an HTTPS image URL.';
     if (!form.name.trim()) return 'Template Name is required.';
     if (!form.templateName.trim()) return 'Meta Template Name is required.';
     if (!/^[a-z0-9_]+$/.test(form.templateName.trim())) {
@@ -624,7 +646,7 @@ export function WhatsAppTemplateModal({
                   {mediaError && <p role="alert" className="mt-2 text-rose-700">{String(mediaError)} {mediaFile && <button type="button" className="underline" onClick={() => uploadImage(mediaFile)}>Retry</button>}</p>}
                   {form.headerContent && !mediaUploading && <button type="button" className="mt-2 text-rose-700 underline" onClick={() => { setMediaFile(null); patch('headerContent', ''); }}>Remove image</button>}
                 </div> : <Input value={form.headerContent} onChange={(e) => patch('headerContent', e.target.value)} placeholder="https://example.com/image.jpg" className="h-9 text-xs" />}
-                {form.headerContent && <img src={form.headerContent} alt="Header image preview" className="max-h-40 max-w-full rounded-lg object-contain" />}
+                {mediaPreview && <img src={mediaPreview} alt="Header image preview" onError={() => setPreviewError('Image preview could not be loaded. Check storage access or try uploading again.')} className="max-h-40 max-w-full rounded-lg object-contain" />}{previewError && <p role="alert" className="text-xs text-rose-700">{String(previewError)}</p>}
               </div>}
 
               {/* Row 3: Message Body */}
@@ -934,10 +956,10 @@ export function WhatsAppTemplateModal({
                           )}
                           {form.headerType === 'IMAGE' && (
                             <div className="h-28 w-full rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200 text-slate-400 text-xs">
-                              {form.headerContent ? (
+                              {mediaPreview ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
-                                  src={form.headerContent}
+                                  src={mediaPreview}
                                   alt="Header media"
                                   className="h-full w-full object-cover"
                                 />
