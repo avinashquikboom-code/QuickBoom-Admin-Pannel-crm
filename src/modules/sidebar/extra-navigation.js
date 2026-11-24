@@ -25,6 +25,8 @@ import {
     faMessage,
     faMoneyBill,
     faPlus,
+    faRectangleAd,
+    faCheckCircle,
     faShareNodes,
     faStar,
     faTags,
@@ -78,12 +80,25 @@ export const contentNavigation = [
     { name: 'Trending Content', href: '/admin/content/trending', icon: faChartBar },
 ];
 
+export const businessAdsNavigation = [
+    { name: 'All Business Ads', href: '/admin/business-ads', icon: faRectangleAd, matchExact: true },
+    { name: 'Business Banners', href: '/admin/business-ads/banners', icon: faImage },
+    { name: 'Sponsored Videos', href: '/admin/business-ads/videos', icon: faVideo },
+    { name: 'Ad Approvals', href: '/admin/business-ads/approvals', icon: faCheckCircle },
+];
+
 export const marketingNavigation = [
     {
         name: "In App Ad's",
         icon: Video,
         href: '/admin/content/trending',
         children: contentNavigation,
+    },
+    {
+        name: "Business Ad's",
+        icon: faRectangleAd,
+        href: '/admin/business-ads',
+        children: businessAdsNavigation,
     },
     {
         name: 'WhatsApp Marketing',

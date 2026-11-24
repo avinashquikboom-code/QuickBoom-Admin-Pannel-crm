@@ -218,6 +218,20 @@ export const adminNavigation: {
       ],
     },
 
+    // 10. Business Ad's
+    {
+      id: 'business-ads',
+      category: "Business Ad's",
+      sectionIcon: Megaphone,
+      roles: ['Super Admin'],
+      items: [
+        { name: 'All Business Ads', href: '/admin/business-ads', icon: Megaphone },
+        { name: 'Business Banners', href: '/admin/business-ads/banners', icon: ImageIcon },
+        { name: 'Sponsored Videos', href: '/admin/business-ads/videos', icon: Video },
+        { name: 'Ad Approvals', href: '/admin/business-ads/approvals', icon: CheckSquare },
+      ],
+    },
+
     // 10. Data Management
     {
       id: 'data-management',
