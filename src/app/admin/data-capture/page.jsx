@@ -14,7 +14,6 @@ import {
   faBan,
   faTrashCan,
   faPlus,
-  faFileImport,
   faMagnifyingGlass,
   faBuilding,
 } from '@fortawesome/free-solid-svg-icons';
@@ -41,7 +40,6 @@ import {
   Phone,
   Plus,
   Sparkles,
-  Upload,
   UserCheck,
   UsersRound,
   XCircle,
@@ -64,7 +62,6 @@ import {
   updateCapture,
   validateCapture,
 } from '@/modules/data-capture/capture-api';
-import { CsvLeadImportDialog } from '@/modules/data-capture/CsvLeadImportDialog';
 
 const STATUS_OPTIONS = [
   { value: 'CAPTURED', label: 'Pending / Captured' },
@@ -96,7 +93,6 @@ export default function DataCapturePage() {
   const [leadOpen, setLeadOpen] = React.useState(false);
   const [canAddLead, setCanAddLead] = React.useState(false);
   const [canDelete, setCanDelete] = React.useState(false);
-  const [canImportCsv, setCanImportCsv] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const deleteBusy = React.useRef(false);
   const [confirmation, setConfirmation] = React.useState(null);
@@ -105,7 +101,6 @@ export default function DataCapturePage() {
   const [usage, setUsage] = React.useState({});
   const [usageError, setUsageError] = React.useState(false);
   const [extractOpen, setExtractOpen] = React.useState(false);
-  const [csvImportOpen, setCsvImportOpen] = React.useState(false);
   const [selectedPlaces, setSelectedPlaces] = React.useState(null);
   const [refresh, setRefresh] = React.useState(0);
 
@@ -113,7 +108,6 @@ export default function DataCapturePage() {
     setAllowed(sessionCan('DATA_CAPTURE'));
     setCanAddLead(sessionCan('LEADS') || sessionCan('CRM'));
     setCanDelete(sessionCanAction('DATA_CAPTURE', 'DELETE'));
-    setCanImportCsv(sessionCanAction('DATA_CAPTURE', 'EDIT') && sessionCanAction('LEADS', 'CREATE'));
   }, []);
 
   React.useEffect(() => {
@@ -259,16 +253,6 @@ export default function DataCapturePage() {
                 <span>Add Lead</span>
               </Button>
             )}
-            {canImportCsv && (
-              <Button
-                variant="outline"
-                onClick={() => setCsvImportOpen(true)}
-                className="h-9 px-3.5 rounded-xl border-slate-200 bg-white hover:bg-[#EAF7EF]/50 hover:border-emerald-200 text-[#173D30] text-xs font-semibold gap-1.5 transition-colors"
-              >
-                <Upload className="size-3.5 text-slate-500" />
-                <span>Import CSV</span>
-              </Button>
-            )}
             {allowed && (
               <Button
                 onClick={() => {
@@ -289,7 +273,6 @@ export default function DataCapturePage() {
               setSelectedPlaces(null);
               setExtractOpen(true);
             }}
-            onImportCsv={() => setCsvImportOpen(true)}
             onAddLead={() => setLeadOpen(true)}
             allowed={allowed}
           />
@@ -628,11 +611,6 @@ export default function DataCapturePage() {
         initialPlaces={selectedPlaces}
         onImported={() => setRefresh((value) => value + 1)}
       />
-      <CsvLeadImportDialog
-        open={csvImportOpen}
-        onOpenChange={setCsvImportOpen}
-        onImported={() => setRefresh((value) => value + 1)}
-      />
     </>
   );
 }
@@ -872,7 +850,7 @@ function ImportStatusBadge({ row }) {
   );
 }
 
-function CaptureEmptyState({ onFindPlaces, onImportCsv, onAddLead, allowed }) {
+function CaptureEmptyState({ onFindPlaces, onAddLead, allowed }) {
   return (
     <div className="rounded-2xl border border-dashed border-[#DCE8E0] bg-white px-5 py-12 text-center shadow-sm sm:py-16">
       <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-[#EAF7EF] text-[#173D30]">
@@ -890,14 +868,6 @@ function CaptureEmptyState({ onFindPlaces, onImportCsv, onAddLead, allowed }) {
           >
             <Sparkles className="mr-2 size-4" />
             Find Leads from Google
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onImportCsv}
-            className="h-10 rounded-xl border-slate-200 px-4 font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Upload className="mr-2 size-4" />
-            Import CSV
           </Button>
           <Button
             onClick={onAddLead}
