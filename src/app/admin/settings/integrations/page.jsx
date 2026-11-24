@@ -65,6 +65,12 @@ const PRESENTATION = {
     categoryKey: 'PAYMENTS',
     description: 'Accept online customer payments, subscription billing, and automated webhooks.',
   },
+  GOOGLE_BUSINESS_GROWTH: {
+    name: 'Google Business Growth',
+    category: 'Maps & Location',
+    categoryKey: 'MAPS',
+    description: 'Configure Google OAuth and Google Ads credentials for Business Growth. The integration is not yet connected.',
+  },
   GOOGLE_MAPS: {
     name: 'Google Maps',
     category: 'Maps & Location',
@@ -114,6 +120,14 @@ const CATEGORIES = [
 ];
 
 const FIELDS = {
+  GOOGLE_BUSINESS_GROWTH: [
+    { key: 'clientId', label: 'GOOGLE_CLIENT_ID' },
+    { key: 'clientSecret', label: 'GOOGLE_CLIENT_SECRET', secret: true },
+    { key: 'redirectUri', label: 'GOOGLE_REDIRECT_URI', group: 'config' },
+    { key: 'developerToken', label: 'GOOGLE_ADS_DEVELOPER_TOKEN', secret: true },
+    { key: 'apiVersion', label: 'GOOGLE_ADS_API_VERSION', group: 'config', defaultValue: 'v26' },
+    { key: 'loginCustomerId', label: 'GOOGLE_ADS_LOGIN_CUSTOMER_ID', group: 'config' },
+  ],
   AWS: [
     { key: 'accessKeyId', label: 'Access Key ID', required: true },
     { key: 'secretAccessKey', label: 'Secret Access Key', secret: true, required: true },
@@ -266,7 +280,7 @@ export default function IntegrationsPage() {
     displayName: PRESENTATION[row.provider]?.name || row.displayName || row.provider,
     category: PRESENTATION[row.provider]?.category || row.category || 'Other',
     description: PRESENTATION[row.provider]?.description || `Connect ${row.displayName || row.provider} with QB Suite.`,
-    status: calculateStatus(row, tests[row.provider]),
+    status: row.provider === 'GOOGLE_BUSINESS_GROWTH' ? 'NOT_CONFIGURED' : calculateStatus(row, tests[row.provider]),
   }));
   const activeFields = activeRow ? FIELDS[activeRow.provider] || activeRow.fields || [] : [];
 
@@ -341,6 +355,13 @@ export default function IntegrationsPage() {
     if (saving) return;
     setSaving(true);
     try {
+      if (row.provider === 'GOOGLE_BUSINESS_GROWTH') {
+        await saveIntegration(row.provider, { ...payload, isEnabled: false });
+        setActiveRow(null);
+        setRefresh((v) => v + 1);
+        toast.success('Google settings saved. Business Growth integration is not yet connected.');
+        return;
+      }
       const safePayload = ['ANTHROPIC', 'ELEVENLABS'].includes(row.provider)
         ? { ...payload, config: { ...(row.config || {}), ...(payload.config || {}) } }
         : payload;
@@ -387,6 +408,10 @@ export default function IntegrationsPage() {
 
   // Live Test
   const handleTestConnection = async (row, explicitPayload = null) => {
+    if (row.provider === 'GOOGLE_BUSINESS_GROWTH') {
+      toast.error('Google Business Growth connection testing is not implemented yet.');
+      return;
+    }
     if (testing) return;
     if (!explicitPayload && (!row.configured || row.source === 'NONE' || row.status === 'NOT_CONFIGURED')) {
       toast.error('Configure this integration with valid credentials before testing.');
