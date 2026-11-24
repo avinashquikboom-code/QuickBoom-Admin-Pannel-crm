@@ -22,7 +22,7 @@ import {
   faCircleCheck,
 } from '@fortawesome/free-solid-svg-icons';
 import { toast } from '@/hooks/use-toast';
-import { envelope } from '../template-shared';
+import { confirmedTemplateOf, templateRecordOf } from './template-response.mjs';
 
 const CATEGORIES = [
   { value: 'UTILITY', label: 'UTILITY' },
@@ -451,16 +451,15 @@ export function WhatsAppTemplateModal({
       if (isEdit) {
         await api.put(`/templates/meta/${template.id}`, payload);
         if (submitToMeta) {
-          const result = envelope(await api.post(`/templates/meta/${template.id}/submit`, {}));
-          if (!result?.metaTemplateId) throw new Error('Meta did not confirm a template ID; check synchronization status.');
+          const result = confirmedTemplateOf(await api.post(`/templates/meta/${template.id}/submit`, {}));
           toast.success(`Meta template ${result.metaTemplateId}: ${result.status || 'UNKNOWN'}`);
         } else {
           toast.success('Template saved locally.');
         }
       } else {
-        const res = envelope(await api.post('/templates/meta', payload));
+        const response = await api.post('/templates/meta', payload);
+        const res = submitToMeta ? confirmedTemplateOf(response) : templateRecordOf(response);
         const status = res?.status || res?.metaStatus || 'UNKNOWN';
-        if (submitToMeta && !res?.metaTemplateId) throw new Error('Meta did not confirm a template ID; check synchronization status.');
         toast.success(
           submitToMeta
             ? `Meta template ${res.metaTemplateId}: ${status}`

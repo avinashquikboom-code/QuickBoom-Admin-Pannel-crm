@@ -62,6 +62,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { downloadCsv, envelope, pageOf, Pager, rowsOf } from '../template-shared';
+import { confirmedTemplateOf, templateRecordOf } from './template-response.mjs';
 import { MetaTemplateDetails, WhatsAppPreview } from './meta-shared';
 import { MetaTemplateEdit } from './MetaTemplateEdit';
 import { WhatsAppTemplateModal } from './WhatsAppTemplateModal';
@@ -500,8 +501,8 @@ export function MetaTemplatesAll() {
     setSyncingId(row.id);
     try {
       const notLinked = row.syncStatus === 'NOT_SYNCED' || !row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_');
-      const response = envelope(await api.post(`/templates/meta/${row.id}/${notLinked ? 'submit' : 'sync'}`, {}));
-      if (notLinked && !response?.metaTemplateId) throw new Error(response?.message || 'Meta did not confirm a template ID.');
+      const payload = await api.post(`/templates/meta/${row.id}/${notLinked ? 'submit' : 'sync'}`, {});
+      const response = notLinked ? confirmedTemplateOf(payload) : templateRecordOf(payload);
       toast.success(response?.message || `${row.name} status synchronized with Meta.`);
       await load();
       if (selected?.id === row.id) setSelected(response);
