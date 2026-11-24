@@ -87,6 +87,8 @@ import {
   sessionCan,
 } from '@/modules/crm/crm-api';
 import { loadDepartments } from '@/modules/master/master-api';
+import { BulkImportLeadsDrawer } from '@/modules/crm/components/BulkImportLeadsDrawer';
+import { QuickAssignModal } from '@/modules/crm/components/QuickAssignModal';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import {
   faBuilding,
@@ -401,6 +403,8 @@ export default function LeadsRoute() {
   const [departments, setDepartments] = React.useState([]);
   const [stages, setStages] = React.useState([]);
   const [importOpen, setImportOpen] = React.useState(false);
+  const [quickAssignOpen, setQuickAssignOpen] = React.useState(false);
+  const [quickAssignLeads, setQuickAssignLeads] = React.useState([]);
   const [reloadKey, setReloadKey] = React.useState(0);
 
   // Table Data & State
@@ -1074,6 +1078,10 @@ export default function LeadsRoute() {
           stages={activeStages}
           canDelete={canDelete}
           onClear={() => setSelectedIds([])}
+          onOpenQuickAssign={(leadsToAssign) => {
+            setQuickAssignLeads(leadsToAssign);
+            setQuickAssignOpen(true);
+          }}
         />
       )}
 
@@ -1503,20 +1511,39 @@ export default function LeadsRoute() {
 
                       {/* 10. Assigned Employee */}
                       <td className="py-3 px-3">
-                        <div className="flex items-center gap-2">
-                          <span className="flex size-6 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-[#173D30] border border-emerald-200 shrink-0">
-                            {assignedInitial}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate font-medium text-slate-800 text-xs" title={assignedName}>
-                              {assignedName}
-                            </p>
-                            {row.assignedTeam ? (
-                              <p className="text-[10px] text-slate-400 truncate" title={row.assignedTeam}>
-                                {row.assignedTeam}
-                              </p>
-                            ) : null}
-                          </div>
+                        <div
+                          className={cn(
+                            'flex items-center gap-2 group/assign',
+                            allowed && 'cursor-pointer'
+                          )}
+                          onClick={() => {
+                            if (allowed) {
+                              setQuickAssignLeads([row]);
+                              setQuickAssignOpen(true);
+                            }
+                          }}
+                          title={allowed ? 'Click to assign or reassign sales representative' : undefined}
+                        >
+                          {row.assignedTo || row.employee ? (
+                            <>
+                              <span className="flex size-6 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-bold text-[#173D30] border border-emerald-200 shrink-0">
+                                {assignedInitial}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="truncate font-semibold text-slate-800 text-xs hover:text-[#16A34A] transition-colors" title={assignedName}>
+                                  {assignedName}
+                                </p>
+                                <p className="text-[10px] font-mono text-slate-400 truncate">
+                                  {row.employee?.employeeCode || row.assignedTo?.employeeCode || row.assignedTeam || ''}
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 hover:bg-emerald-50 hover:text-emerald-800 transition-colors">
+                              <User className="size-3 text-slate-400" />
+                              <span>Unassigned</span>
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -1545,6 +1572,20 @@ export default function LeadsRoute() {
                           >
                             <Eye className="size-3.5" />
                           </button>
+
+                          {allowed && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuickAssignLeads([row]);
+                                setQuickAssignOpen(true);
+                              }}
+                              title="Assign / Reassign Sales Representative"
+                              className="size-7 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-[#16A34A] flex items-center justify-center transition-colors"
+                            >
+                              <UserCheck className="size-3.5" />
+                            </button>
+                          )}
 
                           {allowed && (
                             <button
@@ -1713,11 +1754,29 @@ export default function LeadsRoute() {
         )}
       </FormDrawer>
 
-      {/* CSV Import Drawer */}
-      <CsvImportPanel
+      {/* Bulk Import Leads Drawer (Redesigned 4-Step Wizard) */}
+      <BulkImportLeadsDrawer
         open={importOpen}
         onOpenChange={setImportOpen}
-        onImported={() => setReloadKey((v) => v + 1)}
+        employees={employees}
+        departments={departments}
+        onImported={() => {
+          setSelectedIds([]);
+          setReloadKey((v) => v + 1);
+        }}
+      />
+
+      {/* Quick Assign / Reassign Sales Representative Modal */}
+      <QuickAssignModal
+        open={quickAssignOpen}
+        onOpenChange={setQuickAssignOpen}
+        leads={quickAssignLeads}
+        employees={employees}
+        departments={departments}
+        onAssigned={() => {
+          setSelectedIds([]);
+          setReloadKey((v) => v + 1);
+        }}
       />
 
       {/* Single / Confirm Action Dialog */}
@@ -1785,6 +1844,7 @@ function BulkActionBar({
   stages = [],
   canDelete,
   onClear,
+  onOpenQuickAssign,
 }) {
   const [selectAllMatching, setSelectAllMatching] = React.useState(false);
   const [assignedToId, setAssignedToId] = React.useState('');
@@ -1840,52 +1900,21 @@ function BulkActionBar({
             <span>All matching ({total})</span>
           </label>
 
-          {/* Assign Employee & Team */}
-          <select
-            aria-label="Assign employee"
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs"
-            value={assignedToId}
-            onChange={(e) => setAssignedToId(e.target.value)}
-          >
-            <option value="">Choose Employee</option>
-            {employees.map((emp) => (
-              <option key={emp.recordId} value={emp.recordId}>
-                {emp.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            aria-label="Assign department"
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs"
-            value={assignedTeam}
-            onChange={(e) => setAssignedTeam(e.target.value)}
-          >
-            <option value="">Department</option>
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.name}>
-                {dept.name}
-              </option>
-            ))}
-          </select>
-
+          {/* Assign Sales Representative Modal Action */}
           <Button
             size="sm"
-            variant="outline"
-            onClick={() =>
-              assignedToId
-                ? run((body) =>
-                    bulkAssignLeads({
-                      ...body,
-                      assignedToId: Number(assignedToId),
-                      assignedTeam: assignedTeam || undefined,
-                    })
-                  )
-                : toast.error('Choose an employee.')
-            }
-            className="h-8 text-xs font-semibold"
+            onClick={async () => {
+              const ids = selectAllMatching ? await matchingIds(query) : selectedIds;
+              const selectedObjects = ids.map((id) => {
+                const found = (selectedRows || []).find((r) => r.id === id);
+                return found || { id };
+              });
+              onOpenQuickAssign?.(selectedObjects);
+            }}
+            className="h-8 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold shadow-2xs gap-1.5"
           >
-            Assign
+            <UserCheck className="size-3.5" />
+            <span>Assign / Distribute</span>
           </Button>
 
           {/* Update Status */}
@@ -2240,95 +2269,4 @@ function LeadNotes({ id }) {
   );
 }
 
-/**
- * CSV Bulk Import Drawer
- */
-function CsvImportPanel({ open, onOpenChange, onImported }) {
-  const [text, setText] = React.useState('');
-  const [summary, setSummary] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
 
-  const run = async () => {
-    const lines = text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-    if (lines.length < 2) {
-      toast.error('Paste a header row and at least one lead.');
-      return;
-    }
-    const headers = lines[0].split(',').map((item) => item.trim().toLowerCase());
-    setLoading(true);
-    let imported = 0;
-    let existing = 0;
-    let failed = 0;
-    for (const line of lines.slice(1)) {
-      const cells = line.split(',').map((item) => item.trim());
-      const row = Object.fromEntries(headers.map((header, index) => [header, cells[index] || '']));
-      const form = {
-        leadName: row.name || row['lead name'] || row.lead || '',
-        companyName: row.company || row['company name'] || '',
-        phone: row.phone || row.mobile || '',
-        email: row.email || '',
-        website: row.website || '',
-        address: row.address || '',
-        city: row.city || '',
-        state: row.state || '',
-        country: row.country || '',
-        pincode: row.pincode || '',
-        source: row.source || 'Manual',
-        category: row.category || '',
-        priority: (row.priority || 'MEDIUM').toUpperCase(),
-        status: (row.status || 'NEW').toUpperCase(),
-        value: row.value || '',
-        notes: row.notes || '',
-      };
-      try {
-        await persistLead(form);
-        imported += 1;
-      } catch (err) {
-        if (/already exists|duplicate|match/i.test(err.message || '')) existing += 1;
-        else failed += 1;
-      }
-    }
-    setSummary({ imported, existing, failed, total: lines.length - 1 });
-    setLoading(false);
-    onImported?.();
-  };
-
-  return (
-    <FormDrawer
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Bulk Import Leads"
-      description="Create leads through the existing lead API. Columns: name, company, phone, email, website, address, city, state, country, pincode, source, category, priority, status, value, notes."
-      showFooter={false}
-    >
-      <div className="space-y-3 text-xs">
-        <textarea
-          aria-label="CSV leads"
-          className="min-h-40 w-full rounded-xl border border-slate-200 p-2.5 font-mono text-xs focus:ring-1 focus:ring-[#173D30]"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="name,company,phone,email&#10;Asha Rao,Northwind,9820012345,asha@northwind.example"
-        />
-        <Button
-          onClick={run}
-          disabled={loading}
-          className="w-full bg-[#173D30] hover:bg-[#123026] text-white"
-        >
-          {loading ? 'Importing leads...' : 'Import rows'}
-        </Button>
-        {summary && (
-          <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
-            <p className="font-semibold">Import Summary:</p>
-            <p>
-              Processed: {summary.total} | Imported: {summary.imported} | Existing:{' '}
-              {summary.existing} | Failed: {summary.failed}
-            </p>
-          </div>
-        )}
-      </div>
-    </FormDrawer>
-  );
-}

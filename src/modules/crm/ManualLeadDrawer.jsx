@@ -10,6 +10,7 @@ import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import { faBuilding, faGlobe, faLink } from '@fortawesome/free-solid-svg-icons';
 import { faFacebook, faInstagram, faLinkedin, faPinterest, faTiktok, faWhatsapp, faXTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
 import { loadDepartments } from '@/modules/master/master-api';
+import { SalesEmployeeSelect } from '@/modules/crm/components/SalesEmployeeSelect';
 
 function stageLabel(value, stages = []) {
   const key = String(value || '').toUpperCase();
@@ -93,7 +94,15 @@ function LeadForm({ form, setForm, sources, employees, departments, stages = [] 
     <Field label="Lead category"><Input value={form.category || ''} onChange={set('category')} /></Field>
     <Field label="Priority"><select className="h-9 rounded-md border px-2 text-sm" value={form.priority || 'MEDIUM'} onChange={set('priority')}>{PRIORITIES.map((item) => <option key={item}>{item}</option>)}</select></Field>
     <Field label="Lead stage"><select className="h-9 rounded-md border px-2 text-sm" value={form.stageId || form.status || ''} onChange={(event) => { const stage = stages.find((item) => String(item.id) === event.target.value || item.key === event.target.value); setForm({ ...form, status: stage?.key || event.target.value, stageId: stage?.id || '' }); }}>{stages.filter((stage) => stage.isActive !== false || stage.key === form.status || String(stage.id) === String(form.stageId)).map((stage) => <option key={stage.id || stage.key} value={stage.id || stage.key}>{stage.name}{stage.isActive === false ? ' (inactive)' : ''}</option>)}</select></Field>
-    <Field label="Assigned employee"><select className="h-9 rounded-md border px-2 text-sm" value={form.assignedToId || ''} onChange={set('assignedToId')}><option value="">Unassigned</option>{employees.map((employee) => <option key={employee.recordId} value={employee.recordId}>{employee.name}</option>)}</select></Field>
+    <Field label="Assign To – Sales Employee" className="sm:col-span-2">
+      <SalesEmployeeSelect
+        value={form.assignedToId || ''}
+        onChange={(val) => setForm({ ...form, assignedToId: val || '' })}
+        employees={employees}
+        departments={departments}
+        placeholder="Select Sales Department Representative..."
+      />
+    </Field>
     <Field label="Estimated deal value"><Input type="number" min="0" value={form.value ?? ''} onChange={set('value')} /></Field>
     <Field label="Notes" className="sm:col-span-2"><Input value={form.notes || ''} onChange={set('notes')} /></Field>
   </div>;
