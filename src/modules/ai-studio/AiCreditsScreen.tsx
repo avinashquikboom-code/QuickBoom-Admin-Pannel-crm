@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   X,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -278,10 +279,10 @@ export function AiCreditsScreen() {
         }
       />
 
-      {/* ── 2. Compact 4 KPI Statistics Cards ────────────────────────── */}
+      {/* ── 2. 4 KPI Statistics Cards ─────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Total Credits Granted */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4.5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Total Credits Granted
@@ -290,11 +291,11 @@ export function AiCreditsScreen() {
               <ArrowUpRight className="size-4" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
+          <div className="mt-2.5 flex items-baseline gap-2">
             <span className="text-2xl font-black tracking-tight text-slate-900">
               {totalGrantsAcrossTransactions}
             </span>
-            <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md">
               Promotions & Grants
             </span>
           </div>
@@ -302,7 +303,7 @@ export function AiCreditsScreen() {
         </div>
 
         {/* Card 2: Total Credits Used */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4.5 shadow-xs transition-all hover:border-amber-300 hover:shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Total Credits Used
@@ -311,7 +312,7 @@ export function AiCreditsScreen() {
               <ArrowDownRight className="size-4" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
+          <div className="mt-2.5 flex items-baseline gap-2">
             <span className="text-2xl font-black tracking-tight text-slate-900">
               {totalSpentAcrossTransactions}
             </span>
@@ -323,7 +324,7 @@ export function AiCreditsScreen() {
         </div>
 
         {/* Card 3: Active Customer Balance */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4.5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               {loadedWallet ? 'Inspected Balance' : 'Net Credit Flow'}
@@ -332,7 +333,7 @@ export function AiCreditsScreen() {
               <Coins className="size-4" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
+          <div className="mt-2.5 flex items-baseline gap-2">
             <span className="text-2xl font-black tracking-tight text-[#16A34A]">
               {loadedWallet ? `${activeBalance ?? 0}` : `${totalGrantsAcrossTransactions - totalSpentAcrossTransactions}`}
             </span>
@@ -348,7 +349,7 @@ export function AiCreditsScreen() {
         </div>
 
         {/* Card 4: Audited Transactions */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4.5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Audited Transactions
@@ -357,7 +358,7 @@ export function AiCreditsScreen() {
               <CreditCard className="size-4" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
+          <div className="mt-2.5 flex items-baseline gap-2">
             <span className="text-2xl font-black tracking-tight text-slate-900">
               {pagination.total || transactions.length}
             </span>
@@ -369,20 +370,20 @@ export function AiCreditsScreen() {
         </div>
       </div>
 
-      {/* ── 3. Customer Wallet Lookup & Live Panel ─────────────────────── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-4">
+      {/* ── 3. Customer Wallet Lookup & Live Adjustment Panel ──────────── */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <div className="flex size-6 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A]">
-                <Wallet className="size-3.5" />
+              <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-50 text-[#16A34A] ring-1 ring-emerald-200/60">
+                <Wallet className="size-4" />
               </div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
                 Customer Wallet Lookup & Live Adjustment
               </h3>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Enter a Customer ID to inspect real-time wallet balances, grant promotional credits, or adjust usage.
+            <p className="text-xs text-slate-500 mt-1">
+              Search by Customer ID to inspect real-time wallet balances, grant promotional credits, or adjust usage.
             </p>
           </div>
 
@@ -402,7 +403,7 @@ export function AiCreditsScreen() {
               type="submit"
               size="sm"
               disabled={lookupLoading || !customerIdInput.trim()}
-              className="h-9 rounded-xl bg-[#064E3B] px-3.5 text-xs font-semibold text-white shadow-xs hover:bg-[#064E3B]/90 shrink-0"
+              className="h-9 rounded-xl bg-[#064E3B] px-4 text-xs font-semibold text-white shadow-xs hover:bg-[#064E3B]/90 shrink-0"
             >
               {lookupLoading ? 'Loading…' : 'Load Wallet'}
             </Button>
@@ -411,9 +412,9 @@ export function AiCreditsScreen() {
 
         {/* Loaded Active Customer Wallet Banner */}
         {loadedWallet && (
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-white text-[#16A34A] shadow-xs border border-emerald-100">
+              <div className="flex size-11 items-center justify-center rounded-2xl bg-white text-[#16A34A] shadow-xs border border-emerald-100">
                 <Building2 className="size-5" />
               </div>
               <div>
@@ -425,7 +426,7 @@ export function AiCreditsScreen() {
                     ID: #{activeCustomer?.id || customerIdInput}
                   </Badge>
                 </div>
-                <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
                   <span>Current Available Balance:</span>
                   <span className="font-black text-[#16A34A] text-sm">
                     {activeBalance ?? 0} Credits
@@ -446,7 +447,7 @@ export function AiCreditsScreen() {
                     initialMode: 'add',
                   })
                 }
-                className="h-8 gap-1 rounded-lg bg-[#16A34A] px-3 text-xs font-semibold text-white hover:bg-[#15803D]"
+                className="h-8 gap-1 rounded-xl bg-[#16A34A] px-3 text-xs font-semibold text-white hover:bg-[#15803D]"
               >
                 <Plus className="size-3" />
                 <span>Add Credits</span>
@@ -463,7 +464,7 @@ export function AiCreditsScreen() {
                     initialMode: 'reduce',
                   })
                 }
-                className="h-8 gap-1 rounded-lg border-rose-200 text-rose-700 bg-white hover:bg-rose-50 text-xs font-semibold"
+                className="h-8 gap-1 rounded-xl border-rose-200 text-rose-700 bg-white hover:bg-rose-50 text-xs font-semibold"
               >
                 <Minus className="size-3" />
                 <span>Reduce</span>
@@ -475,7 +476,7 @@ export function AiCreditsScreen() {
                   setLoadedWallet(null);
                   setCustomerIdInput('');
                 }}
-                className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600 rounded-xl"
               >
                 <X className="size-4" />
               </Button>
@@ -526,18 +527,30 @@ export function AiCreditsScreen() {
           <div className="flex flex-wrap items-center gap-1.5">
             {TX_TYPES.map((t) => {
               const isSelected = typeFilter === t.id;
+              const count =
+                t.id === 'ALL'
+                  ? transactions.length
+                  : transactions.filter((tx) => (tx.type || '').toUpperCase() === t.id).length;
+
               return (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setTypeFilter(t.id)}
-                  className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
                     isSelected
                       ? 'border-[#16A34A] bg-emerald-50 text-[#16A34A] shadow-xs ring-1 ring-[#16A34A]'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  {t.label}
+                  <span>{t.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                      isSelected ? 'bg-emerald-100 text-[#16A34A]' : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {count}
+                  </span>
                 </button>
               );
             })}
@@ -550,7 +563,7 @@ export function AiCreditsScreen() {
                   setTypeFilter('ALL');
                   setSearchQuery('');
                 }}
-                className="h-8 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                className="h-8 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl"
               >
                 Reset
               </Button>
@@ -558,9 +571,9 @@ export function AiCreditsScreen() {
           </div>
         </div>
 
-        {/* Compact Table */}
+        {/* Compact Table (Desktop & Tablet) */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="border-b border-slate-200 bg-slate-50/80 font-bold uppercase tracking-wider text-slate-600">
                 <tr>
@@ -643,12 +656,17 @@ export function AiCreditsScreen() {
                         {/* Type */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
                               isPositive
-                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200'
+                                : 'bg-rose-50 text-rose-700 ring-1 ring-rose-200'
                             }`}
                           >
+                            <span
+                              className={`size-1.5 rounded-full ${
+                                isPositive ? 'bg-emerald-500' : 'bg-rose-500'
+                              }`}
+                            />
                             {tx.type}
                           </span>
                         </td>
@@ -664,7 +682,7 @@ export function AiCreditsScreen() {
                         <td className="px-4 py-3 text-center whitespace-nowrap">
                           <span
                             className={`font-mono text-xs font-bold ${
-                              isPositive ? 'text-emerald-700' : 'text-slate-800'
+                              isPositive ? 'text-emerald-700' : 'text-rose-600'
                             }`}
                           >
                             {isPositive ? `+${Math.abs(tx.amount || 0)}` : `-${Math.abs(tx.amount || 0)}`}
@@ -673,12 +691,12 @@ export function AiCreditsScreen() {
 
                         {/* Balance After */}
                         <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <span className="font-mono text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200/60 rounded px-2 py-0.5">
+                          <span className="font-mono text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200/60 rounded px-2 py-0.5">
                             {tx.balanceAfter != null ? `${tx.balanceAfter} Credits` : '—'}
                           </span>
                         </td>
 
-                        {/* Notes / Reference with TruncatedText */}
+                        {/* Notes / Reference */}
                         <td className="px-4 py-3 max-w-[260px]" onClick={(e) => e.stopPropagation()}>
                           <TruncatedText
                             value={tx.notes || 'No description provided'}
@@ -706,6 +724,69 @@ export function AiCreditsScreen() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Responsive Cards View (< 768px) */}
+          <div className="block md:hidden divide-y divide-slate-100">
+            {loading ? (
+              <div className="py-10 text-center text-xs text-slate-400">
+                <RefreshCw className="mx-auto mb-2 size-5 animate-spin text-emerald-600" />
+                Loading credit transactions…
+              </div>
+            ) : filteredTransactions.length === 0 ? (
+              <div className="py-10 text-center px-4">
+                <CreditCard className="mx-auto mb-2 size-6 text-slate-400" />
+                <p className="text-sm font-semibold text-slate-800">No credit transactions found</p>
+                <p className="mt-1 text-xs text-slate-500">Try adjusting your filters.</p>
+              </div>
+            ) : (
+              filteredTransactions.map((tx) => {
+                const isPositive = (tx.amount || 0) > 0 || tx.type === 'PURCHASE' || tx.type === 'GRANT';
+                const customerName = tx.customer?.companyName || tx.customer?.name || `Customer #${tx.customerId}`;
+                const dateFormatted = tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : '—';
+
+                return (
+                  <div
+                    key={tx.id}
+                    onClick={() => setSelectedTx(tx)}
+                    className="p-4 space-y-2.5 transition-colors hover:bg-slate-50/70 cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-slate-900">#{tx.id}</span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.2 text-[10px] font-bold ${
+                            isPositive
+                              ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200'
+                              : 'bg-rose-50 text-rose-700 ring-1 ring-rose-200'
+                          }`}
+                        >
+                          <span className={`size-1.5 rounded-full ${isPositive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                          {tx.type}
+                        </span>
+                      </div>
+                      <span
+                        className={`font-mono text-xs font-bold ${
+                          isPositive ? 'text-emerald-700' : 'text-rose-600'
+                        }`}
+                      >
+                        {isPositive ? `+${Math.abs(tx.amount || 0)}` : `-${Math.abs(tx.amount || 0)}`}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-slate-800 truncate max-w-[200px]">{customerName}</span>
+                      <span className="text-[11px] text-slate-400">{dateFormatted}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100 text-slate-500">
+                      <span>Service: <strong className="text-slate-700">{tx.serviceCode || 'AI_ENGINE'}</strong></span>
+                      <span>Balance: <strong className="text-slate-700">{tx.balanceAfter != null ? `${tx.balanceAfter} cr` : '—'}</strong></span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
           {/* Pagination */}
@@ -743,7 +824,7 @@ export function AiCreditsScreen() {
         </div>
       </div>
 
-      {/* ── 5. Adjust Credits Dialog ──────────────────────────────────── */}
+      {/* ── 5. Adjust Credits Slide-Over Drawer ────────────────────────── */}
       <AdjustCreditsDialog
         open={adjustModal.open}
         onOpenChange={(open) => setAdjustModal((prev) => ({ ...prev, open }))}
