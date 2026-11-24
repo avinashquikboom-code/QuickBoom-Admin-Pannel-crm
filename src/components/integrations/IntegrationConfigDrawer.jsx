@@ -127,7 +127,7 @@ export function IntegrationConfigDrawer({
       <div className="space-y-6">
         {row.provider === 'GOOGLE_BUSINESS_GROWTH' && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-            Saving these settings does not connect Google: the Business Growth integration is still under development. Set GOOGLE_INTEGRATION_ENCRYPTION_KEY in the backend deployment environment, not here. Generate 32 random bytes as 64 hexadecimal characters and keep the key stable across deployments.
+            Google Business Growth is not available yet. Saving these settings will not connect your Google account.
           </div>
         )}
         {row.provider === 'ELEVENLABS' && (
