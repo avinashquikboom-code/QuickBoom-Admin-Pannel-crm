@@ -179,6 +179,35 @@ export function WhatsAppTemplateModal({
 
   const [saving, setSaving] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const [mediaMode, setMediaMode] = React.useState('upload');
+  const [mediaUploading, setMediaUploading] = React.useState(false);
+  const [mediaProgress, setMediaProgress] = React.useState(0);
+  const [mediaError, setMediaError] = React.useState('');
+  const [mediaFile, setMediaFile] = React.useState(null);
+  const mediaRequest = React.useRef(0);
+  const mediaInput = React.useRef(null);
+
+  async function uploadImage(file) {
+    if (!file) return;
+    const request = ++mediaRequest.current;
+    setMediaFile(file); setMediaError(''); setMediaProgress(0);
+    patch('headerContent', '');
+    if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setMediaError('Choose a JPG or PNG image no larger than 5 MB.'); return;
+    }
+    setMediaUploading(true);
+    try {
+      const data = new FormData(); data.append('file', file);
+      const response = await api.post('/templates/meta/media/image', data, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress: (event) => { if (request === mediaRequest.current && event.total) setMediaProgress(Math.round(event.loaded * 100 / event.total)); } });
+      if (request !== mediaRequest.current) return;
+      const result = response?.data?.url ? response.data : response;
+      if (!result?.url || !/^https:\/\//i.test(result.url)) throw new Error('Storage did not return a valid image URL.');
+      patch('headerContent', result.url);
+    } catch (error) {
+      if (request === mediaRequest.current) setMediaError(error?.response?.data?.message || error?.message || 'Upload failed. Please retry.');
+    } finally { if (request === mediaRequest.current) setMediaUploading(false); }
+  }
+
 
   // Dynamic variable sample map for realistic preview - starts empty in Create Mode
   const [sampleVariables, setSampleVariables] = React.useState(() => template?.sampleValues || {});
@@ -202,6 +231,7 @@ export function WhatsAppTemplateModal({
   // Sync form state whenever modal opens or target template changes
   React.useEffect(() => {
     if (isOpen) {
+      mediaRequest.current += 1; setMediaUploading(false); setMediaError(''); setMediaFile(null); setMediaMode(template?.headerContent ? 'url' : 'upload');
       if (isEdit && template) {
         setSampleVariables(template.sampleValues || {});
         setForm({
@@ -338,6 +368,9 @@ export function WhatsAppTemplateModal({
 
   // Validation
   function validate() {
+    if (mediaUploading) return 'Wait for the image upload to finish.';
+    if (form.headerType === 'IMAGE' && mediaError && mediaMode === 'upload') return 'Fix the image upload or retry before saving.';
+    if (form.headerType === 'IMAGE' && !/^https:\/\//i.test(form.headerContent.trim())) return 'Upload an image or enter an HTTPS image URL.';
     if (!form.name.trim()) return 'Template Name is required.';
     if (!form.templateName.trim()) return 'Meta Template Name is required.';
     if (!/^[a-z0-9_]+$/.test(form.templateName.trim())) {
@@ -548,7 +581,7 @@ export function WhatsAppTemplateModal({
                   <Label className="text-xs font-semibold text-slate-700">Header Type</Label>
                   <select
                     value={form.headerType}
-                    onChange={(e) => patch('headerType', e.target.value)}
+                    onChange={(e) => { mediaRequest.current += 1; setMediaUploading(false); setMediaError(''); setMediaFile(null); setMediaMode('upload'); setForm((prev) => ({ ...prev, headerType: e.target.value, headerContent: '' })); }}
                     className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     {HEADER_TYPES.map((h) => (
@@ -561,7 +594,7 @@ export function WhatsAppTemplateModal({
               </div>
 
               {/* Header Content Input if HeaderType !== NONE */}
-              {form.headerType !== 'NONE' && (
+              {form.headerType !== 'NONE' && form.headerType !== 'IMAGE' && (
                 <div className="space-y-1">
                   <Label className="text-xs font-semibold text-slate-700">
                     {form.headerType === 'TEXT' ? 'Header Text (max 60 chars)' : 'Media / Document Attachment URL'}
@@ -579,6 +612,20 @@ export function WhatsAppTemplateModal({
                   />
                 </div>
               )}
+
+              {form.headerType === 'IMAGE' && <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700">Image attachment <span className="text-rose-500">*</span></Label>
+                <div className="flex gap-2">{[['upload', 'Upload File'], ['url', 'Paste Media URL']].map(([mode, label]) => <button key={mode} type="button" onClick={() => { mediaRequest.current += 1; setMediaUploading(false); setMediaError(''); setMediaFile(null); setMediaMode(mode); patch('headerContent', ''); }} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${mediaMode === mode ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600'}`}>{label}</button>)}</div>
+                {mediaMode === 'upload' ? <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); uploadImage(e.dataTransfer.files?.[0]); }} className="rounded-xl border border-dashed border-emerald-300 bg-emerald-50/40 p-4 text-center text-xs text-slate-600">
+                  <input ref={mediaInput} type="file" accept="image/jpeg,image/png" className="sr-only" onChange={(e) => { uploadImage(e.target.files?.[0]); e.target.value = ''; }} />
+                  <p>Drag an image here, or <button type="button" className="font-semibold text-emerald-700 underline" onClick={() => mediaInput.current?.click()}>Browse Files</button></p><p className="mt-1">JPG or PNG · maximum 5 MB</p>
+                  {mediaFile && <p className="mt-2">{mediaFile.name} · {(mediaFile.size / 1024 / 1024).toFixed(2)} MB</p>}
+                  {mediaUploading && <div className="mt-2"><progress max="100" value={mediaProgress} className="w-full" /><p>Uploading {mediaProgress}%</p></div>}
+                  {mediaError && <p role="alert" className="mt-2 text-rose-700">{String(mediaError)} {mediaFile && <button type="button" className="underline" onClick={() => uploadImage(mediaFile)}>Retry</button>}</p>}
+                  {form.headerContent && !mediaUploading && <button type="button" className="mt-2 text-rose-700 underline" onClick={() => { setMediaFile(null); patch('headerContent', ''); }}>Remove image</button>}
+                </div> : <Input value={form.headerContent} onChange={(e) => patch('headerContent', e.target.value)} placeholder="https://example.com/image.jpg" className="h-9 text-xs" />}
+                {form.headerContent && <img src={form.headerContent} alt="Header image preview" className="max-h-40 max-w-full rounded-lg object-contain" />}
+              </div>}
 
               {/* Row 3: Message Body */}
               <div className="space-y-1">
@@ -980,7 +1027,7 @@ export function WhatsAppTemplateModal({
               type="button"
               variant="ghost"
               onClick={handleClose}
-              disabled={saving || submitting}
+              disabled={saving || submitting || mediaUploading}
               className="text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl"
             >
               Cancel
@@ -988,7 +1035,7 @@ export function WhatsAppTemplateModal({
             <Button
               type="button"
               variant="outline"
-              disabled={saving || submitting}
+              disabled={saving || submitting || mediaUploading}
               onClick={() => handleSave(true)}
               className="border-emerald-300 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold gap-1.5 rounded-xl"
             >
@@ -997,7 +1044,7 @@ export function WhatsAppTemplateModal({
             </Button>
             <Button
               type="button"
-              disabled={saving || submitting}
+              disabled={saving || submitting || mediaUploading}
               onClick={() => handleSave(false)}
               className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold shadow-sm px-4 rounded-xl"
             >
