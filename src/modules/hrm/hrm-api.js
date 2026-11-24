@@ -666,12 +666,26 @@ export function saveGeofence(values) {
 }
 
 export async function loadCommissions(params = {}) {
-  const payload = await api.get('/commissions/admin', { params });
-  return {
-    rows: listFrom(payload),
-    summary: payload?.summary || {},
-    pagination: payload?.meta || payload?.pagination || {},
-  };
+  try {
+    const payload = await api.get('/commissions/admin', { params });
+    return {
+      rows: listFrom(payload),
+      summary: payload?.summary || {},
+      pagination: payload?.meta || payload?.pagination || {},
+    };
+  } catch (err) {
+    return {
+      rows: [],
+      summary: {
+        totalCommission: 0,
+        pendingCommission: 0,
+        approvedCommission: 0,
+        paidCommission: 0,
+      },
+      pagination: { total: 0, page: 1, limit: 10, totalPages: 1 },
+      error: err?.message,
+    };
+  }
 }
 
 export function updateCommissionStatus(id, status, notes) {
@@ -679,11 +693,14 @@ export function updateCommissionStatus(id, status, notes) {
 }
 
 export async function loadCommissionConfigs() {
-  const [designations, employees] = await Promise.all([
+  const [designations, employees] = await Promise.allSettled([
     api.get('/commissions/configs/designations'),
     api.get('/commissions/configs/employees'),
   ]);
-  return { designations: listFrom(designations), employees: listFrom(employees) };
+  return {
+    designations: designations.status === 'fulfilled' ? listFrom(designations.value) : [],
+    employees: employees.status === 'fulfilled' ? listFrom(employees.value) : [],
+  };
 }
 
 export function saveDesignationCommission(values) {
