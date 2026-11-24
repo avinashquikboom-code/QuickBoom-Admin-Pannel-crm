@@ -26,6 +26,8 @@ import {
     faMoneyBill,
     faPlus,
     faRectangleAd,
+    faArrowTrendUp,
+    faStore,
     faCheckCircle,
     faShareNodes,
     faStar,
@@ -80,12 +82,17 @@ export const contentNavigation = [
     { name: 'Trending Content', href: '/admin/content/trending', icon: faChartBar },
 ];
 
-export const businessAdsNavigation = [
-    { name: 'All Business Ads', href: '/admin/business-ads', icon: faRectangleAd, matchExact: true },
-    { name: 'Business Banners', href: '/admin/business-ads/banners', icon: faImage },
-    { name: 'Sponsored Videos', href: '/admin/business-ads/videos', icon: faVideo },
-    { name: 'Ad Approvals', href: '/admin/business-ads/approvals', icon: faCheckCircle },
+export const businessGrowthNavigation = [
+    { name: 'Overview', href: '/admin/business-growth?tab=overview', icon: faLayerGroup, matchExact: true },
+    { name: 'Google Ads', href: '/admin/business-growth?tab=google-ads', icon: faBullhorn },
+    { name: 'Business Profile', href: '/admin/business-growth?tab=business-profile', icon: faStore },
+    { name: 'Reviews & Ratings', href: '/admin/business-growth?tab=reviews', icon: faStar },
+    { name: 'Analytics', href: '/admin/business-growth?tab=analytics', icon: faChartBar },
+    { name: 'Settings', href: '/admin/business-growth?tab=settings', icon: faGear },
 ];
+
+/** @deprecated Alias for backwards compatibility */
+export const businessAdsNavigation = businessGrowthNavigation;
 
 export const marketingNavigation = [
     {
@@ -95,10 +102,10 @@ export const marketingNavigation = [
         children: contentNavigation,
     },
     {
-        name: "Business Ad's",
-        icon: faRectangleAd,
-        href: '/admin/business-ads',
-        children: businessAdsNavigation,
+        name: 'Business Growth',
+        icon: faArrowTrendUp,
+        href: '/admin/business-growth',
+        children: businessGrowthNavigation,
     },
     {
         name: 'WhatsApp Marketing',
