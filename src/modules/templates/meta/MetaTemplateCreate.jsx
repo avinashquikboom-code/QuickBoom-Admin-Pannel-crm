@@ -100,7 +100,7 @@ export function MetaTemplateCreate() {
   // Dynamic variable sample map for realistic preview
   const [sampleVariables, setSampleVariables] = React.useState({});
 
-  const variables = React.useMemo(() => extractVariables(form.body), [form.body]);
+  const variables = React.useMemo(() => Array.from(new Set([...extractVariables(form.body), ...(form.headerType === 'TEXT' ? extractVariables(form.headerContent) : [])])), [form.body, form.headerType, form.headerContent]);
 
   // Keep sample variables populated
   React.useEffect(() => {
@@ -199,6 +199,11 @@ export function MetaTemplateCreate() {
       }
     }
 
+    if (submitToMeta && variables.some((v) => !sampleVariables[v]?.trim() || sampleVariables[v].trim() === `[${v}]`)) {
+      toast.error('Provide a sample value for every variable before submitting to Meta.');
+      return;
+    }
+
     if (submitToMeta) {
       setSubmitting(true);
     } else {
@@ -217,16 +222,18 @@ export function MetaTemplateCreate() {
         footer: form.footer.trim() || undefined,
         variables,
         buttons: parsedButtons.length ? parsedButtons : undefined,
+        sampleValues: sampleVariables,
         submitToMeta: Boolean(submitToMeta),
         isLocalActive: true,
       };
 
       const result = envelope(await api.post('/templates/meta', payload));
-      const status = result?.status || result?.metaStatus || (submitToMeta ? 'PENDING' : 'DRAFT');
+      const status = result?.status || result?.metaStatus || 'UNKNOWN';
+      if (submitToMeta && !result?.metaTemplateId) throw new Error('Meta did not confirm a template ID; check synchronization status.');
 
       toast.success(
         submitToMeta
-          ? `Template submitted to Meta successfully! Status: ${status}`
+          ? `Meta template ${result.metaTemplateId}: ${status}`
           : 'Template saved locally as draft.',
       );
       router.push('/admin/sections/meta-templates');

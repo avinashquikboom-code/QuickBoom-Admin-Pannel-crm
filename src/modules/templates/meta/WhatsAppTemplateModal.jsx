@@ -181,7 +181,7 @@ export function WhatsAppTemplateModal({
   const [submitting, setSubmitting] = React.useState(false);
 
   // Dynamic variable sample map for realistic preview - starts empty in Create Mode
-  const [sampleVariables, setSampleVariables] = React.useState({});
+  const [sampleVariables, setSampleVariables] = React.useState(() => template?.sampleValues || {});
 
   // Variables search & category filter
   const [varSearch, setVarSearch] = React.useState('');
@@ -203,6 +203,7 @@ export function WhatsAppTemplateModal({
   React.useEffect(() => {
     if (isOpen) {
       if (isEdit && template) {
+        setSampleVariables(template.sampleValues || {});
         setForm({
           name: template.name || '',
           templateName: template.templateName || '',
@@ -237,7 +238,7 @@ export function WhatsAppTemplateModal({
   }, [isOpen, template?.id, isEdit, duplicate]);
 
   // Extract detected variables from body
-  const detectedVariables = React.useMemo(() => extractVariables(form.body), [form.body]);
+  const detectedVariables = React.useMemo(() => Array.from(new Set([...extractVariables(form.body), ...(form.headerType === 'TEXT' ? extractVariables(form.headerContent) : [])])), [form.body, form.headerType, form.headerContent]);
 
   // Keep sample variables synchronized ONLY with currently detected variables
   React.useEffect(() => {
@@ -357,6 +358,11 @@ export function WhatsAppTemplateModal({
       return;
     }
 
+    if (submitToMeta && detectedVariables.some((v) => !sampleVariables[v]?.trim() || sampleVariables[v].trim() === `[${v}]`)) {
+      toast.error('Provide a sample value for every variable before submitting to Meta.');
+      return;
+    }
+
     if (submitToMeta) {
       setSubmitting(true);
     } else {
@@ -382,22 +388,27 @@ export function WhatsAppTemplateModal({
         footer: form.footer.trim() || undefined,
         variables: detectedVariables,
         buttons: form.buttons.filter((b) => b.text?.trim()),
-        submitToMeta: Boolean(submitToMeta),
+        sampleValues: sampleVariables,
+        ...(!isEdit ? { submitToMeta: Boolean(submitToMeta) } : {}),
         isLocalActive: true,
       };
 
       if (isEdit) {
         await api.put(`/templates/meta/${template.id}`, payload);
         if (submitToMeta) {
-          await api.post(`/templates/meta/${template.id}/submit`, {});
+          const result = envelope(await api.post(`/templates/meta/${template.id}/submit`, {}));
+          if (!result?.metaTemplateId) throw new Error('Meta did not confirm a template ID; check synchronization status.');
+          toast.success(`Meta template ${result.metaTemplateId}: ${result.status || 'UNKNOWN'}`);
+        } else {
+          toast.success('Template saved locally.');
         }
-        toast.success(submitToMeta ? 'Template submitted to Meta for approval!' : 'Template saved successfully.');
       } else {
         const res = envelope(await api.post('/templates/meta', payload));
-        const status = res?.status || res?.metaStatus || (submitToMeta ? 'PENDING' : 'DRAFT');
+        const status = res?.status || res?.metaStatus || 'UNKNOWN';
+        if (submitToMeta && !res?.metaTemplateId) throw new Error('Meta did not confirm a template ID; check synchronization status.');
         toast.success(
           submitToMeta
-            ? `Template submitted to Meta successfully! Status: ${status}`
+            ? `Meta template ${res.metaTemplateId}: ${status}`
             : 'Template saved locally as draft.'
         );
       }

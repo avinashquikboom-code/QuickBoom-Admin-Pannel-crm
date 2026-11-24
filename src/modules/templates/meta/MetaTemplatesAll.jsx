@@ -148,7 +148,7 @@ function TemplateRowActions({
     syncStatus === 'NOT_SYNCED' || !row?.metaTemplateId || String(row?.metaTemplateId).startsWith('seed_');
 
   // Determine status classification
-  let statusMode = 'APPROVED';
+  let statusMode = 'UNKNOWN';
   if (!isLocalActive) {
     statusMode = 'INACTIVE';
   } else if (syncStatus === 'SYNC_FAILED') {
@@ -162,7 +162,7 @@ function TemplateRowActions({
   } else if (statusKey === 'APPROVED') {
     statusMode = 'APPROVED';
   } else {
-    statusMode = 'APPROVED';
+    statusMode = 'UNKNOWN';
   }
 
   // Primary & Secondary actions based on specification
@@ -501,6 +501,7 @@ export function MetaTemplatesAll() {
     try {
       const notLinked = row.syncStatus === 'NOT_SYNCED' || !row.metaTemplateId || String(row.metaTemplateId).startsWith('seed_');
       const response = envelope(await api.post(`/templates/meta/${row.id}/${notLinked ? 'submit' : 'sync'}`, {}));
+      if (notLinked && !response?.metaTemplateId) throw new Error(response?.message || 'Meta did not confirm a template ID.');
       toast.success(response?.message || `${row.name} status synchronized with Meta.`);
       await load();
       if (selected?.id === row.id) setSelected(response);
