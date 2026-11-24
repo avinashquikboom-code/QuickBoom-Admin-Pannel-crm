@@ -408,12 +408,8 @@ export default function IntegrationsPage() {
 
   // Live Test
   const handleTestConnection = async (row, explicitPayload = null) => {
-    if (row.provider === 'GOOGLE_BUSINESS_GROWTH') {
-      toast.error('Google Business Growth connection testing is not implemented yet.');
-      return;
-    }
     if (testing) return;
-    if (!explicitPayload && (!row.configured || row.source === 'NONE' || row.status === 'NOT_CONFIGURED')) {
+    if (row.provider !== 'GOOGLE_BUSINESS_GROWTH' && !explicitPayload && (!row.configured || row.source === 'NONE' || row.status === 'NOT_CONFIGURED')) {
       toast.error('Configure this integration with valid credentials before testing.');
       return;
     }
