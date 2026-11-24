@@ -1,12 +1,8 @@
 import api from '../../../lib/api';
 
-const handleApi = async (fn, fallback) => {
-  try {
-    const res = await fn();
-    return res?.data?.data || res?.data || res || fallback;
-  } catch {
-    return fallback;
-  }
+const handleApi = async (fn) => {
+  const res = await fn();
+  return res?.data?.data ?? res?.data ?? res;
 };
 
 export async function loadGrowthOverview() {

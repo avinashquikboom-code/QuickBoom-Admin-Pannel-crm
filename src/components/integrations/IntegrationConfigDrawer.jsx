@@ -125,6 +125,11 @@ export function IntegrationConfigDrawer({
       onSubmit={handleSave}
     >
       <div className="space-y-6">
+        {row.provider === 'GOOGLE_BUSINESS_GROWTH' && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+            Saving these settings does not connect Google: the Business Growth integration is still under development. Set GOOGLE_INTEGRATION_ENCRYPTION_KEY in the backend deployment environment, not here. Generate 32 random bytes as 64 hexadecimal characters and keep the key stable across deployments.
+          </div>
+        )}
         {row.provider === 'ELEVENLABS' && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs leading-relaxed text-emerald-900">
             Speech Engine ID, default voice ID, and callback port are managed in the backend environment. Choose your personal voice in QB Nexus settings.

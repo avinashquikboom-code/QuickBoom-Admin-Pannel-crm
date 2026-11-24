@@ -95,7 +95,8 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
   const tabParam = searchParams.get('tab')?.toLowerCase() || initialTab;
   const [activeTab, setActiveTab] = React.useState(tabParam);
 
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState(null);
   const [syncing, setSyncing] = React.useState(false);
 
   // Data states
@@ -167,6 +168,7 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
   // Initial load
   const fetchData = React.useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [ov, ads, camp, prof, rev, ana, set] = await Promise.all([
         loadGrowthOverview(),
@@ -178,6 +180,11 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
         loadGrowthSettings(),
       ]);
 
+      // Older servers return simulated records. Require an explicit provenance
+      // contract before allowing the dashboard to display any values.
+      if (ov?.source !== 'google-api-verified') {
+        throw new Error('Google API data has not been verified.');
+      }
       if (ov) setOverview(ov);
       if (ads) setGoogleAdsData(ads);
       if (camp?.campaigns) setCampaigns(camp.campaigns);
@@ -195,8 +202,8 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
       if (rev) setReviewsData(rev);
       if (ana) setAnalyticsData(ana);
       if (set) setSettings(set);
-    } catch {
-      toast.error('Failed to load business growth data.');
+    } catch (error) {
+      setLoadError(error?.response?.data?.message || error?.message || 'Unable to load Google integration data.');
     } finally {
       setLoading(false);
     }
@@ -425,6 +432,21 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
       return true;
     });
   }, [campaigns, campaignFilter, campaignSearch]);
+
+  if (loading || loadError) {
+    return (
+      <div className="min-w-0 w-full max-w-full space-y-6 pb-20">
+        <PageHeader category="MARKETING & PROMOTIONS" title="Business Growth" icon={faArrowTrendUp} description="Google integration status" />
+        <div role={loadError ? 'alert' : 'status'} className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-700">
+          {loading ? 'Loading Google integration data…' : <>
+            <p className="font-semibold">Google integration unavailable</p>
+            <p className="mt-2">{typeof loadError === 'string' ? loadError : 'Unable to load Google integration data.'}</p>
+            <Button type="button" variant="outline" className="mt-4" onClick={fetchData}>Retry</Button>
+          </>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-w-0 w-full max-w-full space-y-6 pb-20">
