@@ -54,7 +54,7 @@ const groups = [
     { name: 'CRM', icon: faUser, items: crm },
     { name: 'Customers', icon: faFileLines, items: customer },
     { name: 'Marketing', icon: Megaphone, items: marketingNavigation },
-    { name: 'Business Ads', icon: faArrowTrendUp, items: businessGrowthNavigation },
+    { name: 'Business Ads', icon: faArrowTrendUp, href: '/admin/business-growth' },
     { name: 'Influencer Management', icon: faBullhorn, items: influencerNavigation },
     { name: 'AI & Social', icon: faStar, items: aiSocialNavigation },
     { name: 'Reports', icon: faChartBar, href: '/admin/reports' },
@@ -237,10 +237,7 @@ function FlatLink({ group, pathname, currentSearch = '', collapsed, onNavigate }
 }
 
 function NavGroup({ group, pathname, currentSearch = '', collapsed, onNavigate }) {
-    const containsActive = group.items.some((item) => {
-        if (pathname === '/admin/business-growth' && group.name === 'Business Ads') return true;
-        return itemActive(item, pathname, currentSearch);
-    });
+    const containsActive = group.items.some((item) => itemActive(item, pathname, currentSearch));
     const [open, setOpen] = React.useState(containsActive);
     const contentId = React.useId();
 
