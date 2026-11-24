@@ -482,6 +482,39 @@ export default function LoansPage() {
         }
       />
 
+      {/* ── 2. Info Banner & 4 KPI Statistics Cards ──────────────────────── */}
+      <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/60 via-white to-emerald-50/30 p-3.5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-100/80 text-[#16A34A] shrink-0">
+            <Coins className="size-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-slate-900">Workforce Loan & Salary Advances</span>
+              <span className="rounded-full bg-emerald-100 text-[#16A34A] text-[10px] font-bold px-2 py-0.2">Payroll Synced</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Loan records track monthly EMI, tenure, and live balances with automatic payroll deduction synchronization.
+            </p>
+          </div>
+        </div>
+        {canManage && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={() => {
+                setForm(emptyForm);
+                setFormOpen(true);
+              }}
+              className="h-8 gap-1.5 rounded-xl bg-[#16A34A] px-3 text-xs font-semibold text-white shadow-xs hover:bg-[#15803D]"
+            >
+              <Plus className="size-3.5" />
+              <span>Apply For Loan</span>
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* ── 2. Compact 4 KPI Statistics Cards ────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Total Loans */}
@@ -895,6 +928,110 @@ export default function LoansPage() {
           </table>
         </div>
 
+        {/* Mobile Responsive Cards View (< 768px) */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {loading ? (
+            <div className="py-10 text-center text-xs text-slate-400">
+              <RefreshCw className="mx-auto mb-2 size-5 animate-spin text-emerald-600" />
+              Loading employee loans…
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="py-10 text-center px-4">
+              <IndianRupee className="mx-auto mb-2 size-6 text-slate-400" />
+              <p className="text-sm font-semibold text-slate-800">No loans match these filters</p>
+              <p className="mt-1 text-xs text-slate-500">Try adjusting your filters.</p>
+            </div>
+          ) : (
+            filteredRows.map((row) => {
+              const statusKey = String(row.status || 'PENDING').toUpperCase();
+              const statusObj = STATUS_CONFIG[statusKey] || STATUS_CONFIG.PENDING;
+              const isPending = statusKey === 'PENDING';
+
+              return (
+                <div
+                  key={row.id}
+                  onClick={() => {
+                    setSelectedLoan(row);
+                    setApprovalAmount(String(row.loanAmount || ''));
+                    setApprovalTenure(String(row.termMonths || 12));
+                    setApprovalEmi(String(row.monthlyEmi || ''));
+                    setRejectReason('');
+                  }}
+                  className="p-4 space-y-3 transition-colors hover:bg-slate-50/70 cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-700 text-xs">
+                        {(row.employeeName || 'E')[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 text-xs truncate">{row.employeeName}</p>
+                        <p className="text-[10px] text-slate-400">
+                          {row.employee?.employeeCode || `ID #${row.employeeId}`} · {row.department || 'General'}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${statusObj.color}`}
+                    >
+                      <span className={`size-1.5 rounded-full ${statusObj.dot}`} />
+                      {statusObj.label}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Requested</span>
+                      <span className="font-bold text-slate-900">{inr(row.loanAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Monthly EMI</span>
+                      <span className="font-bold text-[#16A34A]">{row.monthlyEmi ? `${inr(row.monthlyEmi)}/mo` : '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Tenure</span>
+                      <span className="text-slate-700">{row.termMonths || 12} Mos ({row.interestRate ?? 0}%)</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Remaining</span>
+                      <span className="font-bold text-slate-800">{row.remainingBalance != null ? inr(row.remainingBalance) : '—'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] pt-1">
+                    <span className="text-slate-500 truncate max-w-[180px]">{row.reason || 'No description'}</span>
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedLoan(row);
+                          setApprovalAmount(String(row.loanAmount || ''));
+                          setApprovalTenure(String(row.termMonths || 12));
+                          setApprovalEmi(String(row.monthlyEmi || ''));
+                          setRejectReason('');
+                        }}
+                        className="h-7 px-2 text-xs text-emerald-700 font-semibold"
+                      >
+                        Inspect
+                      </Button>
+                      {canManage && isPending && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleApprove(row)}
+                          className="h-7 px-2 text-xs bg-blue-600 text-white rounded-lg font-semibold"
+                        >
+                          Approve
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
         {/* Pagination */}
         {!loading && filteredRows.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 bg-slate-50/50 text-xs text-slate-500">
@@ -999,6 +1136,19 @@ export default function LoansPage() {
                 />
                 <IndianRupee className="size-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               </div>
+              {/* Quick Amount Chips */}
+              <div className="flex flex-wrap items-center gap-1 pt-1">
+                {['25000', '50000', '100000', '200000'].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => handleAmountChange(amt)}
+                    className="rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition-colors"
+                  >
+                    ₹{Number(amt) / 1000}k
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -1012,6 +1162,19 @@ export default function LoansPage() {
                 onChange={(e) => handleTenureChange(e.target.value)}
                 className="h-9 rounded-xl border-slate-200 text-xs focus:border-emerald-500 focus:ring-emerald-500 font-semibold"
               />
+              {/* Quick Tenure Chips */}
+              <div className="flex flex-wrap items-center gap-1 pt-1">
+                {['6', '12', '18', '24', '36'].map((mos) => (
+                  <button
+                    key={mos}
+                    type="button"
+                    onClick={() => handleTenureChange(mos)}
+                    className="rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition-colors"
+                  >
+                    {mos}m
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1041,6 +1204,34 @@ export default function LoansPage() {
               />
             </div>
           </div>
+
+          {/* Live Loan Calculation Summary Card */}
+          {Number(form.loanAmount) > 0 && (
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-[#16A34A]">
+                <span>Repayment Schedule Preview</span>
+                <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.2 rounded-full">
+                  {form.termMonths || 12} Installments
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs pt-1">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Principal</span>
+                  <span className="font-bold text-slate-900">{inr(form.loanAmount)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Monthly EMI</span>
+                  <span className="font-black text-[#16A34A]">{inr(form.monthlyEmi || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Repayable</span>
+                  <span className="font-bold text-slate-800">
+                    {inr((Number(form.monthlyEmi) || 0) * (Number(form.termMonths) || 12))}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Reason / Purpose */}
           <div className="space-y-1.5">

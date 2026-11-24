@@ -394,8 +394,9 @@ export default function CommissionsPage() {
   }, [overrideForm.employeeId, employees, configs.designations, configs.employees]);
 
   // Calculate Example Commission Preview for Drawer
+  const [simulatedDealSize, setSimulatedDealSize] = React.useState(50000);
   const simulatedExample = React.useMemo(() => {
-    const sampleDeal = 25000;
+    const sampleDeal = simulatedDealSize || 50000;
     const val = Number(overrideForm.commissionValue) || 0;
     let earned = 0;
     if (overrideForm.commissionType === 'FIXED') {
@@ -404,7 +405,7 @@ export default function CommissionsPage() {
       earned = Math.round(((sampleDeal * val) / 100) * 100) / 100;
     }
     return { sampleDeal, earned };
-  }, [overrideForm.commissionType, overrideForm.commissionValue]);
+  }, [overrideForm.commissionType, overrideForm.commissionValue, simulatedDealSize]);
 
   // Status Counts for Pill Filters
   const statusCounts = React.useMemo(() => {
@@ -820,127 +821,202 @@ export default function CommissionsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-[#E2E8E5] bg-[#F4F9F6] text-[11px] font-bold uppercase tracking-wider text-[#163A2E]">
-                      <th className="py-3 pl-5 pr-3">Employee</th>
-                      <th className="py-3 px-3">Type & Rate</th>
-                      <th className="py-3 px-3">Order / Lead</th>
-                      <th className="py-3 px-3 text-right">Deal Amount</th>
-                      <th className="py-3 px-3 text-right">Commission</th>
-                      <th className="py-3 px-3">Status</th>
-                      <th className="py-3 px-3">Date</th>
-                      <th className="py-3 pl-3 pr-5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {rows.map((row) => {
-                      const empName = `${row.employee?.firstName || ''} ${row.employee?.lastName || ''}`.trim() || row.employee?.name || 'Staff Member';
-                      const initial = (empName[0] || 'E').toUpperCase();
-                      const orderRef = row.orderId || row.purchase?.orderNumber || (row.leadId ? `LEAD-${row.leadId}` : '—');
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-[#E2E8E5] bg-[#F4F9F6] text-[11px] font-bold uppercase tracking-wider text-[#163A2E]">
+                        <th className="py-3 pl-5 pr-3">Employee</th>
+                        <th className="py-3 px-3">Type & Rate</th>
+                        <th className="py-3 px-3">Order / Lead</th>
+                        <th className="py-3 px-3 text-right">Deal Amount</th>
+                        <th className="py-3 px-3 text-right">Commission</th>
+                        <th className="py-3 px-3">Status</th>
+                        <th className="py-3 px-3">Date</th>
+                        <th className="py-3 pl-3 pr-5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {rows.map((row) => {
+                        const empName = `${row.employee?.firstName || ''} ${row.employee?.lastName || ''}`.trim() || row.employee?.name || 'Staff Member';
+                        const initial = (empName[0] || 'E').toUpperCase();
+                        const orderRef = row.orderId || row.purchase?.orderNumber || (row.leadId ? `LEAD-${row.leadId}` : '—');
 
-                      return (
-                        <tr
-                          key={row.id}
-                          className="transition-colors hover:bg-slate-50/70"
-                        >
-                          {/* Employee */}
-                          <td className="py-3 pl-5 pr-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-xs font-bold text-[#16A34A]">
-                                {initial}
+                        return (
+                          <tr
+                            key={row.id}
+                            className="transition-colors hover:bg-slate-50/70"
+                          >
+                            {/* Employee */}
+                            <td className="py-3 pl-5 pr-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-xs font-bold text-[#16A34A]">
+                                  {initial}
+                                </div>
+                                <div className="min-w-0 max-w-[180px]">
+                                  <TruncatedText className="font-semibold text-slate-900">
+                                    {empName}
+                                  </TruncatedText>
+                                  {row.employee?.employeeCode && (
+                                    <p className="text-[10px] font-mono text-slate-400">
+                                      {row.employee.employeeCode}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              <div className="min-w-0 max-w-[180px]">
-                                <TruncatedText className="font-semibold text-slate-900">
-                                  {empName}
-                                </TruncatedText>
-                                {row.employee?.employeeCode && (
-                                  <p className="text-[10px] font-mono text-slate-400">
-                                    {row.employee.employeeCode}
-                                  </p>
-                                )}
-                              </div>
+                            </td>
+
+                            {/* Type & Rate */}
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
+                                {row.commissionType === 'FIXED'
+                                  ? `Fixed · ${inr(row.commissionRate || row.commissionAmount)}`
+                                  : `${row.commissionRate ?? 0}%`}
+                              </span>
+                            </td>
+
+                            {/* Order / Lead */}
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <span className="inline-block max-w-[130px] font-mono text-[11px] text-slate-600 bg-slate-100/70 rounded px-1.5 py-0.5">
+                                <TruncatedText>{orderRef}</TruncatedText>
+                              </span>
+                            </td>
+
+                            {/* Purchase Amount */}
+                            <td className="py-3 px-3 whitespace-nowrap text-right font-medium text-slate-600">
+                              {inr(row.purchaseAmount)}
+                            </td>
+
+                            {/* Commission Amount */}
+                            <td className="py-3 px-3 whitespace-nowrap text-right font-bold text-[#16A34A]">
+                              {inr(row.commissionAmount)}
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <StatusBadge status={String(row.status || '').toLowerCase()} />
+                            </td>
+
+                            {/* Date */}
+                            <td className="py-3 px-3 whitespace-nowrap text-slate-500 font-medium">
+                              {formatDate(row.createdAt)}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-3 pl-3 pr-5 text-right whitespace-nowrap">
+                              {canManage && (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {row.status === 'PENDING' && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleUpdateStatus(row, 'APPROVED')}
+                                      className="h-7 px-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-[11px] font-semibold shadow-2xs"
+                                    >
+                                      Approve
+                                    </Button>
+                                  )}
+                                  {row.status === 'APPROVED' && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleUpdateStatus(row, 'PAID')}
+                                      className="h-7 px-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-semibold shadow-2xs"
+                                    >
+                                      Mark Paid
+                                    </Button>
+                                  )}
+                                  {row.status !== 'CANCELLED' && row.status !== 'PAID' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleUpdateStatus(row, 'CANCELLED')}
+                                      className="h-7 px-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-[11px]"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Responsive Cards View (< 768px) */}
+                <div className="block md:hidden divide-y divide-slate-100">
+                  {rows.map((row) => {
+                    const empName = `${row.employee?.firstName || ''} ${row.employee?.lastName || ''}`.trim() || row.employee?.name || 'Staff Member';
+                    const initial = (empName[0] || 'E').toUpperCase();
+                    const orderRef = row.orderId || row.purchase?.orderNumber || (row.leadId ? `LEAD-${row.leadId}` : '—');
+
+                    return (
+                      <div key={row.id} className="p-4 space-y-2.5 transition hover:bg-slate-50/70">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100/80 text-xs font-bold text-[#16A34A]">
+                              {initial}
                             </div>
-                          </td>
+                            <div>
+                              <p className="font-bold text-slate-900 text-xs">{empName}</p>
+                              {row.employee?.employeeCode && (
+                                <p className="text-[10px] font-mono text-slate-400">{row.employee.employeeCode}</p>
+                              )}
+                            </div>
+                          </div>
+                          <StatusBadge status={String(row.status || '').toLowerCase()} />
+                        </div>
 
-                          {/* Type & Rate */}
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
-                              {row.commissionType === 'FIXED'
-                                ? `Fixed · ${inr(row.commissionRate || row.commissionAmount)}`
-                                : `${row.commissionRate ?? 0}%`}
+                        <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">Rate / Type</span>
+                            <span className="font-semibold text-slate-700">
+                              {row.commissionType === 'FIXED' ? `Fixed · ${inr(row.commissionRate || row.commissionAmount)}` : `${row.commissionRate ?? 0}%`}
                             </span>
-                          </td>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">Commission</span>
+                            <span className="font-black text-[#16A34A]">{inr(row.commissionAmount)}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">Deal Ref</span>
+                            <span className="font-mono text-[11px] text-slate-600 truncate">{orderRef}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">Deal Size</span>
+                            <span className="font-semibold text-slate-700">{inr(row.purchaseAmount)}</span>
+                          </div>
+                        </div>
 
-                          {/* Order / Lead */}
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            <span className="inline-block max-w-[130px] font-mono text-[11px] text-slate-600 bg-slate-100/70 rounded px-1.5 py-0.5">
-                              <TruncatedText>{orderRef}</TruncatedText>
-                            </span>
-                          </td>
-
-                          {/* Purchase Amount */}
-                          <td className="py-3 px-3 whitespace-nowrap text-right font-medium text-slate-600">
-                            {inr(row.purchaseAmount)}
-                          </td>
-
-                          {/* Commission Amount */}
-                          <td className="py-3 px-3 whitespace-nowrap text-right font-bold text-[#16A34A]">
-                            {inr(row.commissionAmount)}
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            <StatusBadge status={String(row.status || '').toLowerCase()} />
-                          </td>
-
-                          {/* Date */}
-                          <td className="py-3 px-3 whitespace-nowrap text-slate-500 font-medium">
-                            {formatDate(row.createdAt)}
-                          </td>
-
-                          {/* Actions */}
-                          <td className="py-3 pl-3 pr-5 text-right whitespace-nowrap">
-                            {canManage && (
-                              <div className="flex items-center justify-end gap-1.5">
-                                {row.status === 'PENDING' && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUpdateStatus(row, 'APPROVED')}
-                                    className="h-7 px-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-[11px] font-semibold shadow-2xs"
-                                  >
-                                    Approve
-                                  </Button>
-                                )}
-                                {row.status === 'APPROVED' && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUpdateStatus(row, 'PAID')}
-                                    className="h-7 px-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-semibold shadow-2xs"
-                                  >
-                                    Mark Paid
-                                  </Button>
-                                )}
-                                {row.status !== 'CANCELLED' && row.status !== 'PAID' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleUpdateStatus(row, 'CANCELLED')}
-                                    className="h-7 px-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-[11px]"
-                                  >
-                                    Cancel
-                                  </Button>
-                                )}
-                              </div>
+                        {canManage && (row.status === 'PENDING' || row.status === 'APPROVED') && (
+                          <div className="flex items-center justify-end gap-2 pt-1">
+                            {row.status === 'PENDING' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleUpdateStatus(row, 'APPROVED')}
+                                className="h-7 px-3 rounded-lg bg-[#16A34A] text-white text-xs font-semibold"
+                              >
+                                Approve
+                              </Button>
                             )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                            {row.status === 'APPROVED' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleUpdateStatus(row, 'PAID')}
+                                className="h-7 px-3 rounded-lg bg-teal-600 text-white text-xs font-semibold"
+                              >
+                                Mark Paid
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
 
             {/* Pagination Controls */}
@@ -1531,22 +1607,46 @@ export default function CommissionsPage() {
           </div>
 
           {/* Live Payout Example Simulation Card */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-1 text-xs">
-            <div className="flex items-center gap-1.5 text-slate-700 font-bold">
-              <Sparkles className="size-3.5 text-amber-500" />
-              <span>Live Calculation Preview</span>
-            </div>
-            <p className="text-[11px] text-slate-600">
-              On a client deal of{' '}
-              <span className="font-semibold text-slate-900">
-                {inr(simulatedExample.sampleDeal)}
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3.5 space-y-2 text-xs shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-slate-800 font-bold">
+                <Sparkles className="size-3.5 text-amber-500" />
+                <span>Live Commission Simulator</span>
+              </div>
+              <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.2 rounded-full">
+                Interactive Preview
               </span>
-              , this employee will earn{' '}
-              <span className="font-bold text-[#16A34A]">
-                {inr(simulatedExample.earned)}
-              </span>{' '}
-              in commissions.
-            </p>
+            </div>
+
+            {/* Test Deal Size Chips */}
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Test Deal:</span>
+              {[10000, 25000, 50000, 100000, 250000].map((deal) => (
+                <button
+                  key={deal}
+                  type="button"
+                  onClick={() => setSimulatedDealSize(deal)}
+                  className={`rounded-lg border px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                    simulatedDealSize === deal
+                      ? 'border-[#16A34A] bg-emerald-50 text-[#16A34A]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  ₹{deal >= 100000 ? `${deal / 100000}L` : `${deal / 1000}k`}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold block uppercase">Deal Amount</span>
+                <span className="font-bold text-slate-800 text-xs">{inr(simulatedExample.sampleDeal)}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 font-semibold block uppercase">Employee Commission</span>
+                <span className="font-black text-sm text-[#16A34A]">{inr(simulatedExample.earned)}</span>
+              </div>
+            </div>
           </div>
 
           {/* Status Selection */}
