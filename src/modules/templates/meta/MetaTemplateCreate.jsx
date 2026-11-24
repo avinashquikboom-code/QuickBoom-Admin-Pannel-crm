@@ -28,7 +28,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { toast } from '@/hooks/use-toast';
-import { envelope, Field } from '../template-shared';
+import { Field } from '../template-shared';
+import { confirmedTemplateOf, templateRecordOf } from './template-response.mjs';
 import { WhatsAppPreview } from './meta-shared';
 
 const WIZARD_STEPS = [
@@ -227,9 +228,9 @@ export function MetaTemplateCreate() {
         isLocalActive: true,
       };
 
-      const result = envelope(await api.post('/templates/meta', payload));
+      const response = await api.post('/templates/meta', payload);
+      const result = submitToMeta ? confirmedTemplateOf(response) : templateRecordOf(response);
       const status = result?.status || result?.metaStatus || 'UNKNOWN';
-      if (submitToMeta && !result?.metaTemplateId) throw new Error('Meta did not confirm a template ID; check synchronization status.');
 
       toast.success(
         submitToMeta
