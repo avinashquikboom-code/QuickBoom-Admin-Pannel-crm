@@ -38,9 +38,9 @@ import { cn } from '@/lib/utils';
 
 // Standard supported CRM fields
 const CRM_FIELDS = [
-  { key: 'leadName', label: 'Lead Name', required: true, aliases: ['name', 'lead name', 'full name', 'contact name', 'person name', 'lead'] },
-  { key: 'companyName', label: 'Company Name', required: false, aliases: ['company', 'company name', 'business', 'organization', 'firm'] },
-  { key: 'phone', label: 'Phone Number', required: false, aliases: ['phone', 'mobile', 'contact', 'cell', 'phone number', 'mobile number'] },
+  { key: 'leadName', label: 'Lead Name', required: false, aliases: ['name', 'lead name', 'full name', 'contact name', 'person name', 'lead'] },
+  { key: 'companyName', label: 'Company Name', required: false, aliases: ['company', 'company name', 'business', 'business name', 'organization', 'firm'] },
+  { key: 'phone', label: 'Phone Number', required: false, aliases: ['phone', 'mobile', 'contact', 'cell', 'phone number', 'mobile number', 'contact number'] },
   { key: 'email', label: 'Email Address', required: false, aliases: ['email', 'email address', 'mail'] },
   { key: 'website', label: 'Website', required: false, aliases: ['website', 'site', 'url', 'web'] },
   { key: 'address', label: 'Address', required: false, aliases: ['address', 'street', 'location'] },
@@ -49,13 +49,18 @@ const CRM_FIELDS = [
   { key: 'country', label: 'Country', required: false, aliases: ['country', 'nation'] },
   { key: 'pincode', label: 'Pincode / Zip', required: false, aliases: ['pincode', 'pin code', 'zip', 'zipcode', 'postal code'] },
   { key: 'source', label: 'Lead Source', required: false, aliases: ['source', 'lead source', 'origin', 'channel'] },
-  { key: 'category', label: 'Category', required: false, aliases: ['category', 'industry', 'type', 'segment'] },
+  { key: 'category', label: 'Category', required: false, aliases: ['category', 'industry', 'business type', 'type', 'segment'] },
   { key: 'priority', label: 'Priority', required: false, aliases: ['priority', 'urgency', 'level'] },
+  { key: 'rating', label: 'Rating', required: false, aliases: ['rating', 'google rating'] },
+  { key: 'sourceDate', label: 'Source Record Date', required: false, aliases: ['added on', 'created at', 'date'] },
   { key: 'status', label: 'Status / Stage', required: false, aliases: ['status', 'stage', 'lead status', 'lead stage'] },
   { key: 'value', label: 'Estimated Value', required: false, aliases: ['value', 'deal value', 'amount', 'budget', 'revenue'] },
   { key: 'notes', label: 'Notes', required: false, aliases: ['notes', 'remarks', 'description', 'comment', 'comments'] },
   { key: 'employeeCode', label: 'Assigned Employee Code', required: false, aliases: ['employee code', 'sales rep', 'assigned to', 'rep code', 'emp code', 'assignee'] },
 ];
+
+const LEAD_STATUSES = new Set(['NEW', 'CONTACTED', 'CALL_BACK', 'DETAILS_SENT', 'FOLLOW_UP', 'VISIT_SCHEDULED', 'VISIT_DONE', 'PROPOSAL_SENT', 'NEGOTIATION', 'FINAL_CALL', 'WON', 'LOST', 'VISIT', 'QUALIFIED', 'PROPOSAL', 'PAYMENT', 'WORK_STARTED', 'CANCELLED', 'CONVERTED']);
+const normalizeStatus = (value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
 
 function normalizeHeader(header) {
   return String(header || '').trim().toLowerCase().replace(/[_\W]+/g, ' ');
@@ -67,7 +72,7 @@ function autoDetectField(header) {
     if (norm === field.key.toLowerCase() || norm === field.label.toLowerCase()) {
       return field.key;
     }
-    if (field.aliases.some((alias) => norm === alias || norm.includes(alias))) {
+    if (field.aliases.some((alias) => norm === alias)) {
       return field.key;
     }
   }
@@ -76,15 +81,15 @@ function autoDetectField(header) {
 
 function validateRow(row) {
   const errors = [];
-  const name = String(row.leadName || '').trim();
+  const name = String(row.leadName || row.companyName || '').trim();
   if (!name) {
-    errors.push('Lead name is required');
+    errors.push('Lead name or company name is required');
   }
 
   const phone = String(row.phone || '').trim();
   if (phone) {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 8 || digits.length > 15) {
+    const numbers = phone.split(/\s*[/;,]\s*/);
+    if (numbers.some((number) => { const digits = number.replace(/\D/g, ''); return !/^\+?[\d\s().-]+$/.test(number) || digits.length < 8 || digits.length > 15; })) {
       errors.push('Phone must have 8–15 digits');
     }
   }
@@ -93,6 +98,9 @@ function validateRow(row) {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     errors.push('Invalid email format');
   }
+
+  const rating = String(row.rating || '').trim();
+  if (rating && (!Number.isFinite(Number(rating)) || Number(rating) < 0 || Number(rating) > 5)) errors.push('Rating must be between 0 and 5');
 
   const val = String(row.value || '').trim();
   if (val && isNaN(Number(val))) {
@@ -123,7 +131,8 @@ export function BulkImportLeadsDrawer({
   const [mapping, setMapping] = React.useState({});
   const [processedRows, setProcessedRows] = React.useState([]);
   const [selectedRowIndices, setSelectedRowIndices] = React.useState(new Set());
-  const [filterInvalidOnly, setFilterInvalidOnly] = React.useState(false);
+  const [rowFilter, setRowFilter] = React.useState('all');
+  const [previewPage, setPreviewPage] = React.useState(0);
   const [editingRow, setEditingRow] = React.useState(null);
 
   // Step 3: Assignment State
@@ -134,7 +143,7 @@ export function BulkImportLeadsDrawer({
   const [batchAssigneeId, setBatchAssigneeId] = React.useState(null);
 
   // Step 4: Import State
-  const [duplicateAction, setDuplicateAction] = React.useState('SKIP'); // 'SKIP' | 'UPDATE'
+  const [duplicateAction] = React.useState('SKIP'); // 'SKIP' | 'UPDATE'
   const [importing, setImporting] = React.useState(false);
   const [importProgress, setImportProgress] = React.useState({ current: 0, total: 0 });
   const [importResults, setImportResults] = React.useState(null);
@@ -192,9 +201,9 @@ export function BulkImportLeadsDrawer({
 
         // Auto map headers
         const initialMapping = {};
-        headers.forEach((h) => {
+        headers.forEach((h, index) => {
           const detected = autoDetectField(h);
-          if (detected) initialMapping[h] = detected;
+          if (detected) initialMapping[index] = detected;
         });
         setMapping(initialMapping);
 
@@ -235,9 +244,9 @@ export function BulkImportLeadsDrawer({
       setRawRows(dataRows);
 
       const initialMapping = {};
-      headers.forEach((h) => {
+      headers.forEach((h, index) => {
         const detected = autoDetectField(h);
-        if (detected) initialMapping[h] = detected;
+        if (detected) initialMapping[index] = detected;
       });
       setMapping(initialMapping);
 
@@ -254,12 +263,13 @@ export function BulkImportLeadsDrawer({
     const mapped = rowsList.map((rowCells, idx) => {
       const rowObj = {
         _rowIndex: idx + 1,
+        _cells: rowCells,
         _selected: true,
         assignedToId: null,
       };
 
       headers.forEach((h, hIdx) => {
-        const crmKey = fieldMapping[h];
+        const crmKey = fieldMapping[hIdx];
         if (crmKey) {
           rowObj[crmKey] = String(rowCells[hIdx] ?? '').trim();
         }
@@ -277,6 +287,7 @@ export function BulkImportLeadsDrawer({
         }
       }
 
+      rowObj._warnings = [!rowObj.leadName && rowObj.companyName ? 'No separate contact name' : '', !rowObj.email ? 'Missing email' : '', !rowObj.website ? 'Missing website' : '', !rowObj.category ? 'Missing category' : '', rowObj.status && !LEAD_STATUSES.has(normalizeStatus(rowObj.status)) ? 'Unrecognized status; NEW will be used' : ''].filter(Boolean);
       const errors = validateRow(rowObj);
       rowObj._errors = errors;
       rowObj._isValid = errors.length === 0;
@@ -300,8 +311,10 @@ export function BulkImportLeadsDrawer({
     setProcessedRows((prev) => {
       const copy = [...prev];
       const errors = validateRow(updatedRow);
+      const warnings = [!updatedRow.leadName && updatedRow.companyName ? 'No separate contact name' : '', !updatedRow.email ? 'Missing email' : '', !updatedRow.website ? 'Missing website' : '', !updatedRow.category ? 'Missing category' : '', updatedRow.status && !LEAD_STATUSES.has(normalizeStatus(updatedRow.status)) ? 'Unrecognized status; NEW will be used' : ''].filter(Boolean);
       copy[index] = {
         ...updatedRow,
+        _warnings: warnings,
         _errors: errors,
         _isValid: errors.length === 0,
       };
@@ -314,6 +327,8 @@ export function BulkImportLeadsDrawer({
   // Delete row from import
   const handleDeleteRow = (index) => {
     setProcessedRows((prev) => prev.filter((_, i) => i !== index));
+    setRawRows((prev) => prev.filter((_, i) => i !== index));
+    setSelectedRowIndices((prev) => new Set(Array.from(prev).filter((i) => i !== index).map((i) => i > index ? i - 1 : i)));
     toast.success('Row removed');
   };
 
@@ -333,6 +348,8 @@ export function BulkImportLeadsDrawer({
       '380015',
       'Website',
       'Enterprise Software',
+      '',
+      '',
       'HIGH',
       'NEW',
       '150000',
@@ -352,6 +369,8 @@ export function BulkImportLeadsDrawer({
       '390010',
       'Referral',
       'Supply Chain',
+      '',
+      '',
       'MEDIUM',
       'NEW',
       '75000',
@@ -415,7 +434,7 @@ export function BulkImportLeadsDrawer({
     const counts = {};
     let unassigned = 0;
 
-    processedRows.forEach((row) => {
+    processedRows.filter((row) => row._isValid).forEach((row) => {
       if (row.assignedToId) {
         counts[row.assignedToId] = (counts[row.assignedToId] || 0) + 1;
       } else {
@@ -431,7 +450,7 @@ export function BulkImportLeadsDrawer({
     return {
       breakdown,
       unassigned,
-      total: processedRows.length,
+      total: processedRows.filter((row) => row._isValid).length,
     };
   }, [processedRows, salesEmployees]);
 
@@ -440,8 +459,8 @@ export function BulkImportLeadsDrawer({
     const total = processedRows.length;
     const valid = processedRows.filter((r) => r._isValid).length;
     const invalid = total - valid;
-    const assigned = processedRows.filter((r) => r.assignedToId != null).length;
-    return { total, valid, invalid, assigned, unassigned: total - assigned };
+    const assigned = processedRows.filter((r) => r._isValid && r.assignedToId != null).length;
+    return { total, valid, invalid, assigned, unassigned: valid - assigned };
   }, [processedRows]);
 
   // Final Import Execution
@@ -466,9 +485,9 @@ export function BulkImportLeadsDrawer({
 
       try {
         const formPayload = {
-          leadName: row.leadName,
+          title: row.leadName || row.companyName,
           companyName: row.companyName || undefined,
-          phone: row.phone || undefined,
+          phone: row.phone ? row.phone.split(/\s*[/;,]\s*/)[0].replace(/[^\d+]/g, '') : undefined,
           email: row.email || undefined,
           website: row.website || undefined,
           address: row.address || undefined,
@@ -478,16 +497,17 @@ export function BulkImportLeadsDrawer({
           pincode: row.pincode || undefined,
           source: row.source || 'Manual',
           category: row.category || undefined,
-          priority: row.priority || 'MEDIUM',
-          status: row.status || 'NEW',
-          assignedToId: row.assignedToId || undefined,
+          priority: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(String(row.priority || '').toUpperCase()) ? String(row.priority).toUpperCase() : 'MEDIUM',
+          status: LEAD_STATUSES.has(normalizeStatus(row.status)) ? normalizeStatus(row.status) : 'NEW',
+          assignedToId: row.assignedToId ?? null,
           value: row.value || undefined,
-          notes: row.notes || undefined,
+          workNotes: [row.notes, ...rawHeaders.map((header, index) => !mapping[index] && row._cells?.[index] ? `${header}: ${row._cells[index]}` : ''), row.sourceDate ? `Source record date: ${row.sourceDate}` : '', row.priority && !['LOW', 'MEDIUM', 'HIGH', 'URGENT'].includes(String(row.priority).toUpperCase()) ? `Original priority: ${row.priority}` : '', row.status && !LEAD_STATUSES.has(normalizeStatus(row.status)) ? `Original status: ${row.status}` : '', row.phone?.split(/\s*[/;,]\s*/).length > 1 ? `Additional phone numbers: ${row.phone.split(/\s*[/;,]\s*/).slice(1).join(', ')}` : ''].filter(Boolean).join('\n') || undefined,
+          rating: row.rating || undefined,
         };
 
         // Check duplicate if skip requested
         if (duplicateAction === 'SKIP') {
-          const dupRes = await checkLeadDuplicate(formPayload).catch(() => ({}));
+          const dupRes = await checkLeadDuplicate(formPayload);
           const dupData = dupRes?.data || dupRes;
           if (dupData?.isDuplicate) {
             duplicatesSkipped += 1;
@@ -501,7 +521,7 @@ export function BulkImportLeadsDrawer({
         failed += 1;
         failedRows.push({
           ...row,
-          _errorReason: err.message || 'Import failed',
+          _errorReason: crmError(err) || 'Import failed',
         });
       }
     }
@@ -516,6 +536,18 @@ export function BulkImportLeadsDrawer({
     setImporting(false);
     onImported?.();
     toast.success(`Import complete: ${successful} leads imported`);
+  };
+
+  const handleDownloadInvalid = () => {
+    const invalidRows = processedRows.filter((row) => !row._isValid);
+    if (!invalidRows.length) return;
+    const data = [
+      [...rawHeaders, 'Validation errors'],
+      ...invalidRows.map((row) => [...rawHeaders.map((_, index) => row._cells?.[index] ?? ''), row._errors.join('; ')]),
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(data), 'Invalid rows');
+    XLSX.writeFile(workbook, 'invalid-leads.xlsx');
   };
 
   // Download Failed Rows CSV
@@ -538,7 +570,8 @@ export function BulkImportLeadsDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full h-full p-0 flex flex-col gap-0 bg-white border-l border-slate-200/90 shadow-2xl rounded-l-2xl max-w-full sm:max-w-[90vw] lg:max-w-[85vw] xl:max-w-[80vw] overflow-hidden"
+        showCloseButton={false}
+        className="w-full h-full p-0 flex flex-col gap-0 bg-white border-l border-slate-200/90 shadow-2xl rounded-l-2xl max-w-full sm:max-w-[98vw] overflow-hidden"
       >
         {/* ── 1. Sticky Header ────────────────────────────────────────────── */}
         <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 bg-white px-5 py-4 sm:px-7">
@@ -814,11 +847,11 @@ export function BulkImportLeadsDrawer({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-1">
-                  {rawHeaders.map((hdr) => {
-                    const currentCrmKey = mapping[hdr] || '';
+                  {rawHeaders.map((hdr, headerIndex) => {
+                    const currentCrmKey = mapping[headerIndex] || '';
                     return (
                       <div
-                        key={hdr}
+                        key={headerIndex}
                         className="rounded-xl border border-slate-100 bg-slate-50/60 p-2 text-xs space-y-1"
                       >
                         <p className="font-semibold text-slate-800 truncate" title={hdr}>
@@ -826,7 +859,7 @@ export function BulkImportLeadsDrawer({
                         </p>
                         <select
                           value={currentCrmKey}
-                          onChange={(e) => handleMappingChange(hdr, e.target.value)}
+                          onChange={(e) => handleMappingChange(headerIndex, e.target.value)}
                           className="w-full h-7 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-700 focus:outline-none focus:border-emerald-500"
                         >
                           <option value="">— Ignore Column —</option>
@@ -854,17 +887,13 @@ export function BulkImportLeadsDrawer({
                     </span>
                   </div>
 
-                  {stats.invalid > 0 && (
-                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-rose-700 select-none">
-                      <input
-                        type="checkbox"
-                        checked={filterInvalidOnly}
-                        onChange={(e) => setFilterInvalidOnly(e.target.checked)}
-                        className="size-3.5 rounded text-rose-600 focus:ring-rose-500"
-                      />
-                      <span>Show Only Invalid Rows ({stats.invalid})</span>
-                    </label>
-                  )}
+                  {stats.invalid > 0 && <button type="button" onClick={handleDownloadInvalid} className="text-xs font-semibold text-rose-700">Download invalid rows</button>}
+                  <select aria-label="Filter rows" value={rowFilter} onChange={(e) => { setRowFilter(e.target.value); setPreviewPage(0); }} className="rounded-lg border border-slate-200 bg-white p-1 text-xs">
+                    <option value="all">All Rows</option>
+                    <option value="valid">Valid</option>
+                    <option value="warnings">Warnings</option>
+                    <option value="invalid">Invalid</option>
+                  </select>
                 </div>
 
                 <div className="overflow-x-auto max-h-[420px]">
@@ -872,12 +901,9 @@ export function BulkImportLeadsDrawer({
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 sticky top-0 z-10">
                         <th className="py-2.5 pl-4 pr-2">#</th>
-                        <th className="py-2.5 px-3">Lead Name</th>
-                        <th className="py-2.5 px-3">Company</th>
-                        <th className="py-2.5 px-3">Phone</th>
-                        <th className="py-2.5 px-3">Email</th>
-                        <th className="py-2.5 px-3">Source</th>
-                        <th className="py-2.5 px-3">Status</th>
+                        {rawHeaders.map((header, index) => (
+                          <th key={index} className="py-2.5 px-3 whitespace-nowrap">{header}</th>
+                        ))}
                         <th className="py-2.5 px-3">Validation</th>
                         <th className="py-2.5 pl-2 pr-4 text-right">Actions</th>
                       </tr>
@@ -885,7 +911,8 @@ export function BulkImportLeadsDrawer({
                     <tbody className="divide-y divide-slate-100">
                       {processedRows
                         .map((row, originalIdx) => ({ row, originalIdx }))
-                        .filter(({ row }) => (!filterInvalidOnly || !row._isValid))
+                        .filter(({ row }) => rowFilter === 'all' || (rowFilter === 'valid' && row._isValid) || (rowFilter === 'warnings' && row._isValid && row._warnings?.length) || (rowFilter === 'invalid' && !row._isValid))
+                        .slice(previewPage * 50, (previewPage + 1) * 50)
                         .map(({ row, originalIdx }) => (
                           <tr
                             key={originalIdx}
@@ -897,28 +924,15 @@ export function BulkImportLeadsDrawer({
                             <td className="py-2.5 pl-4 pr-2 font-mono text-slate-400 text-[11px]">
                               {row._rowIndex}
                             </td>
-                            <td className="py-2.5 px-3 font-semibold text-slate-900 max-w-[140px] truncate">
-                              {row.leadName || <span className="text-rose-500 italic">Missing name</span>}
-                            </td>
-                            <td className="py-2.5 px-3 text-slate-600 max-w-[130px] truncate">
-                              {row.companyName || '—'}
-                            </td>
-                            <td className="py-2.5 px-3 font-mono text-slate-600">
-                              {row.phone || '—'}
-                            </td>
-                            <td className="py-2.5 px-3 text-slate-600 max-w-[150px] truncate">
-                              {row.email || '—'}
-                            </td>
-                            <td className="py-2.5 px-3 text-slate-600">
-                              {row.source || 'Manual'}
-                            </td>
-                            <td className="py-2.5 px-3 font-semibold text-slate-700">
-                              {row.status || 'NEW'}
-                            </td>
+                            {rawHeaders.map((header, index) => (
+                              <td key={index} className="py-2.5 px-3 text-slate-600 whitespace-nowrap" title={String(row._cells?.[index] ?? '')}>
+                                {String(row._cells?.[index] ?? '')}
+                              </td>
+                            ))}
                             <td className="py-2.5 px-3">
                               {row._isValid ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                                  <Check className="size-3" /> Valid
+                                  <Check className="size-3" /> {row._warnings?.length ? `Valid — ${row._warnings.join(', ')}` : 'Valid'}
                                 </span>
                               ) : (
                                 <span
@@ -953,6 +967,11 @@ export function BulkImportLeadsDrawer({
                         ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="flex items-center justify-end gap-3 border-t border-slate-100 p-3 text-xs">
+                  <button type="button" disabled={previewPage === 0} onClick={() => setPreviewPage((p) => Math.max(0, p - 1))}>Previous</button>
+                  <span>Page {previewPage + 1}</span>
+                  <button type="button" disabled={(previewPage + 1) * 50 >= processedRows.filter((row) => rowFilter === 'all' || (rowFilter === 'valid' && row._isValid) || (rowFilter === 'warnings' && row._isValid && row._warnings?.length) || (rowFilter === 'invalid' && !row._isValid)).length} onClick={() => setPreviewPage((p) => p + 1)}>Next</button>
                 </div>
               </div>
             </div>
@@ -1296,7 +1315,7 @@ export function BulkImportLeadsDrawer({
                           type="radio"
                           name="duplicateAction"
                           checked={duplicateAction === 'SKIP'}
-                          onChange={() => setDuplicateAction('SKIP')}
+                          readOnly
                           className="size-4 text-[#16A34A] focus:ring-[#16A34A]"
                         />
                         <div>
@@ -1307,28 +1326,7 @@ export function BulkImportLeadsDrawer({
                         </div>
                       </label>
 
-                      <label
-                        className={cn(
-                          'flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all',
-                          duplicateAction === 'UPDATE'
-                            ? 'border-emerald-300 bg-emerald-50/50 text-slate-900'
-                            : 'border-slate-200 bg-white text-slate-600'
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          name="duplicateAction"
-                          checked={duplicateAction === 'UPDATE'}
-                          onChange={() => setDuplicateAction('UPDATE')}
-                          className="size-4 text-[#16A34A] focus:ring-[#16A34A]"
-                        />
-                        <div>
-                          <p className="font-semibold">Allow re-import / update</p>
-                          <p className="text-[10px] text-slate-400">
-                            Attempt import for all rows without pre-skipping duplicates
-                          </p>
-                        </div>
-                      </label>
+
                     </div>
                   </div>
 
@@ -1464,7 +1462,7 @@ export function BulkImportLeadsDrawer({
                   }
                   setCurrentStep((s) => s + 1);
                 }}
-                disabled={currentStep === 1 && !file && !pastedText.trim()}
+                disabled={(currentStep === 1 && !file && !pastedText.trim()) || (currentStep === 2 && stats.valid === 0)}
                 className="h-9 px-5 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold shadow-xs"
               >
                 <span>Continue</span>
