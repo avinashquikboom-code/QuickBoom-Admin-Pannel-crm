@@ -1,204 +1,202 @@
 'use client';
-/* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect } from 'react';
-import { useEmployeeWizardStore } from '@/lib/stores/employee-wizard-store';
-import { validateStep, validateEmergencyContact } from '@/lib/validations/employee-wizard-validation';
-import { InputField, FormField } from './FormField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/common/Select';
-import { Button } from '@/components/common/Button';
-import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
-import { faTrash, faPlus, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 
-const RELATIONSHIPS = ['Spouse', 'Parent', 'Sibling', 'Child', 'Relative', 'Friend', 'Other'];
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+import * as React from 'react';
+import { useEmployeeWizardStore } from '@/lib/stores/employee-wizard-store';
+import { validateStep } from '@/lib/validations/employee-wizard-validation';
+import { FormField, InputField, SectionHeader } from './FormField';
+import { PhoneCall, Plus, Trash2, ShieldAlert, HeartHandshake } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+
+const RELATIONSHIPS = [
+  'Parent',
+  'Spouse',
+  'Sibling',
+  'Child',
+  'Relative',
+  'Friend',
+  'Guardian',
+  'Other',
+];
 
 export function Step4EmergencyInfo({ onValidationChange }) {
   const store = useEmployeeWizardStore();
-  const [errors, setErrors] = useState({});
-  const [contactErrors, setContactErrors] = useState({});
 
-  useEffect(() => {
-    const validation = validateStep(4, { emergencyContacts: store.emergencyContacts });
-    setErrors(validation.errors);
+  // Compute validation
+  const validation = React.useMemo(() => {
+    return validateStep(4, { emergencyContacts: store.emergencyContacts }, store.mode);
+  }, [store.emergencyContacts, store.mode]);
+
+  // Sync validation state with parent
+  React.useEffect(() => {
+    store.setStepErrors(4, validation.errors);
     onValidationChange?.(validation.isValid);
-  }, [store.emergencyContacts, onValidationChange]);
+  }, [validation.isValid, validation.errors, onValidationChange, store]);
 
-  const validateContact = (contact) => {
-    return validateEmergencyContact(contact);
+  const isErrorVisible = (errorKey) => {
+    const hasError = Boolean(validation.errors[errorKey]);
+    const isTouched = Boolean(store.touchedFields[errorKey]);
+    const isAttempted = Boolean(store.stepAttempted[4]);
+    return hasError && (isTouched || isAttempted);
   };
 
-  const handleContactChange = (id, field, value) => {
-    store.updateEmergencyContact(id, field, value);
-    const contact = store.emergencyContacts.find(c => c.id === id);
-    if (contact) {
-      const validation = validateContact({ ...contact, [field]: value });
-      setContactErrors(prev => ({
-        ...prev,
-        [id]: validation.errors,
-      }));
+  const handleAddContact = () => {
+    if (store.emergencyContacts.length >= 3) {
+      toast.info('Maximum 3 emergency contacts can be added.');
+      return;
     }
+    store.addEmergencyContact();
+  };
+
+  const handleRemoveContact = (id) => {
+    if (store.emergencyContacts.length <= 1) {
+      toast.info('At least one emergency contact is required.');
+      return;
+    }
+    store.removeEmergencyContact(id);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-bold text-slate-900">Emergency Contact Information</h2>
-        <p className="text-xs text-slate-500 mt-1">Add emergency contacts for this employee</p>
-      </div>
+      {/* ── SECTION: EMERGENCY CONTACTS ────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <SectionHeader
+          title="Emergency Contact Directory"
+          description="Designate primary family or emergency contacts reached in case of urgent workplace or medical incidents."
+          icon={PhoneCall}
+        />
 
-      {/* Validation Error */}
-      {errors.emergencyContacts && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-xs text-red-700 font-medium">{errors.emergencyContacts}</p>
-        </div>
-      )}
+        {validation.errors.emergencyContacts && store.stepAttempted[4] && (
+          <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 mb-4 animate-fadeIn">
+            <ShieldAlert className="size-4 shrink-0 text-rose-500" />
+            <span>{validation.errors.emergencyContacts}</span>
+          </div>
+        )}
 
-      {/* Emergency Contacts List */}
-      <div className="space-y-4">
-        {store.emergencyContacts.map((contact, index) => {
-          const contactError = contactErrors[contact.id];
-          const isValid = validateContact(contact).isValid;
+        <div className="space-y-4">
+          {store.emergencyContacts.map((contact, index) => {
+            const isPrimary = index === 0;
 
-          return (
-            <div key={contact.id} className="p-4 border-2 border-slate-200 rounded-lg space-y-4 relative">
-              {/* Card Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-800">
-                    Emergency Contact #{index + 1}
-                  </span>
-                  {isValid && (
-                    <FontAwesomeIcon icon={faCheckCircle} className="size-4 text-brand" />
+            return (
+              <div
+                key={contact.id}
+                className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 transition-all hover:border-slate-300"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-6 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-[#16A34A]">
+                      {index + 1}
+                    </span>
+                    <span className="text-xs font-bold text-slate-800">
+                      {isPrimary ? 'Primary Emergency Contact' : `Secondary Contact #${index + 1}`}
+                    </span>
+                    {isPrimary && (
+                      <span className="rounded-md bg-emerald-100/70 px-1.5 py-0.2 text-[9px] font-bold text-[#16A34A]">
+                        Required
+                      </span>
+                    )}
+                  </div>
+
+                  {!isPrimary && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveContact(contact.id)}
+                      className="flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 font-semibold transition-colors"
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span>Remove</span>
+                    </button>
                   )}
                 </div>
-                {store.emergencyContacts.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => store.removeEmergencyContact(contact.id)}
-                    className="h-7 px-2 text-xs text-rose-600 hover:bg-rose-50"
-                  >
-                    <FontAwesomeIcon icon={faTrash} className="size-3 mr-1" />
-                    Remove
-                  </Button>
-                )}
-              </div>
 
-              {/* Contact Fields */}
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-3.5">
                   <InputField
-                    label="Contact Name"
-                    required
-                    placeholder="Full name"
+                    label="Contact Person Name"
+                    required={isPrimary}
+                    placeholder="e.g. Ramesh Sharma"
                     value={contact.name}
-                    onChange={(e) => handleContactChange(contact.id, 'name', e.target.value)}
-                    error={contactError?.name}
+                    onChange={(e) => {
+                      store.updateEmergencyContact(contact.id, 'name', e.target.value);
+                      if (isPrimary) store.touchField('contactName');
+                    }}
+                    onBlur={() => {
+                      if (isPrimary) store.touchField('contactName');
+                    }}
+                    error={isPrimary ? validation.errors.contactName : undefined}
+                    touched={isPrimary ? isErrorVisible('contactName') : false}
                   />
 
-                  <FormField label="Relationship" required error={contactError?.relationship}>
-                    <Select
-                      value={contact.relationship}
-                      onValueChange={(value) => handleContactChange(contact.id, 'relationship', value)}
+                  <FormField label="Relationship" required={isPrimary}>
+                    <select
+                      value={contact.relationship || 'Parent'}
+                      onChange={(e) =>
+                        store.updateEmergencyContact(contact.id, 'relationship', e.target.value)
+                      }
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-[13px] font-medium text-slate-800 focus:border-[#16A34A] focus:outline-none focus:ring-1 focus:ring-[#16A34A]"
                     >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Select relationship" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RELATIONSHIPS.map((rel) => (
-                          <SelectItem key={rel} value={rel} className="text-xs">
-                            {rel}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {RELATIONSHIPS.map((rel) => (
+                        <option key={rel} value={rel}>{rel}</option>
+                      ))}
+                    </select>
                   </FormField>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-3.5">
                   <InputField
-                    label="Primary Contact Number"
-                    required
+                    label="Primary Phone Number"
+                    required={isPrimary}
                     type="tel"
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="e.g. +91 98765 11111"
                     value={contact.primaryContact}
-                    onChange={(e) => handleContactChange(contact.id, 'primaryContact', e.target.value)}
-                    error={contactError?.primaryContact}
+                    onChange={(e) => {
+                      store.updateEmergencyContact(contact.id, 'primaryContact', e.target.value);
+                      if (isPrimary) store.touchField('contactPhone');
+                    }}
+                    onBlur={() => {
+                      if (isPrimary) store.touchField('contactPhone');
+                    }}
+                    error={isPrimary ? validation.errors.contactPhone : undefined}
+                    touched={isPrimary ? isErrorVisible('contactPhone') : false}
                   />
 
                   <InputField
-                    label="Alternate Contact Number"
+                    label="Alternate Phone Number"
+                    optional
                     type="tel"
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="e.g. +91 98765 22222"
                     value={contact.alternateContact}
-                    onChange={(e) => handleContactChange(contact.id, 'alternateContact', e.target.value)}
+                    onChange={(e) =>
+                      store.updateEmergencyContact(contact.id, 'alternateContact', e.target.value)
+                    }
                   />
                 </div>
 
                 <InputField
-                  label="Address"
-                  placeholder="Residential address"
+                  label="Contact Address / City"
+                  optional
+                  placeholder="e.g. 123 Family Villa, Pune, Maharashtra"
                   value={contact.address}
-                  onChange={(e) => handleContactChange(contact.id, 'address', e.target.value)}
+                  onChange={(e) =>
+                    store.updateEmergencyContact(contact.id, 'address', e.target.value)
+                  }
                 />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FormField label="Blood Group">
-                    <Select
-                      value={contact.bloodGroup}
-                      onValueChange={(value) => handleContactChange(contact.id, 'bloodGroup', value)}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Select blood group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BLOOD_GROUPS.map((bg) => (
-                          <SelectItem key={bg} value={bg} className="text-xs">
-                            {bg}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormField>
-
-                  <div className="flex-1" />
-                </div>
-
-                <div>
-                  <FormField label="Medical Notes / Special Instructions">
-                    <textarea
-                      placeholder="Any medical conditions or special notes"
-                      value={contact.medicalNotes}
-                      onChange={(e) => handleContactChange(contact.id, 'medicalNotes', e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                      rows="3"
-                    />
-                  </FormField>
-                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      {/* Add More Button */}
-      <Button
-        type="button"
-        onClick={() => store.addEmergencyContact()}
-        variant="outline"
-        className="w-full h-9 text-xs border-brand text-brand hover:bg-brand-light"
-      >
-        <FontAwesomeIcon icon={faPlus} className="size-3 mr-2" />
-        Add Another Emergency Contact
-      </Button>
-
-      {/* Info Box */}
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-xs text-blue-700">
-          <strong>Note:</strong> At least one emergency contact with name, relationship, and phone number is required.
-        </p>
+        {/* Add Another Contact Button */}
+        {store.emergencyContacts.length < 3 && (
+          <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+            <button
+              type="button"
+              onClick={handleAddContact}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3.5 py-2 text-xs font-semibold text-[#16A34A] shadow-2xs hover:bg-emerald-50 transition-colors"
+            >
+              <Plus className="size-3.5" />
+              <span>Add Another Emergency Contact</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
