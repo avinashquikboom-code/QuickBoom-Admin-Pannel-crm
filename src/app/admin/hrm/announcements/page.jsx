@@ -102,6 +102,9 @@ export default function AnnouncementsPage({ embedded = false }) {
   const [scheduleTarget, setScheduleTarget] = React.useState(null);
   const [scheduleDateTime, setScheduleDateTime] = React.useState('');
   const [pendingDelete, setPendingDelete] = React.useState(null);
+  const [selectedIds, setSelectedIds] = React.useState([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [bulkDeleting, setBulkDeleting] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [uploadingImage, setUploadingImage] = React.useState(false);
   const [busyId, setBusyId] = React.useState(null);
@@ -111,6 +114,11 @@ export default function AnnouncementsPage({ embedded = false }) {
   React.useEffect(() => {
     setPage(1);
   }, [debouncedSearch, status, category, audience, departmentId, dateFrom, dateTo]);
+
+  React.useEffect(() => { setSelectedIds([]); }, [page, debouncedSearch, status, category, audience, departmentId, dateFrom, dateTo]);
+
+  const selectableIds = rows.filter((row) => row.status !== 'PUBLISHED').map((row) => row.id);
+  const toggleSelection = (id) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
 
   React.useEffect(() => {
     let active = true;
@@ -490,6 +498,11 @@ export default function AnnouncementsPage({ embedded = false }) {
         empty={!loading && !error && rows.length === 0 ? 'No announcements match these filters.' : ''}
       />
 
+      {selectedIds.length > 0 && <div className="flex items-center justify-between rounded-xl border border-[#E2E8E5] bg-white px-4 py-3 text-sm">
+        <span>{selectedIds.length} selected</span>
+        <Button type="button" variant="outline" className="text-rose-600" onClick={() => setBulkDeleteOpen(true)}>Delete selected</Button>
+      </div>}
+
       {/* Mobile Cards */}
       <div className="grid gap-3 md:hidden">
         {rows.map((row) => (
@@ -498,6 +511,7 @@ export default function AnnouncementsPage({ embedded = false }) {
             className="space-y-2.5 rounded-2xl border border-[#E2E8E5] bg-white p-4 shadow-xs"
           >
             <div className="flex items-start justify-between gap-2">
+              {row.status !== 'PUBLISHED' && <input type="checkbox" aria-label={`Select ${row.title}`} checked={selectedIds.includes(row.id)} onChange={() => toggleSelection(row.id)} className="mt-1 size-4" />}
               <div className="min-w-0 flex-1">
                 <TruncatedAnnouncementText text={row.title} isTitle label="Title" />
                 <TruncatedAnnouncementText text={row.description} label="Description" className="mt-0.5" />
@@ -544,6 +558,7 @@ export default function AnnouncementsPage({ embedded = false }) {
             <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-[#E2E8E5] bg-[#F8FAF9] text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
+                  <th className="w-10 px-3"><input type="checkbox" aria-label="Select all deletable announcements on this page" checked={selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id))} disabled={!selectableIds.length} onChange={(event) => setSelectedIds(event.target.checked ? selectableIds : [])} /></th>
                   <th className="w-[30%] px-4 py-3">Announcement</th>
                   <th className="w-[10%] px-3 py-3">Category</th>
                   <th className="w-[10%] px-3 py-3">Audience</th>
@@ -557,6 +572,7 @@ export default function AnnouncementsPage({ embedded = false }) {
               <tbody className="divide-y divide-slate-100">
                 {rows.map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-[#F3F8F5]/60">
+                    <td className="px-3">{row.status !== 'PUBLISHED' && <input type="checkbox" aria-label={`Select ${row.title}`} checked={selectedIds.includes(row.id)} onChange={() => toggleSelection(row.id)} />}</td>
                     <td className="px-4 py-3.5 align-middle">
                       <div className="flex items-center gap-3 min-w-0">
                         {row.imageUrl ? (
@@ -939,6 +955,18 @@ export default function AnnouncementsPage({ embedded = false }) {
       </FormDrawer>
 
       {/* Delete Confirmation */}
+      <ConfirmDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen} title="Delete selected announcements?" description={`Delete ${selectedIds.length} selected announcements? Published announcements must be archived first.`} confirmLabel="Delete selected" variant="destructive" loading={bulkDeleting} closeOnConfirm={false} onConfirm={async () => {
+        setBulkDeleting(true);
+        const results = await Promise.allSettled(selectedIds.map((id) => removeAnnouncement(id)));
+        const failedIds = selectedIds.filter((_, index) => results[index].status === 'rejected');
+        const deleted = selectedIds.length - failedIds.length;
+        if (deleted) toast.success(`${deleted} announcement${deleted === 1 ? '' : 's'} deleted`);
+        if (failedIds.length) toast.error(`${failedIds.length} could not be deleted. Refresh and try again.`);
+        setSelectedIds(failedIds);
+        setBulkDeleting(false);
+        setBulkDeleteOpen(false);
+        setRefresh((value) => value + 1);
+      }} />
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         onOpenChange={(next) => { if (!next) setPendingDelete(null); }}
