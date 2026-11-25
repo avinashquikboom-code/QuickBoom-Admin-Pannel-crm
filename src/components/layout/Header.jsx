@@ -35,7 +35,7 @@ export function Header() {
 
         const session = readSession();
         if (session?.token) {
-            api.get('/auth/profile', { qbAdminSession: true })
+            api.get('/auth/profile')
                 .then((res) => {
                     const record = res?.data ?? res;
                     if (active && record?.id) {
