@@ -59,6 +59,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { Button } from '@/components/common/Button';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import {
@@ -1510,73 +1511,18 @@ export default function LeadsRoute() {
 
                       {/* 13. Actions */}
                       <td className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedLead(row)}
-                            title="View Lead Dossier"
-                            className="size-7 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 flex items-center justify-center transition-colors"
-                          >
-                            <Eye className="size-3.5" />
-                          </button>
-
-                          {allowed && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setQuickAssignLeads([row]);
-                                setQuickAssignOpen(true);
-                              }}
-                              title="Assign / Reassign Sales Representative"
-                              className="size-7 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-[#16A34A] flex items-center justify-center transition-colors"
-                            >
-                              <UserCheck className="size-3.5" />
-                            </button>
-                          )}
-
-                          {allowed && (
-                            <button
-                              type="button"
-                              onClick={() => handleEditLead(row)}
-                              title="Edit Lead"
-                              className="size-7 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 flex items-center justify-center transition-colors"
-                            >
-                              <Edit className="size-3.5" />
-                            </button>
-                          )}
-
-                          {allowed && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setConfirmState({
-                                  type: 'convert',
-                                  lead: row,
-                                })
-                              }
-                              title="Convert to Deal / Customer"
-                              className="size-7 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-[#173D30] flex items-center justify-center transition-colors"
-                            >
-                              <UserCheck className="size-3.5" />
-                            </button>
-                          )}
-
-                          {canDelete && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setConfirmState({
-                                  type: 'delete',
-                                  lead: row,
-                                })
-                              }
-                              title="Delete Lead"
-                              className="size-7 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center transition-colors"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          )}
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger aria-label="Lead actions" className="inline-flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-600">
+                            <MoreVertical className="size-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 bg-white p-1.5">
+                            <DropdownMenuItem onClick={() => setSelectedLead(row)}><Eye className="size-4" /> View Lead Dossier</DropdownMenuItem>
+                            {allowed && <DropdownMenuItem onClick={() => { setQuickAssignLeads([row]); setQuickAssignOpen(true); }}><UserCheck className="size-4" /> Assign Representative</DropdownMenuItem>}
+                            {allowed && <DropdownMenuItem onClick={() => handleEditLead(row)}><Edit className="size-4" /> Edit Lead</DropdownMenuItem>}
+                            {allowed && <DropdownMenuItem onClick={() => setConfirmState({ type: 'convert', lead: row })}><UserCheck className="size-4" /> Convert to Deal / Customer</DropdownMenuItem>}
+                            {canDelete && <DropdownMenuItem variant="destructive" onClick={() => setConfirmState({ type: 'delete', lead: row })}><Trash2 className="size-4" /> Delete Lead</DropdownMenuItem>}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   );
