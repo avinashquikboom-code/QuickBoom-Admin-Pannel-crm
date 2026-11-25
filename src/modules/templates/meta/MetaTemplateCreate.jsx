@@ -163,6 +163,7 @@ export function MetaTemplateCreate() {
       if (form.headerType === 'TEXT') {
         if (!form.headerContent.trim()) return 'Header text is required when header type is TEXT.';
         if (form.headerContent.trim().length > 60) return 'Header text cannot exceed 60 characters.';
+        if (/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Cc}\p{Cf}\uFE0F*~`]/u.test(form.headerContent) || /_[^_]+_/.test(form.headerContent.replace(/\{\{[^{}]+\}\}/g, ''))) return 'Use one line of plain text without emojis, asterisks or formatting characters in the header.';
       }
       if (form.footer.trim().length > 60) return 'Footer text cannot exceed 60 characters.';
       if (form.buttonsJson.trim()) {

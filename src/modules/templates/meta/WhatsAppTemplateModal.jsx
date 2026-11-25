@@ -402,6 +402,9 @@ export function WhatsAppTemplateModal({
     if (form.headerType === 'TEXT' && !form.headerContent.trim()) {
       return 'Header Text is required when Header Type is Text.';
     }
+    if (form.headerType === 'TEXT' && (/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Cc}\p{Cf}\uFE0F*~`]/u.test(form.headerContent) || /_[^_]+_/.test(form.headerContent.replace(/\{\{[^{}]+\}\}/g, '')))) {
+      return 'Use one line of plain text without emojis, asterisks or formatting characters in the header.';
+    }
     return '';
   }
 
