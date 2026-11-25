@@ -854,7 +854,7 @@ export default function CustomerDashboardPage() {
                   </div>
                   <div>
                     <h2 className="text-sm font-bold text-slate-900 leading-tight">Recent Customers</h2>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Latest tenant accounts registered</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Latest customers from won leads</p>
                   </div>
                 </div>
 

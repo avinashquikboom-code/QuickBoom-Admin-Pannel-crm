@@ -178,7 +178,7 @@ export async function loadBillingOverview(params = {}) {
     api.get('/reports/summary', { params: queryParams }),
   ]);
   const recentCustomers = await api.get('/customers', {
-    params: { page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc', dateFrom: queryParams.dateFrom, dateTo: queryParams.dateTo, status: queryParams.status },
+    params: { page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc', dateFrom: queryParams.dateFrom, dateTo: queryParams.dateTo, status: queryParams.status, wonOnly: true },
   });
   const customerSummary = summaryOf(customers);
   const invoiceSummary = summaryOf(invoices);
