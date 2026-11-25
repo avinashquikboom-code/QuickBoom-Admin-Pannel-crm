@@ -559,8 +559,8 @@ export default function DealsRoute() {
       {/* 1. Page Title Card */}
       <PageTitleCard
         moduleName="CRM"
-        breadcrumb="Hot Deals"
-        title="Hot Deals"
+        breadcrumb="Hot Leads"
+        title="Hot Leads"
         description="Sales pipeline, including deals waiting on a final customer decision."
         icon={Handshake}
         badge={`${totalDealsCount} Total`}

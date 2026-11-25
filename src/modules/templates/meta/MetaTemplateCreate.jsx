@@ -325,11 +325,40 @@ export function MetaTemplateCreate() {
           {/* STEP 1: Template Details */}
           {step === 0 && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3.5 text-xs text-emerald-800">
-                <p className="font-semibold text-emerald-900">Template Meta Information</p>
-                <p className="mt-0.5 text-emerald-700">
-                  Meta requires template names to be lowercase with underscores. This name cannot be changed once submitted.
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3.5 text-xs text-emerald-800">
+                <div>
+                  <p className="font-semibold text-emerald-900">Template Meta Information</p>
+                  <p className="mt-0.5 text-emerald-700">
+                    Meta requires template names to be lowercase with underscores. This name cannot be changed once submitted.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 border-emerald-300 bg-white text-xs font-semibold text-[#123D32] hover:bg-emerald-50"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      name: 'Hot Lead WhatsApp Template',
+                      templateName: 'hot_lead_follow_up',
+                      category: 'UTILITY',
+                      description: 'Personalized follow-up for Hot Leads with assigned executive and contact details.',
+                      headerType: 'TEXT',
+                      headerContent: 'HOT LEAD – PERSONALIZED FOLLOW-UP',
+                      body: `🔥 HOT LEAD – PERSONALIZED FOLLOW-UP\n\nHi {{customer_name}}!\n\nThank you for your interest in {{product_or_service}}.\n\nWe received your enquiry and our team is ready to assist you.\n\nAssigned Executive: {{employee_name}}\n\nContact: {{contact_number}}\n\nLet's connect and discuss your requirements!\n\nThank you,\n{{company_name}}`,
+                      sampleValues: {
+                        customer_name: 'Rahul Sharma',
+                        product_or_service: 'QB Suite CRM',
+                        employee_name: 'Priya Patel',
+                        contact_number: '092842 16276',
+                        company_name: 'QUIK BOOM MARKETING AGENCY',
+                      },
+                    }))
+                  }
+                >
+                  Load Hot Lead Preset
+                </Button>
               </div>
 
               <Field label="Template Display Name" required hint="e.g. Lead Follow Up Alert">
