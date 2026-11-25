@@ -1,4 +1,5 @@
 import api from '../../../lib/api';
+import { downloadPdfFromEndpoint } from '../../../lib/pdf-download.util';
 import { crmError, sessionCan } from '@/modules/crm/crm-api';
 
 export { crmError as billingError, sessionCan };
@@ -61,14 +62,7 @@ export async function getInvoicePayments(id) {
 }
 
 export async function downloadPaymentReceipt(invoiceId, paymentId, receiptNo) {
-  const data = await api.get(`/invoices/${invoiceId}/payments/${paymentId}/receipt`, { responseType: 'blob' });
-  const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${receiptNo || `QUIKBOOM-RECEIPT-${paymentId}`}.pdf`;
-  link.click();
-  URL.revokeObjectURL(url);
+  return downloadPdfFromEndpoint(`/invoices/${invoiceId}/payments/${paymentId}/receipt`, `${receiptNo || `QuikBoom_Payment_Receipt_${paymentId}`}.pdf`, { loadingMessage: 'Preparing receipt…', successMessage: 'Receipt downloaded' });
 }
 
 export async function rescheduleInvoiceInstallment(id, values) {
@@ -109,14 +103,7 @@ export const removeInvoice = (id) => api.delete(`/invoices/${id}`);
 export const bulkDeleteInvoices = (ids) => api.post('/invoices/bulk-delete', { ids });
 
 export async function downloadInvoice(id, invoiceNo) {
-  const data = await api.get(`/invoices/${id}/download`, { responseType: 'blob' });
-  const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${invoiceNo || `invoice-${id}`}.pdf`;
-  link.click();
-  URL.revokeObjectURL(url);
+  return downloadPdfFromEndpoint(`/invoices/${id}/download`, `QuikBoom_Invoice_${invoiceNo || id}.pdf`, { loadingMessage: 'Preparing invoice…', successMessage: 'Invoice downloaded' });
 }
 
 export async function loadSubscriptions(params = {}) {

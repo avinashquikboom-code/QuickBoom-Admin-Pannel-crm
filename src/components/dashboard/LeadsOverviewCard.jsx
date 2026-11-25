@@ -16,42 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AnimatedCounter } from './AnimatedCounter';
 
 export function LeadsOverviewCard({ leads, loading }) {
-  const [period, setPeriod] = React.useState('30D');
   const totalLeads = Number(leads?.total ?? 0);
-
-  // Generate responsive series matching the period
-  const chartData = React.useMemo(() => {
-    const pointsCount = period === '7D' ? 7 : period === '30D' ? 10 : period === '90D' ? 12 : 12;
-    const now = new Date();
-    const data = [];
-
-    const baseVal = Math.max(2, Math.round(totalLeads / pointsCount));
-
-    for (let i = pointsCount - 1; i >= 0; i--) {
-      const d = new Date(now);
-      if (period === '7D') {
-        d.setDate(d.getDate() - i);
-      } else if (period === '30D') {
-        d.setDate(d.getDate() - i * 3);
-      } else if (period === '90D') {
-        d.setDate(d.getDate() - i * 7.5);
-      } else {
-        d.setMonth(d.getMonth() - i);
-      }
-
-      // Smooth realistic curve
-      const factor = 0.7 + ((pointsCount - i) / pointsCount) * 0.6 + (Math.sin(i * 1.5) * 0.2);
-      const leadsCount = Math.max(1, Math.round(baseVal * factor));
-
-      data.push({
-        date: d.toLocaleDateString('en-US', { month: 'short', day: period === '1Y' ? undefined : 'numeric' }),
-        leads: leadsCount,
-        converted: Math.max(0, Math.round(leadsCount * 0.28)),
-      });
-    }
-
-    return data;
-  }, [period, totalLeads]);
+  const chartData = (leads?.series || []).map((point) => ({ date: point.date, leads: Number(point.leads || 0) }));
 
   if (loading) {
     return (
@@ -83,24 +49,7 @@ export function LeadsOverviewCard({ leads, loading }) {
             </div>
           </div>
 
-          {/* Period selector */}
-          <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/70 p-0.5 text-xs">
-            {['7D', '30D', '90D', '1Y'].map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPeriod(p)}
-                className={cn(
-                  'rounded-lg px-2.5 py-1 font-semibold transition-all',
-                  period === p
-                    ? 'bg-[#173D30] text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-                )}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
+
         </div>
 
         {/* Big metric count + trend */}
@@ -108,11 +57,7 @@ export function LeadsOverviewCard({ leads, loading }) {
           <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
             <AnimatedCounter value={totalLeads} />
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-            <TrendingUp className="size-3 text-emerald-600" />
-            +14.2%
-          </span>
-          <span className="text-xs text-slate-400">vs previous period</span>
+
         </div>
       </div>
 

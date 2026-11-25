@@ -312,11 +312,11 @@ export function GlobalDashboardFilters({
   };
 
   const activeRangeLabel =
-    draft.preset === 'all_time' || (!draft.fromDate && !draft.toDate)
+    filters?.preset === 'all_time' || (!filters?.fromDate && !filters?.toDate)
       ? 'All Time (IST)'
-      : draft.fromDate === draft.toDate
-        ? `${formatReadableDate(draft.fromDate)} (IST)`
-        : `${formatReadableDate(draft.fromDate || '...')} – ${formatReadableDate(draft.toDate || '...')} (IST)`;
+      : filters?.fromDate === filters?.toDate
+        ? `${formatReadableDate(filters.fromDate)} (IST)`
+        : `${formatReadableDate(filters?.fromDate || '...')} – ${formatReadableDate(filters?.toDate || '...')} (IST)`;
 
   return (
     <div className="rounded-2xl border border-[#E2E8E5] bg-white p-3.5 shadow-xs">

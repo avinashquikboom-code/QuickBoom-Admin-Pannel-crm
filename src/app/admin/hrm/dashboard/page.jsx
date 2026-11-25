@@ -26,15 +26,6 @@ export default function HrmDashboardPage() {
   const router = useRouter();
 
   // Filters State
-  const [hrmFilters] = React.useState(() => ({
-    preset: 'today',
-    ...resolvePresetRange('today'),
-    departmentId: '',
-    employeeId: '',
-    branchId: '',
-    shiftId: '',
-    status: '',
-  }));
   const [dateFilter, setDateFilter] = React.useState('today'); // 'today' | 'week' | 'month' | 'custom'
   const [customDate, setCustomDate] = React.useState(
     () => new Date().toISOString().split('T')[0]
@@ -64,18 +55,10 @@ export default function HrmDashboardPage() {
   }, []);
 
   // Compute effective query date and period from filters
-  const { queryDate, queryPeriod } = React.useMemo(() => {
-    let dateParam = null;
-    let periodParam = dateFilter === 'custom' ? 'today' : dateFilter;
-
-    if (dateFilter === 'custom') {
-      dateParam = customDate;
-    } else if (attendancePeriod !== 'today' && dateFilter === 'today') {
-      periodParam = attendancePeriod;
-    }
-
-    return { queryDate: dateParam, queryPeriod: periodParam };
-  }, [dateFilter, customDate, attendancePeriod]);
+  const { fromDate, toDate } = React.useMemo(() => {
+    if (dateFilter === 'custom') return { fromDate: customDate, toDate: customDate };
+    return resolvePresetRange({ today: 'today', week: 'this_week', month: 'this_month' }[dateFilter] || 'today');
+  }, [dateFilter, customDate]);
 
   // Main data fetcher
   const fetchData = React.useCallback(
@@ -94,19 +77,14 @@ export default function HrmDashboardPage() {
 
       try {
         const filterParams = {
-          date: hrmFilters.toDate || queryDate || undefined,
-          fromDate: hrmFilters.fromDate || undefined,
-          toDate: hrmFilters.toDate || undefined,
-          departmentId: hrmFilters.departmentId || undefined,
-          employeeId: hrmFilters.employeeId || undefined,
-          branchId: hrmFilters.branchId || undefined,
-          shiftId: hrmFilters.shiftId || undefined,
-          status: hrmFilters.status || undefined,
-          period: queryPeriod || undefined,
+          date: toDate || undefined,
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+          period: attendancePeriod || undefined,
         };
         const [liveRes, reportRes] = await Promise.allSettled([
           api.get('/admin/hrms/live-dashboard', { params: filterParams }).then((r) => r?.data || r),
-          loadReportSummary({ fromDate: hrmFilters.fromDate, toDate: hrmFilters.toDate }),
+          loadReportSummary({ dateFrom: fromDate, dateTo: toDate }),
         ]);
 
         if (controller.signal.aborted) return;
@@ -132,7 +110,7 @@ export default function HrmDashboardPage() {
         }
       }
     },
-    [queryDate, queryPeriod, dashboardData]
+    [fromDate, toDate, attendancePeriod, dashboardData]
   );
 
   // Initial and on-filter-change fetch
@@ -143,7 +121,7 @@ export default function HrmDashboardPage() {
         activeControllerRef.current.abort();
       }
     };
-  }, [queryDate, queryPeriod]);
+  }, [fromDate, toDate, attendancePeriod]);
 
   // Periodic Auto-refresh (30s)
   React.useEffect(() => {
@@ -286,6 +264,7 @@ export default function HrmDashboardPage() {
       <section aria-label="Key Performance Indicators">
         <HrmKpiGrid
           summary={summary}
+          periodLabel={dateFilter === 'today' ? 'Today' : '(latest in period)'}
           loading={loading && !dashboardData}
           onNavigate={(path) => router.push(path)}
         />

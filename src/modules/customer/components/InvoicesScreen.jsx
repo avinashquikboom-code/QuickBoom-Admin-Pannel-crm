@@ -303,12 +303,8 @@ export function InvoicesScreen() {
   // Handle download PDF
   const handleDownloadPdf = async (row) => {
     try {
-      toast.info(`Preparing ${row.invoiceNo || 'invoice'} PDF...`);
       await downloadInvoice(row.id, row.invoiceNo);
-      toast.success('Invoice downloaded successfully');
-    } catch (err) {
-      toast.error(billingError(err) || 'Failed to download invoice PDF');
-    }
+    } catch { /* The shared download helper reports the error. */ }
   };
 
   // Handle quick status update

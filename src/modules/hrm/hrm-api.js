@@ -334,8 +334,8 @@ export async function saveLateMarkPolicy(data) {
   return payload?.data || payload || {};
 }
 
-export async function loadReportSummary() {
-  const payload = await api.get('/reports/summary');
+export async function loadReportSummary(params = {}) {
+  const payload = await api.get('/reports/summary', { params });
   return payload?.data?.workforce ? payload.data : payload?.workforce ? payload : payload?.data || {};
 }
 

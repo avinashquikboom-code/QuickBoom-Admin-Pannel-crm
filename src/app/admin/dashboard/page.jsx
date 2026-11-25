@@ -124,7 +124,7 @@ export default function AdminDashboardPage() {
         else nextData[key] = payload;
       });
 
-      setData((previous) => ({ ...previous, ...nextData }));
+      setData(nextData);
       setCaptureData((previous) => ({
         usage: Object.hasOwn(nextData, 'captureUsage') ? nextData.captureUsage : previous?.usage,
         sessionsSummary: nextData.captureSessions?.summary || previous?.sessionsSummary,
@@ -199,8 +199,24 @@ export default function AdminDashboardPage() {
     };
   }, [fetchDashboardData]);
 
-  const summary = objectOf(data?.summary);
-  const leads = objectOf(data?.leads);
+  const unified = objectOf(data?.unified);
+  const periodMetrics = unified?.periodMetrics;
+  const snapshot = unified?.snapshot;
+  const reportSummary = objectOf(data?.summary);
+  const summary = periodMetrics ? {
+    ...reportSummary,
+    revenue: { ...reportSummary.revenue, totalRevenue: periodMetrics.actualRevenueCollected },
+    workforce: { ...reportSummary.workforce, active: snapshot?.activeEmployees },
+  } : reportSummary;
+  const leadSummary = objectOf(data?.leads);
+  const leads = periodMetrics ? {
+    ...leadSummary,
+    series: unified.salesPerformance || [],
+    total: periodMetrics.totalLeads,
+    converted: periodMetrics.convertedLeads,
+    sources: (unified.leadsBySource || []).map((item) => ({ name: item.source, count: item.count })),
+    stages: (unified.leadsByStage || []).map((item) => ({ name: item.stage, count: item.count })),
+  } : leadSummary;
   const customers = objectOf(data?.customers);
   const deals = objectOf(data?.deals);
   const tasks = objectOf(data?.tasks);

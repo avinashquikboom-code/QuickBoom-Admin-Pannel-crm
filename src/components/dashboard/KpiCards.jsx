@@ -141,51 +141,7 @@ export function KpiCards({ summary, leads, loading }) {
               </span>
             </div>
 
-            {/* Bottom row: Trend badge & Mini Sparkline chart */}
-            <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100/90 gap-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold tracking-wide',
-                    card.isPositive
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200/80'
-                  )}
-                >
-                  {card.isPositive ? (
-                    <TrendingUp className="size-3 text-emerald-600" />
-                  ) : (
-                    <TrendingDown className="size-3 text-rose-600" />
-                  )}
-                  {card.change}
-                </span>
-                <span className="text-[11px] text-slate-400 hidden sm:inline">
-                  {card.period}
-                </span>
-              </div>
-
-              {/* Sparkline chart */}
-              <div className="h-8 w-20 sm:w-22 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={DUMMY_TREND}>
-                    <defs>
-                      <linearGradient id={`spark-${card.id}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={card.sparklineColor} stopOpacity={0.35} />
-                        <stop offset="100%" stopColor={card.sparklineColor} stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <Area
-                      type="monotone"
-                      dataKey="val"
-                      stroke={card.sparklineColor}
-                      strokeWidth={1.8}
-                      fill={`url(#spark-${card.id})`}
-                      isAnimationActive={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-400">{card.id === 'active-employees' ? 'Current active workforce' : 'Selected period'}</p>
           </div>
         );
       })}
