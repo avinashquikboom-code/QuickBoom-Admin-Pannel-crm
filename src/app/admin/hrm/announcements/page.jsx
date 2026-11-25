@@ -561,7 +561,7 @@ export default function AnnouncementsPage({ embedded = false }) {
                       <div className="flex items-center gap-3 min-w-0">
                         {row.imageUrl ? (
                           <img
-                            src={row.imageUrl}
+                            src={row.previewUrl || row.imageUrl}
                             alt=""
                             className="size-10 shrink-0 rounded-lg border border-[#E2E8E5] object-cover"
                           />
@@ -887,7 +887,7 @@ export default function AnnouncementsPage({ embedded = false }) {
           <div className="space-y-4">
             {detail.imageUrl ? (
               <img
-                src={detail.imageUrl}
+                src={detail.previewUrl || detail.imageUrl}
                 alt={detail.title}
                 className="max-h-56 w-full rounded-xl border border-[#E2E8E5] object-cover"
               />
@@ -1036,7 +1036,7 @@ function formFrom(row) {
     title: row.title || '',
     description: row.description || '',
     imageUrl: row.imageUrl || '',
-    previewUrl: row.imageUrl || '',
+    previewUrl: row.previewUrl || row.imageUrl || '',
     category: row.category || 'GENERAL',
     audience: row.audience || 'ALL',
     departmentId: row.departmentId ? String(row.departmentId) : '',
