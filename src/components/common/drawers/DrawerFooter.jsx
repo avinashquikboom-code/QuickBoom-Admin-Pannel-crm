@@ -25,9 +25,7 @@ export function DrawerFooter({
       )}
       {...props}
     >
-      {children ? (
-        children
-      ) : (
+      {children}
         <>
           <Button
             type="button"
@@ -49,7 +47,6 @@ export function DrawerFooter({
             {loading ? <Loading label="Saving…" className="p-0 text-white" /> : submitLabel}
           </Button>
         </>
-      )}
     </SheetFooter>
   );
 }

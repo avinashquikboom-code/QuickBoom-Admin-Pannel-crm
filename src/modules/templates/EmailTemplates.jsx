@@ -736,19 +736,6 @@ export function EmailTemplates() {
               <FontAwesomeIcon icon={faEye} className="mr-2" />
               Preview
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={saving}
-              className="h-9 w-full sm:w-auto"
-              onClick={() => setDrawer(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={saving} className="h-9 w-full sm:w-auto">
-              {saving ? 'Saving…' : 'Save Template'}
-            </Button>
           </div>
         }
       >
