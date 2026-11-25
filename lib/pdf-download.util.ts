@@ -26,8 +26,6 @@ export async function extractPdfBlob(res: unknown): Promise<Blob> {
       new Uint8Array(view.buffer as ArrayBuffer, view.byteOffset, view.byteLength),
     );
     blob = new Blob([buffer], { type: 'application/pdf' });
-  } else if (typeof data === 'string') {
-    blob = new Blob([data], { type: 'application/pdf' });
   } else {
     throw new Error('Invalid PDF data received from server');
   }
@@ -99,7 +97,8 @@ export async function downloadPdfFromEndpoint(
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = targetFilename.endsWith('.pdf') ? targetFilename : `${targetFilename}.pdf`;
+    targetFilename = targetFilename.replace(/[\x00-\x1f\x7f/\\:*?"<>|]/g, '_').trim() || 'document.pdf';
+    a.download = /\.pdf$/i.test(targetFilename) ? targetFilename : `${targetFilename}.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

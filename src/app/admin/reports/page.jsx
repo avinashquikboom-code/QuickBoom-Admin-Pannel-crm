@@ -29,6 +29,7 @@ import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { extractPdfBlob } from '../../../../lib/pdf-download.util';
 import {
   loadReportCatalog,
   viewReport,
@@ -178,7 +179,6 @@ export default function ReportsPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         status: status || undefined,
-        department: status || undefined,
         page,
         limit: 20,
       });
@@ -206,11 +206,10 @@ export default function ReportsPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         status: status || undefined,
-        department: status || undefined,
         limit: 500,
         page: 1,
       });
-      const file = blob instanceof Blob ? blob : new Blob([blob], { type: 'application/pdf' });
+      const file = await extractPdfBlob(blob);
       const url = URL.createObjectURL(file);
       const link = document.createElement('a');
       link.href = url;
@@ -218,7 +217,7 @@ export default function ReportsPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 
       const nextCount = downloadCount + 1;
       setDownloadCount(nextCount);
