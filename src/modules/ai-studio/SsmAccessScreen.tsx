@@ -356,7 +356,7 @@ export function SsmAccessScreen() {
                   setDrawerMode('create');
                   setDrawerOpen(true);
                 }}
-                className="h-9 gap-1.5 text-xs font-semibold bg-[#20C466] hover:bg-[#1bb05b] text-white shadow-sm transition-all"
+                className="h-9 gap-1.5 text-xs font-semibold bg-[#123D32] hover:bg-[#176B50] text-white shadow-sm transition-all"
               >
                 <Plus className="size-3.5" />
                 Add Handler
@@ -372,34 +372,42 @@ export function SsmAccessScreen() {
       {/* 2. SUMMARY KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Total Handlers */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+        <button
+          type="button"
+          onClick={() => { setActiveTab('handlers'); setStatusFilter('ALL'); }}
+          className="text-left rounded-2xl border border-[#E2E8E5] bg-white p-5 shadow-xs hover:border-[#123D32]/40 hover:shadow-md transition-all"
+        >
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">
                 Total Handlers
               </span>
-              <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+              <p className="text-2xl md:text-3xl font-bold text-[#142D25] tracking-tight">
                 {loading ? '—' : totalHandlersCount}
               </p>
             </div>
-            <div className="size-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100/60 shadow-xs">
+            <div className="size-11 rounded-xl bg-[#E8F1EC] text-[#123D32] flex items-center justify-center border border-[#CDE2D6] shadow-xs">
               <Users className="size-5.5" />
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
-            <span>Staff & agency accounts on record</span>
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-[#64748B]">
+            <span className="inline-block size-1.5 rounded-full bg-[#22C55E]" />
+            <span>Staff &amp; agency accounts on record</span>
           </div>
-        </div>
+        </button>
 
         {/* Connected Social Accounts */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+        <button
+          type="button"
+          onClick={() => setActiveTab('accounts')}
+          className="text-left rounded-2xl border border-[#E2E8E5] bg-white p-5 shadow-xs hover:border-[#123D32]/40 hover:shadow-md transition-all"
+        >
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">
                 Connected Accounts
               </span>
-              <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+              <p className="text-2xl md:text-3xl font-bold text-[#142D25] tracking-tight">
                 {loading ? '—' : connectedAccountsCount}
               </p>
             </div>
@@ -407,32 +415,36 @@ export function SsmAccessScreen() {
               <Share2 className="size-5.5" />
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-[#64748B]">
             <span className="inline-block size-1.5 rounded-full bg-blue-500" />
             <span>Live OAuth connections linked to customers</span>
           </div>
-        </div>
+        </button>
 
         {/* Active Assignments */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
+        <button
+          type="button"
+          onClick={() => { setActiveTab('handlers'); setStatusFilter((prev) => (prev === 'ACTIVE' ? 'ALL' : 'ACTIVE')); }}
+          className="text-left rounded-2xl border border-[#E2E8E5] bg-white p-5 shadow-xs hover:border-[#123D32]/40 hover:shadow-md transition-all sm:col-span-2 lg:col-span-1"
+        >
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">
                 Active Assignments
               </span>
-              <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+              <p className="text-2xl md:text-3xl font-bold text-[#142D25] tracking-tight">
                 {loading ? '—' : activeHandlersCount}
               </p>
             </div>
-            <div className="size-11 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center border border-purple-100/60 shadow-xs">
+            <div className="size-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200/70 shadow-xs">
               <ShieldCheck className="size-5.5" />
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="inline-block size-1.5 rounded-full bg-purple-500" />
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-[#64748B]">
+            <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
             <span>Operational handlers with active status</span>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* 3. VIEW TOGGLE BAR */}
@@ -520,36 +532,34 @@ export function SsmAccessScreen() {
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Platform Select */}
-            <Select value={platformFilter} onValueChange={setPlatformFilter}>
-              <SelectTrigger className="w-[150px] h-10 text-xs rounded-xl border-slate-200">
-                <Filter className="size-3.5 mr-1.5 text-slate-400" />
-                <SelectValue placeholder="Platform" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Platforms</SelectItem>
-                <SelectItem value="INSTAGRAM">Instagram</SelectItem>
-                <SelectItem value="FACEBOOK">Facebook</SelectItem>
-                <SelectItem value="YOUTUBE">YouTube</SelectItem>
-                <SelectItem value="LINKEDIN">LinkedIn</SelectItem>
-                <SelectItem value="TIKTOK">TikTok</SelectItem>
-                <SelectItem value="TWITTER">Twitter / X</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              aria-label="Filter by platform"
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              className="h-10 min-w-[155px] rounded-xl border border-[#E2E8E5] bg-white px-3 text-xs font-medium text-[#142D25] outline-none focus:border-[#123D32]"
+            >
+              <option value="ALL">All Platforms</option>
+              <option value="INSTAGRAM">Instagram</option>
+              <option value="FACEBOOK">Facebook</option>
+              <option value="YOUTUBE">YouTube</option>
+              <option value="LINKEDIN">LinkedIn</option>
+              <option value="TIKTOK">TikTok</option>
+              <option value="TWITTER">Twitter / X</option>
+            </select>
 
             {/* Status Select (handlers tab only) */}
             {activeTab === 'handlers' && (
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px] h-10 text-xs rounded-xl border-slate-200">
-                  <SlidersHorizontal className="size-3.5 mr-1.5 text-slate-400" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Statuses</SelectItem>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                  <SelectItem value="PAUSED">Paused</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                aria-label="Filter by status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-10 min-w-[140px] rounded-xl border border-[#E2E8E5] bg-white px-3 text-xs font-medium text-[#142D25] outline-none focus:border-[#123D32]"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="PAUSED">Paused</option>
+              </select>
             )}
 
             {/* Clear All Filters */}
@@ -635,16 +645,16 @@ export function SsmAccessScreen() {
             <>
               {/* Desktop Table View (>= lg) */}
               <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-600 border-collapse">
+                <table className="w-full min-w-[960px] table-fixed text-left text-xs text-slate-600 border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      <th className="py-3 px-4">Handler</th>
-                      <th className="py-3 px-4">Account & Channel</th>
-                      <th className="py-3 px-4">Platform</th>
-                      <th className="py-3 px-4">Client / Company</th>
-                      <th className="py-3 px-4">Credential Status</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                    <tr className="bg-[#F8FAF9] border-b border-[#E2E8E5] text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                      <th className="w-[19%] py-3 px-4">Handler</th>
+                      <th className="w-[24%] py-3 px-4">Account &amp; Channel</th>
+                      <th className="w-[12%] py-3 px-4">Platform</th>
+                      <th className="w-[15%] py-3 px-4">Client / Company</th>
+                      <th className="w-[14%] py-3 px-4">Credential Status</th>
+                      <th className="w-[9%] py-3 px-4">Status</th>
+                      <th className="w-[110px] py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -652,7 +662,7 @@ export function SsmAccessScreen() {
                       return (
                         <tr
                           key={h.id}
-                          className="hover:bg-slate-50/60 transition-colors group cursor-pointer"
+                          className="hover:bg-[#F3F8F5]/70 transition-colors group cursor-pointer"
                           onClick={() => {
                             setSelectedHandler(h);
                             setDrawerMode('view');
@@ -660,26 +670,26 @@ export function SsmAccessScreen() {
                           }}
                         >
                           {/* Handler details */}
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-2.5">
-                              <div className="size-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs border border-emerald-100 shrink-0">
+                          <td className="py-3.5 px-4 align-middle">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="size-8 rounded-full bg-[#E8F1EC] text-[#123D32] flex items-center justify-center font-bold text-xs border border-[#CDE2D6] shrink-0">
                                 {(h.handlerName || 'H').charAt(0).toUpperCase()}
                               </div>
-                              <div className="min-w-0">
-                                <p className="font-semibold text-slate-900 truncate">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-[#142D25] truncate">
                                   {h.handlerName || 'Unassigned'}
                                 </p>
-                                <p className="text-[11px] text-slate-400 truncate">
+                                <p className="text-[11px] text-[#64748B] truncate">
                                   {h.handlerEmail || h.handlerPhone || 'No contact on file'}
                                 </p>
                               </div>
                             </div>
                           </td>
 
-                          {/* Account & URL */}
-                          <td className="py-3.5 px-4">
-                            <div className="space-y-0.5 max-w-[200px]">
-                              <p className="font-medium text-slate-800 truncate">
+                          {/* Account & URL (strict truncation, zero overflow) */}
+                          <td className="py-3.5 px-4 align-middle">
+                            <div className="min-w-0 max-w-full space-y-0.5 overflow-hidden">
+                              <p className="font-semibold text-[#142D25] truncate">
                                 {h.accountName || '—'}
                               </p>
                               {h.accountUrl ? (
@@ -688,14 +698,17 @@ export function SsmAccessScreen() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1 text-[11px] text-emerald-600 hover:text-emerald-700 hover:underline truncate"
+                                  title={h.accountUrl}
+                                  className="flex max-w-full min-w-0 items-center gap-1 text-[11px] text-[#176B50] hover:text-[#123D32] hover:underline"
                                 >
                                   <Globe className="size-2.5 shrink-0" />
-                                  <span className="truncate">{h.accountUrl.replace(/^https?:\/\//, '')}</span>
-                                  <ExternalLink className="size-2 shrink-0" />
+                                  <span className="min-w-0 flex-1 truncate">
+                                    {h.accountUrl.replace(/^https?:\/\//, '')}
+                                  </span>
+                                  <ExternalLink className="size-2.5 shrink-0" />
                                 </a>
                               ) : (
-                                <p className="text-[11px] text-slate-400 truncate">
+                                <p className="text-[11px] text-[#64748B] truncate">
                                   {h.socialMediaId ? `@${h.socialMediaId}` : 'No URL / ID'}
                                 </p>
                               )}
