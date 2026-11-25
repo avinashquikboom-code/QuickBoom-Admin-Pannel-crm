@@ -67,6 +67,7 @@ import {
 } from '@/modules/social/social-api';
 import { SsmHandlerDrawer } from './SsmHandlerDrawer';
 import { SsmDeleteDialog } from './SsmDeleteDialog';
+import { GlobalExport } from '@/components/export/GlobalExport';
 
 export function SsmAccessScreen() {
   const [allowed, setAllowed] = React.useState(false);
@@ -327,15 +328,12 @@ export function SsmAccessScreen() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 pt-2 md:pt-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCsv}
-              className="h-9 gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50 border-slate-200"
-            >
-              <Download className="size-3.5" />
-              Export CSV
-            </Button>
+            <GlobalExport
+              module="ssm_access"
+              title="SSM Account Access Report"
+              filters={{ platform: platformFilter !== 'ALL' ? platformFilter : undefined, status: statusFilter !== 'ALL' ? statusFilter : undefined, search: searchQuery || undefined }}
+              currentPageRows={filteredHandlers}
+            />
 
             <Button
               variant="outline"

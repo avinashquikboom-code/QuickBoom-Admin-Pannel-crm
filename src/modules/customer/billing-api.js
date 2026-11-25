@@ -162,7 +162,7 @@ export async function loadBillingOverview(params = {}) {
     api.get('/customers/metrics', { params: queryParams }),
     api.get('/invoices', { params: { page: 1, limit: 8, ...queryParams } }),
     api.get('/admin/subscriptions', { params: { page: 1, limit: 8, ...queryParams } }),
-    api.get('/reports/summary', { params: queryParams }),
+    api.get('/reports/summary', { params: { dateFrom: queryParams.dateFrom, dateTo: queryParams.dateTo } }),
   ]);
   const recentCustomers = await api.get('/customers', {
     params: { page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc', dateFrom: queryParams.dateFrom, dateTo: queryParams.dateTo, status: queryParams.status, wonOnly: true },
