@@ -1,5 +1,4 @@
-const THIRTY_DAYS = 60 * 60 * 24 * 30;
-const TWENTY_FOUR_HOURS = 60 * 60 * 24;
+const SEVEN_DAYS = 60 * 60 * 24 * 7;
 
 function extractAuth(body) {
   const tokens = body?.data?.tokens || body?.tokens || body?.data || {};
@@ -149,18 +148,18 @@ export async function POST(request) {
   if (token) {
     response.headers.append(
       'Set-Cookie',
-      buildCookie('qb_admin_session', token, { secure, maxAge: remember ? THIRTY_DAYS : TWENTY_FOUR_HOURS }),
+      buildCookie('qb_admin_session', token, { secure, maxAge: SEVEN_DAYS }),
     );
   }
   if (auth.refreshToken) {
     response.headers.append(
       'Set-Cookie',
-      buildCookie('qb_admin_refresh', auth.refreshToken, { secure, maxAge: remember ? THIRTY_DAYS : undefined }),
+      buildCookie('qb_admin_refresh', auth.refreshToken, { secure, maxAge: SEVEN_DAYS }),
     );
   }
   response.headers.append(
     'Set-Cookie',
-    buildCookie('qb_admin_remember', remember ? '1' : '0', { secure, maxAge: remember ? THIRTY_DAYS : undefined }),
+    buildCookie('qb_admin_remember', remember ? '1' : '0', { secure, maxAge: SEVEN_DAYS }),
   );
 
   return response;

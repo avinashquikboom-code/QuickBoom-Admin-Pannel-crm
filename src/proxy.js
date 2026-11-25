@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server';
 
 const SESSION_COOKIE = 'qb_admin_session';
 const REFRESH_COOKIE = 'qb_admin_refresh';
-const REMEMBER_COOKIE = 'qb_admin_remember';
-const THIRTY_DAYS = 60 * 60 * 24 * 30;
-const TWENTY_FOUR_HOURS = 60 * 60 * 24;
+const SEVEN_DAYS = 60 * 60 * 24 * 7;
 
 const API_BASE = (
   process.env.API_BASE_URL ||
@@ -76,7 +74,6 @@ export async function proxy(request) {
 
   const session = request.cookies.get(SESSION_COOKIE)?.value;
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
-  const rememberCookie = request.cookies.get(REMEMBER_COOKIE)?.value === '1';
 
   if (session === '1') {
     return NextResponse.next();
@@ -113,20 +110,19 @@ export async function proxy(request) {
     if (refreshed.status === 'refreshed') {
       const nextRes = NextResponse.next();
       const secure = isHttps(request);
-      const remember = refreshed.rememberMe || rememberCookie;
       nextRes.cookies.set(SESSION_COOKIE, refreshed.accessToken, {
         path: '/',
         httpOnly: true,
         sameSite: 'lax',
         secure,
-        maxAge: remember ? THIRTY_DAYS : TWENTY_FOUR_HOURS,
+        maxAge: SEVEN_DAYS,
       });
       nextRes.cookies.set(REFRESH_COOKIE, refreshed.refreshToken, {
         path: '/',
         httpOnly: true,
         sameSite: 'lax',
         secure,
-        ...(remember ? { maxAge: THIRTY_DAYS } : {}),
+        maxAge: SEVEN_DAYS,
       });
       return nextRes;
     }

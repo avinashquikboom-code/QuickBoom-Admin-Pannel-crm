@@ -15,7 +15,7 @@ import { performTokenRefresh, getPersistedAuthSession, safeDecodeJwtPayload } fr
 import { useAuthStore } from '../../../lib/store';
 
 const WARNING_LEAD_SECONDS = 120;
-const DEFAULT_INACTIVITY_SECONDS = 1800;
+const DEFAULT_INACTIVITY_SECONDS = 7 * 24 * 60 * 60;
 
 export function AuthSessionManager({ children }) {
   const router = useRouter();
@@ -118,9 +118,9 @@ export function AuthSessionManager({ children }) {
       const session = getPersistedAuthSession();
       if (!session?.token) return;
 
+      // Apply the seven-day policy to existing sessions with older metadata too.
+      const timeoutSeconds = DEFAULT_INACTIVITY_SECONDS;
       const meta = readSessionMeta();
-      const timeoutSeconds =
-        Number(meta?.sessionPolicy?.inactivityTimeoutSeconds) || DEFAULT_INACTIVITY_SECONDS;
       if (timeoutSeconds <= 0) return;
 
       const lastActive = Math.max(lastActivityRef.current, Number(meta?.lastActivityAt || 0));
