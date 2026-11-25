@@ -243,6 +243,7 @@ export const cancelCampaign = (id) => api.post(`/notifications/admin/campaigns/$
 export const removeCampaign = (id) => api.delete(`/notifications/admin/campaigns/${id}`);
 export const resendCampaign = (id) => api.post(`/notifications/admin/campaigns/${id}/resend`);
 export const loadNotificationHistory = (query = {}) => list('/notifications/admin/history', { page: query.page || 1, limit: 20, search: query.search || undefined, status: query.status || undefined, from: query.from || undefined, to: query.to || undefined });
+export const deleteNotificationHistory = (id) => api.delete(`/notifications/admin/history/${id}`);
 export function uploadCampaignImage(file) {
   const form = new FormData();
   form.append('image', file);

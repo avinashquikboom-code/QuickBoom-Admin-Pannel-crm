@@ -16,6 +16,8 @@ import {
   Send,
   Archive,
   Trash2,
+  ImagePlus,
+  X,
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -36,6 +38,7 @@ import {
   removeAnnouncement,
   scheduleAnnouncement,
   updateAnnouncement,
+  uploadAnnouncementImage,
 } from '@/modules/hrm/hrm-api';
 import { downloadCsv, loadDepartments } from '@/modules/master/master-api';
 import { toast } from '@/hooks/use-toast';
@@ -63,6 +66,8 @@ const CATEGORY_BADGE = {
 const emptyForm = {
   title: '',
   description: '',
+  imageUrl: '',
+  previewUrl: '',
   category: 'GENERAL',
   audience: 'ALL',
   departmentId: '',
@@ -98,6 +103,7 @@ export default function AnnouncementsPage({ embedded = false }) {
   const [scheduleDateTime, setScheduleDateTime] = React.useState('');
   const [pendingDelete, setPendingDelete] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
+  const [uploadingImage, setUploadingImage] = React.useState(false);
   const [busyId, setBusyId] = React.useState(null);
 
   const debouncedSearch = useDebounced(search);
@@ -174,6 +180,7 @@ export default function AnnouncementsPage({ embedded = false }) {
     const values = {
       title: form.title.trim(),
       description: form.description.trim(),
+      imageUrl: form.imageUrl ? form.imageUrl.trim() : undefined,
       category: form.category || 'GENERAL',
       audience: form.audience || 'ALL',
       departmentId: form.departmentId ? Number(form.departmentId) : undefined,
@@ -206,6 +213,32 @@ export default function AnnouncementsPage({ embedded = false }) {
       toast.error(hrmError(err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Please upload a JPG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be 5 MB or smaller.');
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const res = await uploadAnnouncementImage(file);
+      const uploaded = res?.data?.data || res?.data || res || {};
+      const nextUrl = uploaded.imageUrl || '';
+      const nextPreview = uploaded.previewUrl || nextUrl;
+      setForm((prev) => ({ ...prev, imageUrl: nextUrl, previewUrl: nextPreview }));
+      toast.success('Announcement image uploaded');
+    } catch (err) {
+      toast.error(hrmError(err));
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -525,9 +558,18 @@ export default function AnnouncementsPage({ embedded = false }) {
                 {rows.map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-[#F3F8F5]/60">
                     <td className="px-4 py-3.5 align-middle">
-                      <div className="min-w-0 space-y-0.5">
-                        <TruncatedAnnouncementText text={row.title} isTitle label="Title" />
-                        <TruncatedAnnouncementText text={row.description} label="Description" />
+                      <div className="flex items-center gap-3 min-w-0">
+                        {row.imageUrl ? (
+                          <img
+                            src={row.imageUrl}
+                            alt=""
+                            className="size-10 shrink-0 rounded-lg border border-[#E2E8E5] object-cover"
+                          />
+                        ) : null}
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <TruncatedAnnouncementText text={row.title} isTitle label="Title" />
+                          <TruncatedAnnouncementText text={row.description} label="Description" />
+                        </div>
                       </div>
                     </td>
                     <td className="px-3 py-3.5 align-middle">
@@ -626,6 +668,64 @@ export default function AnnouncementsPage({ embedded = false }) {
               rows={4}
               required
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Announcement Image (Optional)</Label>
+            {form.previewUrl || form.imageUrl ? (
+              <div className="relative overflow-hidden rounded-xl border border-[#E2E8E5] bg-[#F8FAF9]">
+                <img
+                  src={form.previewUrl || form.imageUrl}
+                  alt="Announcement preview"
+                  className="h-40 w-full object-cover"
+                />
+                <div className="flex items-center justify-between border-t border-[#E2E8E5] bg-white px-3 py-2 text-xs">
+                  <span className="truncate text-[#64748B]">Image attached</span>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer font-semibold text-[#123D32] hover:underline">
+                      Replace
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e.target.files?.[0])}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, imageUrl: '', previewUrl: '' }))}
+                      className="inline-flex items-center gap-1 font-semibold text-rose-600 hover:underline"
+                    >
+                      <X className="size-3.5" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleImageUpload(e.dataTransfer.files?.[0]);
+                }}
+                className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAF9] px-4 py-5 text-center transition hover:border-[#123D32] hover:bg-[#F3F8F5]"
+              >
+                <ImagePlus className="size-6 text-[#123D32]" />
+                <span className="mt-1.5 text-xs font-semibold text-[#142D25]">
+                  {uploadingImage ? 'Uploading image...' : 'Click to upload or drag & drop'}
+                </span>
+                <span className="mt-0.5 text-[11px] text-[#64748B]">
+                  JPG, PNG, or WebP (max 5MB)
+                </span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={(e) => handleImageUpload(e.target.files?.[0])}
+                />
+              </label>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -785,6 +885,13 @@ export default function AnnouncementsPage({ embedded = false }) {
       >
         {detail ? (
           <div className="space-y-4">
+            {detail.imageUrl ? (
+              <img
+                src={detail.imageUrl}
+                alt={detail.title}
+                className="max-h-56 w-full rounded-xl border border-[#E2E8E5] object-cover"
+              />
+            ) : null}
             <div className="rounded-xl border border-[#E2E8E5] bg-[#F8FAF9] p-4 text-sm leading-relaxed text-[#142D25] whitespace-pre-wrap">
               {detail.description}
             </div>
@@ -928,6 +1035,8 @@ function formFrom(row) {
   return {
     title: row.title || '',
     description: row.description || '',
+    imageUrl: row.imageUrl || '',
+    previewUrl: row.imageUrl || '',
     category: row.category || 'GENERAL',
     audience: row.audience || 'ALL',
     departmentId: row.departmentId ? String(row.departmentId) : '',
