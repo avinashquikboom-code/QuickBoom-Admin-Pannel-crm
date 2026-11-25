@@ -773,6 +773,9 @@ export function InvoicesScreen() {
                 <th className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-right">
                   Total
                 </th>
+                <th className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-right whitespace-nowrap">
+                  Next Payment Amount
+                </th>
                 <th className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-center">
                   Status
                 </th>
@@ -784,7 +787,7 @@ export function InvoicesScreen() {
             <tbody className="divide-y divide-[#E2E8E5]/70 text-xs text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center">
+                  <td colSpan={12} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <RotateCw className="size-6 text-[#107569] animate-spin" />
                       <span className="text-sm font-semibold text-slate-600">
@@ -795,7 +798,7 @@ export function InvoicesScreen() {
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center">
+                  <td colSpan={12} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center gap-2">
                       <div className="flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                         <FileText className="size-6" />
@@ -882,7 +885,7 @@ export function InvoicesScreen() {
                         {row.planName && row.planName !== '—' ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-[#F4F9F6] border border-[#E2E8E5] px-2 py-0.5 text-[11px] font-semibold text-[#163A2E]">
                             <Layers className="size-3 text-[#107569]" />
-                            {row.planName}
+                            {row.planName.split(/\.\s*(?:Total Paid|Purchase|Plan activation|Payment Method|Order):/i)[0].trim()}
                           </span>
                         ) : (
                           <span className="text-slate-400">—</span>
@@ -912,6 +915,12 @@ export function InvoicesScreen() {
                       {/* Total */}
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-[#163A2E]">
                         {inr(row.totalAmount)}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap">
+                        {row.status === 'PARTIALLY_PAID' && row.nextInstallmentAmount != null
+                          ? inr(row.nextInstallmentAmount)
+                          : '—'}
                       </td>
 
                       {/* Status */}
