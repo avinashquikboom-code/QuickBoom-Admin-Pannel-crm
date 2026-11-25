@@ -71,7 +71,7 @@ export default function AdminDashboardPage() {
 
     const endpoints = {
       unified: () => api.get('/admin/dashboard/summary', { params }),
-      summary: () => api.get('/reports/summary', { params }),
+      summary: () => api.get('/reports/summary', { params: { dateFrom: dateFrom || undefined, dateTo: dateTo || undefined } }),
       leads: () => api.get('/leads/dashboard', { params }),
       customers: () => api.get('/customers/metrics', { params }),
       deals: () => api.get('/deals/metrics', { params }),
@@ -79,7 +79,7 @@ export default function AdminDashboardPage() {
       liveAttendance: () => api.get('/admin/hrms/live-dashboard', { params }),
       recentLeads: () => api.get('/leads', { params: { page: 1, limit: 10, ...params } }),
       invoices: () => api.get('/invoices', { params: { page: 1, limit: 25, ...params } }),
-      activity: () => api.get('/audit-logs', { params: { page: 1, limit: 10, ...params } }),
+      activity: () => api.get('/audit-logs', { params: { page: 1, limit: 10, startDate: dateFrom || undefined, endDate: dateTo || undefined } }),
       captureUsage: () => loadCaptureUsage(),
       captureSessions: () => loadCaptureSessions({ page: 1, limit: 10 }),
       capturePending: () => loadCaptures({ page: 1, limit: 1, status: 'CAPTURED' }),
