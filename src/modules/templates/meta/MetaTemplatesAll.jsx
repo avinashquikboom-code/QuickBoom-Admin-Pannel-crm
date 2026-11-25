@@ -766,16 +766,6 @@ export function MetaTemplatesAll() {
               Add Single Template
             </Button>
             <Button
-              asChild
-              variant="outline"
-              className="w-full sm:w-auto border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/70 text-emerald-800 font-semibold transition-all"
-            >
-              <Link href="/admin/sections/meta-templates/campaigns">
-                <FontAwesomeIcon icon={faBullhorn} className="mr-2 text-emerald-600" />
-                Create Campaign
-              </Link>
-            </Button>
-            <Button
               type="button"
               variant="outline"
               size="icon"

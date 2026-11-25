@@ -188,12 +188,29 @@ function Delivery({ integrations, onConfigure }) {
 
 function History({ rows, loading, error, query, setQuery, onRetry }) {
   const [selected, setSelected] = React.useState(null);
+  const [selectedIds, setSelectedIds] = React.useState([]);
+  const [bulkOpen, setBulkOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  React.useEffect(() => { setSelectedIds([]); }, [query.search, query.status, query.from, query.to, query.page]);
+  const removeSelected = async () => {
+    if (deleting || !selectedIds.length) return;
+    setDeleting(true);
+    const results = await Promise.allSettled(selectedIds.map((id) => deleteNotificationHistory(id)));
+    const failed = selectedIds.filter((_, index) => results[index].status === 'rejected');
+    const count = selectedIds.length - failed.length;
+    if (count) toast.success(`${count} notification${count === 1 ? '' : 's'} deleted`);
+    if (failed.length) toast.error(`${failed.length} notification${failed.length === 1 ? '' : 's'} could not be deleted.`);
+    setSelectedIds(failed);
+    setBulkOpen(false);
+    setDeleting(false);
+    onRetry();
+  };
   const remove = async () => {
     if (!selected || deleting) return;
     setDeleting(true);
     try {
       await deleteNotificationHistory(selected.id);
+      setSelectedIds((ids) => ids.filter((id) => id !== selected.id));
       toast.success('Notification deleted');
       setSelected(null);
       onRetry();
@@ -210,16 +227,18 @@ function History({ rows, loading, error, query, setQuery, onRetry }) {
       <Input type="date" aria-label="From" value={query.from || ''} onChange={(event) => setQuery({ ...query, from: event.target.value, page: 1 })} />
       <Input type="date" aria-label="To" value={query.to || ''} onChange={(event) => setQuery({ ...query, to: event.target.value, page: 1 })} />
     </div>
+    {selectedIds.length > 0 && <div className="flex items-center justify-between rounded-xl border bg-white p-3 text-sm"><span>{selectedIds.length} selected</span><Button size="sm" variant="outline" className="text-rose-600" onClick={() => setBulkOpen(true)}>Delete selected</Button></div>}
     <HrmNotice loading={loading} error={error} empty={!loading && !error && rows.length === 0 ? 'No in-app campaign notifications match these filters.' : ''} onRetry={onRetry}>
       <div className="overflow-x-auto rounded-xl border bg-white">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="border-b text-xs text-[#718078]"><tr><th className="p-3">Campaign</th><th className="p-3">Recipient</th><th className="p-3">Channel</th><th className="p-3">Status</th><th className="p-3">Stored at</th><th className="p-3">Actions</th></tr></thead>
-          <tbody>{rows.map((row) => <tr key={row.id} className="border-b border-slate-100"><td className="p-3"><div className="flex items-center gap-2">{row.imageUrl && <img src={row.imageUrl} alt="" className="h-8 w-12 rounded object-cover" />}<span>{row.campaignTitle}</span></div></td><td className="p-3">{row.recipient}</td><td className="p-3">In-app</td><td className="p-3">{row.status === 'READ' ? 'Read' : 'Stored'}</td><td className="p-3">{String(row.sentAt || '').slice(0, 16).replace('T', ' ')}</td><td className="p-3"><Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" onClick={() => setSelected(row)}>Delete</Button></td></tr>)}</tbody>
+          <thead className="border-b text-xs text-[#718078]"><tr><th className="p-3"><input type="checkbox" aria-label="Select all notifications on this page" checked={rows.length > 0 && rows.every((row) => selectedIds.includes(row.id))} onChange={(event) => setSelectedIds(event.target.checked ? rows.map((row) => row.id) : [])} /></th><th className="p-3">Campaign</th><th className="p-3">Recipient</th><th className="p-3">Channel</th><th className="p-3">Status</th><th className="p-3">Stored at</th><th className="p-3">Actions</th></tr></thead>
+          <tbody>{rows.map((row) => <tr key={row.id} className="border-b border-slate-100"><td className="p-3"><input type="checkbox" aria-label={`Select notification for ${row.recipient}`} checked={selectedIds.includes(row.id)} onChange={(event) => setSelectedIds((ids) => event.target.checked ? [...ids, row.id] : ids.filter((id) => id !== row.id))} /></td><td className="p-3"><div className="flex items-center gap-2">{row.imageUrl && <img src={row.imageUrl} alt="" className="h-8 w-12 rounded object-cover" />}<span>{row.campaignTitle}</span></div></td><td className="p-3">{row.recipient}</td><td className="p-3">In-app</td><td className="p-3">{row.status === 'READ' ? 'Read' : 'Stored'}</td><td className="p-3">{String(row.sentAt || '').slice(0, 16).replace('T', ' ')}</td><td className="p-3"><Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" onClick={() => setSelected(row)}>Delete</Button></td></tr>)}</tbody>
         </table>
       </div>
       <p className="text-xs text-[#718078]">This history is the in-app record. Firebase acceptance is reported on the campaign as push accepted and push failed. A provider delivery receipt, open, or click is not stored.</p>
     </HrmNotice>
     <ConfirmDialog open={Boolean(selected)} onOpenChange={(open) => { if (!open && !deleting) setSelected(null); }} title="Delete notification?" description={`This removes the in-app notification for ${selected?.recipient || 'the recipient'} as well as this history record.`} confirmLabel="Delete" variant="destructive" loading={deleting} closeOnConfirm={false} onConfirm={remove} />
+    <ConfirmDialog open={bulkOpen} onOpenChange={(open) => { if (!deleting) setBulkOpen(open); }} title="Delete selected notifications?" description={`This removes ${selectedIds.length} history records and their recipients' in-app notifications.`} confirmLabel="Delete selected" variant="destructive" loading={deleting} closeOnConfirm={false} onConfirm={removeSelected} />
   </div>;
 }
 

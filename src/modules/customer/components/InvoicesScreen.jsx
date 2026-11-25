@@ -784,6 +784,9 @@ export function InvoicesScreen() {
                 <th className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-right whitespace-nowrap">
                   Next Payment Amount
                 </th>
+                <th className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">
+                  Next Payment Due
+                </th>
                 <th className="py-3.5 px-4 text-[11px] font-bold uppercase tracking-wider text-center">
                   Status
                 </th>
@@ -795,7 +798,7 @@ export function InvoicesScreen() {
             <tbody className="divide-y divide-[#E2E8E5]/70 text-xs text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center">
+                  <td colSpan={13} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <RotateCw className="size-6 text-[#107569] animate-spin" />
                       <span className="text-sm font-semibold text-slate-600">
@@ -806,7 +809,7 @@ export function InvoicesScreen() {
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center">
+                  <td colSpan={13} className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-center gap-2">
                       <div className="flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                         <FileText className="size-6" />
@@ -928,6 +931,12 @@ export function InvoicesScreen() {
                       <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap">
                         {row.status === 'PARTIALLY_PAID' && row.nextInstallmentAmount != null
                           ? inr(row.nextInstallmentAmount)
+                          : '—'}
+                      </td>
+
+                      <td className="py-3.5 px-4 whitespace-nowrap text-slate-600 font-medium">
+                        {row.status === 'PARTIALLY_PAID' && row.nextInstallmentDate
+                          ? formatDate(row.nextInstallmentDate)
                           : '—'}
                       </td>
 
