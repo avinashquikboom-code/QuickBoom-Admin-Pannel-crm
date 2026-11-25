@@ -7,6 +7,7 @@ import { Input } from '@/components/common/Input';
 import { useAuthStore } from '../../../lib/store';
 import { readSession } from '@/lib/auth/admin-session';
 import { cn } from '@/lib/utils';
+import { resolvePresetRange } from './GlobalDashboardFilters';
 
 export function DashboardHeader({
   dateFrom,
@@ -19,7 +20,8 @@ export function DashboardHeader({
 }) {
   const authUser = useAuthStore((state) => state.user);
   const [sessionUser, setSessionUser] = React.useState(null);
-  const [activePreset, setActivePreset] = React.useState('30D');
+  const presetIds = { Today: 'today', '7D': 'last_7_days', '30D': 'last_30_days', Month: 'this_month', 'Last Month': 'last_month' };
+  const activePreset = Object.entries(presetIds).find(([, id]) => { const range = resolvePresetRange(id); return range.fromDate === dateFrom && range.toDate === dateTo; })?.[0] || 'Custom';
   const [showCustomRange, setShowCustomRange] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
   const [todayStr, setTodayStr] = React.useState('');
@@ -62,35 +64,13 @@ export function DashboardHeader({
   ];
 
   const handlePreset = (preset) => {
-    setActivePreset(preset);
-    const now = new Date();
-    const to = now.toISOString().split('T')[0];
-
-    if (preset === 'Today') {
-      setShowCustomRange(false);
-      onDateChange(to, to);
-    } else if (preset === '7D') {
-      setShowCustomRange(false);
-      const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - 7);
-      onDateChange(fromDate.toISOString().split('T')[0], to);
-    } else if (preset === '30D') {
-      setShowCustomRange(false);
-      const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - 30);
-      onDateChange(fromDate.toISOString().split('T')[0], to);
-    } else if (preset === 'Month') {
-      setShowCustomRange(false);
-      const fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      onDateChange(fromDate.toISOString().split('T')[0], to);
-    } else if (preset === 'Last Month') {
-      setShowCustomRange(false);
-      const fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const toDate = new Date(now.getFullYear(), now.getMonth(), 0);
-      onDateChange(fromDate.toISOString().split('T')[0], toDate.toISOString().split('T')[0]);
-    } else if (preset === 'Custom') {
+    if (preset === 'Custom') {
       setShowCustomRange((prev) => !prev);
+      return;
     }
+    setShowCustomRange(false);
+    const range = resolvePresetRange(presetIds[preset]);
+    onDateChange(range.fromDate, range.toDate);
   };
 
   return (
@@ -239,7 +219,6 @@ export function DashboardHeader({
               variant="outline"
               onClick={() => {
                 onDateChange('', '');
-                setActivePreset('30D');
                 setShowCustomRange(false);
               }}
               className="h-8 rounded-lg text-xs"

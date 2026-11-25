@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { HrmKpiCard } from './HrmKpiCard';
 
-export function HrmKpiGrid({ summary, loading = false, onNavigate }) {
+export function HrmKpiGrid({ summary, loading = false, onNavigate, periodLabel = 'Today' }) {
   const totalEmployees = Number(summary?.totalEmployees ?? 0);
   const present = Number(summary?.present ?? 0);
   const absent = Number(summary?.absent ?? 0);
@@ -43,7 +43,7 @@ export function HrmKpiGrid({ summary, loading = false, onNavigate }) {
 
       {/* 2. Present Today */}
       <HrmKpiCard
-        title="Present Today"
+        title={`Present ${periodLabel}`}
         value={present}
         subtitle={`${presentRate}% workforce attendance`}
         icon={UserCheck}
@@ -58,7 +58,7 @@ export function HrmKpiGrid({ summary, loading = false, onNavigate }) {
 
       {/* 3. Absent Today */}
       <HrmKpiCard
-        title="Absent Today"
+        title={`Absent ${periodLabel}`}
         value={absent}
         subtitle={`${absentRate}% absence rate`}
         icon={UserX}
@@ -73,7 +73,7 @@ export function HrmKpiGrid({ summary, loading = false, onNavigate }) {
 
       {/* 4. Late Today */}
       <HrmKpiCard
-        title="Late Today"
+        title={`Late ${periodLabel}`}
         value={late}
         subtitle="Punch-in delay recorded"
         icon={ClockAlert}
