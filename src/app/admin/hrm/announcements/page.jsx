@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { TruncatedAnnouncementText } from '@/components/announcements/TruncatedAnnouncementText';
+import { GlobalExport } from '@/components/export/GlobalExport';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
 import {
   archiveAnnouncement,
@@ -326,10 +327,14 @@ export default function AnnouncementsPage({ embedded = false }) {
                 <RefreshCw className="mr-1.5 size-3.5" />
                 Refresh
               </Button>
-              <Button type="button" variant="outline" className="h-9 text-xs" onClick={handleExportCsv}>
-                <Download className="mr-1.5 size-3.5" />
-                Export CSV
-              </Button>
+              <GlobalExport
+                module="announcements"
+                title="Company Announcements Report"
+                filters={{ search: debouncedSearch || undefined, status: status || undefined, audience: audience || undefined, departmentId: departmentId || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }}
+                currentPageRows={rows}
+                page={page}
+                limit={20}
+              />
               <Button
                 type="button"
                 className="h-9 bg-[#123D32] text-xs text-white hover:bg-[#176B50]"

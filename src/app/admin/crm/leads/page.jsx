@@ -68,6 +68,7 @@ import {
   AdminSelectCheckbox,
 } from '@/components/admin/bulk-selection';
 import { toast } from '@/hooks/use-toast';
+import { GlobalExport } from '@/components/export/GlobalExport';
 import {
   addLeadNote,
   archiveLeads,
@@ -683,16 +684,16 @@ export default function LeadsRoute() {
               <span>Import CSV</span>
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => downloadCsv(rows)}
-              disabled={rows.length === 0}
-              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] shadow-2xs"
-            >
-              <Download className="size-3.5 text-slate-500" />
-              <span>Export</span>
-            </Button>
+            <GlobalExport
+              module="leads"
+              title="CRM Leads Report"
+              filters={filtersFrom(query)}
+              selectedIds={selectedIds}
+              currentPageRows={rows}
+              page={query.page || 1}
+              limit={query.limit || 20}
+              supportsZip
+            />
 
             {allowed && (
               <Button
