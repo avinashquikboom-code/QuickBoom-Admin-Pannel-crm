@@ -14,8 +14,8 @@ export function HotDealLeads() {
   const refresh = React.useCallback(async (signal) => {
     try {
       const stages = await loadLeadStages();
-      const stage = stages.find((item) => String(item.key).toUpperCase() === 'HOT_DEAL' && item.isActive !== false && !item.deletedAt);
-      if (!stage) throw new Error('The Hot Deal stage is not available.');
+      const stage = stages.find((item) => ['HOT_LEAD', 'HOT_DEAL'].includes(String(item.key).toUpperCase()) && item.isActive !== false && !item.deletedAt);
+      if (!stage) throw new Error('The Hot Lead stage is not available.');
       const result = await listLeadPage({ stageId: stage.id, search: search || undefined, page, limit: 20 });
       if (signal.cancelled) return;
       setData(result); setError('');
@@ -34,9 +34,9 @@ export function HotDealLeads() {
   }, [refresh]);
   const totalPages = Number(data.pagination?.totalPages || 1);
   return <section className="rounded-xl border bg-white p-4 space-y-3">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-slate-900">Hot Deal leads ({data.pagination?.total ?? 0})</h2>
-      <input aria-label="Search Hot Deal leads" className="rounded-md border px-3 py-2 text-sm" placeholder="Search leads" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} /></div>
-    {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : loading ? <p className="text-sm text-slate-500">Loading leads…</p> : data.rows.length === 0 ? <p className="text-sm text-slate-500">No Hot Deal leads found.</p> :
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-slate-900">Hot Leads ({data.pagination?.total ?? 0})</h2>
+      <input aria-label="Search Hot Leads" className="rounded-md border px-3 py-2 text-sm" placeholder="Search Hot Leads" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} /></div>
+    {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : loading ? <p className="text-sm text-slate-500">Loading leads…</p> : data.rows.length === 0 ? <p className="text-sm text-slate-500">No Hot Leads found.</p> :
       <ul className="divide-y">{data.rows.map((lead) => <li key={lead.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
         <div className="flex flex-wrap items-center gap-2"><Link href={`/admin/crm/leads?leadId=${encodeURIComponent(lead.id)}`} className="font-semibold text-slate-900 hover:underline">{lead.companyName || personName(lead)}</Link><HotDealIndicator lead={lead} /></div>
         <span className="text-slate-500">{lead.phone || '—'} · {personName(lead.assignedTo || lead.employee)}</span>
