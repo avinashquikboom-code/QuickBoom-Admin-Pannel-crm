@@ -76,6 +76,19 @@ export async function POST(request) {
         body: JSON.stringify({ email, password, rememberMe: remember }),
         cache: 'no-store',
       });
+      // Older backend deployments reject fields they do not recognize.
+      if (upstream.status === 400) {
+        const error = await upstream.clone().json().catch(() => null);
+        const messages = Array.isArray(error?.message) ? error.message : [error?.message];
+        if (messages.some((message) => message === 'property rememberMe should not exist')) {
+          upstream = await fetch(`${apiBase}/auth/admin/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-client-type': 'admin' },
+            body: JSON.stringify({ email, password }),
+            cache: 'no-store',
+          });
+        }
+      }
       if (upstream) {
         lastError = null;
         break;
