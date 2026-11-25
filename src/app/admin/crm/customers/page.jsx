@@ -118,6 +118,7 @@ export default function CustomersRoute() {
       loadCustomers({
         page: query.page,
         limit: 20,
+        wonOnly: true,
         search: query.search || undefined,
         status: query.status || undefined,
         assignedEmployee: query.assignedEmployee || undefined,
@@ -291,13 +292,11 @@ export default function CustomersRoute() {
           const total = counts.all ?? result.pagination?.total ?? metrics.totalCustomers ?? 0;
           const active = counts.active ?? metrics.activeCustomers ?? 0;
           const inactive = counts.inactive ?? metrics.inactiveCustomers ?? Math.max(0, total - active);
-          const upcoming = counts.upcoming ?? 0;
 
           return [
             { label: 'Total Customers', value: total, icon: UsersRound, iconTone: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200/60' },
             { label: 'Active Customers', value: active, icon: CheckCircle2, iconTone: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60' },
             { label: 'Inactive Customers', value: inactive, icon: CircleAlert, iconTone: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200/60' },
-            { label: 'Upcoming', value: upcoming, icon: CalendarDays, iconTone: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60' },
           ];
         }}
         filters={[
@@ -308,7 +307,6 @@ export default function CustomersRoute() {
               { value: '', label: 'All categories' },
               { value: 'ACTIVE', label: 'Active (Plan)' },
               { value: 'INACTIVE', label: 'Inactive (Won)' },
-              { value: 'UPCOMING', label: 'Upcoming (Final Call)' },
             ],
           },
           {
@@ -494,35 +492,11 @@ export default function CustomersRoute() {
             },
           },
           {
-            header: 'Category',
-            className: 'min-w-[130px]',
-            cell: (row) => (
-              <StatusBadge status={String(row.customerStatus || row.status || 'inactive').toLowerCase()} />
-            ),
-          },
-          {
             header: 'Status',
             className: 'min-w-[110px]',
-            cell: (row) => {
-              const isActive = row.isActive !== false;
-              return (
-                <button
-                  type="button"
-                  onClick={() => handleToggleActive(row)}
-                  title={`Click to mark as ${isActive ? 'Inactive' : 'Active'}`}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-                    isActive
-                      ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <span
-                    className={`size-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}
-                  />
-                  {isActive ? 'Active' : 'Inactive'}
-                </button>
-              );
-            },
+            cell: (row) => (
+              <StatusBadge status={String(row.customerStatus || 'inactive').toLowerCase()} />
+            ),
           },
         ]}
         renderForm={(form, setForm) => (
