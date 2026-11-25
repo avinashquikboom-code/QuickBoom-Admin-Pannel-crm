@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -31,7 +32,14 @@ const CHANNELS = [
 const blank = { title: '', message: '', targetType: 'EMPLOYEES', audience: 'ALL', targetIds: [], imageUrl: '', previewUrl: '', showCta: true, ctaText: '', ctaActionType: 'WEB_URL', ctaActionValue: '', scheduledAt: '', mode: 'NOW' };
 
 export default function NotificationsPage() {
-  const [tab, setTab] = React.useState('campaigns');
+  return <React.Suspense fallback={null}><NotificationsContent /></React.Suspense>;
+}
+
+function NotificationsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const tab = TABS.some(([key]) => key === requestedTab) ? requestedTab : 'campaigns';
   const [rows, setRows] = React.useState([]);
   const [summary, setSummary] = React.useState({});
   const [history, setHistory] = React.useState([]);
@@ -78,7 +86,7 @@ export default function NotificationsPage() {
 
   return <div className="max-w-none min-w-0 w-full space-y-4">
     <PageHeader title="Notifications & Campaigns" description="Create and manage campaigns, company announcements, delivery settings, and notification history." actions={tab === 'campaigns' ? <Button onClick={openForm}>Create campaign</Button> : null} />
-    <div className="flex flex-wrap gap-2">{TABS.map(([key, label]) => <Button key={key} size="sm" variant={tab === key ? 'default' : 'outline'} onClick={() => setTab(key)}>{label}</Button>)}</div>
+    <div className="flex flex-wrap gap-2">{TABS.map(([key, label]) => <Button key={key} size="sm" variant={tab === key ? 'default' : 'outline'} onClick={() => router.push(`/admin/settings/notifications?tab=${key}`)}>{label}</Button>)}</div>
     {tab === 'campaigns' && <Campaigns rows={rows} summary={summary} loading={loading} error={error} query={query} setQuery={setQuery} onRetry={() => setRefresh((value) => value + 1)} onChanged={() => setRefresh((value) => value + 1)} />}
     {tab === 'announcements' && <AnnouncementsPage />}
     {tab === 'delivery' && <Delivery integrations={integrations} />}
