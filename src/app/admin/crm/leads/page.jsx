@@ -112,6 +112,7 @@ import {
   faYoutube,
 } from '@fortawesome/free-brands-svg-icons';
 import { cn } from '@/lib/utils';
+import { HotDealIndicator } from '@/modules/crm/HotDealIndicator';
 
 function filtersFrom(query) {
   return {
@@ -529,7 +530,7 @@ export default function LeadsRoute() {
   // The list endpoint groups the full filtered database set, excluding only stage.
   const combinedStageCards = React.useMemo(() => {
     const counts = payload.pagination?.counts || [];
-    return activeStages.map((stage) => {
+    return [...activeStages].sort((a, b) => Number(b.key === 'HOT_DEAL') - Number(a.key === 'HOT_DEAL')).map((stage) => {
       const canonical = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
       const aliases = [canonical(stage.key), canonical(stage.name)];
       const count = counts.filter((row) => Number(row.stageId) === Number(stage.id) || (row.stageId == null && aliases.includes(canonical(row.status)))).reduce((sum, row) => sum + Number(row.count || 0), 0);
@@ -788,7 +789,7 @@ export default function LeadsRoute() {
                     className="text-[11px] font-semibold text-slate-700 truncate"
                     title={card.name}
                   >
-                    {card.name}
+                    {card.key === 'HOT_DEAL' ? <HotDealIndicator lead={{ stage: { key: card.key } }} /> : card.name}
                   </span>
                   <span
                     className="size-2 rounded-full shrink-0"
@@ -1375,6 +1376,7 @@ export default function LeadsRoute() {
                             >
                               {personName(row)}
                             </button>
+                            <HotDealIndicator lead={row} />
                             {row.title ? (
                               <span className="text-[10px] text-slate-400 truncate block">
                                 {row.title}

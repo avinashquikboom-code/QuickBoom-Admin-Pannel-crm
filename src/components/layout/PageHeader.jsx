@@ -105,7 +105,7 @@ const routeRegistry = {
     'lead-limits': { category: 'SALES & CRM', title: 'Lead Limits', icon: faShieldHalved },
     'contacts': { category: 'SALES & CRM', title: 'Contacted', icon: faAddressBook },
     'companies': { category: 'SALES & CRM', title: 'Companies & Accounts', icon: faBuilding },
-    'deals': { category: 'SALES & CRM', title: 'Deals Pipeline', icon: faHandshake },
+    'deals': { category: 'SALES & CRM', title: 'Hot Deals', icon: faHandshake },
     'visits': { category: 'SALES & CRM', title: 'Field Visits', icon: faUserCheck },
     'tasks': { category: 'OPERATIONS', title: 'Tasks Management', icon: faListCheck },
     'activities': { category: 'OPERATIONS', title: 'Activity Stream', icon: faChartBar },
