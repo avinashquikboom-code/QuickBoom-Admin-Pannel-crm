@@ -32,6 +32,7 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { billingError, loadBillingOverview } from '@/modules/customer/billing-api';
+import { GlobalDashboardFilters, resolvePresetRange } from '@/components/dashboard/GlobalDashboardFilters';
 import { cn } from '@/lib/utils';
 import { CustomerGrowthCard } from './components/CustomerGrowthCard';
 import { CustomerStatusCard } from './components/CustomerStatusCard';
@@ -486,7 +487,7 @@ export default function CustomerDashboardPage() {
   const customers = data?.customers || {};
   const invoices = data?.invoices || {};
   const subscriptions = data?.subscriptions || {};
-  const revenueTotal = data?.revenue?.totalRevenue ?? 0;
+  const revenueTotal = data?.revenue?.totalCollectedAmount ?? data?.revenue?.totalRevenue ?? invoices?.totalCollectedAmount ?? 0;
 
   // Recent Customers Filtering & Pagination
   const rawCustomers = React.useMemo(() => data?.recentCustomers || [], [data]);
@@ -549,6 +550,28 @@ export default function CustomerDashboardPage() {
         description="Customer, subscription, invoice, and revenue totals from the existing APIs."
         icon={Users}
         illustration={<CustomerHeaderIllustration />}
+      />
+
+      <GlobalDashboardFilters
+        filters={{
+          preset: 'custom',
+          fromDate: filters.dateFrom,
+          toDate: filters.dateTo,
+        }}
+        showDepartment={false}
+        showEmployee={false}
+        showBranch={false}
+        onApply={(next) =>
+          setFilters((prev) => ({
+            ...prev,
+            dateFrom: next.fromDate || '',
+            dateTo: next.toDate || '',
+          }))
+        }
+        onReset={() => setFilters({ dateFrom: '', dateTo: '', status: '' })}
+        onRefresh={() => setRefresh((r) => r + 1)}
+        refreshing={refreshing}
+        storageKey="qb_customer_dashboard_filters"
       />
 
       {/* B. Date and Status Filters Panel */}

@@ -7,6 +7,7 @@ import { HrmNotice } from '@/modules/hrm/HrmNotice';
 
 // Dashboard Components
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { GlobalDashboardFilters, resolvePresetRange } from '@/components/dashboard/GlobalDashboardFilters';
 import { KpiCards } from '@/components/dashboard/KpiCards';
 import { LeadsOverviewCard } from '@/components/dashboard/LeadsOverviewCard';
 import { LeadsBySourceCard } from '@/components/dashboard/LeadsBySourceCard';
@@ -35,8 +36,15 @@ function objectOf(payload) {
 }
 
 export default function AdminDashboardPage() {
-  const [dateFrom, setDateFrom] = React.useState('');
-  const [dateTo, setDateTo] = React.useState('');
+  const [filters, setFilters] = React.useState(() => ({
+    preset: 'this_month',
+    ...resolvePresetRange('this_month'),
+    departmentId: '',
+    employeeId: '',
+    branchId: '',
+  }));
+  const dateFrom = filters.fromDate || '';
+  const dateTo = filters.toDate || '';
   const [data, setData] = React.useState(null);
   const [failed, setFailed] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
@@ -45,28 +53,33 @@ export default function AdminDashboardPage() {
   const [lastUpdated, setLastUpdated] = React.useState(null);
   const [liveState, setLiveState] = React.useState('live');
   const hasLoadedRef = React.useRef(false);
-  const isFetchingRef = React.useRef(false);
+  const requestSeqRef = React.useRef(0);
 
   const fetchDashboardData = React.useCallback(async () => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
+    const seq = ++requestSeqRef.current;
     if (!hasLoadedRef.current) setLoading(true);
 
     const params = {
+      fromDate: dateFrom || undefined,
+      toDate: dateTo || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
+      departmentId: filters.departmentId || undefined,
+      employeeId: filters.employeeId || undefined,
+      branchId: filters.branchId || undefined,
     };
 
     const endpoints = {
+      unified: () => api.get('/admin/dashboard/summary', { params }),
       summary: () => api.get('/reports/summary', { params }),
-      leads: () => api.get('/leads/metrics'),
-      customers: () => api.get('/customers/metrics'),
-      deals: () => api.get('/deals/metrics'),
-      tasks: () => api.get('/tasks/metrics'),
-      liveAttendance: () => api.get('/admin/hrms/live-dashboard'),
-      recentLeads: () => api.get('/leads', { params: { page: 1, limit: 10 } }),
-      invoices: () => api.get('/invoices', { params: { page: 1, limit: 25, status: 'PAID' } }),
-      activity: () => api.get('/audit-logs', { params: { page: 1, limit: 10 } }),
+      leads: () => api.get('/leads/dashboard', { params }),
+      customers: () => api.get('/customers/metrics', { params }),
+      deals: () => api.get('/deals/metrics', { params }),
+      tasks: () => api.get('/tasks/metrics', { params }),
+      liveAttendance: () => api.get('/admin/hrms/live-dashboard', { params }),
+      recentLeads: () => api.get('/leads', { params: { page: 1, limit: 10, ...params } }),
+      invoices: () => api.get('/invoices', { params: { page: 1, limit: 25, ...params } }),
+      activity: () => api.get('/audit-logs', { params: { page: 1, limit: 10, ...params } }),
       captureUsage: () => loadCaptureUsage(),
       captureSessions: () => loadCaptureSessions({ page: 1, limit: 10 }),
       capturePending: () => loadCaptures({ page: 1, limit: 1, status: 'CAPTURED' }),
@@ -76,7 +89,6 @@ export default function AdminDashboardPage() {
         try {
           return await api.get('/email/stats');
         } catch {
-          // Graceful fallback to templates stats
           const res = await api.get('/email/templates', { params: { page: 1, limit: 1 } });
           const stats = res?.data?.stats || res?.stats || {};
           return {
@@ -102,6 +114,9 @@ export default function AdminDashboardPage() {
         })
       );
 
+      // Prevent stale out-of-order responses from overwriting newer filters
+      if (seq !== requestSeqRef.current) return;
+
       const nextData = {};
       const errorList = [];
       results.forEach(([key, payload, error]) => {
@@ -125,13 +140,14 @@ export default function AdminDashboardPage() {
       setLastUpdated(new Date());
       setLiveState(errorList.length ? 'reconnecting' : 'live');
     } catch {
-      setLiveState('reconnecting');
+      if (seq === requestSeqRef.current) setLiveState('reconnecting');
     } finally {
-      setLoading(false);
-      hasLoadedRef.current = true;
-      isFetchingRef.current = false;
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+        hasLoadedRef.current = true;
+      }
     }
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, filters.departmentId, filters.employeeId, filters.branchId]);
 
   React.useEffect(() => {
     fetchDashboardData();
@@ -194,12 +210,42 @@ export default function AdminDashboardPage() {
   const activity = rowsOf(data?.activity);
 
   const handleDateChange = (from, to) => {
-    setDateFrom(from);
-    setDateTo(to);
+    setFilters((prev) => ({ ...prev, preset: 'custom', fromDate: from, toDate: to }));
   };
 
   const handleRefresh = () => {
     setRefreshCount((prev) => prev + 1);
+  };
+
+  const handleExportCsv = () => {
+    const unified = objectOf(data?.unified);
+    const pm = unified?.periodMetrics || {};
+    const snap = unified?.snapshot || {};
+    const rows = [
+      ['Metric', 'Category', 'Value'],
+      ['Date From', 'Filter', dateFrom || 'All Time'],
+      ['Date To', 'Filter', dateTo || 'All Time'],
+      ['Total Leads', 'Period Activity', pm.totalLeads ?? leads?.summary?.totalLeads ?? 0],
+      ['Converted Leads', 'Period Activity', pm.convertedLeads ?? leads?.summary?.wonLeads ?? 0],
+      ['Total Invoiced Amount', 'Period Financial', pm.totalInvoicedAmount ?? 0],
+      ['Actual Revenue Collected', 'Period Financial', pm.actualRevenueCollected ?? 0],
+      ['Outstanding Payments', 'Receivables', pm.outstandingPayments ?? 0],
+      ['Upcoming Collections', 'Receivables', pm.upcomingCollections ?? 0],
+      ['Online Collections', 'Period Financial', pm.onlineCollections ?? 0],
+      ['Offline Collections', 'Period Financial', pm.offlineCollections ?? 0],
+      ['Total Customers', 'Current Snapshot', snap.totalCustomers ?? customers?.total ?? 0],
+      ['Active Employees', 'Current Snapshot', snap.activeEmployees ?? summary?.workforce?.active ?? 0],
+      ['Present Employees', 'Attendance', snap.presentEmployees ?? liveAttendance?.summary?.present ?? 0],
+      ['Active Subscriptions', 'Current Snapshot', snap.activeSubscriptions ?? 0],
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qb-admin-dashboard-${dateFrom || 'all'}-to-${dateTo || 'all'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -213,6 +259,18 @@ export default function AdminDashboardPage() {
         loading={loading}
         liveState={liveState}
         lastUpdated={lastUpdated}
+      />
+
+      {/* Global Reusable Dashboard Filters */}
+      <GlobalDashboardFilters
+        filters={filters}
+        onApply={(next) => setFilters(next)}
+        onReset={(next) => setFilters(next)}
+        onRefresh={handleRefresh}
+        onExportCsv={handleExportCsv}
+        refreshing={loading}
+        lastSyncedAt={lastUpdated}
+        storageKey="qb_main_dashboard_filters"
       />
 
       {/* Network or Endpoint Notice */}
