@@ -1515,12 +1515,21 @@ export default function LeadsRoute() {
                           <DropdownMenuTrigger aria-label="Lead actions" className="inline-flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-600">
                             <MoreVertical className="size-4" />
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56 bg-white p-1.5">
-                            <DropdownMenuItem onClick={() => setSelectedLead(row)}><Eye className="size-4" /> View Lead Dossier</DropdownMenuItem>
-                            {allowed && <DropdownMenuItem onClick={() => { setQuickAssignLeads([row]); setQuickAssignOpen(true); }}><UserCheck className="size-4" /> Assign Representative</DropdownMenuItem>}
-                            {allowed && <DropdownMenuItem onClick={() => handleEditLead(row)}><Edit className="size-4" /> Edit Lead</DropdownMenuItem>}
-                            {allowed && <DropdownMenuItem onClick={() => setConfirmState({ type: 'convert', lead: row })}><UserCheck className="size-4" /> Convert to Deal / Customer</DropdownMenuItem>}
-                            {canDelete && <DropdownMenuItem variant="destructive" onClick={() => setConfirmState({ type: 'delete', lead: row })}><Trash2 className="size-4" /> Delete Lead</DropdownMenuItem>}
+                          <DropdownMenuContent align="end" className="w-60 rounded-xl border border-[#E2E8E5] bg-white p-2 shadow-xl">
+                            <div className="px-2.5 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Lead actions</div>
+                            <DropdownMenuItem className="gap-3 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 focus:bg-emerald-50 focus:text-[#123D32]" onClick={() => setSelectedLead(row)}>
+                              <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-[#107569]"><Eye className="size-4" /></span> View lead
+                            </DropdownMenuItem>
+                            {allowed && <DropdownMenuItem className="gap-3 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 focus:bg-emerald-50 focus:text-[#123D32]" onClick={() => { setQuickAssignLeads([row]); setQuickAssignOpen(true); }}>
+                              <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-[#107569]"><UserCheck className="size-4" /></span> Assign representative
+                            </DropdownMenuItem>}
+                            {allowed && <DropdownMenuItem className="gap-3 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 focus:bg-emerald-50 focus:text-[#123D32]" onClick={() => handleEditLead(row)}>
+                              <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-[#107569]"><Edit className="size-4" /></span> Edit lead
+                            </DropdownMenuItem>}
+                            {canDelete && <div className="my-1 border-t border-slate-100" />}
+                            {canDelete && <DropdownMenuItem variant="destructive" className="gap-3 rounded-lg px-2.5 py-2 text-xs font-semibold text-rose-600 focus:bg-rose-50" onClick={() => setConfirmState({ type: 'delete', lead: row })}>
+                              <span className="flex size-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600"><Trash2 className="size-4" /></span> Delete lead
+                            </DropdownMenuItem>}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>

@@ -113,7 +113,15 @@ export const marketingNavigation = [
         href: '/admin/sections/email-templates',
         children: emailMarketingNavigation,
     },
-    { name: 'Notifications', href: '/admin/settings/notifications', icon: faBell },
+    {
+        name: 'Notifications', icon: faBell, href: '/admin/settings/notifications',
+        children: [
+            { name: 'Campaigns', href: '/admin/settings/notifications?tab=campaigns', icon: faBullhorn },
+            { name: 'Announcements', href: '/admin/settings/notifications?tab=announcements', icon: faBell },
+            { name: 'Delivery settings', href: '/admin/settings/notifications?tab=delivery', icon: faGear },
+            { name: 'History', href: '/admin/settings/notifications?tab=history', icon: faClockRotateLeft },
+        ],
+    },
 ];
 
 /** @deprecated Replaced by whatsAppMarketingNavigation and emailMarketingNavigation */
