@@ -14,7 +14,9 @@ export function HotDealLeads() {
   const refresh = React.useCallback(async (signal) => {
     try {
       const stages = await loadLeadStages();
-      const stage = stages.find((item) => ['HOT_LEAD', 'HOT_DEAL'].includes(String(item.key).toUpperCase()) && item.isActive !== false && !item.deletedAt);
+      // Keep historical leads visible even if an administrator deactivated the stage.
+      const stage = stages.find((item) => ['HOT_LEAD', 'HOT_DEAL'].includes(String(item.key).toUpperCase()) && !item.deletedAt)
+        || stages.find((item) => /^hot[\s_-]*(lead|deal)$/i.test(String(item.name || '')) && !item.deletedAt);
       if (!stage) throw new Error('The Hot Lead stage is not available.');
       const result = await listLeadPage({ stageId: stage.id, search: search || undefined, page, limit: 20 });
       if (signal.cancelled) return;

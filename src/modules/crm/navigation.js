@@ -17,7 +17,7 @@ export const navigation = [
     { name: 'Dashboard', href: '/admin/crm', matchExact: true, icon: faGauge },
     { name: 'Leads', href: '/admin/crm/leads', icon: faUsers },
     { name: 'Customers', href: '/admin/crm/customers', icon: faUserGroup },
-    { name: 'Hot Leads', href: '/admin/crm/deals', icon: faHandshake },
+    { name: 'Hot Leads', href: '/admin/crm/hot-leads', icon: faHandshake },
     { name: 'Follow-ups', href: '/admin/crm/follow-ups', icon: faClock },
     { name: 'Send Details', href: '/admin/crm/send-details', icon: faPaperPlane },
     { name: 'Lead Limits', href: '/admin/crm/lead-limits', icon: faShieldHalved },
