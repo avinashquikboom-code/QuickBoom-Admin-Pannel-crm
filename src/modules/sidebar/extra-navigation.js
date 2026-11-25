@@ -113,6 +113,7 @@ export const marketingNavigation = [
         href: '/admin/sections/email-templates',
         children: emailMarketingNavigation,
     },
+    { name: 'Notifications', href: '/admin/settings/notifications', icon: faBell },
 ];
 
 /** @deprecated Replaced by whatsAppMarketingNavigation and emailMarketingNavigation */
@@ -141,7 +142,6 @@ export const settingsNavigation = [
     { name: 'General Settings', href: '/admin/settings', icon: faGear, matchExact: true },
     { name: 'Integrations', href: '/admin/settings/integrations', icon: faBolt },
     { name: 'Google Maps Management', href: '/admin/settings/google-maps', icon: faLocationDot },
-    { name: 'Notifications', href: '/admin/settings/notifications', icon: faBell },
     { name: 'Data Management', href: '/admin/settings/data-management', icon: faTrash },
     { name: 'Commission Settings', href: '/admin/settings/commissions', icon: faCreditCard },
     { name: 'Activity Logs', href: '/admin/settings/activity-logs', icon: faChartBar },
