@@ -8,6 +8,8 @@ import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
 import { hrmError, loadLiveDashboard, loadReportSummary } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
+import { GlobalDashboardFilters, resolvePresetRange } from '@/components/dashboard/GlobalDashboardFilters';
+import api from '../../../../../lib/api';
 
 import { HrmKpiGrid } from '@/modules/hrm/components/dashboard/HrmKpiGrid';
 import { HrmDepartmentCard } from '@/modules/hrm/components/dashboard/HrmDepartmentCard';
@@ -24,6 +26,15 @@ export default function HrmDashboardPage() {
   const router = useRouter();
 
   // Filters State
+  const [hrmFilters, setHrmFilters] = React.useState(() => ({
+    preset: 'today',
+    ...resolvePresetRange('today'),
+    departmentId: '',
+    employeeId: '',
+    branchId: '',
+    shiftId: '',
+    status: '',
+  }));
   const [dateFilter, setDateFilter] = React.useState('today'); // 'today' | 'week' | 'month' | 'custom'
   const [customDate, setCustomDate] = React.useState(
     () => new Date().toISOString().split('T')[0]
@@ -82,9 +93,20 @@ export default function HrmDashboardPage() {
       setError('');
 
       try {
+        const filterParams = {
+          date: hrmFilters.toDate || queryDate || undefined,
+          fromDate: hrmFilters.fromDate || undefined,
+          toDate: hrmFilters.toDate || undefined,
+          departmentId: hrmFilters.departmentId || undefined,
+          employeeId: hrmFilters.employeeId || undefined,
+          branchId: hrmFilters.branchId || undefined,
+          shiftId: hrmFilters.shiftId || undefined,
+          status: hrmFilters.status || undefined,
+          period: queryPeriod || undefined,
+        };
         const [liveRes, reportRes] = await Promise.allSettled([
-          loadLiveDashboard(queryDate, queryPeriod),
-          loadReportSummary(),
+          api.get('/admin/hrms/live-dashboard', { params: filterParams }).then((r) => r?.data || r),
+          loadReportSummary({ fromDate: hrmFilters.fromDate, toDate: hrmFilters.toDate }),
         ]);
 
         if (controller.signal.aborted) return;
@@ -164,6 +186,38 @@ export default function HrmDashboardPage() {
             <Radio className="size-3 text-emerald-600 animate-pulse" />
             Live Analytics
           </Badge>
+        }
+      />
+
+      <GlobalDashboardFilters
+        filters={hrmFilters}
+        onApply={(next) => {
+          setHrmFilters((prev) => ({ ...prev, ...next }));
+          if (next.toDate) setCustomDate(next.toDate);
+          setDateFilter(next.preset === 'today' ? 'today' : 'custom');
+        }}
+        onReset={(next) => {
+          setHrmFilters({ ...next, shiftId: '', status: '' });
+          setDateFilter('today');
+        }}
+        onRefresh={() => fetchData(false)}
+        refreshing={isRefreshing}
+        lastSyncedAt={lastUpdated}
+        storageKey="qb_hrm_dashboard_filters"
+        extraFilters={
+          <select
+            aria-label="Attendance status filter"
+            value={hrmFilters.status}
+            onChange={(e) => setHrmFilters((p) => ({ ...p, status: e.target.value }))}
+            className="h-9 rounded-xl border border-[#E2E8E5] bg-white px-2.5 text-xs font-medium text-[#142D25] outline-none focus:border-[#123D32]"
+          >
+            <option value="">All Statuses</option>
+            <option value="PRESENT">Present</option>
+            <option value="ABSENT">Absent</option>
+            <option value="NOT_YET_CHECKED_IN">Not Yet Checked In</option>
+            <option value="ON_LEAVE">On Leave</option>
+            <option value="HOLIDAY">Holiday</option>
+          </select>
         }
       />
 

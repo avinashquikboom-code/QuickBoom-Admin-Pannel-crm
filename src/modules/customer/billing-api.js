@@ -38,7 +38,53 @@ export async function loadCustomers(params = {}) {
 
 export async function loadInvoices(params = {}) {
   const payload = await api.get('/invoices', { params });
-  return { rows: rowsOf(payload), pagination: pageOf(payload), summary: summaryOf(payload) };
+  return {
+    rows: rowsOf(payload),
+    pagination: pageOf(payload),
+    summary: summaryOf(payload),
+    counts: payload?.counts || payload?.data?.counts || {},
+  };
+}
+
+export async function loadUpcomingBilling(params = {}) {
+  const payload = await api.get('/invoices/upcoming-billing', { params });
+  return rowsOf(payload);
+}
+
+export async function recordInvoicePayment(id, values) {
+  return api.post(`/invoices/${id}/record-payment`, values);
+}
+
+export async function getInvoicePayments(id) {
+  const payload = await api.get(`/invoices/${id}/payments`);
+  return rowsOf(payload);
+}
+
+export async function downloadPaymentReceipt(invoiceId, paymentId, receiptNo) {
+  const data = await api.get(`/invoices/${invoiceId}/payments/${paymentId}/receipt`, { responseType: 'blob' });
+  const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${receiptNo || `QUIKBOOM-RECEIPT-${paymentId}`}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function rescheduleInvoiceInstallment(id, values) {
+  return api.post(`/invoices/${id}/reschedule-installment`, values);
+}
+
+export async function generateInvoicePaymentLink(id, values) {
+  return api.post(`/invoices/${id}/payment-link`, values);
+}
+
+export async function sendInvoiceCommunication(id, values) {
+  return api.post(`/invoices/${id}/send-communication`, values);
+}
+
+export async function cancelInvoice(id, reason) {
+  return api.post(`/invoices/${id}/cancel`, { reason });
 }
 
 export function createInvoice(values) {
@@ -118,21 +164,41 @@ export async function loadResourceUsage(params = {}) {
 }
 
 export async function loadBillingOverview(params = {}) {
+  const queryParams = {
+    ...params,
+    fromDate: params.fromDate || params.dateFrom || undefined,
+    toDate: params.toDate || params.dateTo || undefined,
+    dateFrom: params.dateFrom || params.fromDate || undefined,
+    dateTo: params.dateTo || params.toDate || undefined,
+  };
   const [customers, invoices, subscriptions, revenue] = await Promise.all([
-    api.get('/customers/metrics', { params }),
-    api.get('/invoices', { params: { page: 1, limit: 8, ...params } }),
-    api.get('/admin/subscriptions', { params: { page: 1, limit: 8 } }),
-    api.get('/reports/summary', { params }),
+    api.get('/customers/metrics', { params: queryParams }),
+    api.get('/invoices', { params: { page: 1, limit: 8, ...queryParams } }),
+    api.get('/admin/subscriptions', { params: { page: 1, limit: 8, ...queryParams } }),
+    api.get('/reports/summary', { params: queryParams }),
   ]);
-  const recentCustomers = await api.get('/customers', { params: { page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc', dateFrom: params.dateFrom, dateTo: params.dateTo, status: params.status } });
+  const recentCustomers = await api.get('/customers', {
+    params: { page: 1, limit: 50, sortBy: 'createdAt', sortOrder: 'desc', dateFrom: queryParams.dateFrom, dateTo: queryParams.dateTo, status: queryParams.status },
+  });
   const customerSummary = summaryOf(customers);
+  const invoiceSummary = summaryOf(invoices);
+  const reportRevenue = summaryOf(revenue)?.revenue || revenue?.revenue || revenue?.data?.revenue || {};
   return {
     customers: customerSummary,
     monthlyGrowth: customerSummary?.monthlyGrowth || customers?.data?.monthlyGrowth || customers?.monthlyGrowth || [],
-    invoices: summaryOf(invoices),
+    invoices: invoiceSummary,
+    invoiceCounts: invoices?.counts || invoices?.data?.counts || {},
     recentInvoices: rowsOf(invoices),
     subscriptions: subscriptions?.counts || subscriptions?.data?.counts || {},
-    revenue: (summaryOf(revenue).revenue) || {},
+    revenue: {
+      ...reportRevenue,
+      totalCollectedAmount: invoiceSummary?.totalCollectedAmount ?? reportRevenue?.totalCollectedAmount ?? reportRevenue?.totalRevenue ?? 0,
+      totalBilledAmount: invoiceSummary?.totalBilledAmount ?? reportRevenue?.totalBilledAmount ?? 0,
+      outstandingBalance: invoiceSummary?.outstandingBalance ?? reportRevenue?.outstandingBalance ?? 0,
+      onlineCollections: invoiceSummary?.onlineCollections ?? reportRevenue?.onlineCollections ?? 0,
+      offlineCollections: invoiceSummary?.offlineCollections ?? reportRevenue?.offlineCollections ?? 0,
+      upcomingBillingAmount: invoiceSummary?.upcomingBillingAmount ?? reportRevenue?.upcomingBillingAmount ?? 0,
+    },
     recentCustomers: rowsOf(recentCustomers),
   };
 }

@@ -52,7 +52,8 @@ import {
 
 const STATUS_TABS = [
   { key: 'ALL', label: 'All Invoices' },
-  { key: 'PAID', label: 'Paid' },
+  { key: 'PAID', label: 'Fully Paid' },
+  { key: 'PARTIALLY_PAID', label: 'Partially Paid' },
   { key: 'PENDING', label: 'Pending' },
   { key: 'OVERDUE', label: 'Overdue' },
   { key: 'DRAFT', label: 'Draft' },
@@ -88,7 +89,14 @@ const getStatusBadge = (status) => {
       return (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
           <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Paid
+          Fully Paid
+        </span>
+      );
+    case 'PARTIALLY_PAID':
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 border border-blue-200">
+          <span className="size-1.5 rounded-full bg-blue-500" />
+          Partially Paid
         </span>
       );
     case 'PENDING':

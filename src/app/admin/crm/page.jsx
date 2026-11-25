@@ -66,6 +66,8 @@ import {
   personName,
   crmError,
 } from '@/modules/crm/crm-api';
+import api from '../../../../lib/api';
+import { GlobalDashboardFilters, resolvePresetRange } from '@/components/dashboard/GlobalDashboardFilters';
 
 function formatINR(val) {
   const num = Number(val) || 0;
@@ -171,33 +173,64 @@ export default function CrmDashboardPage() {
   const [createLeadOpen, setCreateLeadOpen] = React.useState(false);
 
   // CRM Data State
+  const [crmFilters, setCrmFilters] = React.useState(() => ({
+    preset: 'this_month',
+    ...resolvePresetRange('this_month'),
+    departmentId: '',
+    employeeId: '',
+    branchId: '',
+    leadSource: '',
+    leadStageId: '',
+  }));
+  const [crmDashboard, setCrmDashboard] = React.useState(null);
+  const [lastSyncedAt, setLastSyncedAt] = React.useState(null);
+  const crmReqSeqRef = React.useRef(0);
   const [leadsData, setLeadsData] = React.useState({ rows: [], metrics: {}, pagination: {} });
   const [dealsData, setDealsData] = React.useState({ rows: [], metrics: {}, stages: [] });
   const [tasksData, setTasksData] = React.useState({ rows: [], metrics: {} });
   const [employees, setEmployees] = React.useState([]);
 
-  // Fetch all CRM metrics in parallel
+  // Fetch all CRM metrics in parallel (authoritative server-side aggregation + filtered lists)
   const fetchDashboardData = React.useCallback(async () => {
+    const seq = ++crmReqSeqRef.current;
+    const params = {
+      fromDate: crmFilters.fromDate || undefined,
+      toDate: crmFilters.toDate || undefined,
+      departmentId: crmFilters.departmentId || undefined,
+      employeeId: crmFilters.employeeId || undefined,
+      branchId: crmFilters.branchId || undefined,
+      leadSource: crmFilters.leadSource || undefined,
+      leadStageId: crmFilters.leadStageId || undefined,
+    };
     try {
-      const [leadsRes, dealsRes, tasksRes, employeesRes] = await Promise.all([
-        loadLeads({ page: 1, limit: 100 }),
-        loadDeals({ page: 1, limit: 100 }),
+      const [dashRes, leadsRes, dealsRes, tasksRes, employeesRes] = await Promise.all([
+        api.get('/leads/dashboard', { params }),
+        loadLeads({ page: 1, limit: 100, ...params }),
+        loadDeals({ page: 1, limit: 100, ...params }),
         loadTasks({ page: 1, limit: 20 }),
         loadEmployees().catch(() => []),
       ]);
 
+      if (seq !== crmReqSeqRef.current) return;
+
+      setCrmDashboard(dashRes?.data || dashRes || null);
       setLeadsData(leadsRes || { rows: [], metrics: {}, pagination: {} });
       setDealsData(dealsRes || { rows: [], metrics: {}, stages: [] });
       setTasksData(tasksRes || { rows: [], metrics: {} });
       setEmployees(Array.isArray(employeesRes) ? employeesRes : []);
+      setLastSyncedAt(new Date());
       setError('');
     } catch (err) {
-      setError(crmError(err) || 'Failed to load CRM dashboard metrics');
+      if (seq === crmReqSeqRef.current) {
+        setError(crmError(err) || 'Failed to load CRM dashboard metrics');
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (seq === crmReqSeqRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, []);
+  }, [crmFilters]);
 
   React.useEffect(() => {
     setLoading(true);
@@ -209,42 +242,35 @@ export default function CrmDashboardPage() {
     setRefreshKey((v) => v + 1);
   };
 
-  // 1. KPI Calculations
+  // 1. KPI Calculations (authoritative server-side aggregation across full matching dataset)
   const leads = leadsData.rows || [];
   const deals = dealsData.rows || [];
   const tasks = tasksData.rows || [];
   const leadMetrics = leadsData.metrics || {};
   const dealMetrics = dealsData.metrics || {};
+  const serverSummary = crmDashboard?.summary || {};
 
-  const totalLeads = leadMetrics.total ?? leadsData.pagination?.total ?? leads.length;
-  const activeDeals = dealMetrics.open ?? deals.filter((d) => !d.isWon && !d.isLost).length;
-  const wonDeals = dealMetrics.won ?? deals.filter((d) => d.isWon).length;
-  const wonRevenue = dealMetrics.wonValue ?? deals.filter((d) => d.isWon).reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
-  const conversionRate = dealMetrics.winRate
-    ? `${Number(dealMetrics.winRate).toFixed(1)}%`
-    : totalLeads > 0
-    ? `${((wonDeals / totalLeads) * 100).toFixed(1)}%`
-    : '0.0%';
+  const totalLeads = serverSummary.totalLeads ?? leadMetrics.total ?? leadsData.pagination?.total ?? leads.length;
+  const activeDeals = serverSummary.activeDeals ?? dealMetrics.open ?? deals.filter((d) => !d.isWon && !d.isLost).length;
+  const wonDeals = serverSummary.wonDeals ?? dealMetrics.won ?? deals.filter((d) => d.isWon).length;
+  const wonRevenue = serverSummary.revenueCollected ?? dealMetrics.wonValue ?? 0;
+  const conversionRate =
+    serverSummary.conversionRate != null
+      ? `${Number(serverSummary.conversionRate).toFixed(1)}%`
+      : dealMetrics.winRate
+        ? `${Number(dealMetrics.winRate).toFixed(1)}%`
+        : totalLeads > 0
+          ? `${((wonDeals / totalLeads) * 100).toFixed(1)}%`
+          : '0.0%';
 
-  const generateSpark = (val, color) => {
-    const base = Number(val) || 10;
-    return [
-      { val: Math.max(3, Math.round(base * 0.45)) },
-      { val: Math.max(4, Math.round(base * 0.6)) },
-      { val: Math.max(3, Math.round(base * 0.5)) },
-      { val: Math.max(6, Math.round(base * 0.8)) },
-      { val: Math.max(5, Math.round(base * 0.7)) },
-      { val: Math.max(7, Math.round(base * 0.95)) },
-      { val: Math.max(6, base) },
-    ];
-  };
+  const generateSpark = () => [];
 
   const kpiCards = [
     {
       id: 'leads',
       title: 'Total Leads',
       value: totalLeads.toLocaleString(),
-      change: '+12.5%',
+      change: serverSummary.wonLeads != null ? `${serverSummary.wonLeads} Won Leads` : 'Period Total',
       icon: Users,
       sparkColor: '#20C466',
     },
@@ -252,7 +278,7 @@ export default function CrmDashboardPage() {
       id: 'active_deals',
       title: 'Active Deals',
       value: activeDeals.toLocaleString(),
-      change: '+8.2%',
+      change: `${serverSummary.totalDeals ?? deals.length} Total Deals`,
       icon: Handshake,
       sparkColor: '#20C466',
     },
@@ -437,47 +463,58 @@ export default function CrmDashboardPage() {
         description="Get a real-time view of your leads, deals, pipeline and team performance."
         icon={Users}
         actions={
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Date Range Selector Pills */}
-            <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
-              {['7D', '30D', '90D', 'This Month'].map((range) => (
-                <button
-                  key={range}
-                  type="button"
-                  onClick={() => setDateRange(range)}
-                  className={cn(
-                    'rounded-lg px-3 py-1 text-xs font-semibold transition-all',
-                    dateRange === range
-                      ? 'bg-[#173D30] text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  )}
-                >
-                  {range}
-                </button>
-              ))}
-            </div>
+          <Button
+            onClick={() => setCreateLeadOpen(true)}
+            className="h-10 px-4 text-xs font-semibold bg-[#173D30] hover:bg-[#122e25] text-white shadow-xs gap-1.5 rounded-xl"
+          >
+            <Plus className="size-4 text-[#20C466]" />
+            <span>Create Lead</span>
+          </Button>
+        }
+      />
 
-            {/* Refresh Action */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing || loading}
-              aria-label="Refresh dashboard"
-              className="size-10 p-0 border-slate-200 bg-white text-slate-600 hover:bg-emerald-50 hover:border-emerald-200 hover:text-[#173D30] rounded-xl shadow-2xs"
+      {/* Global Reusable CRM Filters */}
+      <GlobalDashboardFilters
+        filters={crmFilters}
+        onApply={(next) => setCrmFilters((prev) => ({ ...prev, ...next }))}
+        onReset={(next) => setCrmFilters({ ...next, leadSource: '', leadStageId: '' })}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        lastSyncedAt={lastSyncedAt}
+        storageKey="qb_crm_dashboard_filters"
+        extraFilters={
+          <>
+            <select
+              aria-label="Lead source filter"
+              value={crmFilters.leadSource}
+              onChange={(e) => setCrmFilters((p) => ({ ...p, leadSource: e.target.value }))}
+              className="h-9 rounded-xl border border-[#E2E8E5] bg-white px-2.5 text-xs font-medium text-[#142D25] outline-none focus:border-[#123D32]"
             >
-              <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
-            </Button>
-
-            {/* Create Lead Button */}
-            <Button
-              onClick={() => setCreateLeadOpen(true)}
-              className="h-10 px-4 text-xs font-semibold bg-[#173D30] hover:bg-[#122e25] text-white shadow-xs gap-1.5 rounded-xl"
-            >
-              <Plus className="size-4 text-[#20C466]" />
-              <span>Create Lead</span>
-            </Button>
-          </div>
+              <option value="">All Sources</option>
+              <option value="WEBSITE">Website</option>
+              <option value="WHATSAPP">WhatsApp</option>
+              <option value="REFERRAL">Referral</option>
+              <option value="META_ADS">Meta Ads</option>
+              <option value="GOOGLE_ADS">Google Ads</option>
+              <option value="COLD_CALL">Cold Call</option>
+              <option value="MANUAL">Manual</option>
+            </select>
+            {Array.isArray(crmDashboard?.stages) && crmDashboard.stages.length > 0 ? (
+              <select
+                aria-label="Lead stage filter"
+                value={crmFilters.leadStageId}
+                onChange={(e) => setCrmFilters((p) => ({ ...p, leadStageId: e.target.value }))}
+                className="h-9 rounded-xl border border-[#E2E8E5] bg-white px-2.5 text-xs font-medium text-[#142D25] outline-none focus:border-[#123D32]"
+              >
+                <option value="">All Stages</option>
+                {crmDashboard.stages.map((st) => (
+                  <option key={st.stageId} value={st.stageId}>
+                    {st.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </>
         }
       />
 
