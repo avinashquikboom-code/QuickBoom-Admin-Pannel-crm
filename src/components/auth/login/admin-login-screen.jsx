@@ -88,6 +88,14 @@ export function AdminLoginScreen() {
             <span className="rounded bg-[#E8F1EC] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#123D32]">
               v{APP_VERSION}
             </span>
+            <a
+              href="https://quikboom.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-lg border border-[#123D32] px-3 py-1.5 font-semibold text-[#123D32] transition hover:bg-[#123D32] hover:text-white"
+            >
+              Website ↗
+            </a>
           </div>
         </footer>
       </section>
