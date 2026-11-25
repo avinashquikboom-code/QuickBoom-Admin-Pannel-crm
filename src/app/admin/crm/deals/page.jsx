@@ -58,7 +58,6 @@ import {
 } from '@/modules/crm/crm-api';
 import { sessionCanAction } from '@/modules/hrm/hrm-api';
 import { cn } from '@/lib/utils';
-import { HotDealLeads } from '@/modules/crm/HotDealLeads';
 
 const blankDeal = {
   title: '',
@@ -559,8 +558,8 @@ export default function DealsRoute() {
       {/* 1. Page Title Card */}
       <PageTitleCard
         moduleName="CRM"
-        breadcrumb="Hot Leads"
-        title="Hot Leads"
+        breadcrumb="Deals"
+        title="Deals"
         description="Sales pipeline, including deals waiting on a final customer decision."
         icon={Handshake}
         badge={`${totalDealsCount} Total`}
@@ -598,8 +597,6 @@ export default function DealsRoute() {
           </>
         }
       />
-
-      <HotDealLeads />
 
       {/* 2. Four KPI Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
