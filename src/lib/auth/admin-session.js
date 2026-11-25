@@ -65,11 +65,9 @@ export function persistSession({ token, refreshToken, user, remember, sessionPol
     window.localStorage.setItem(USER_KEY, encodedUser);
     window.localStorage.setItem('user', encodedUser);
   }
-  if (remember) {
-    window.localStorage.setItem(REMEMBER_KEY, '1');
-  } else {
-    window.localStorage.removeItem(REMEMBER_KEY);
-  }
+  // The seven-day admin session should survive browser restarts regardless of
+  // the legacy Remember me checkbox; the server refresh cookie has the same TTL.
+  window.localStorage.setItem(REMEMBER_KEY, '1');
 
   try {
     const meta = {

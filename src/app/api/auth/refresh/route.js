@@ -1,5 +1,4 @@
-const THIRTY_DAYS = 60 * 60 * 24 * 30;
-const TWENTY_FOUR_HOURS = 60 * 60 * 24;
+const SEVEN_DAYS = 60 * 60 * 24 * 7;
 
 function isHttps(request) {
   const forwarded = request.headers.get('x-forwarded-proto');
@@ -56,7 +55,6 @@ export async function POST(request) {
 
   const cookieRefresh = request.cookies.get('qb_admin_refresh')?.value || null;
   const refreshToken = (payload?.refreshToken || cookieRefresh || '').trim();
-  const rememberCookie = request.cookies.get('qb_admin_remember')?.value === '1';
 
   if (!refreshToken) {
     return clearAuthCookies(
@@ -125,9 +123,8 @@ export async function POST(request) {
     return Response.json({ message: 'Refresh did not return an access token.', retryable: true }, { status: 502 });
   }
 
-  const remember = Boolean(extracted.sessionPolicy?.rememberMe ?? rememberCookie);
   const secure = isHttps(request);
-  const cookieMaxAge = remember ? THIRTY_DAYS : TWENTY_FOUR_HOURS;
+  const cookieMaxAge = SEVEN_DAYS;
 
   const response = Response.json({
     token: extracted.token,
@@ -142,7 +139,7 @@ export async function POST(request) {
 
   response.headers.append('Set-Cookie', buildCookie('qb_admin_session', extracted.token, { secure, maxAge: cookieMaxAge }));
   if (extracted.refreshToken) {
-    response.headers.append('Set-Cookie', buildCookie('qb_admin_refresh', extracted.refreshToken, { secure, maxAge: remember ? THIRTY_DAYS : undefined }));
+    response.headers.append('Set-Cookie', buildCookie('qb_admin_refresh', extracted.refreshToken, { secure, maxAge: SEVEN_DAYS }));
   }
 
   return response;
