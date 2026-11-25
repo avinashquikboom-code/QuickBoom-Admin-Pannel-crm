@@ -9,7 +9,7 @@ import { Label } from '@/components/common/Label';
 import { FormDrawer } from '@/components/common/drawers/FormDrawer';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { HrmNotice, HrmStats } from '@/modules/hrm/HrmNotice';
-import { cancelCampaign, loadCampaigns, loadCampaignSummary, loadIntegrations, loadNotificationHistory, removeCampaign, resendCampaign, saveCampaign, suiteError, uploadCampaignImage } from '@/modules/suite/suite-api';
+import { cancelCampaign, deleteNotificationHistory, loadCampaigns, loadCampaignSummary, loadIntegrations, loadNotificationHistory, removeCampaign, resendCampaign, saveCampaign, suiteError, uploadCampaignImage } from '@/modules/suite/suite-api';
 import { loadCustomers, personName } from '@/modules/crm/crm-api';
 import { loadEmployees } from '@/modules/hrm/hrm-api';
 import AnnouncementsPage from '@/app/admin/hrm/announcements/page';
@@ -187,6 +187,22 @@ function Delivery({ integrations, onConfigure }) {
 }
 
 function History({ rows, loading, error, query, setQuery, onRetry }) {
+  const [selected, setSelected] = React.useState(null);
+  const [deleting, setDeleting] = React.useState(false);
+  const remove = async () => {
+    if (!selected || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteNotificationHistory(selected.id);
+      toast.success('Notification deleted');
+      setSelected(null);
+      onRetry();
+    } catch (err) {
+      toast.error(suiteError(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
   return <div className="space-y-3">
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
       <Input value={query.search} onChange={(event) => setQuery({ ...query, search: event.target.value, page: 1 })} placeholder="Search history" />
@@ -197,12 +213,13 @@ function History({ rows, loading, error, query, setQuery, onRetry }) {
     <HrmNotice loading={loading} error={error} empty={!loading && !error && rows.length === 0 ? 'No in-app campaign notifications match these filters.' : ''} onRetry={onRetry}>
       <div className="overflow-x-auto rounded-xl border bg-white">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="border-b text-xs text-[#718078]"><tr><th className="p-3">Campaign</th><th className="p-3">Recipient</th><th className="p-3">Channel</th><th className="p-3">Status</th><th className="p-3">Stored at</th></tr></thead>
-          <tbody>{rows.map((row) => <tr key={row.id} className="border-b border-slate-100"><td className="p-3"><div className="flex items-center gap-2">{row.imageUrl && <img src={row.imageUrl} alt="" className="h-8 w-12 rounded object-cover" />}<span>{row.campaignTitle}</span></div></td><td className="p-3">{row.recipient}</td><td className="p-3">In-app</td><td className="p-3">{row.status === 'READ' ? 'Read' : 'Stored'}</td><td className="p-3">{String(row.sentAt || '').slice(0, 16).replace('T', ' ')}</td></tr>)}</tbody>
+          <thead className="border-b text-xs text-[#718078]"><tr><th className="p-3">Campaign</th><th className="p-3">Recipient</th><th className="p-3">Channel</th><th className="p-3">Status</th><th className="p-3">Stored at</th><th className="p-3">Actions</th></tr></thead>
+          <tbody>{rows.map((row) => <tr key={row.id} className="border-b border-slate-100"><td className="p-3"><div className="flex items-center gap-2">{row.imageUrl && <img src={row.imageUrl} alt="" className="h-8 w-12 rounded object-cover" />}<span>{row.campaignTitle}</span></div></td><td className="p-3">{row.recipient}</td><td className="p-3">In-app</td><td className="p-3">{row.status === 'READ' ? 'Read' : 'Stored'}</td><td className="p-3">{String(row.sentAt || '').slice(0, 16).replace('T', ' ')}</td><td className="p-3"><Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" onClick={() => setSelected(row)}>Delete</Button></td></tr>)}</tbody>
         </table>
       </div>
       <p className="text-xs text-[#718078]">This history is the in-app record. Firebase acceptance is reported on the campaign as push accepted and push failed. A provider delivery receipt, open, or click is not stored.</p>
     </HrmNotice>
+    <ConfirmDialog open={Boolean(selected)} onOpenChange={(open) => { if (!open && !deleting) setSelected(null); }} title="Delete notification?" description={`This removes the in-app notification for ${selected?.recipient || 'the recipient'} as well as this history record.`} confirmLabel="Delete" variant="destructive" loading={deleting} closeOnConfirm={false} onConfirm={remove} />
   </div>;
 }
 

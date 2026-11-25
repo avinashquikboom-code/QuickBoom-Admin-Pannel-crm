@@ -876,6 +876,13 @@ export const publishAnnouncement = (id) => api.patch(`/admin/hrm/announcements/$
 export const scheduleAnnouncement = (id, publishAt) => api.patch(`/admin/hrm/announcements/${id}/schedule`, { publishAt });
 export const archiveAnnouncement = (id) => api.patch(`/admin/hrm/announcements/${id}/archive`);
 export const removeAnnouncement = (id) => api.delete(`/admin/hrm/announcements/${id}`);
+export const uploadAnnouncementImage = (file) => {
+  const formData = new FormData();
+  formData.append('image', file);
+  return api.post('/admin/hrm/announcements/upload-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
 
 export async function loadHrmReportDashboard(params = {}) {
   return objectFrom(await api.get('/admin/hrm/reports/dashboard', { params }));
