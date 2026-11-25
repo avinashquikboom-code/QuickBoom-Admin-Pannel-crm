@@ -2,6 +2,8 @@ const TOKEN_KEY = 'qb_admin_token';
 const USER_KEY = 'qb_admin_user';
 const REFRESH_KEY = 'qb_admin_refresh_token';
 const REMEMBER_KEY = 'qb_admin_remember';
+const SESSION_META_KEY = 'qb_admin_session_meta';
+const AUTH_CHANNEL_NAME = 'qb_admin_auth_channel';
 
 function storage(remember) {
   if (typeof window === 'undefined') {
@@ -10,7 +12,40 @@ function storage(remember) {
   return remember ? window.localStorage : window.sessionStorage;
 }
 
-export function persistSession({ token, refreshToken, user, remember }) {
+export function broadcastAuthMessage(type, payload = {}) {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') {
+    return;
+  }
+  try {
+    const channel = new BroadcastChannel(AUTH_CHANNEL_NAME);
+    channel.postMessage({ type, timestamp: Date.now(), ...payload });
+    channel.close();
+  } catch {
+    // Ignore BroadcastChannel errors in restricted contexts
+  }
+}
+
+export function subscribeAuthMessages(handler) {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') {
+    return () => {};
+  }
+  let channel;
+  try {
+    channel = new BroadcastChannel(AUTH_CHANNEL_NAME);
+    channel.onmessage = (event) => {
+      if (event?.data) handler(event.data);
+    };
+  } catch {
+    return () => {};
+  }
+  return () => {
+    try {
+      channel.close();
+    } catch {}
+  };
+}
+
+export function persistSession({ token, refreshToken, user, remember, sessionPolicy, accessTokenExpiresAt, refreshTokenExpiresAt }) {
   if (typeof window === 'undefined' || !token) {
     return;
   }
@@ -19,7 +54,8 @@ export function persistSession({ token, refreshToken, user, remember }) {
   primary?.setItem(TOKEN_KEY, token);
   if (refreshToken) primary?.setItem(REFRESH_KEY, refreshToken);
   if (encodedUser) primary?.setItem(USER_KEY, encodedUser);
-  // localStorage is shared by new tabs. sessionStorage alone is not.
+
+  // localStorage is shared by new tabs; sessionStorage alone is not.
   window.localStorage.setItem(TOKEN_KEY, token);
   if (refreshToken) {
     window.localStorage.setItem(REFRESH_KEY, refreshToken);
@@ -34,6 +70,36 @@ export function persistSession({ token, refreshToken, user, remember }) {
   } else {
     window.localStorage.removeItem(REMEMBER_KEY);
   }
+
+  try {
+    const meta = {
+      remember: Boolean(remember),
+      sessionPolicy: sessionPolicy || null,
+      accessTokenExpiresAt: accessTokenExpiresAt || null,
+      refreshTokenExpiresAt: refreshTokenExpiresAt || null,
+      lastActivityAt: Date.now(),
+    };
+    window.localStorage.setItem(SESSION_META_KEY, JSON.stringify(meta));
+  } catch {}
+}
+
+export function readSessionMeta() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(SESSION_META_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function touchSessionActivity() {
+  if (typeof window === 'undefined') return;
+  try {
+    const meta = readSessionMeta() || {};
+    meta.lastActivityAt = Date.now();
+    window.localStorage.setItem(SESSION_META_KEY, JSON.stringify(meta));
+  } catch {}
 }
 
 export function clearSession() {
@@ -51,12 +117,14 @@ export function clearSession() {
   window.localStorage.removeItem(USER_KEY);
   window.localStorage.removeItem(REFRESH_KEY);
   window.localStorage.removeItem(REMEMBER_KEY);
+  window.localStorage.removeItem(SESSION_META_KEY);
   window.localStorage.removeItem('accessToken');
   window.localStorage.removeItem('refreshToken');
   window.localStorage.removeItem('token');
   window.localStorage.removeItem('user');
   window.localStorage.removeItem('quikboom-next-auth-storage');
   window.dispatchEvent(new Event('qb-admin-session-cleared'));
+  broadcastAuthMessage('LOGOUT', { reason: 'SESSION_CLEARED' });
 }
 
 export function readSession() {

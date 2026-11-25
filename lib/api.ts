@@ -238,6 +238,37 @@ function currentSessionKey(): string {
   return JSON.stringify([isEmployeePortalRoute(), user?.id, token, refreshToken]);
 }
 
+function emitApiAuthEvent(event: string, meta: Record<string, any> = {}) {
+  if (typeof window === 'undefined') return;
+  try {
+    const entry = {
+      event,
+      timestamp: new Date().toISOString(),
+      appVersion: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      ...redactData(meta),
+    };
+    try {
+      const raw = window.sessionStorage?.getItem('qb_auth_debug_logs');
+      const list = raw ? JSON.parse(raw) : [];
+      const next = Array.isArray(list) ? [...list, entry].slice(-100) : [entry];
+      window.sessionStorage?.setItem('qb_auth_debug_logs', JSON.stringify(next));
+    } catch {}
+    if (typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('qb-auth-log', { detail: entry }));
+    }
+  } catch {}
+}
+
+function broadcastTokenSync(userId: any) {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return;
+  try {
+    const ch = new BroadcastChannel('qb_admin_auth_channel');
+    ch.postMessage({ type: 'TOKEN_REFRESHED', userId: userId ?? null, timestamp: Date.now() });
+    ch.close();
+  } catch {}
+}
+
 async function clearAdminBrowserSession() {
   if (typeof window === 'undefined') return;
   try {
@@ -294,6 +325,11 @@ async function refreshCurrentSession(): Promise<string> {
       const isEmployeeRoute = isEmployeePortalRoute();
       const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
       const { refreshToken } = getPersistedAuthSession();
+
+      emitApiAuthEvent('AUTH_REFRESH_STARTED', {
+        userId: authStore?.user?.id,
+        portal: isEmployeeRoute ? 'employee' : 'admin',
+      });
 
       if (!refreshToken) {
         // Keep the session intact until the failure handler verifies ownership
@@ -375,6 +411,23 @@ async function refreshCurrentSession(): Promise<string> {
         }
       } catch {}
 
+      if (!isEmployeeRoute && typeof window !== 'undefined' && typeof window.fetch === 'function') {
+        window
+          .fetch('/api/auth/session', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: newAccessToken, refreshToken: newRefreshToken }),
+          })
+          .catch(() => {});
+      }
+
+      emitApiAuthEvent('AUTH_REFRESH_SUCCESS', {
+        userId: authStore?.user?.id,
+        portal: isEmployeeRoute ? 'employee' : 'admin',
+      });
+      broadcastTokenSync(authStore?.user?.id);
+
       return newAccessToken;
     } catch (refreshErr: any) {
       const status = refreshErr?.response?.status;
@@ -383,11 +436,33 @@ async function refreshCurrentSession(): Promise<string> {
         refreshErr?.message === 'No refresh token available' ||
         refreshErr?.message === 'Refresh endpoint did not return an access token';
 
+      if (isAuthFailure) {
+        emitApiAuthEvent('AUTH_REFRESH_FAILED', {
+          httpStatus: status || 401,
+          errorCode: refreshErr?.response?.data?.code || 'REFRESH_FAILED',
+          reason: refreshErr?.message,
+        });
+      } else {
+        emitApiAuthEvent('AUTH_NETWORK_ERROR', {
+          httpStatus: status || 0,
+          endpoint: '/auth/refresh',
+          reason: refreshErr?.message || 'Transient refresh failure',
+        });
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+          window.dispatchEvent(new CustomEvent('qb-api-connection-error', { detail: { status: status || 0, retryable: true } }));
+        }
+      }
+
       if (isAuthFailure && currentSessionKey() === sessionKey) {
         const isEmployeeRoute = isEmployeePortalRoute();
         const authStore = isEmployeeRoute ? useEmployeeAuthStore.getState() : useAuthStore.getState();
         const loginRoute = isEmployeeRoute ? '/employee/login' : '/login';
 
+        emitApiAuthEvent('AUTH_SESSION_EXPIRED', {
+          userId: authStore?.user?.id,
+          httpStatus: status || 401,
+          logoutReason: refreshErr?.message || 'REFRESH_REJECTED',
+        });
         if (!isEmployeeRoute) await clearAdminBrowserSession();
         if (currentSessionKey() !== sessionKey) throw refreshErr;
         authStore.logout();
@@ -755,6 +830,18 @@ api.interceptors.response.use(
     }
 
     const status = error?.response?.status;
+    if (status === 403) {
+      emitApiAuthEvent('AUTH_PERMISSION_DENIED', {
+        endpoint: originalRequest?.url,
+        httpStatus: 403,
+      });
+    } else if (!status || status >= 500 || status === 429 || status === 408) {
+      emitApiAuthEvent('AUTH_NETWORK_ERROR', {
+        endpoint: originalRequest?.url,
+        httpStatus: status || 0,
+        reason: error?.message,
+      });
+    }
     const message = getErrorMessage(error);
 
     const isNoSubscriptionOrEmpty =

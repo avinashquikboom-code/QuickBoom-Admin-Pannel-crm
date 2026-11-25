@@ -1,4 +1,5 @@
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
+const TWENTY_FOUR_HOURS = 60 * 60 * 24;
 
 function extractAuth(body) {
   const tokens = body?.data?.tokens || body?.tokens || body?.data || {};
@@ -16,15 +17,27 @@ function extractAuth(body) {
     body?.data?.refreshToken ||
     null;
   const user = body?.data?.user || body?.user || null;
-  return { token, refreshToken, user };
+  const sessionPolicy = tokens.sessionPolicy || body?.sessionPolicy || body?.data?.sessionPolicy || null;
+  return {
+    token,
+    refreshToken,
+    user,
+    expiresIn: tokens.expiresIn || body?.expiresIn || null,
+    accessTokenExpiresAt: tokens.accessTokenExpiresAt || body?.accessTokenExpiresAt || null,
+    refreshTokenExpiresAt: tokens.refreshTokenExpiresAt || body?.refreshTokenExpiresAt || null,
+    sessionPolicy,
+  };
 }
 
-function sessionCookie(request, remember, token) {
+function isHttps(request) {
   const forwarded = request.headers.get('x-forwarded-proto');
-  const secure = forwarded ? forwarded.split(',')[0].trim() === 'https' : new URL(request.url).protocol === 'https:';
-  const parts = [`qb_admin_session=${encodeURIComponent(token)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax'];
+  return forwarded ? forwarded.split(',')[0].trim() === 'https' : new URL(request.url).protocol === 'https:';
+}
+
+function buildCookie(name, value, { secure, maxAge }) {
+  const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax'];
   if (secure) parts.push('Secure');
-  if (remember) parts.push(`Max-Age=${THIRTY_DAYS}`);
+  if (typeof maxAge === 'number') parts.push(`Max-Age=${maxAge}`);
   return parts.join('; ');
 }
 
@@ -50,7 +63,7 @@ export async function POST(request) {
     process.env.NEXT_PUBLIC_API_URL,
     'http://localhost:3000/api/v1',
     'https://api.qbapp.online/api/v1',
-  ].filter(Boolean).map(url => url.replace(/\/$/, ''))));
+  ].filter(Boolean).map((url) => url.replace(/\/$/, ''))));
 
   let upstream;
   let lastError;
@@ -59,8 +72,8 @@ export async function POST(request) {
     try {
       upstream = await fetch(`${apiBase}/auth/admin/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ email, password }),
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-client-type': 'admin' },
+        body: JSON.stringify({ email, password, rememberMe: remember }),
         cache: 'no-store',
       });
       if (upstream) {
@@ -107,17 +120,35 @@ export async function POST(request) {
   const auth = extractAuth(body);
   const token = auth.token;
   const user = auth.user || { email };
+  const secure = isHttps(request);
 
   const response = Response.json({
     token,
     refreshToken: auth.refreshToken,
     user,
+    expiresIn: auth.expiresIn,
+    accessTokenExpiresAt: auth.accessTokenExpiresAt,
+    refreshTokenExpiresAt: auth.refreshTokenExpiresAt,
+    sessionPolicy: auth.sessionPolicy,
     redirectTo: '/admin/dashboard',
   });
 
   if (token) {
-    response.headers.append('Set-Cookie', sessionCookie(request, remember, token));
+    response.headers.append(
+      'Set-Cookie',
+      buildCookie('qb_admin_session', token, { secure, maxAge: remember ? THIRTY_DAYS : TWENTY_FOUR_HOURS }),
+    );
   }
+  if (auth.refreshToken) {
+    response.headers.append(
+      'Set-Cookie',
+      buildCookie('qb_admin_refresh', auth.refreshToken, { secure, maxAge: remember ? THIRTY_DAYS : undefined }),
+    );
+  }
+  response.headers.append(
+    'Set-Cookie',
+    buildCookie('qb_admin_remember', remember ? '1' : '0', { secure, maxAge: remember ? THIRTY_DAYS : undefined }),
+  );
 
   return response;
 }

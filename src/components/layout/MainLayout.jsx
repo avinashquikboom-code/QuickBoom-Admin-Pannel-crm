@@ -6,8 +6,10 @@ import { Toaster } from '@/components/common/Toast';
 import { TooltipProvider } from '@/components/common/Tooltip';
 import { ApprovalDialogProvider } from '@/components/approval';
 import { QbNexusPet } from '@/components/common/QbNexusPet';
+import { AuthSessionManager } from '@/components/auth/AuthSessionManager';
 export function MainLayout({ children }) {
  return (
+   <AuthSessionManager>
    <ApprovalDialogProvider>
    <TooltipProvider>
      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded focus:bg-background focus:p-3">
@@ -30,5 +32,6 @@ export function MainLayout({ children }) {
      <Toaster position="top-right" />
    </TooltipProvider>
    </ApprovalDialogProvider>
+   </AuthSessionManager>
  );
 }

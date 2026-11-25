@@ -1,4 +1,5 @@
-import { persistSession } from './admin-session';
+import { persistSession, broadcastAuthMessage } from './admin-session';
+import { AUTH_EVENTS, logAuthEvent } from './auth-logger';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -74,6 +75,12 @@ export async function loginAdmin(payload) {
 
   if (!response.ok) {
     const failure = loginFailureNotice(response.status, data);
+    logAuthEvent(AUTH_EVENTS.LOGIN_FAILED, {
+      endpoint: '/api/auth/login',
+      httpStatus: response.status,
+      errorCode: data?.code || 'LOGIN_FAILED',
+      reason: failure.message,
+    });
     const error = new Error(failure.message);
     error.level = failure.level;
     throw error;
@@ -89,12 +96,23 @@ export async function loginAdmin(payload) {
     refreshToken: data.refreshToken || null,
     user,
     remember: Boolean(payload.remember),
+    sessionPolicy: data.sessionPolicy || null,
+    accessTokenExpiresAt: data.accessTokenExpiresAt || null,
+    refreshTokenExpiresAt: data.refreshTokenExpiresAt || null,
   });
   const { useAuthStore } = await import('../../../lib/store');
   if (!useAuthStore.persist.hasHydrated()) {
     await useAuthStore.persist.rehydrate();
   }
   useAuthStore.getState().setAuth(user, data.token, data.refreshToken || '');
+  logAuthEvent(AUTH_EVENTS.LOGIN_SUCCESS, {
+    userId: user?.id,
+    endpoint: '/api/auth/login',
+    httpStatus: response.status,
+    sessionExpiresAt: data.refreshTokenExpiresAt || null,
+    remember: Boolean(payload.remember),
+  });
+  broadcastAuthMessage('LOGIN', { userId: user?.id });
 
   return data;
 }
