@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -36,7 +36,6 @@ export default function NotificationsPage() {
 }
 
 function NotificationsContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get('tab');
   const tab = TABS.some(([key]) => key === requestedTab) ? requestedTab : 'campaigns';
@@ -86,10 +85,9 @@ function NotificationsContent() {
 
   return <div className="max-w-none min-w-0 w-full space-y-4">
     <PageHeader title="Notifications & Campaigns" description="Create and manage campaigns, company announcements, delivery settings, and notification history." actions={tab === 'campaigns' ? <Button onClick={openForm}>Create campaign</Button> : null} />
-    <div className="flex flex-wrap gap-2">{TABS.map(([key, label]) => <Button key={key} size="sm" variant={tab === key ? 'default' : 'outline'} onClick={() => router.push(`/admin/settings/notifications?tab=${key}`)}>{label}</Button>)}</div>
     {tab === 'campaigns' && <Campaigns rows={rows} summary={summary} loading={loading} error={error} query={query} setQuery={setQuery} onRetry={() => setRefresh((value) => value + 1)} onChanged={() => setRefresh((value) => value + 1)} />}
-    {tab === 'announcements' && <AnnouncementsPage />}
-    {tab === 'delivery' && <Delivery integrations={integrations} />}
+    {tab === 'announcements' && <AnnouncementsPage embedded />}
+    {tab === 'delivery' && <Delivery integrations={integrations} onConfigure={() => router.push('/admin/settings/integrations')} />}
     {tab === 'history' && <History rows={history} loading={loading} error={error} query={historyQuery} setQuery={setHistoryQuery} onRetry={() => setRefresh((value) => value + 1)} />}
     <FormDrawer open={open} onOpenChange={setOpen} title="Create campaign" description="Images are uploaded to the existing notification storage. Drafts are not sent." showFooter={false} size="lg">
       <CampaignForm step={step} setStep={setStep} form={form} setForm={setForm} employees={employees} customers={customers} saving={saving} onDraft={() => submit('DRAFT')} onReview={() => setConfirm(true)} />
@@ -174,17 +172,17 @@ function Campaigns({ rows, summary, loading, error, query, setQuery, onRetry, on
   </div>;
 }
 
-function Delivery({ integrations }) {
+function Delivery({ integrations, onConfigure }) {
   const byProvider = Object.fromEntries((integrations || []).map((item) => [item.provider, item]));
   const rows = [
-    ['In-app', 'Always available', 'Each campaign stores a notification for every recipient.'],
-    ['Firebase push', providerState(byProvider.FIREBASE), 'Used when the campaign is sent. A missing Firebase configuration makes the push portion fail while in-app records can still be stored.'],
-    ['SMTP email', providerState(byProvider.SMTP), 'Configured in Integrations. Campaigns do not send email.'],
-    ['MSG91 SMS', providerState(byProvider.MSG91), 'Configured in Integrations. Campaigns do not send SMS.'],
-    ['WhatsApp', providerState(byProvider.WHATSAPP), 'Configured in Integrations. Campaigns do not send WhatsApp templates.'],
+    ['In-app', 'Always available', 'Each campaign stores a notification for every recipient.', false],
+    ['Firebase push', providerState(byProvider.FIREBASE), 'Used when the campaign is sent. A missing Firebase configuration makes the push portion fail while in-app records can still be stored.', true],
+    ['SMTP email', providerState(byProvider.SMTP), 'Configured in Integrations. Campaigns do not send email.', true],
+    ['MSG91 SMS', providerState(byProvider.MSG91), 'Configured in Integrations. Campaigns do not send SMS.', true],
+    ['WhatsApp', providerState(byProvider.WHATSAPP), 'Configured in Integrations. Campaigns do not send WhatsApp templates.', true],
   ];
   return <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-    {rows.map(([name, state, detail]) => <article key={name} className="rounded-xl border border-[#E2E8E5] bg-white p-4"><h3 className="text-sm font-semibold">{name}</h3><p className="mt-1 text-xs font-medium text-[#163A2E]">{state}</p><p className="mt-2 text-xs leading-relaxed text-[#718078]">{detail}</p></article>)}
+    {rows.map(([name, state, detail, configurable]) => <article key={name} className="flex flex-col justify-between rounded-2xl border border-[#E2E8E5] bg-white p-4 shadow-xs"><div><div className="flex items-center justify-between gap-2"><h3 className="text-sm font-bold text-[#142D25]">{name}</h3><span className="rounded-full bg-[#E8F1EC] px-2.5 py-0.5 text-[11px] font-semibold text-[#123D32]">{state}</span></div><p className="mt-2 text-xs leading-relaxed text-[#64748B]">{detail}</p></div>{configurable ? <div className="mt-3 flex justify-end"><Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={onConfigure}>Configure in Integrations</Button></div> : null}</article>)}
   </div>;
 }
 
