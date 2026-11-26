@@ -215,7 +215,7 @@ export default function EmployeeLeadStageReportPage() {
           exportScope: scopeToUse,
           exportEmployeeId: empIdToUse || undefined,
         }),
-        { responseType: 'blob' }
+        { responseType: 'blob', timeout: 120000 }
       );
       const blob = response instanceof Blob ? response : new Blob([response?.data || response]);
       const url = URL.createObjectURL(blob);

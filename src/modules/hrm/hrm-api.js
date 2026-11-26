@@ -12,6 +12,7 @@ export function hrmError(error) {
     if (status === 409) return text || 'This record already exists.';
     if (status === 400) return text || 'The HRM request was rejected. Check the details and try again.';
     if (status && status >= 500) return text || 'The server could not complete this HRM request.';
+    if (error.code === 'ECONNABORTED') return 'The request timed out while waiting for the server. Please try again.';
     if (!error.response) return 'Unable to reach the server. Check your connection and retry.';
     return text || 'The HRM request failed. Please try again.';
   }

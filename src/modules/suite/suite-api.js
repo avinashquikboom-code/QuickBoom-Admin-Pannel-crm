@@ -260,8 +260,8 @@ export const saveCommissionSetting = (values) => api.patch(`/commissions/configs
 
 export const DATA_MODULES = ['crm', 'attendance', 'leave', 'remote', 'visits', 'payroll', 'notifications', 'location', 'claims', 'loans', 'works'];
 export const loadReportCatalog = () => api.get('/reports/catalog');
-export const viewReport = (params) => api.get('/reports/view', { params });
-export const downloadReportPdf = (body) => api.post('/reports/export/pdf', body, { responseType: 'blob' });
+export const viewReport = (params) => api.get('/reports/view', { params, timeout: 60000 });
+export const downloadReportPdf = (body) => api.post('/reports/export/pdf', body, { responseType: 'blob', timeout: 120000 });
 
 export const suiteGaps = {
   general: 'There is no general-settings API for application name, logo, language, currency, timezone, or date format.',
