@@ -25,14 +25,15 @@ export function EmployeeTable({
     const [selectedDept, setSelectedDept] = React.useState('All Departments');
     const [selectedStatus, setSelectedStatus] = React.useState('all');
     const filtered = React.useMemo(() => {
-        return employees.filter((emp) => {
-            const shiftObj = shifts.find((s) => String(s.id) === String(emp.shiftId));
-            const shiftName = (emp.shift || emp.shiftName || shiftObj?.name || '').toLowerCase();
-            const matchSearch = emp.name.toLowerCase().includes(search.toLowerCase()) ||
-                emp.id.toLowerCase().includes(search.toLowerCase()) ||
-                emp.email.toLowerCase().includes(search.toLowerCase()) ||
-                emp.designation.toLowerCase().includes(search.toLowerCase()) ||
-                shiftName.includes(search.toLowerCase());
+        const q = search.toLowerCase();
+        return (Array.isArray(employees) ? employees : []).filter((emp) => {
+            const shiftObj = (Array.isArray(shifts) ? shifts : []).find((s) => String(s.id) === String(emp.shiftId));
+            const shiftName = String(emp.shift || emp.shiftName || shiftObj?.name || '').toLowerCase();
+            const matchSearch = String(emp.name || '').toLowerCase().includes(q) ||
+                String(emp.id || '').toLowerCase().includes(q) ||
+                String(emp.email || '').toLowerCase().includes(q) ||
+                String(emp.designation || '').toLowerCase().includes(q) ||
+                shiftName.includes(q);
             const matchDept = selectedDept === 'All Departments' || emp.department === selectedDept;
             const matchStatus = selectedStatus === 'all' || emp.status === selectedStatus;
             return matchSearch && matchDept && matchStatus;
@@ -43,10 +44,10 @@ export function EmployeeTable({
             header: 'Employee',
             cell: (emp) => (<div className="flex items-center gap-3">
           <Avatar className="size-9 border border-slate-200">
-            <AvatarImage src={emp.avatar} alt={emp.name}/>
+            <AvatarImage src={emp.avatar} alt={emp.name || 'Employee'}/>
             <AvatarFallback className="bg-brand text-primary-foreground text-xs">
-              {emp.firstName[0]}
-              {emp.lastName[0]}
+              {(emp.firstName || emp.name || 'E')[0]}
+              {(emp.lastName || '')[0] || ''}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col">

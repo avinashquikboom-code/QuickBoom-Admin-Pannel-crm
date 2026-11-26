@@ -21,8 +21,8 @@ export function EmployeeDetail({ employee, open, onOpenChange, }) {
             <Avatar className="size-16 border-2 border-white/80 shadow-md">
               <AvatarImage src={employee.avatar} alt={employee.name}/>
               <AvatarFallback className="bg-brand-dark text-primary-foreground font-bold text-lg">
-                {employee.firstName[0]}
-                {employee.lastName[0]}
+                {(employee.firstName || employee.name || 'E')[0]}
+                {(employee.lastName || '')[0] || ''}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-0.5">
