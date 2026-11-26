@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   Layers,
@@ -65,6 +66,7 @@ const CATEGORY_TABS = [
 ];
 
 export default function ReportsPage() {
+  const router = useRouter();
   const [catalog, setCatalog] = React.useState({ categories: [], reports: [] });
   const [category, setCategory] = React.useState('sales');
   const [search, setSearch] = React.useState('');
@@ -167,6 +169,10 @@ export default function ReportsPage() {
 
   // Open report preview in drawer
   const handleOpenReport = async (report, page = 1) => {
+    if (report.id === 'employee-lead-stage') {
+      router.push('/admin/reports/employee-lead-stage');
+      return;
+    }
     if (!report.available) {
       toast.info('This report is not available in the current subscription tier.');
       return;
