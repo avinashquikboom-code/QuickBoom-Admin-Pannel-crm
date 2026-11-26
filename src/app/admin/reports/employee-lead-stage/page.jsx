@@ -10,7 +10,7 @@ import {
   Calendar,
   CalendarCheck,
   CalendarClock,
-  CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -19,16 +19,13 @@ import {
   Filter,
   Flame,
   History,
-  Layers,
   Percent,
-  Phone,
   RefreshCw,
   RotateCcw,
   Search,
   Sparkles,
-  TrendingUp,
-  UserCheck,
   Users,
+  X,
   XCircle,
 } from 'lucide-react';
 import {
@@ -63,6 +60,8 @@ const DATE_PRESETS = [
   { id: 'last_week', label: 'Last Week' },
   { id: 'this_month', label: 'This Month' },
   { id: 'last_month', label: 'Last Month' },
+  { id: 'this_year', label: 'This Year' },
+  { id: 'last_year', label: 'Last Year' },
   { id: 'custom', label: 'Custom Range' },
 ];
 
@@ -77,6 +76,21 @@ const WEEKDAYS = [
   { id: 'SUNDAY', label: 'Sunday' },
 ];
 
+const EXPORT_MODES = [
+  { id: 'all_complete', label: 'All Employees – Complete Report', desc: 'Summary + employee-grouped detailed lead tables' },
+  { id: 'detailed', label: 'Employee-Wise with Detailed Leads', desc: 'Each executive summary followed by their leads' },
+  { id: 'summary_only', label: 'Employee-Wise Summary Report', desc: 'Executive KPIs & dynamic stage counts' },
+  { id: 'individual', label: 'Individual Employee Report', desc: 'Focused report for one selected executive' },
+  { id: 'stage_wise', label: 'Stage-Wise Lead Report', desc: 'Leads grouped by dynamic CRM stages' },
+];
+
+const SECTION_TABS = [
+  { id: 'all', label: 'All Sections' },
+  { id: 'charts', label: 'Charts & Trends' },
+  { id: 'employees', label: 'Employee Breakdown' },
+  { id: 'history', label: 'Stage History' },
+];
+
 export default function EmployeeLeadStageReportPage() {
   const [preset, setPreset] = React.useState('this_month');
   const [dateFrom, setDateFrom] = React.useState('');
@@ -85,7 +99,10 @@ export default function EmployeeLeadStageReportPage() {
   const [departmentId, setDepartmentId] = React.useState('ALL');
   const [stageKey, setStageKey] = React.useState('ALL');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = React.useState([]);
-  const [countMode, setCountMode] = React.useState('current'); // 'current' | 'transition'
+  const [countMode, setCountMode] = React.useState('current');
+  const [activeTab, setActiveTab] = React.useState('all');
+
+  const [exportOpen, setExportOpen] = React.useState(false);
   const [exportScope, setExportScope] = React.useState('all_complete');
   const [exportEmployeeId, setExportEmployeeId] = React.useState('');
 
@@ -94,12 +111,14 @@ export default function EmployeeLeadStageReportPage() {
   const [exporting, setExporting] = React.useState('');
   const [report, setReport] = React.useState(null);
 
-  // Drill-down drawer state
-  const [drillTarget, setDrillTarget] = React.useState(null); // { title, employeeId?, stageKey?, mode }
+  const [drillTarget, setDrillTarget] = React.useState(null);
   const [drillPage, setDrillPage] = React.useState(1);
   const [drillSearch, setDrillSearch] = React.useState('');
   const [drillLoading, setDrillLoading] = React.useState(false);
-  const [drillData, setDrillData] = React.useState({ rows: [], pagination: { page: 1, total: 0, totalPages: 1 } });
+  const [drillData, setDrillData] = React.useState({
+    rows: [],
+    pagination: { page: 1, total: 0, totalPages: 1 },
+  });
 
   const buildParams = React.useCallback(
     (extra = {}) => ({
@@ -208,6 +227,7 @@ export default function EmployeeLeadStageReportPage() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExportOpen(false);
       toast.success(`Exported ${format.toUpperCase()} report`);
     } catch (err) {
       toast.error(err?.response?.data?.message || `Failed to export ${format.toUpperCase()}`);
@@ -240,13 +260,17 @@ export default function EmployeeLeadStageReportPage() {
   const employees = Array.isArray(report?.employees) ? report.employees : [];
   const departments = Array.isArray(report?.departments) ? report.departments : [];
 
+  const showCharts = activeTab === 'all' || activeTab === 'charts';
+  const showEmployees = activeTab === 'all' || activeTab === 'employees';
+  const showHistory = activeTab === 'all' || activeTab === 'history';
+
   return (
-    <div className="w-full min-w-0 space-y-6 pb-24">
+    <div className="w-full min-w-0 space-y-5 pb-24">
       <PageTitleCard
         moduleName="ENTERPRISE REPORTS"
         breadcrumb="Employee-Wise Lead & Stage"
         title="Employee-Wise Lead & Stage Report"
-        description="Dynamic CRM stage breakdown, stage transition history, conversion analytics, and lead drill-downs (Asia/Kolkata)."
+        description="Executive pipeline performance, dynamic CRM stages, transition history, and lead drill-downs."
         badge={
           report?.dateRange
             ? `${report.dateRange.from} → ${report.dateRange.to}`
@@ -255,10 +279,10 @@ export default function EmployeeLeadStageReportPage() {
         badgeVariant="green"
         icon={BarChart3}
         actions={
-          <>
+          <div className="relative flex flex-wrap items-center gap-2">
             <Link
               href="/admin/reports"
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-50"
             >
               <ArrowLeft className="size-3.5" />
               All Reports
@@ -269,50 +293,20 @@ export default function EmployeeLeadStageReportPage() {
               size="sm"
               onClick={() => loadReport(true)}
               disabled={refreshing || loading}
-              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white px-3.5 text-xs font-semibold shadow-2xs"
             >
               <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
               Refresh
             </Button>
 
-            <select
-              aria-label="Report download option"
-              value={exportScope}
-              onChange={(e) => setExportScope(e.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
-            >
-              <option value="all_complete">All Employees – Complete Report</option>
-              <option value="detailed">Employee-Wise with Detailed Leads</option>
-              <option value="summary_only">Employee-Wise Summary Report</option>
-              <option value="individual">Individual Employee Report</option>
-              <option value="stage_wise">Stage-Wise Lead Report</option>
-            </select>
-
-            {exportScope === 'individual' && (
-              <select
-                aria-label="Select employee for individual report"
-                value={exportEmployeeId}
-                onChange={(e) => setExportEmployeeId(e.target.value)}
-                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
-              >
-                <option value="">Select Employee...</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
             <Button
-              variant="outline"
               size="sm"
               onClick={() => handleExport('pdf')}
               disabled={Boolean(exporting)}
-              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+              className="h-10 gap-1.5 rounded-xl bg-[#173D30] px-4 text-xs font-semibold text-white shadow-xs hover:bg-[#123026]"
             >
-              <FileText className="size-3.5 text-rose-600" />
-              {exporting === 'pdf' ? 'Exporting...' : 'PDF'}
+              <FileText className="size-3.5 text-[#20C466]" />
+              <span>{exporting === 'pdf' ? 'Exporting...' : 'Download PDF'}</span>
             </Button>
 
             <Button
@@ -320,55 +314,154 @@ export default function EmployeeLeadStageReportPage() {
               size="sm"
               onClick={() => handleExport('excel')}
               disabled={Boolean(exporting)}
-              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white px-3.5 text-xs font-semibold shadow-2xs"
             >
               <FileSpreadsheet className="size-3.5 text-emerald-600" />
-              {exporting === 'excel' ? 'Exporting...' : 'Excel'}
+              <span>{exporting === 'excel' ? '...' : 'Excel'}</span>
             </Button>
 
             <Button
+              variant="outline"
               size="sm"
               onClick={() => handleExport('csv')}
               disabled={Boolean(exporting)}
-              className="h-10 gap-1.5 rounded-xl bg-[#173D30] hover:bg-[#123026] text-white text-xs font-semibold"
+              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white px-3.5 text-xs font-semibold shadow-2xs"
             >
-              <Download className="size-3.5 text-[#20C466]" />
-              {exporting === 'csv' ? 'Exporting...' : 'CSV'}
+              <Download className="size-3.5 text-slate-600" />
+              <span>{exporting === 'csv' ? '...' : 'CSV'}</span>
             </Button>
-          </>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setExportOpen((v) => !v)}
+              className="h-10 gap-1.5 rounded-xl border-slate-200 bg-white px-3 text-xs font-semibold shadow-2xs"
+            >
+              <span>Report Type</span>
+              <ChevronDown className={cn('size-3.5 transition-transform', exportOpen && 'rotate-180')} />
+            </Button>
+
+            {exportOpen && (
+              <div className="absolute right-0 top-12 z-40 w-[340px] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Export Configuration
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setExportOpen(false)}
+                    className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+
+                <div className="mt-3 space-y-1.5">
+                  {EXPORT_MODES.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setExportScope(m.id)}
+                      className={cn(
+                        'w-full rounded-xl border p-2.5 text-left transition',
+                        exportScope === m.id
+                          ? 'border-[#173D30] bg-emerald-50/60'
+                          : 'border-slate-100 hover:bg-slate-50'
+                      )}
+                    >
+                      <div className="text-xs font-semibold text-slate-900">{m.label}</div>
+                      <div className="text-[11px] text-slate-500">{m.desc}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {exportScope === 'individual' && (
+                  <div className="mt-3">
+                    <label className="mb-1 block text-[11px] font-semibold text-slate-600">
+                      Select Executive
+                    </label>
+                    <select
+                      value={exportEmployeeId}
+                      onChange={(e) => setExportEmployeeId(e.target.value)}
+                      className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800"
+                    >
+                      <option value="">Choose an employee...</option>
+                      {employees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExport('pdf')}
+                    disabled={Boolean(exporting)}
+                    className="h-9 gap-1.5 rounded-xl border-slate-200 text-xs font-semibold"
+                  >
+                    <FileText className="size-3.5 text-rose-600" />
+                    {exporting === 'pdf' ? '...' : 'PDF'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExport('excel')}
+                    disabled={Boolean(exporting)}
+                    className="h-9 gap-1.5 rounded-xl border-slate-200 text-xs font-semibold"
+                  >
+                    <FileSpreadsheet className="size-3.5 text-emerald-600" />
+                    {exporting === 'excel' ? '...' : 'Excel'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleExport('csv')}
+                    disabled={Boolean(exporting)}
+                    className="h-9 gap-1.5 rounded-xl bg-[#173D30] text-xs font-semibold text-white hover:bg-[#123026]"
+                  >
+                    <Download className="size-3.5 text-[#20C466]" />
+                    {exporting === 'csv' ? '...' : 'CSV'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         }
       />
 
-      {/* Filters Bar */}
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs space-y-4">
+      {/* Unified Filters Card */}
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
             <Filter className="size-3.5 text-[#173D30]" />
-            Date, Day &amp; Pipeline Filters
+            Filters &amp; Time Range (Asia/Kolkata)
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={resetFilters}
-            className="h-8 gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#173D30]"
+            className="h-8 gap-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-[#173D30]"
           >
             <RotateCcw className="size-3.5" />
-            Reset Filters
+            Reset All
           </Button>
         </div>
 
-        {/* Date Preset Pills */}
-        <div className="flex flex-wrap gap-1.5">
+        {/* Date Preset Bar */}
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-100 bg-slate-50/70 p-1.5">
           {DATE_PRESETS.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => setPreset(p.id)}
               className={cn(
-                'rounded-xl border px-3 py-1.5 text-xs font-semibold transition',
+                'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
                 preset === p.id
-                  ? 'border-[#173D30] bg-[#173D30] text-white'
-                  : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  ? 'bg-[#173D30] text-white shadow-2xs'
+                  : 'text-slate-600 hover:bg-white hover:text-slate-900'
               )}
             >
               {p.label}
@@ -376,7 +469,12 @@ export default function EmployeeLeadStageReportPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div
+          className={cn(
+            'grid grid-cols-1 gap-3 sm:grid-cols-2',
+            preset === 'custom' ? 'lg:grid-cols-5' : 'lg:grid-cols-3'
+          )}
+        >
           {preset === 'custom' && (
             <>
               <div>
@@ -385,7 +483,7 @@ export default function EmployeeLeadStageReportPage() {
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-slate-200 px-3 text-xs text-slate-800"
+                  className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-800"
                 />
               </div>
               <div>
@@ -394,7 +492,7 @@ export default function EmployeeLeadStageReportPage() {
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-slate-200 px-3 text-xs text-slate-800"
+                  className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-800"
                 />
               </div>
             </>
@@ -442,12 +540,23 @@ export default function EmployeeLeadStageReportPage() {
           </div>
         </div>
 
-        {/* Multi-select Employee Chips */}
+        {/* Employee Pills */}
         {employees.length > 0 && (
-          <div>
-            <label className="mb-1.5 block text-[11px] font-semibold text-slate-500">
-              Filter Employees ({selectedEmployeeIds.length ? `${selectedEmployeeIds.length} selected` : 'All'})
-            </label>
+          <div className="border-t border-slate-100 pt-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-500">
+                Sales Executives ({selectedEmployeeIds.length ? `${selectedEmployeeIds.length} selected` : 'All'})
+              </span>
+              {selectedEmployeeIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedEmployeeIds([])}
+                  className="text-[11px] font-semibold text-[#173D30] hover:underline"
+                >
+                  Clear selection
+                </button>
+              )}
+            </div>
             <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
               {employees.map((emp) => {
                 const active = selectedEmployeeIds.includes(emp.id);
@@ -457,9 +566,9 @@ export default function EmployeeLeadStageReportPage() {
                     type="button"
                     onClick={() => toggleEmployee(emp.id)}
                     className={cn(
-                      'rounded-lg border px-2.5 py-1 text-xs font-medium transition',
+                      'rounded-full border px-3 py-1 text-xs font-medium transition',
                       active
-                        ? 'border-emerald-300 bg-emerald-50 text-[#173D30] font-semibold'
+                        ? 'border-[#173D30] bg-emerald-50 text-[#173D30] font-semibold shadow-2xs'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     )}
                   >
@@ -486,324 +595,351 @@ export default function EmployeeLeadStageReportPage() {
         <KpiCard title="Conversion Rate" value={loading ? '—' : `${summary.conversionRate ?? 0}%`} icon={Percent} iconColor="text-[#173D30]" iconBg="bg-emerald-50 border-emerald-200/80" />
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* 1. Employee-Wise Lead Performance */}
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-          <h3 className="text-sm font-bold text-slate-900">Employee-Wise Lead Performance</h3>
-          <p className="text-xs text-slate-500">Assigned vs Worked On vs Won leads per executive</p>
-          <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={charts.employeePerformance || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="assigned" name="Assigned" fill="#0F172A" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="workedOn" name="Worked On" fill="#0284C7" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="won" name="Won" fill="#20C466" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-
-        {/* 2. Stage-Wise Lead Distribution */}
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-          <h3 className="text-sm font-bold text-slate-900">Stage-Wise Lead Distribution</h3>
-          <p className="text-xs text-slate-500">Live distribution across all active CRM stages</p>
-          <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={(charts.stageDistribution || []).filter((s) => s.count > 0)}
-                  dataKey="count"
-                  nameKey="stageName"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={95}
-                  paddingAngle={2}
-                >
-                  {(charts.stageDistribution || [])
-                    .filter((s) => s.count > 0)
-                    .map((entry) => (
-                      <Cell key={entry.stageKey} fill={entry.color || '#0284C7'} />
-                    ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-
-        {/* 3. Daily Lead Activity Trend */}
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-          <h3 className="text-sm font-bold text-slate-900">Daily Lead Activity Trend</h3>
-          <p className="text-xs text-slate-500">New leads vs stage transitions per day (Asia/Kolkata)</p>
-          <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={charts.dailyTrend || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend />
-                <Area type="monotone" dataKey="assigned" name="Assigned Leads" stroke="#173D30" fill="#173D30" fillOpacity={0.15} />
-                <Area type="monotone" dataKey="stageChanges" name="Stage Transitions" stroke="#0284C7" fill="#0284C7" fillOpacity={0.15} />
-                <Area type="monotone" dataKey="won" name="Won Leads" stroke="#20C466" fill="#20C466" fillOpacity={0.2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-
-        {/* 4. Conversion Rate & Hot Deals vs Won */}
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-          <h3 className="text-sm font-bold text-slate-900">Hot Deals vs Won Leads &amp; Conversion %</h3>
-          <p className="text-xs text-slate-500">Executive conversion efficiency &amp; pipeline closing</p>
-          <div className="mt-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={charts.conversionRates || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="conversionRate" name="Conversion Rate (%)" fill="#16A34A" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="won" name="Won Leads" fill="#0F172A" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
+      {/* Section View Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex flex-wrap rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
+          {SECTION_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
+              className={cn(
+                'rounded-lg px-3.5 py-1.5 text-xs font-semibold transition',
+                activeTab === t.id
+                  ? 'bg-[#173D30] text-white'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Hot Deals vs Won Leads Dedicated Comparison */}
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
-        <h3 className="text-sm font-bold text-slate-900">Hot Deals &amp; Won Leads Comparison</h3>
-        <p className="text-xs text-slate-500">Side-by-side view of active Hot Deals/Hot Leads vs closed Won Leads per executive</p>
-        <div className="mt-4 h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={charts.hotVsWon || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="hotDeals" name="Hot Deals / Hot Leads" fill="#EA580C" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="wonLeads" name="Won Leads" fill="#16A34A" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {/* Charts */}
+      {showCharts && (
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-900">Employee-Wise Lead Performance</h3>
+              <p className="text-xs text-slate-500">Assigned vs Worked On vs Won leads per executive</p>
+              <div className="mt-4 h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={charts.employeePerformance || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="assigned" name="Assigned" fill="#0F172A" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="workedOn" name="Worked On" fill="#0284C7" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="won" name="Won" fill="#20C466" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-900">Stage-Wise Lead Distribution</h3>
+              <p className="text-xs text-slate-500">Live distribution across all active CRM stages</p>
+              <div className="mt-4 h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={(charts.stageDistribution || []).filter((s) => s.count > 0)}
+                      dataKey="count"
+                      nameKey="stageName"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={95}
+                      paddingAngle={2}
+                    >
+                      {(charts.stageDistribution || [])
+                        .filter((s) => s.count > 0)
+                        .map((entry) => (
+                          <Cell key={entry.stageKey} fill={entry.color || '#0284C7'} />
+                        ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-900">Daily Lead Activity Trend</h3>
+              <p className="text-xs text-slate-500">New leads vs stage transitions per day (Asia/Kolkata)</p>
+              <div className="mt-4 h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={charts.dailyTrend || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Area type="monotone" dataKey="assigned" name="Assigned Leads" stroke="#173D30" fill="#173D30" fillOpacity={0.15} />
+                    <Area type="monotone" dataKey="stageChanges" name="Stage Transitions" stroke="#0284C7" fill="#0284C7" fillOpacity={0.15} />
+                    <Area type="monotone" dataKey="won" name="Won Leads" stroke="#20C466" fill="#20C466" fillOpacity={0.2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+              <h3 className="text-sm font-bold text-slate-900">Hot Deals vs Won Leads &amp; Conversion %</h3>
+              <p className="text-xs text-slate-500">Executive conversion efficiency &amp; pipeline closing</p>
+              <div className="mt-4 h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={charts.hotVsWon || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="hotDeals" name="Hot Deals / Hot Leads" fill="#EA580C" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="wonLeads" name="Won Leads" fill="#16A34A" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          </div>
         </div>
-      </section>
+      )}
 
       {/* Employee-Wise Dynamic Stage Breakdown Table */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Employee-Wise Stage Breakdown</h2>
-            <p className="text-xs text-slate-500">
-              Click any employee or stage count to drill down into the underlying leads.
-            </p>
-          </div>
-          <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setCountMode('current')}
-              className={cn(
-                'rounded-lg px-3 py-1 transition',
-                countMode === 'current' ? 'bg-white text-[#173D30] shadow-2xs' : 'text-slate-500'
-              )}
-            >
-              Current Stage Counts
-            </button>
-            <button
-              type="button"
-              onClick={() => setCountMode('transition')}
-              className={cn(
-                'rounded-lg px-3 py-1 transition',
-                countMode === 'transition' ? 'bg-white text-[#173D30] shadow-2xs' : 'text-slate-500'
-              )}
-            >
-              Stage Transitions in Period
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                <th className="px-4 py-3">Employee</th>
-                <th className="px-3 py-3">Dept</th>
-                <th className="px-3 py-3 text-right">Assigned</th>
-                <th className="px-3 py-3 text-right">Worked On</th>
-                <th className="px-3 py-3 text-right">Conv %</th>
-                {stages.map((s) => (
-                  <th key={s.key} className="px-3 py-3 text-right whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1">
-                      <span className="size-2 rounded-full" style={{ backgroundColor: s.color }} />
-                      {s.name}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {employeeRows.length === 0 ? (
-                <tr>
-                  <td colSpan={5 + stages.length} className="px-4 py-10 text-center text-slate-500">
-                    {loading ? 'Loading employee report...' : 'No employee lead records found for the selected filters.'}
-                  </td>
-                </tr>
-              ) : (
-                employeeRows.map((row) => (
-                  <tr key={row.employeeId} className="hover:bg-emerald-50/30">
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openDrilldown({
-                            title: `${row.name} — All Leads`,
-                            employeeId: row.employeeId,
-                            mode: countMode,
-                          })
-                        }
-                        className="font-semibold text-[#173D30] hover:underline text-left"
-                      >
-                        {row.name}
-                      </button>
-                      <div className="text-[11px] text-slate-400">{row.employeeCode}</div>
-                    </td>
-                    <td className="px-3 py-3 text-slate-600">{row.departmentName}</td>
-                    <td className="px-3 py-3 text-right font-semibold text-slate-900">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openDrilldown({
-                            title: `${row.name} — Assigned Leads`,
-                            employeeId: row.employeeId,
-                            mode: 'current',
-                          })
-                        }
-                        className="hover:underline"
-                      >
-                        {row.totalAssignedLeads}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-right font-semibold text-sky-700">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openDrilldown({
-                            title: `${row.name} — Leads Worked On`,
-                            employeeId: row.employeeId,
-                            mode: 'transition',
-                          })
-                        }
-                        className="hover:underline"
-                      >
-                        {row.totalLeadsWorkedOn}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-right font-bold text-emerald-700">
-                      {row.conversionRate}%
-                    </td>
-                    {stages.map((s) => {
-                      const val =
-                        countMode === 'transition'
-                          ? row.stageTransitionCounts?.[s.key] || 0
-                          : row.stageCounts?.[s.key] || 0;
-                      return (
-                        <td key={s.key} className="px-3 py-3 text-right">
-                          <button
-                            type="button"
-                            disabled={val === 0}
-                            onClick={() =>
-                              openDrilldown({
-                                title: `${row.name} — ${s.name}`,
-                                employeeId: row.employeeId,
-                                stageKey: s.key,
-                                mode: countMode,
-                              })
-                            }
-                            className={cn(
-                              'rounded-md px-2 py-0.5 font-semibold',
-                              val > 0
-                                ? 'bg-slate-100 text-slate-900 hover:bg-emerald-100 hover:text-[#173D30]'
-                                : 'text-slate-300 cursor-default'
-                            )}
-                          >
-                            {val}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Lead Stage History Table */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
-        <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4">
-          <div className="flex items-center gap-2">
-            <History className="size-4 text-[#173D30]" />
+      {showEmployees && (
+        <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Lead Stage Transition History</h2>
-              <p className="text-xs text-slate-500">Actual stage transitions performed in the selected period (Asia/Kolkata).</p>
+              <h2 className="text-base font-bold text-slate-900">Employee-Wise Stage Breakdown</h2>
+              <p className="text-xs text-slate-500">
+                Click any employee or stage count to drill down, or download an individual executive report.
+              </p>
+            </div>
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setCountMode('current')}
+                className={cn(
+                  'rounded-lg px-3 py-1 transition',
+                  countMode === 'current' ? 'bg-white text-[#173D30] shadow-2xs' : 'text-slate-500'
+                )}
+              >
+                Current Stage Counts
+              </button>
+              <button
+                type="button"
+                onClick={() => setCountMode('transition')}
+                className={cn(
+                  'rounded-lg px-3 py-1 transition',
+                  countMode === 'transition' ? 'bg-white text-[#173D30] shadow-2xs' : 'text-slate-500'
+                )}
+              >
+                Stage Transitions in Period
+              </button>
             </div>
           </div>
-          <Badge className="bg-slate-100 text-slate-700">{stageHistory.length} Transitions</Badge>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                <th className="px-4 py-3">Lead / Business</th>
-                <th className="px-3 py-3">Previous Stage</th>
-                <th className="px-3 py-3">New Stage</th>
-                <th className="px-3 py-3">Employee Responsible</th>
-                <th className="px-3 py-3">Date &amp; Time (IST)</th>
-                <th className="px-4 py-3">Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {stageHistory.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                    No stage transitions recorded for the selected filters.
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="px-4 py-3">Employee</th>
+                  <th className="px-3 py-3">Dept</th>
+                  <th className="px-3 py-3 text-right">Assigned</th>
+                  <th className="px-3 py-3 text-right">Worked On</th>
+                  <th className="px-3 py-3 text-right">Conv %</th>
+                  {stages.map((s) => (
+                    <th key={s.key} className="px-3 py-3 text-right whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="size-2 rounded-full" style={{ backgroundColor: s.color }} />
+                        {s.name}
+                      </span>
+                    </th>
+                  ))}
+                  <th className="px-3 py-3 text-right">Export</th>
                 </tr>
-              ) : (
-                stageHistory.map((h) => (
-                  <tr key={h.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">{h.customerName}</div>
-                      <div className="text-[11px] text-slate-500">{h.businessName}</div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {employeeRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6 + stages.length} className="px-4 py-10 text-center text-slate-500">
+                      {loading ? 'Loading employee report...' : 'No employee lead records found for the selected filters.'}
                     </td>
-                    <td className="px-3 py-3 text-slate-600">{h.previousStage}</td>
-                    <td className="px-3 py-3">
-                      <Badge className="border border-emerald-200 bg-emerald-50 text-[#173D30]">
-                        {h.newStage}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-3 font-medium text-slate-800">{h.employeeName}</td>
-                    <td className="px-3 py-3 text-slate-600">{h.changedAtFormatted}</td>
-                    <td className="px-4 py-3 text-slate-500 max-w-[220px] truncate">{h.notes || '—'}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  employeeRows.map((row) => (
+                    <tr key={row.employeeId} className="hover:bg-emerald-50/30">
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openDrilldown({
+                              title: `${row.name} — All Leads`,
+                              employeeId: row.employeeId,
+                              mode: countMode,
+                            })
+                          }
+                          className="font-semibold text-[#173D30] hover:underline text-left"
+                        >
+                          {row.name}
+                        </button>
+                        <div className="text-[11px] text-slate-400">{row.employeeCode}</div>
+                      </td>
+                      <td className="px-3 py-3 text-slate-600">{row.departmentName}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-slate-900">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openDrilldown({
+                              title: `${row.name} — Assigned Leads`,
+                              employeeId: row.employeeId,
+                              mode: 'current',
+                            })
+                          }
+                          className="hover:underline"
+                        >
+                          {row.totalAssignedLeads}
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 text-right font-semibold text-sky-700">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openDrilldown({
+                              title: `${row.name} — Leads Worked On`,
+                              employeeId: row.employeeId,
+                              mode: 'transition',
+                            })
+                          }
+                          className="hover:underline"
+                        >
+                          {row.totalLeadsWorkedOn}
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 text-right font-bold text-emerald-700">
+                        {row.conversionRate}%
+                      </td>
+                      {stages.map((s) => {
+                        const val =
+                          countMode === 'transition'
+                            ? row.stageTransitionCounts?.[s.key] || 0
+                            : row.stageCounts?.[s.key] || 0;
+                        return (
+                          <td key={s.key} className="px-3 py-3 text-right">
+                            <button
+                              type="button"
+                              disabled={val === 0}
+                              onClick={() =>
+                                openDrilldown({
+                                  title: `${row.name} — ${s.name}`,
+                                  employeeId: row.employeeId,
+                                  stageKey: s.key,
+                                  mode: countMode,
+                                })
+                              }
+                              className={cn(
+                                'rounded-md px-2 py-0.5 font-semibold',
+                                val > 0
+                                  ? 'bg-slate-100 text-slate-900 hover:bg-emerald-100 hover:text-[#173D30]'
+                                  : 'text-slate-300 cursor-default'
+                              )}
+                            >
+                              {val}
+                            </button>
+                          </td>
+                        );
+                      })}
+                      <td className="px-3 py-3 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            title={`Download ${row.name} PDF`}
+                            onClick={() => handleExport('pdf', 'individual', String(row.employeeId))}
+                            className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50"
+                          >
+                            PDF
+                          </button>
+                          <button
+                            type="button"
+                            title={`Download ${row.name} Excel`}
+                            onClick={() => handleExport('excel', 'individual', String(row.employeeId))}
+                            className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            XLSX
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-      {/* Employee / Stage Drill-Down Drawer */}
+      {/* Lead Stage History Table */}
+      {showHistory && (
+        <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4">
+            <div className="flex items-center gap-2">
+              <History className="size-4 text-[#173D30]" />
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Lead Stage Transition History</h2>
+                <p className="text-xs text-slate-500">Actual stage transitions performed in the selected period (Asia/Kolkata).</p>
+              </div>
+            </div>
+            <Badge className="bg-slate-100 text-slate-700">{stageHistory.length} Transitions</Badge>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="px-4 py-3">Lead / Business</th>
+                  <th className="px-3 py-3">Previous Stage</th>
+                  <th className="px-3 py-3">New Stage</th>
+                  <th className="px-3 py-3">Employee Responsible</th>
+                  <th className="px-3 py-3">Date &amp; Time (IST)</th>
+                  <th className="px-4 py-3">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {stageHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                      No stage transitions recorded for the selected filters.
+                    </td>
+                  </tr>
+                ) : (
+                  stageHistory.map((h) => (
+                    <tr key={h.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-slate-900">{h.customerName}</div>
+                        <div className="text-[11px] text-slate-500">{h.businessName}</div>
+                      </td>
+                      <td className="px-3 py-3 text-slate-600">{h.previousStage}</td>
+                      <td className="px-3 py-3">
+                        <Badge className="border border-emerald-200 bg-emerald-50 text-[#173D30]">
+                          {h.newStage}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-3 font-medium text-slate-800">{h.employeeName}</td>
+                      <td className="px-3 py-3 text-slate-600">{h.changedAtFormatted}</td>
+                      <td className="px-4 py-3 text-slate-500 max-w-[220px] truncate">{h.notes || '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Drill-Down Drawer */}
       <FormDrawer
         open={Boolean(drillTarget)}
         onOpenChange={(open) => {
