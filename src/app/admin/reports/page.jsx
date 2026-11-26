@@ -73,6 +73,7 @@ export default function ReportsPage() {
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
   const [status, setStatus] = React.useState('');
+  const [employeeId, setEmployeeId] = React.useState('ALL');
   const [favourites, setFavourites] = React.useState([]);
   const [loadingCatalog, setLoadingCatalog] = React.useState(true);
   const [error, setError] = React.useState('');
@@ -168,7 +169,7 @@ export default function ReportsPage() {
   }, [catalog.reports, search, category, favourites]);
 
   // Open report preview in drawer
-  const handleOpenReport = async (report, page = 1) => {
+  const handleOpenReport = async (report, page = 1, overrideEmployeeId) => {
     if (report.id === 'employee-lead-stage') {
       router.push('/admin/reports/employee-lead-stage');
       return;
@@ -177,6 +178,9 @@ export default function ReportsPage() {
       toast.info('This report is not available in the current subscription tier.');
       return;
     }
+    const isNewReport = activeReport?.id !== report.id;
+    const effectiveEmployeeId = overrideEmployeeId ?? (isNewReport ? 'ALL' : employeeId);
+    if (isNewReport) setEmployeeId('ALL');
     setActiveReport(report);
     setPreviewLoading(true);
     try {
@@ -185,6 +189,7 @@ export default function ReportsPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         status: status || undefined,
+        employeeId: effectiveEmployeeId && effectiveEmployeeId !== 'ALL' ? effectiveEmployeeId : undefined,
         page,
         limit: 20,
       });
@@ -212,6 +217,7 @@ export default function ReportsPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         status: status || undefined,
+        employeeId: employeeId && employeeId !== 'ALL' ? employeeId : undefined,
         limit: 500,
         page: 1,
       });
@@ -532,6 +538,26 @@ export default function ReportsPage() {
                   onChange={(e) => setStatus(e.target.value)}
                   className="h-9 text-xs border-slate-200 rounded-lg"
                 />
+              )}
+
+              {(activeReport.type === 'LEADS' || activeReport.id === 'employee-leads') && (
+                <select
+                  aria-label="Filter by employee"
+                  value={employeeId}
+                  onChange={(e) => {
+                    const nextEmp = e.target.value;
+                    setEmployeeId(nextEmp);
+                    handleOpenReport(activeReport, 1, nextEmp);
+                  }}
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="ALL">All Employees</option>
+                  {(previewData?.employees || []).map((emp) => (
+                    <option key={emp.id} value={String(emp.id)}>
+                      {emp.name}
+                    </option>
+                  ))}
+                </select>
               )}
 
               <div className="flex items-center gap-2">
