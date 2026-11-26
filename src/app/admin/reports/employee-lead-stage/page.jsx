@@ -86,6 +86,8 @@ export default function EmployeeLeadStageReportPage() {
   const [stageKey, setStageKey] = React.useState('ALL');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = React.useState([]);
   const [countMode, setCountMode] = React.useState('current'); // 'current' | 'transition'
+  const [exportScope, setExportScope] = React.useState('all_complete');
+  const [exportEmployeeId, setExportEmployeeId] = React.useState('');
 
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
@@ -177,12 +179,23 @@ export default function EmployeeLeadStageReportPage() {
     return () => clearTimeout(t);
   }, [drillTarget, drillPage, drillSearch, loadDrilldown]);
 
-  const handleExport = async (format) => {
+  const handleExport = async (format, overrideScope, overrideEmployeeId) => {
+    const scopeToUse = overrideScope || exportScope;
+    const empIdToUse = overrideEmployeeId || (scopeToUse === 'individual' ? exportEmployeeId : '');
+    if (scopeToUse === 'individual' && !empIdToUse) {
+      toast.error('Please select an employee for Individual Employee Report');
+      return;
+    }
     setExporting(format);
     try {
       const response = await api.post(
         '/reports/employee-lead-stage/export',
-        buildParams({ format }),
+        buildParams({
+          format,
+          mode: countMode,
+          exportScope: scopeToUse,
+          exportEmployeeId: empIdToUse || undefined,
+        }),
         { responseType: 'blob' }
       );
       const blob = response instanceof Blob ? response : new Blob([response?.data || response]);
@@ -190,7 +203,7 @@ export default function EmployeeLeadStageReportPage() {
       const a = document.createElement('a');
       a.href = url;
       const ext = format === 'excel' ? 'xlsx' : format;
-      a.download = `employee-lead-stage-report-${new Date().toISOString().slice(0, 10)}.${ext}`;
+      a.download = `QuikBoom_Lead_Report_${scopeToUse}_${new Date().toISOString().slice(0, 10)}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -261,6 +274,35 @@ export default function EmployeeLeadStageReportPage() {
               <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
               Refresh
             </Button>
+
+            <select
+              aria-label="Report download option"
+              value={exportScope}
+              onChange={(e) => setExportScope(e.target.value)}
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
+            >
+              <option value="all_complete">All Employees – Complete Report</option>
+              <option value="detailed">Employee-Wise with Detailed Leads</option>
+              <option value="summary_only">Employee-Wise Summary Report</option>
+              <option value="individual">Individual Employee Report</option>
+              <option value="stage_wise">Stage-Wise Lead Report</option>
+            </select>
+
+            {exportScope === 'individual' && (
+              <select
+                aria-label="Select employee for individual report"
+                value={exportEmployeeId}
+                onChange={(e) => setExportEmployeeId(e.target.value)}
+                className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
+              >
+                <option value="">Select Employee...</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name}
+                  </option>
+                ))}
+              </select>
+            )}
 
             <Button
               variant="outline"
