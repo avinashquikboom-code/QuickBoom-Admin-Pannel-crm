@@ -202,10 +202,19 @@ export async function loadLeaves() {
     workingHours: leave.workingHours ?? null,
     isExceptional: Boolean(leave.isExceptional),
     exceptionalReason: leave.exceptionalReason || null,
+    appliedBySource: leave.appliedBySource || 'EMPLOYEE',
+    appliedById: leave.appliedById || null,
+    appliedByName: leave.appliedByName || null,
+    createdAt: leave.createdAt || null,
+    approvedAt: leave.approvedAt || null,
     reason: leave.reason || '',
     status: String(leave.status || '').toLowerCase(),
     appliedOn: leave.createdAt ? String(leave.createdAt).slice(0, 10) : '',
   }));
+}
+
+export function cancelLeaveRequest(id) {
+  return api.delete(`/leaves/requests/${id}`);
 }
 
 export function decideLeave(id, approve, reason, options = {}) {
