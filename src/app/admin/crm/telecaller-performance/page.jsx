@@ -157,6 +157,7 @@ export default function TelecallerPerformancePage() {
                 <th className="px-4 py-3 text-right">Achieved</th>
                 <th className="px-4 py-3 text-right">Pending</th>
                 <th className="px-4 py-3 text-right">Score %</th>
+                <th className="px-4 py-3 text-right">Reward Pts</th>
                 <th className="px-4 py-3">Report Delivery</th>
                 <th className="px-4 py-3 text-right">Details</th>
               </tr>
@@ -181,6 +182,7 @@ export default function TelecallerPerformancePage() {
                     <td className="px-4 py-3 text-right font-bold text-emerald-700">{r.actualAchievements}</td>
                     <td className="px-4 py-3 text-right text-amber-700">{r.pendingTargets}</td>
                     <td className="px-4 py-3 text-right font-bold">{r.overallScore}%</td>
+                    <td className="px-4 py-3 text-right font-bold text-amber-600">+{r.rewardPoints || 0}</td>
                     <td className="px-4 py-3">
                       {r.latestReportId ? (
                         <div className="flex items-center gap-1.5 flex-wrap">

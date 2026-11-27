@@ -37,7 +37,11 @@ export default function TelecallerTargetsPage() {
     whatsappTemplateName: '',
     whatsappLanguageCode: 'en_US',
     maxRetryAttempts: 3,
+    minConnectedCalls: 60,
+    maxConnectedCalls: 70,
   });
+  const [slabs, setSlabs] = React.useState([]);
+  const [slabsSaving, setSlabsSaving] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [policySaving, setPolicySaving] = React.useState(false);
@@ -62,18 +66,21 @@ export default function TelecallerTargetsPage() {
   const loadAll = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [assignRes, histRes, polRes, empRes, deptRes] = await Promise.all([
+      const [assignRes, histRes, polRes, empRes, deptRes, slabRes] = await Promise.all([
         api.get('/telecaller-targets/assignments', { params: { activeOnly: 'false' } }),
         api.get('/telecaller-targets/history'),
         api.get('/telecaller-targets/policy'),
         api.get('/employees', { params: { limit: 200 } }),
         api.get('/departments', { params: { limit: 100 } }).catch(() => ({ data: [] })),
+        api.get('/telecaller-targets/rewards/slabs').catch(() => ({ data: [] })),
       ]);
       setAssignments(assignRes?.data || assignRes || []);
       setHistory(histRes?.data || histRes || []);
       if (polRes && typeof polRes === 'object') {
         setPolicy((prev) => ({ ...prev, ...polRes }));
       }
+      const slabList = Array.isArray(slabRes?.data) ? slabRes.data : Array.isArray(slabRes) ? slabRes : [];
+      setSlabs(slabList);
       const empList = Array.isArray(empRes?.data) ? empRes.data : Array.isArray(empRes) ? empRes : [];
       setEmployees(empList);
       const deptList = Array.isArray(deptRes?.data) ? deptRes.data : Array.isArray(deptRes) ? deptRes : [];
@@ -195,8 +202,8 @@ export default function TelecallerTargetsPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="space-y-1">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div className="space-y-1 md:col-span-2">
             <Label className="text-xs text-slate-600">Email Subject Template</Label>
             <Input
               value={policy.emailSubjectTemplate || ''}
@@ -205,7 +212,7 @@ export default function TelecallerTargetsPage() {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-slate-600">Approved WhatsApp Template Name</Label>
+            <Label className="text-xs text-slate-600">WhatsApp Template</Label>
             <Input
               placeholder="e.g. daily_telecaller_report"
               value={policy.whatsappTemplateName || ''}
@@ -214,7 +221,26 @@ export default function TelecallerTargetsPage() {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-slate-600">Max Auto-Retry Attempts</Label>
+            <Label className="text-xs text-slate-600">Connected Calls (Min / Max)</Label>
+            <div className="flex gap-1.5">
+              <Input
+                type="number"
+                min={0}
+                value={policy.minConnectedCalls ?? 60}
+                onChange={(e) => setPolicy((p) => ({ ...p, minConnectedCalls: Number(e.target.value) }))}
+                className="h-9 text-xs"
+              />
+              <Input
+                type="number"
+                min={0}
+                value={policy.maxConnectedCalls ?? 70}
+                onChange={(e) => setPolicy((p) => ({ ...p, maxConnectedCalls: Number(e.target.value) }))}
+                className="h-9 text-xs"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-600">Max Auto-Retries</Label>
             <Input
               type="number"
               min={1}
@@ -226,6 +252,99 @@ export default function TelecallerTargetsPage() {
           </div>
         </div>
       </form>
+
+      {/* Daily Call Reward Slabs */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Daily Call Reward Points Slabs</h3>
+            <p className="text-xs text-slate-500">Configure daily call count slabs and reward points shown in the Employee Mobile App.</p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs h-8"
+              onClick={() => setSlabs((prev) => [...prev, { label: 'New Slab', minCalls: 100, maxCalls: '', rewardPoints: 100 }])}
+            >
+              Add Slab
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={slabsSaving}
+              className="bg-brand text-white text-xs h-8"
+              onClick={async () => {
+                setSlabsSaving(true);
+                try {
+                  await api.put('/telecaller-targets/rewards/slabs', {
+                    slabs: slabs.map((s, idx) => ({
+                      label: s.label,
+                      minCalls: Number(s.minCalls) || 1,
+                      maxCalls: s.maxCalls === '' || s.maxCalls == null ? null : Number(s.maxCalls),
+                      rewardPoints: Number(s.rewardPoints) || 0,
+                      sortOrder: idx + 1,
+                    })),
+                  });
+                  toast.success('Reward slabs saved');
+                  loadAll();
+                } catch (err) {
+                  toast.error(err?.response?.data?.message || 'Failed to save reward slabs');
+                } finally {
+                  setSlabsSaving(false);
+                }
+              }}
+            >
+              {slabsSaving ? 'Saving...' : 'Save Slabs'}
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {slabs.map((slab, idx) => (
+            <div key={idx} className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-center rounded-lg border border-slate-200 p-2.5 bg-slate-50/50">
+              <Input
+                placeholder="Label (e.g. 120 Calls (Target))"
+                value={slab.label || ''}
+                onChange={(e) => setSlabs((prev) => prev.map((x, i) => (i === idx ? { ...x, label: e.target.value } : x)))}
+                className="h-8 text-xs bg-white sm:col-span-2"
+              />
+              <Input
+                type="number"
+                placeholder="Min Calls"
+                value={slab.minCalls ?? ''}
+                onChange={(e) => setSlabs((prev) => prev.map((x, i) => (i === idx ? { ...x, minCalls: e.target.value } : x)))}
+                className="h-8 text-xs bg-white"
+              />
+              <Input
+                type="number"
+                placeholder="Max Calls (blank = +)"
+                value={slab.maxCalls ?? ''}
+                onChange={(e) => setSlabs((prev) => prev.map((x, i) => (i === idx ? { ...x, maxCalls: e.target.value } : x)))}
+                className="h-8 text-xs bg-white"
+              />
+              <div className="flex gap-1.5">
+                <Input
+                  type="number"
+                  placeholder="Points"
+                  value={slab.rewardPoints ?? ''}
+                  onChange={(e) => setSlabs((prev) => prev.map((x, i) => (i === idx ? { ...x, rewardPoints: e.target.value } : x)))}
+                  className="h-8 text-xs bg-white"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs text-rose-600"
+                  onClick={() => setSlabs((prev) => prev.filter((_, i) => i !== idx))}
+                >
+                  ×
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Active & Historical Target Assignments */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
