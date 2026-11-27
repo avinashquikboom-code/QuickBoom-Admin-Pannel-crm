@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import api from '../../../../../lib/api';
 import { PageTitleCard } from '@/components/common/PageTitleCard';
 import {
   Users,
@@ -2087,8 +2088,137 @@ function LeadDossierContent({ lead, stages = [], onEdit }) {
         <SocialMediaIcons lead={lead} />
       </div>
 
+      {/* Customer-Specific Proposals & Revisions */}
+      <LeadProposalsSection leadId={lead.id} />
+
       {/* Notes & History */}
       <LeadNotes id={lead.id} />
+    </div>
+  );
+}
+
+function LeadProposalsSection({ leadId }) {
+  const [proposals, setProposals] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [downloadingId, setDownloadingId] = React.useState(null);
+
+  React.useEffect(() => {
+    let active = true;
+    setLoading(true);
+    api
+      .get(`/admin/leads/${leadId}/plan-proposals`)
+      .then((res) => {
+        if (!active) return;
+        const body = res?.data?.data || res?.data || res;
+        const list = Array.isArray(body?.proposals) ? body.proposals : [];
+        setProposals(list);
+      })
+      .catch(() => {
+        if (active) setProposals([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [leadId]);
+
+  const handleDownloadPdf = async (proposal) => {
+    setDownloadingId(proposal.id);
+    try {
+      const blob = await api.get(`/admin/leads/${leadId}/plan-proposals/${proposal.id}/pdf`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error('Failed to open proposal PDF');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const formatFeature = (item) => {
+    if (typeof item === 'string') return item;
+    if (!item || typeof item !== 'object') return '';
+    const qty = item.quantity ? `${item.quantity} × ` : '';
+    const desc = item.description ? ` — ${item.description}` : '';
+    return `${qty}${item.name || ''}${desc}`.trim();
+  };
+
+  return (
+    <div className="p-3 bg-white rounded-xl border border-slate-200/80 space-y-2.5">
+      <h4 className="font-semibold text-slate-800 flex items-center gap-1.5 text-xs">
+        <FileText className="size-3.5 text-[#20C466]" />
+        Customer-Specific Proposals ({proposals.length})
+      </h4>
+
+      {loading ? (
+        <p className="text-[11px] text-slate-400">Loading proposals...</p>
+      ) : proposals.length === 0 ? (
+        <p className="text-slate-400 italic text-[11px]">No customer-specific proposals created yet.</p>
+      ) : (
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          {proposals.map((p) => {
+            const cfg = p.customConfig || {};
+            const features = Array.isArray(cfg.features) ? cfg.features.map(formatFeature).filter(Boolean) : [];
+            return (
+              <div
+                key={p.id}
+                className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1.5 text-[11px]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-slate-900">
+                      {p.planName || 'Custom Plan'}{' '}
+                      <span className="text-[10px] font-mono text-slate-500">v{p.version}</span>
+                      {cfg.planCode && (
+                        <span className="ml-1 text-[10px] font-mono text-emerald-700">({cfg.planCode})</span>
+                      )}
+                    </div>
+                    <div className="text-slate-600 font-bold">
+                      ₹{Number(p.planPrice || 0).toLocaleString('en-IN')}
+                      {cfg.billingCycle ? ` / ${cfg.billingCycle}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
+                      {p.status || 'DRAFT'}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={downloadingId === p.id}
+                      onClick={() => handleDownloadPdf(p)}
+                      className="h-6 px-2 text-[10px]"
+                    >
+                      <Download className="size-3 mr-1" />
+                      PDF
+                    </Button>
+                  </div>
+                </div>
+
+                {features.length > 0 && (
+                  <ul className="list-disc pl-4 text-slate-600 space-y-0.5">
+                    {features.map((f, idx) => (
+                      <li key={idx}>{f}</li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 pt-1 border-t border-slate-200/60">
+                  <span>By: {personName(p.createdBy)}</span>
+                  <span>Created: {p.createdAt ? new Date(p.createdAt).toLocaleString('en-IN') : '—'}</span>
+                  <span>Email: {p.emailStatus || 'PENDING'}</span>
+                  <span>WhatsApp: {p.whatsappStatus || 'PENDING'}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
