@@ -273,7 +273,21 @@ export default function SalaryTargetsPage() {
           import('jspdf-autotable'),
         ]);
         const doc = new jsPDF({ orientation: 'landscape', format: 'a3' });
-        doc.text(`Target Salary — ${month}/${year}`, 14, 15);
+        let textX = 14;
+        try {
+          const resp = await fetch('/app_logo.png');
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const dataUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+            doc.addImage(dataUrl, 'PNG', 14, 8, 10, 10);
+            textX = 27;
+          }
+        } catch {}
+        doc.text(`Target Salary — ${month}/${year}`, textX, 15);
         autoTable(doc, {
           head: [headers],
           body: data,
