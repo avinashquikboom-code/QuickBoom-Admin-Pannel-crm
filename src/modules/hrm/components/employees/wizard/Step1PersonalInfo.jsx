@@ -45,9 +45,9 @@ export function Step1PersonalInfo({ onValidationChange }) {
 
   // Sync validation state with parent
   React.useEffect(() => {
-    store.setStepErrors(1, validation.errors);
+    useEmployeeWizardStore.getState().setStepErrors(1, validation.errors);
     onValidationChange?.(validation.isValid);
-  }, [validation.isValid, validation.errors, onValidationChange, store]);
+  }, [validation.isValid, validation.errors, onValidationChange]);
 
   // Helper to determine if an error should be visible
   const isErrorVisible = (fieldName) => {

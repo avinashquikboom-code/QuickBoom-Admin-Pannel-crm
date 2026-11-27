@@ -89,9 +89,9 @@ export function Step2EmploymentInfo({
 
   // Sync validation state with parent
   React.useEffect(() => {
-    store.setStepErrors(2, validation.errors);
+    useEmployeeWizardStore.getState().setStepErrors(2, validation.errors);
     onValidationChange?.(validation.isValid);
-  }, [validation.isValid, validation.errors, onValidationChange, store]);
+  }, [validation.isValid, validation.errors, onValidationChange]);
 
   const isErrorVisible = (fieldName) => {
     const hasError = Boolean(validation.errors[fieldName]);

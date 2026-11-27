@@ -36,9 +36,9 @@ export function Step5MobileAccess({ onValidationChange }) {
 
   // Sync validation state with parent
   React.useEffect(() => {
-    store.setStepErrors(5, validation.errors);
+    useEmployeeWizardStore.getState().setStepErrors(5, validation.errors);
     onValidationChange?.(validation.isValid);
-  }, [validation.isValid, validation.errors, onValidationChange, store]);
+  }, [validation.isValid, validation.errors, onValidationChange]);
 
   const isErrorVisible = (fieldName) => {
     const hasError = Boolean(validation.errors[fieldName]);
