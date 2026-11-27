@@ -73,9 +73,9 @@ export function Step3OrganizationSalary({
 
   // Sync validation state with parent
   React.useEffect(() => {
-    store.setStepErrors(3, validation.errors);
+    useEmployeeWizardStore.getState().setStepErrors(3, validation.errors);
     onValidationChange?.(validation.isValid);
-  }, [validation.isValid, validation.errors, onValidationChange, store]);
+  }, [validation.isValid, validation.errors, onValidationChange]);
 
   const isErrorVisible = (fieldName) => {
     const hasError = Boolean(validation.errors[fieldName]);

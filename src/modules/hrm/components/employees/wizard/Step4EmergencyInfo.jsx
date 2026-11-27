@@ -28,9 +28,9 @@ export function Step4EmergencyInfo({ onValidationChange }) {
 
   // Sync validation state with parent
   React.useEffect(() => {
-    store.setStepErrors(4, validation.errors);
+    useEmployeeWizardStore.getState().setStepErrors(4, validation.errors);
     onValidationChange?.(validation.isValid);
-  }, [validation.isValid, validation.errors, onValidationChange, store]);
+  }, [validation.isValid, validation.errors, onValidationChange]);
 
   const isErrorVisible = (errorKey) => {
     const hasError = Boolean(validation.errors[errorKey]);
