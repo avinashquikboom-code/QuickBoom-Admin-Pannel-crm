@@ -18,14 +18,44 @@ import { faCalendarCheck, faCalendarXmark } from '@fortawesome/free-regular-svg-
 import { decideLeave, hrmError, loadLeaves, submitLeave } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
+import api from '../../../../../lib/api';
+
+const FALLBACK_LEAVE_TYPES = [
+    { id: null, name: 'Annual Leave' },
+    { id: null, name: 'Sick Leave' },
+    { id: null, name: 'Casual Leave' },
+    { id: null, name: 'Earned Leave' },
+    { id: null, name: 'Unpaid Leave' },
+    { id: null, name: 'Maternity / Parental' },
+];
+
 export default function LeaveManagementPage() {
+    const todayStr = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
     const [leaves, setLeaves] = React.useState([]);
+    const [employees, setEmployees] = React.useState([]);
+    const [leaveTypes, setLeaveTypes] = React.useState(FALLBACK_LEAVE_TYPES);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState('');
     const [refresh, setRefresh] = React.useState(0);
     React.useEffect(() => {
         let active = true;
-        loadLeaves().then((rows) => { if (active) setLeaves(rows); }).catch((err) => { if (active) setError(hrmError(err)); }).finally(() => { if (active) setLoading(false); });
+        Promise.all([
+            loadLeaves(),
+            api.get('/employees', { params: { limit: 200 } }).catch(() => ({ data: [] })),
+            api.get('/leaves/types').catch(() => ({ data: [] })),
+        ])
+            .then(([rows, empRes, typeRes]) => {
+                if (!active) return;
+                setLeaves(rows);
+                const empList = Array.isArray(empRes?.data) ? empRes.data : Array.isArray(empRes) ? empRes : [];
+                setEmployees(empList);
+                const rawTypes = Array.isArray(typeRes?.data) ? typeRes.data : Array.isArray(typeRes) ? typeRes : [];
+                if (rawTypes.length > 0) {
+                    setLeaveTypes(rawTypes.map((t) => ({ id: t.id, name: t.name || t.leaveType || 'Leave' })));
+                }
+            })
+            .catch((err) => { if (active) setError(hrmError(err)); })
+            .finally(() => { if (active) setLoading(false); });
         return () => { active = false; };
     }, [refresh]);
     const [search, setSearch] = React.useState('');
@@ -40,14 +70,16 @@ export default function LeaveManagementPage() {
     const [submitting, setSubmitting] = React.useState(false);
     const [applyDialogOpen, setApplyDialogOpen] = React.useState(false);
     const [formData, setFormData] = React.useState({
-        employeeName: 'Marcus Sterling',
+        employeeId: '',
+        employeeName: '',
         leaveType: 'Annual Leave',
+        leaveTypeId: '',
         durationType: 'FULL_DAY',
         halfDaySession: 'FIRST_HALF',
-        startDate: '2026-04-15',
-        endDate: '2026-04-17',
-        totalDays: 3,
-        reason: 'Scheduled personal leave',
+        startDate: todayStr,
+        endDate: todayStr,
+        totalDays: 1,
+        reason: '',
         isExceptional: false,
         exceptionalReason: '',
     });
@@ -115,18 +147,29 @@ export default function LeaveManagementPage() {
             setSubmitting(false);
         }
     };
+    const computedDays = React.useMemo(() => {
+        if (formData.durationType === 'HALF_DAY') return 0.5;
+        if (!formData.startDate || !formData.endDate) return 1;
+        const s = new Date(formData.startDate);
+        const e = new Date(formData.endDate);
+        if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return 1;
+        return Math.round((e - s) / 86_400_000) + 1;
+    }, [formData.durationType, formData.startDate, formData.endDate]);
+
     const handleApplyLeave = async (e) => {
         e.preventDefault();
         try {
             const isHalfDay = formData.durationType === 'HALF_DAY';
             await submitLeave({
+                ...(formData.employeeId ? { employeeId: Number(formData.employeeId) } : {}),
+                ...(formData.leaveTypeId ? { leaveTypeId: Number(formData.leaveTypeId) } : {}),
                 leaveTypeName: formData.leaveType,
                 durationType: formData.durationType,
                 halfDaySession: isHalfDay ? formData.halfDaySession : undefined,
                 fromDate: formData.startDate,
                 toDate: isHalfDay ? formData.startDate : formData.endDate,
-                days: isHalfDay ? 0.5 : (Number(formData.totalDays) || 1),
-                reason: formData.reason,
+                days: computedDays,
+                reason: formData.reason.trim() || 'Leave application',
                 isExceptional: formData.isExceptional || undefined,
                 exceptionalReason: formData.isExceptional ? formData.exceptionalReason : undefined,
             });
@@ -352,112 +395,199 @@ export default function LeaveManagementPage() {
         open={applyDialogOpen}
         onOpenChange={setApplyDialogOpen}
         title="Submit Leave Application"
-        description="Record absence on behalf of an employee."
+        description="Record a full-day or half-day absence on behalf of an employee."
         onSubmit={handleApplyLeave}
         submitLabel="Submit Application"
         size="standard"
       >
-        <DrawerFormField label="Employee Name" required>
-          <Input required value={formData.employeeName} onChange={(e) => setFormData((prev) => ({ ...prev, employeeName: e.target.value }))} className="h-9 text-xs"/>
-        </DrawerFormField>
+        <div className="space-y-4">
+          {/* Section 1: Employee & Leave Type */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 space-y-3">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Employee & Leave Category
+            </div>
 
-        <DrawerFormField label="Leave Type" required>
-          <Select value={formData.leaveType} onValueChange={(val) => setFormData((prev) => ({ ...prev, leaveType: val }))}>
-            <SelectTrigger className="h-9 text-xs w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Annual Leave" className="text-xs">
-                Annual Leave
-              </SelectItem>
-              <SelectItem value="Sick Leave" className="text-xs">
-                Sick Leave
-              </SelectItem>
-              <SelectItem value="Casual Leave" className="text-xs">
-                Casual Leave
-              </SelectItem>
-              <SelectItem value="Maternity / Parental" className="text-xs">
-                Maternity / Parental
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </DrawerFormField>
+            <DrawerFormField label="Employee" required>
+              {employees.length > 0 ? (
+                <Select
+                  value={formData.employeeId}
+                  onValueChange={(val) => {
+                    const emp = employees.find((item) => String(item.id) === val);
+                    setFormData((prev) => ({
+                      ...prev,
+                      employeeId: val,
+                      employeeName: emp ? `${emp.firstName} ${emp.lastName}`.trim() : prev.employeeName,
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="h-9 text-xs w-full bg-white">
+                    <SelectValue placeholder="Select an employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={String(emp.id)} className="text-xs">
+                        {emp.firstName} {emp.lastName} ({emp.employeeCode || `EMP-${emp.id}`})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  required
+                  placeholder="Enter employee name"
+                  value={formData.employeeName}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, employeeName: e.target.value }))}
+                  className="h-9 text-xs bg-white"
+                />
+              )}
+            </DrawerFormField>
 
-        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3">
-          <DrawerFormField label="Leave Duration" required>
-            <Select value={formData.durationType} onValueChange={(val) => setFormData((prev) => ({
-              ...prev,
-              durationType: val,
-              endDate: val === 'HALF_DAY' ? prev.startDate : prev.endDate,
-              totalDays: val === 'HALF_DAY' ? 0.5 : prev.totalDays === 0.5 ? 1 : prev.totalDays,
-            }))}>
-              <SelectTrigger className="h-9 text-xs w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="FULL_DAY" className="text-xs">Full Day Leave</SelectItem>
-                <SelectItem value="HALF_DAY" className="text-xs">Half Day Leave</SelectItem>
-              </SelectContent>
-            </Select>
-          </DrawerFormField>
-
-          {formData.durationType === 'HALF_DAY' && (
-            <DrawerFormField label="Half-Day Session" required>
-              <Select value={formData.halfDaySession} onValueChange={(val) => setFormData((prev) => ({ ...prev, halfDaySession: val }))}>
-                <SelectTrigger className="h-9 text-xs w-full">
-                  <SelectValue />
+            <DrawerFormField label="Leave Type" required>
+              <Select
+                value={formData.leaveType}
+                onValueChange={(val) => {
+                  const matched = leaveTypes.find((t) => t.name === val);
+                  setFormData((prev) => ({
+                    ...prev,
+                    leaveType: val,
+                    leaveTypeId: matched?.id ? String(matched.id) : '',
+                  }));
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs w-full bg-white">
+                  <SelectValue placeholder="Select leave type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="FIRST_HALF" className="text-xs">First Half</SelectItem>
-                  <SelectItem value="SECOND_HALF" className="text-xs">Second Half</SelectItem>
+                  {leaveTypes.map((lt) => (
+                    <SelectItem key={lt.id || lt.name} value={lt.name} className="text-xs">
+                      {lt.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </DrawerFormField>
-          )}
-        </div>
+          </div>
 
-        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3">
-          <DrawerFormField label="Start Date" required>
-            <Input required type="date" value={formData.startDate} onChange={(e) => setFormData((prev) => ({
-              ...prev,
-              startDate: e.target.value,
-              endDate: prev.durationType === 'HALF_DAY' ? e.target.value : prev.endDate,
-            }))} className="h-9 text-xs"/>
-          </DrawerFormField>
-          {formData.durationType !== 'HALF_DAY' && (
-            <DrawerFormField label="End Date" required>
-              <Input required type="date" value={formData.endDate} onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))} className="h-9 text-xs"/>
+          {/* Section 2: Duration & Schedule */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 space-y-3">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Duration & Schedule
+            </div>
+
+            <DrawerFormField label="Leave Duration" required>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: 'FULL_DAY', session: 'FIRST_HALF', label: 'Full Day' },
+                  { key: 'HALF_DAY', session: 'FIRST_HALF', label: 'First Half' },
+                  { key: 'HALF_DAY', session: 'SECOND_HALF', label: 'Second Half' },
+                ].map((opt) => {
+                  const isSelected =
+                    opt.key === 'FULL_DAY'
+                      ? formData.durationType === 'FULL_DAY'
+                      : formData.durationType === 'HALF_DAY' && formData.halfDaySession === opt.session;
+                  return (
+                    <button
+                      key={`${opt.key}-${opt.session}`}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          durationType: opt.key,
+                          halfDaySession: opt.session,
+                          endDate: opt.key === 'HALF_DAY' ? prev.startDate : prev.endDate,
+                        }))
+                      }
+                      className={`h-9 rounded-lg border text-xs font-semibold transition-all ${
+                        isSelected
+                          ? 'border-[#107569] bg-[#107569] text-white shadow-xs'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
             </DrawerFormField>
-          )}
-        </div>
 
-        <DrawerFormField label="Total Days" required>
-          <Input required type="number" step="0.5" disabled={formData.durationType === 'HALF_DAY'} value={formData.durationType === 'HALF_DAY' ? 0.5 : formData.totalDays} onChange={(e) => setFormData((prev) => ({ ...prev, totalDays: Number(e.target.value) }))} className="h-9 text-xs"/>
-        </DrawerFormField>
+            <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3">
+              <DrawerFormField label={formData.durationType === 'HALF_DAY' ? 'Leave Date' : 'Start Date'} required>
+                <Input
+                  required
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      startDate: e.target.value,
+                      endDate:
+                        prev.durationType === 'HALF_DAY' || prev.endDate < e.target.value
+                          ? e.target.value
+                          : prev.endDate,
+                    }))
+                  }
+                  className="h-9 text-xs bg-white"
+                />
+              </DrawerFormField>
 
-        <DrawerFormField label="Reason for Absence">
-          <Input value={formData.reason} onChange={(e) => setFormData((prev) => ({ ...prev, reason: e.target.value }))} className="h-9 text-xs"/>
-        </DrawerFormField>
+              {formData.durationType !== 'HALF_DAY' && (
+                <DrawerFormField label="End Date" required>
+                  <Input
+                    required
+                    type="date"
+                    min={formData.startDate}
+                    value={formData.endDate}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
+                    className="h-9 text-xs bg-white"
+                  />
+                </DrawerFormField>
+              )}
+            </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2">
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.isExceptional}
-              onChange={(e) => setFormData((prev) => ({ ...prev, isExceptional: e.target.checked }))}
-              className="size-4 rounded accent-[#107569]"
-            />
-            <span>Exceptional Admin Override (bypass advance notice / same-day cutoff)</span>
-          </label>
-          {formData.isExceptional && (
-            <Input
-              required
-              placeholder="Mandatory exceptional approval reason"
-              value={formData.exceptionalReason}
-              onChange={(e) => setFormData((prev) => ({ ...prev, exceptionalReason: e.target.value }))}
-              className="h-9 text-xs bg-white"
-            />
-          )}
+            <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs">
+              <span className="font-medium text-emerald-900">Calculated Leave Duration</span>
+              <span className="font-bold text-[#107569]">
+                {computedDays === 0.5
+                  ? `0.5 Day (${formData.halfDaySession === 'SECOND_HALF' ? 'Second Half' : 'First Half'})`
+                  : `${computedDays} ${computedDays === 1 ? 'Day' : 'Days'}`}
+              </span>
+            </div>
+          </div>
+
+          {/* Section 3: Reason & Admin Override */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 space-y-3">
+            <DrawerFormField label="Reason for Absence" required>
+              <textarea
+                required
+                rows={3}
+                placeholder="Enter reason for leave..."
+                value={formData.reason}
+                onChange={(e) => setFormData((prev) => ({ ...prev, reason: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#107569]/30"
+              />
+            </DrawerFormField>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isExceptional}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, isExceptional: e.target.checked }))}
+                  className="size-4 rounded accent-[#107569]"
+                />
+                <span>Exceptional Admin Override (bypass advance notice / same-day cutoff)</span>
+              </label>
+              {formData.isExceptional && (
+                <Input
+                  required
+                  placeholder="Mandatory exceptional approval reason"
+                  value={formData.exceptionalReason}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, exceptionalReason: e.target.value }))}
+                  className="h-9 text-xs bg-slate-50"
+                />
+              )}
+            </div>
+          </div>
         </div>
       </FormDrawer>
     </div>);
