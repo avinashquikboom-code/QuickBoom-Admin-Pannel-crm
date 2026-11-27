@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 const SESSION_COOKIE = 'qb_admin_session';
 const REFRESH_COOKIE = 'qb_admin_refresh';
+const REMEMBER_COOKIE = 'qb_admin_remember';
 const SEVEN_DAYS = 60 * 60 * 24 * 7;
 
 const API_BASE = (
