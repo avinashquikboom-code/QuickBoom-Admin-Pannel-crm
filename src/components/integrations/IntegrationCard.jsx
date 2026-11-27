@@ -71,7 +71,7 @@ export function IntegrationCard({
 }) {
   return (
     <article
-      className={`group relative flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+      className={`group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
         isFeaturedAi
           ? 'border-emerald-200/80 bg-gradient-to-b from-emerald-50/20 via-white to-white hover:border-emerald-400'
           : 'border-slate-200/90 hover:border-emerald-300'
@@ -155,9 +155,9 @@ export function IntegrationCard({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 rounded-lg bg-rose-50/90 border border-rose-200/80 px-2.5 py-1.5 text-xs text-rose-700 cursor-help">
-                  <AlertCircle className="size-3.5 shrink-0 text-rose-500" />
-                  <span className="truncate flex-1 font-medium">{errorMessage}</span>
+                <div className="flex min-w-0 w-full items-start gap-2 rounded-lg bg-rose-50/90 border border-rose-200/80 px-2.5 py-1.5 text-xs text-rose-700 cursor-help">
+                  <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-rose-500" />
+                  <span className="min-w-0 flex-1 font-medium break-words line-clamp-2">{errorMessage}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs text-xs">
