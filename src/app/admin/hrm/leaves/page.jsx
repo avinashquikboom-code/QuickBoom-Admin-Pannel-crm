@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '
 import { toast } from '@/hooks/use-toast';
 import { faCheck, faEye, faHeartPulse, faMagnifyingGlass, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { faCalendarCheck, faCalendarXmark } from '@fortawesome/free-regular-svg-icons';
-import { decideLeave, hrmError, loadLeaves, submitLeave } from '@/modules/hrm/hrm-api';
+import { cancelLeaveRequest, decideLeave, hrmError, loadLeaves, submitLeave } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
 import { AdminRowActions } from '@/components/common/AdminRowActions';
 import api from '../../../../../lib/api';
@@ -176,7 +176,7 @@ export default function LeaveManagementPage() {
             });
             setApplyDialogOpen(false);
             setRefresh((value) => value + 1);
-            toast.success('Leave application submitted');
+            toast.success('Leave applied and auto-approved for employee');
         } catch (err) {
             toast.error(hrmError(err));
         }
@@ -226,7 +226,16 @@ export default function LeaveManagementPage() {
         },
         {
             header: 'Status',
-            cell: (l) => <StatusBadge status={l.status}/>,
+            cell: (l) => (
+                <div className="flex flex-col items-start gap-1">
+                    <StatusBadge status={l.status}/>
+                    {l.appliedBySource === 'ADMIN' && (
+                        <span className="text-[10px] font-semibold text-[#107569] bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+                            Applied by Admin{l.appliedByName ? `: ${l.appliedByName}` : ''}
+                        </span>
+                    )}
+                </div>
+            ),
         },
         {
             header: 'Actions',
@@ -260,6 +269,32 @@ export default function LeaveManagementPage() {
                                             variant: 'destructive',
                                         },
                                         onClick: () => handleReject(l),
+                                    },
+                                ]
+                                : []),
+                            ...((l.status === 'pending' || l.status === 'approved')
+                                ? [
+                                    {
+                                        label: 'Cancel Leave',
+                                        icon: faXmark,
+                                        variant: 'destructive',
+                                        confirm: {
+                                            title: `Cancel Leave for ${l.employeeName}?`,
+                                            description: l.status === 'approved'
+                                                ? 'Cancelling this approved leave will restore the deducted leave balance and recalculate attendance.'
+                                                : 'Are you sure you want to cancel this pending leave request?',
+                                            confirmLabel: 'Cancel Leave',
+                                            variant: 'destructive',
+                                        },
+                                        onClick: async () => {
+                                            try {
+                                                await cancelLeaveRequest(l.recordId);
+                                                setRefresh((value) => value + 1);
+                                                toast.success('Leave cancelled and balance/attendance updated');
+                                            } catch (err) {
+                                                toast.error(hrmError(err));
+                                            }
+                                        },
                                     },
                                 ]
                                 : []),
@@ -617,7 +652,10 @@ export default function LeaveManagementPage() {
               {detailItem.halfStartTime && detailItem.halfEndTime && (
                 <div className="flex justify-between"><span className="text-slate-500">Half-Day Window</span><span className="font-medium text-slate-800">{detailItem.halfStartTime} – {detailItem.halfEndTime}</span></div>
               )}
-              <div className="flex justify-between"><span className="text-slate-500">Applied On</span><span className="font-medium text-slate-800">{detailItem.appliedOn || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Applied On</span><span className="font-medium text-slate-800">{detailItem.createdAt ? String(detailItem.createdAt).slice(0, 16).replace('T', ' ') : (detailItem.appliedOn || '—')}</span></div>
+              {detailItem.appliedBySource === 'ADMIN' && (
+                <div className="flex justify-between"><span className="text-slate-500">Source</span><span className="font-semibold text-[#107569]">Applied by Admin ({detailItem.appliedByName || 'Admin'})</span></div>
+              )}
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-1">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Reason</div>
