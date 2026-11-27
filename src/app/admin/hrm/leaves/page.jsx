@@ -13,7 +13,7 @@ import { FormDrawer, DrawerFormField } from '@/components/common/drawers/FormDra
 import { Label } from '@/components/common/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/common/Select';
 import { toast } from '@/hooks/use-toast';
-import { faCheck, faHeartPulse, faMagnifyingGlass, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faEye, faHeartPulse, faMagnifyingGlass, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { faCalendarCheck, faCalendarXmark } from '@fortawesome/free-regular-svg-icons';
 import { decideLeave, hrmError, loadLeaves, submitLeave } from '@/modules/hrm/hrm-api';
 import { HrmNotice } from '@/modules/hrm/HrmNotice';
@@ -68,6 +68,7 @@ export default function LeaveManagementPage() {
     });
     const [reviewNote, setReviewNote] = React.useState('');
     const [submitting, setSubmitting] = React.useState(false);
+    const [detailItem, setDetailItem] = React.useState(null);
     const [applyDialogOpen, setApplyDialogOpen] = React.useState(false);
     const [formData, setFormData] = React.useState({
         employeeId: '',
@@ -235,8 +236,13 @@ export default function LeaveManagementPage() {
                     <AdminRowActions
                         record={l}
                         recordName={`${l.employeeName}'s leave application`}
-                        actions={
-                            l.status === 'pending'
+                        actions={[
+                            {
+                                label: 'View Details',
+                                icon: faEye,
+                                onClick: () => setDetailItem(l),
+                            },
+                            ...(l.status === 'pending'
                                 ? [
                                     {
                                         label: 'Approve Leave',
@@ -256,8 +262,8 @@ export default function LeaveManagementPage() {
                                         onClick: () => handleReject(l),
                                     },
                                 ]
-                                : []
-                        }
+                                : []),
+                        ]}
                     />
                 </div>
             ),
@@ -589,6 +595,42 @@ export default function LeaveManagementPage() {
             </div>
           </div>
         </div>
+      </FormDrawer>
+
+      {/* Leave Details Drawer */}
+      <FormDrawer
+        open={Boolean(detailItem)}
+        onOpenChange={(open) => { if (!open) setDetailItem(null); }}
+        title="Leave Application Details"
+        description={detailItem ? `${detailItem.employeeName} (${detailItem.employeeCode || 'EMP'})` : ''}
+        onSubmit={(e) => { e.preventDefault(); setDetailItem(null); }}
+        submitLabel="Close"
+        size="standard"
+      >
+        {detailItem && (
+          <div className="space-y-3 text-xs">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
+              <div className="flex justify-between"><span className="text-slate-500">Leave Type</span><span className="font-semibold text-slate-900">{detailItem.leaveType}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Status</span><StatusBadge status={detailItem.status} /></div>
+              <div className="flex justify-between"><span className="text-slate-500">Duration</span><span className="font-semibold text-slate-900">{detailItem.totalDays} {detailItem.totalDays === 1 ? 'Day' : 'Days'} ({detailItem.durationType === 'HALF_DAY' ? (detailItem.halfDaySession === 'SECOND_HALF' ? 'Second Half' : 'First Half') : 'Full Day'})</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Dates</span><span className="font-medium text-slate-800">{detailItem.startDate} to {detailItem.endDate}</span></div>
+              {detailItem.halfStartTime && detailItem.halfEndTime && (
+                <div className="flex justify-between"><span className="text-slate-500">Half-Day Window</span><span className="font-medium text-slate-800">{detailItem.halfStartTime} – {detailItem.halfEndTime}</span></div>
+              )}
+              <div className="flex justify-between"><span className="text-slate-500">Applied On</span><span className="font-medium text-slate-800">{detailItem.appliedOn || '—'}</span></div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-1">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Reason</div>
+              <p className="text-slate-700 leading-relaxed">{detailItem.reason || 'No reason provided.'}</p>
+            </div>
+            {detailItem.isExceptional && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 space-y-1">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Exceptional Approval Override</div>
+                <p className="text-amber-900">{detailItem.exceptionalReason || 'Approved with admin override.'}</p>
+              </div>
+            )}
+          </div>
+        )}
       </FormDrawer>
     </div>);
 }
