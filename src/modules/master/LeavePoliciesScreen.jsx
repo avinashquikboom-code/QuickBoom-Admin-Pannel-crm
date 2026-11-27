@@ -67,6 +67,8 @@ function emptyLeaveForm() {
     includeHolidaysInLeave: false,
     includeWeekendsInLeave: false,
     minNoticePeriodDays: 2,
+    sameDaySecondHalfCutoffHours: 2,
+    requireFirstHalfPunchInForSameDaySecondHalf: true,
     maxConsecutiveDays: 10,
     requiresManagerApproval: true,
     requiresHrApproval: true,
@@ -89,6 +91,8 @@ function leaveFormFromPolicy(policy) {
     includeHolidaysInLeave: Boolean(policy.includeHolidaysInLeave),
     includeWeekendsInLeave: Boolean(policy.includeWeekendsInLeave),
     minNoticePeriodDays: policy.minNoticePeriodDays ?? 2,
+    sameDaySecondHalfCutoffHours: policy.sameDaySecondHalfCutoffHours ?? 2,
+    requireFirstHalfPunchInForSameDaySecondHalf: policy.requireFirstHalfPunchInForSameDaySecondHalf !== false,
     maxConsecutiveDays: policy.maxConsecutiveDays ?? 10,
     requiresManagerApproval: policy.requiresManagerApproval !== false,
     requiresHrApproval: policy.requiresHrApproval !== false,
@@ -954,6 +958,19 @@ export function LeavePoliciesScreen({ config }) {
               </div>
 
               <div className="space-y-1 sm:col-span-2">
+                <Label className="text-[11px] font-semibold text-slate-600">Same-Day 2nd Half Cutoff (Hours Before 2nd Half)</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  min={0.5}
+                  max={12}
+                  value={form.sameDaySecondHalfCutoffHours}
+                  onChange={(e) => setForm({ ...form, sameDaySecondHalfCutoffHours: Number(e.target.value) })}
+                  className="h-8.5 text-xs bg-white"
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
                 <Label className="text-[11px] font-semibold text-slate-600">Attachment Mandatory Above (Days)</Label>
                 <Input
                   type="number"
@@ -976,6 +993,7 @@ export function LeavePoliciesScreen({ config }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               {[
                 ['allowHalfDay', 'Allow Half-Day Requests'],
+                ['requireFirstHalfPunchInForSameDaySecondHalf', 'Require 1st-Half Punch-In for Same-Day 2nd Half'],
                 ['allowBackdatedLeave', 'Allow Backdated Leave'],
                 ['allowFutureLeave', 'Allow Future Leave Requests'],
                 ['allowProbationLeave', 'Allow Leave During Probation'],

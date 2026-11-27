@@ -192,14 +192,34 @@ export async function loadLeaves() {
     startDate: leave.fromDate || leave.startDate || '',
     endDate: leave.toDate || leave.endDate || '',
     totalDays: Number(leave.days ?? leave.totalDays ?? 0),
+    durationType: leave.durationType || (Number(leave.days) === 0.5 ? 'HALF_DAY' : 'FULL_DAY'),
+    halfDaySession: leave.halfDaySession || null,
+    halfStartTime: leave.halfStartTime || null,
+    halfEndTime: leave.halfEndTime || null,
+    shiftStartTime: leave.shiftStartTime || null,
+    shiftEndTime: leave.shiftEndTime || null,
+    leaveHours: leave.leaveHours ?? null,
+    workingHours: leave.workingHours ?? null,
+    isExceptional: Boolean(leave.isExceptional),
+    exceptionalReason: leave.exceptionalReason || null,
     reason: leave.reason || '',
     status: String(leave.status || '').toLowerCase(),
     appliedOn: leave.createdAt ? String(leave.createdAt).slice(0, 10) : '',
   }));
 }
 
-export function decideLeave(id, approve, reason) {
-  return api.patch(approve ? `/leaves/requests/${id}/approve` : `/leaves/requests/${id}/reject`, approve ? {} : { reason: reason || 'Rejected' });
+export function decideLeave(id, approve, reason, options = {}) {
+  if (approve) {
+    return api.patch(`/leaves/requests/${id}/approve`, {
+      isExceptional: Boolean(options?.isExceptional || (reason && reason.trim())),
+      exceptionalReason: (options?.exceptionalReason || reason || '').trim() || undefined,
+    });
+  }
+  return api.patch(`/leaves/requests/${id}/reject`, { reason: reason || 'Rejected' });
+}
+
+export function previewLeave(params) {
+  return api.get('/leaves/preview', { params });
 }
 
 export function submitLeave(values) {

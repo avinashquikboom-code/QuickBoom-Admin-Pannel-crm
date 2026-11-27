@@ -42,10 +42,14 @@ export default function LeaveManagementPage() {
     const [formData, setFormData] = React.useState({
         employeeName: 'Marcus Sterling',
         leaveType: 'Annual Leave',
+        durationType: 'FULL_DAY',
+        halfDaySession: 'FIRST_HALF',
         startDate: '2026-04-15',
         endDate: '2026-04-17',
         totalDays: 3,
         reason: 'Scheduled personal leave',
+        isExceptional: false,
+        exceptionalReason: '',
     });
     const filtered = React.useMemo(() => {
         return leaves.filter((l) => {
@@ -85,7 +89,10 @@ export default function LeaveManagementPage() {
         const isApprove = confirmDialog.type === 'approve';
         setSubmitting(true);
         try {
-            await decideLeave(item.recordId, isApprove, note);
+            await decideLeave(item.recordId, isApprove, note, {
+                isExceptional: Boolean(isApprove && note?.trim()),
+                exceptionalReason: isApprove ? note?.trim() : undefined,
+            });
             setRefresh((value) => value + 1);
             if (isApprove) {
                 toast.success(`Leave Approved for ${item.employeeName}`, {
@@ -111,12 +118,17 @@ export default function LeaveManagementPage() {
     const handleApplyLeave = async (e) => {
         e.preventDefault();
         try {
+            const isHalfDay = formData.durationType === 'HALF_DAY';
             await submitLeave({
                 leaveTypeName: formData.leaveType,
+                durationType: formData.durationType,
+                halfDaySession: isHalfDay ? formData.halfDaySession : undefined,
                 fromDate: formData.startDate,
-                toDate: formData.endDate,
-                days: Number(formData.totalDays) || 1,
+                toDate: isHalfDay ? formData.startDate : formData.endDate,
+                days: isHalfDay ? 0.5 : (Number(formData.totalDays) || 1),
                 reason: formData.reason,
+                isExceptional: formData.isExceptional || undefined,
+                exceptionalReason: formData.isExceptional ? formData.exceptionalReason : undefined,
             });
             setApplyDialogOpen(false);
             setRefresh((value) => value + 1);
@@ -372,21 +384,81 @@ export default function LeaveManagementPage() {
         </DrawerFormField>
 
         <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3">
+          <DrawerFormField label="Leave Duration" required>
+            <Select value={formData.durationType} onValueChange={(val) => setFormData((prev) => ({
+              ...prev,
+              durationType: val,
+              endDate: val === 'HALF_DAY' ? prev.startDate : prev.endDate,
+              totalDays: val === 'HALF_DAY' ? 0.5 : prev.totalDays === 0.5 ? 1 : prev.totalDays,
+            }))}>
+              <SelectTrigger className="h-9 text-xs w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="FULL_DAY" className="text-xs">Full Day Leave</SelectItem>
+                <SelectItem value="HALF_DAY" className="text-xs">Half Day Leave</SelectItem>
+              </SelectContent>
+            </Select>
+          </DrawerFormField>
+
+          {formData.durationType === 'HALF_DAY' && (
+            <DrawerFormField label="Half-Day Session" required>
+              <Select value={formData.halfDaySession} onValueChange={(val) => setFormData((prev) => ({ ...prev, halfDaySession: val }))}>
+                <SelectTrigger className="h-9 text-xs w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FIRST_HALF" className="text-xs">First Half</SelectItem>
+                  <SelectItem value="SECOND_HALF" className="text-xs">Second Half</SelectItem>
+                </SelectContent>
+              </Select>
+            </DrawerFormField>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 min-[440px]:grid-cols-2 gap-3">
           <DrawerFormField label="Start Date" required>
-            <Input required type="date" value={formData.startDate} onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))} className="h-9 text-xs"/>
+            <Input required type="date" value={formData.startDate} onChange={(e) => setFormData((prev) => ({
+              ...prev,
+              startDate: e.target.value,
+              endDate: prev.durationType === 'HALF_DAY' ? e.target.value : prev.endDate,
+            }))} className="h-9 text-xs"/>
           </DrawerFormField>
-          <DrawerFormField label="End Date" required>
-            <Input required type="date" value={formData.endDate} onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))} className="h-9 text-xs"/>
-          </DrawerFormField>
+          {formData.durationType !== 'HALF_DAY' && (
+            <DrawerFormField label="End Date" required>
+              <Input required type="date" value={formData.endDate} onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))} className="h-9 text-xs"/>
+            </DrawerFormField>
+          )}
         </div>
 
         <DrawerFormField label="Total Days" required>
-          <Input required type="number" value={formData.totalDays} onChange={(e) => setFormData((prev) => ({ ...prev, totalDays: Number(e.target.value) }))} className="h-9 text-xs"/>
+          <Input required type="number" step="0.5" disabled={formData.durationType === 'HALF_DAY'} value={formData.durationType === 'HALF_DAY' ? 0.5 : formData.totalDays} onChange={(e) => setFormData((prev) => ({ ...prev, totalDays: Number(e.target.value) }))} className="h-9 text-xs"/>
         </DrawerFormField>
 
         <DrawerFormField label="Reason for Absence">
           <Input value={formData.reason} onChange={(e) => setFormData((prev) => ({ ...prev, reason: e.target.value }))} className="h-9 text-xs"/>
         </DrawerFormField>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.isExceptional}
+              onChange={(e) => setFormData((prev) => ({ ...prev, isExceptional: e.target.checked }))}
+              className="size-4 rounded accent-[#107569]"
+            />
+            <span>Exceptional Admin Override (bypass advance notice / same-day cutoff)</span>
+          </label>
+          {formData.isExceptional && (
+            <Input
+              required
+              placeholder="Mandatory exceptional approval reason"
+              value={formData.exceptionalReason}
+              onChange={(e) => setFormData((prev) => ({ ...prev, exceptionalReason: e.target.value }))}
+              className="h-9 text-xs bg-white"
+            />
+          )}
+        </div>
       </FormDrawer>
     </div>);
 }
