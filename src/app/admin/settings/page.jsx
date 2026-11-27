@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import api from '../../../../lib/api';
 import { toast } from '@/hooks/use-toast';
 import { FontAwesomeIcon } from '@/components/icons/FontAwesomeIcon';
 import {
@@ -54,6 +55,7 @@ const TABS = [
   { id: 'currency', label: 'Currency', icon: faCoins },
   { id: 'branding', label: 'Branding', icon: faPalette },
   { id: 'advanced', label: 'Advanced', icon: faServer },
+  { id: 'security', label: 'Password & Security', icon: faLock },
 ];
 
 const LANGUAGE_CATALOG = [
@@ -80,6 +82,53 @@ export default function GeneralSettingsPage() {
 
   // Secrets visibility toggle
   const [showSecretKey, setShowSecretKey] = React.useState(false);
+
+  // Admin password update state
+  const [passwordForm, setPasswordForm] = React.useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showPasswords, setShowPasswords] = React.useState(false);
+  const [updatingPassword, setUpdatingPassword] = React.useState(false);
+  const [passwordError, setPasswordError] = React.useState('');
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    setPasswordError('');
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+    if (
+      passwordForm.newPassword.length < 6 ||
+      passwordForm.newPassword.length > 72 ||
+      new TextEncoder().encode(passwordForm.newPassword).length > 72
+    ) {
+      setPasswordError('Password must be between 6 and 72 characters.');
+      return;
+    }
+    setUpdatingPassword(true);
+    try {
+      await api.post('/auth/profile/password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswords(false);
+      toast.success('Admin panel password updated successfully.');
+    } catch (err) {
+      const msg = err?.response?.data?.message;
+      const text = Array.isArray(msg)
+        ? msg.join(' ')
+        : typeof msg === 'string'
+          ? msg
+          : 'Failed to update password. Please verify your current password.';
+      setPasswordError(text);
+    } finally {
+      setUpdatingPassword(false);
+    }
+  }
 
   // Form states
   const [settings, setSettings] = React.useState({
@@ -1566,6 +1615,116 @@ export default function GeneralSettingsPage() {
                   </div>
                 </div>
               </div>
+            </Card>
+          )}
+
+          {/* TAB 7: PASSWORD & SECURITY */}
+          {activeTab === 'security' && (
+            <Card className="p-5 sm:p-6 space-y-5 border-[#E2E8E5]">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-[#E8F1EC] text-[#163A2E] flex items-center justify-center shrink-0">
+                    <FontAwesomeIcon icon={faLock} className="size-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Update Admin Panel Password</h3>
+                    <p className="text-xs text-slate-500">
+                      Change the password for your currently signed-in admin account.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPasswords((prev) => !prev)}
+                  className="border-slate-200 text-slate-700 text-xs shrink-0"
+                >
+                  <FontAwesomeIcon icon={showPasswords ? faEyeSlash : faEye} className="size-3.5 mr-1.5" />
+                  {showPasswords ? 'Hide' : 'Show'}
+                </Button>
+              </div>
+
+              <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
+                {passwordError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-medium text-rose-700"
+                  >
+                    {passwordError}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 block">
+                    Current Password <span className="text-rose-500">*</span>
+                  </label>
+                  <Input
+                    type={showPasswords ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    disabled={updatingPassword}
+                    value={passwordForm.currentPassword}
+                    onChange={(e) =>
+                      setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
+                    }
+                    placeholder="Enter current password"
+                    className="h-9 text-xs border-slate-200"
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 block">
+                      New Password <span className="text-rose-500">*</span>
+                    </label>
+                    <Input
+                      type={showPasswords ? 'text' : 'password'}
+                      required
+                      autoComplete="new-password"
+                      disabled={updatingPassword}
+                      value={passwordForm.newPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
+                      }
+                      placeholder="Minimum 6 characters"
+                      className="h-9 text-xs border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 block">
+                      Confirm New Password <span className="text-rose-500">*</span>
+                    </label>
+                    <Input
+                      type={showPasswords ? 'text' : 'password'}
+                      required
+                      autoComplete="new-password"
+                      disabled={updatingPassword}
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                      }
+                      placeholder="Re-enter new password"
+                      className="h-9 text-xs border-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500">
+                  Use at least 6 characters (maximum 72 bytes). Updating your password revokes existing refresh tokens.
+                </p>
+
+                <div className="pt-1">
+                  <Button
+                    type="submit"
+                    disabled={updatingPassword}
+                    className="bg-[#163A2E] hover:bg-[#204C3D] text-white text-xs font-semibold h-9 px-4"
+                  >
+                    <FontAwesomeIcon icon={faKey} className="size-3.5 mr-1.5" />
+                    {updatingPassword ? 'Updating Password...' : 'Update Password'}
+                  </Button>
+                </div>
+              </form>
             </Card>
           )}
         </div>
