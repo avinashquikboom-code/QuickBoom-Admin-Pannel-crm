@@ -203,6 +203,12 @@ export default function SalarySlipsPage() {
                     <span>Allowances:</span>
                     <span>{formatCurrency(activeSlip.allowances)}</span>
                   </div>
+                  {Number(activeSlip.telecallerIncentive || 0) > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-medium">
+                      <span>Telecaller Target Incentive:</span>
+                      <span>{formatCurrency(activeSlip.telecallerIncentive)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold pt-1 border-t">
                     <span>Gross Pay:</span>
                     <span>{formatCurrency(activeSlip.grossPay)}</span>

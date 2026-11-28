@@ -33,6 +33,11 @@ export const navigation = [
             icon: faCalendarXmark,
         },
         {
+            name: 'Hiring Form',
+            href: '/admin/hrm/hiring',
+            icon: faFileLines,
+        },
+        {
             name: 'Office Management',
             href: '/admin/sections/office-management',
             icon: faBuilding,
