@@ -745,6 +745,10 @@ export default function HiringManagementPage() {
                   <th className="px-4 py-3">Interview Date & Time</th>
                   <th className="px-4 py-3">Current / Expected</th>
                   <th className="px-4 py-3">Experience</th>
+                  <th className="px-4 py-3">Address</th>
+                  <th className="px-4 py-3">Applied Role</th>
+                  <th className="px-4 py-3">Referred By</th>
+                  <th className="px-4 py-3">Work Link</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Remarks</th>
                   <th className="px-4 py-3">Resume</th>
@@ -757,13 +761,13 @@ export default function HiringManagementPage() {
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={14} className="py-12 text-center text-sm text-slate-500">
+                    <td colSpan={18} className="py-12 text-center text-sm text-slate-500">
                       Loading candidate applications...
                     </td>
                   </tr>
                 ) : applications.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="py-12 text-center text-sm text-slate-500">
+                    <td colSpan={18} className="py-12 text-center text-sm text-slate-500">
                       No candidate applications found.
                     </td>
                   </tr>
@@ -813,6 +817,25 @@ export default function HiringManagementPage() {
                           </div>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">{app.experience || '-'}</td>
+                        <td className="max-w-[180px] truncate px-4 py-3" title={app.candidateAddress || ''}>
+                          {app.candidateAddress || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">{app.appliedRole || '-'}</td>
+                        <td className="whitespace-nowrap px-4 py-3">{app.referredBy || '-'}</td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          {/^https?:\/\//i.test(app.workLink || '') ? (
+                            <a
+                              href={app.workLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-emerald-700 hover:underline"
+                            >
+                              Open
+                            </a>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${statusMeta.color}`}>
                             {statusMeta.label}
@@ -1082,7 +1105,7 @@ export default function HiringManagementPage() {
         </DrawerFormField>
         <DrawerFormField label="Required Fields">
           <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 text-xs">
-            {['currentSalary', 'expectedSalary', 'experience', 'resume'].map((key) => (
+            {['currentSalary', 'expectedSalary', 'experience'].map((key) => (
               <label key={key} className="flex items-center gap-2 text-slate-700">
                 <input
                   type="checkbox"
@@ -1160,7 +1183,7 @@ export default function HiringManagementPage() {
             </DrawerFormField>
             <DrawerFormField label="Required Fields">
               <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 text-xs">
-                {['currentSalary', 'expectedSalary', 'experience', 'resume'].map((key) => (
+                {['currentSalary', 'expectedSalary', 'experience'].map((key) => (
                   <label key={key} className="flex items-center gap-2 text-slate-700">
                     <input
                       type="checkbox"
