@@ -155,7 +155,7 @@ export default function PublicHiringApplicationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-slate-100 py-8 px-4 sm:px-6">
+    <div className="h-dvh overflow-y-auto bg-gradient-to-br from-slate-50 via-emerald-50/30 to-slate-100 py-8 px-4 sm:px-6">
       <div className="mx-auto max-w-2xl">
         {/* Branded Header */}
         <div className="mb-6 flex flex-col items-center text-center">
@@ -206,7 +206,7 @@ export default function PublicHiringApplicationPage() {
                 <div className="flex justify-between py-1">
                   <span className="font-medium text-slate-500">Submitted On</span>
                   <span className="font-semibold text-slate-900">
-                    {new Date(submittedData.applicationDate).toLocaleString()}
+                    {new Date(submittedData.appliedAt).toLocaleString()}
                   </span>
                 </div>
               </div>

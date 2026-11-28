@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Toaster } from '@/components/common/Toast';
 import { MainLayout } from './MainLayout';
 
-const STANDALONE_PREFIXES = ['/login', '/forgot-password'];
+const STANDALONE_PREFIXES = ['/login', '/forgot-password', '/apply/'];
 
 function AppShellWithRoute({ children }) {
   const pathname = usePathname();
