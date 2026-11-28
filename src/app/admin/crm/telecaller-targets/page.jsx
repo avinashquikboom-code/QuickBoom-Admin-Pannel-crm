@@ -312,6 +312,88 @@ export default function TelecallerTargetsPage() {
             />
           </div>
         </div>
+
+        {/* 10:00 PM Scheduled Performance Report & Multi-Channel Notification Config */}
+        <div className="pt-3 border-t border-slate-200 space-y-3">
+          <div>
+            <h4 className="text-xs font-bold text-slate-900">10:00 PM Scheduled Report, Classification & Notification Channels</h4>
+            <p className="text-[11px] text-slate-500">Configure daily Asia/Kolkata delivery time, Poor/Average/Good thresholds, channel toggles, and templates.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end text-xs">
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-600">Delivery Time (IST)</Label>
+              <Input
+                type="time"
+                value={policy.reportDeliveryTime || '22:00'}
+                onChange={(e) => setPolicy((p) => ({ ...p, reportDeliveryTime: e.target.value }))}
+                className="h-9 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-600">Poor Below (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={99}
+                value={policy.poorThresholdPct ?? 70}
+                onChange={(e) => setPolicy((p) => ({ ...p, poorThresholdPct: Number(e.target.value) }))}
+                className="h-9 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-600">Good At/Above (%)</Label>
+              <Input
+                type="number"
+                min={1}
+                value={policy.goodThresholdPct ?? 100}
+                onChange={(e) => setPolicy((p) => ({ ...p, goodThresholdPct: Number(e.target.value) }))}
+                className="h-9 text-xs"
+              />
+            </div>
+            {[
+              ['emailEnabled', 'Email Channel'],
+              ['whatsappEnabled', 'WhatsApp Channel'],
+              ['pushEnabled', 'Push Channel'],
+            ].map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2.5 cursor-pointer bg-slate-50/50 h-9">
+                <input
+                  type="checkbox"
+                  checked={policy[key] !== false}
+                  onChange={(e) => setPolicy((p) => ({ ...p, [key]: e.target.checked }))}
+                  className="size-4 accent-[#107569]"
+                />
+                <span className="font-medium text-slate-700">{label}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-600">Email Template (Poor / Avg / Good)</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <Input value={policy.emailTemplatePoor || 'daily_performance_poor'} onChange={(e) => setPolicy((p) => ({ ...p, emailTemplatePoor: e.target.value }))} className="h-8 text-[11px]" placeholder="Poor" />
+                <Input value={policy.emailTemplateAverage || 'daily_performance_average'} onChange={(e) => setPolicy((p) => ({ ...p, emailTemplateAverage: e.target.value }))} className="h-8 text-[11px]" placeholder="Average" />
+                <Input value={policy.emailTemplateGood || 'daily_performance_good'} onChange={(e) => setPolicy((p) => ({ ...p, emailTemplateGood: e.target.value }))} className="h-8 text-[11px]" placeholder="Good" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-600">WhatsApp Template (Poor / Avg / Good)</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <Input value={policy.whatsappTemplatePoor || 'daily_performance_poor'} onChange={(e) => setPolicy((p) => ({ ...p, whatsappTemplatePoor: e.target.value }))} className="h-8 text-[11px]" placeholder="Poor" />
+                <Input value={policy.whatsappTemplateAverage || 'daily_performance_average'} onChange={(e) => setPolicy((p) => ({ ...p, whatsappTemplateAverage: e.target.value }))} className="h-8 text-[11px]" placeholder="Average" />
+                <Input value={policy.whatsappTemplateGood || 'daily_performance_good'} onChange={(e) => setPolicy((p) => ({ ...p, whatsappTemplateGood: e.target.value }))} className="h-8 text-[11px]" placeholder="Good" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-600">Push Titles (Poor / Avg / Good)</Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                <Input value={policy.pushTitlePoor || '🚨 Poor Performance'} onChange={(e) => setPolicy((p) => ({ ...p, pushTitlePoor: e.target.value }))} className="h-8 text-[11px]" />
+                <Input value={policy.pushTitleAverage || '⭐ Average Performance'} onChange={(e) => setPolicy((p) => ({ ...p, pushTitleAverage: e.target.value }))} className="h-8 text-[11px]" />
+                <Input value={policy.pushTitleGood || '🏆 Target Achieved!'} onChange={(e) => setPolicy((p) => ({ ...p, pushTitleGood: e.target.value }))} className="h-8 text-[11px]" />
+              </div>
+            </div>
+          </div>
+        </div>
       </form>
 
       {/* Daily Call Reward Slabs */}

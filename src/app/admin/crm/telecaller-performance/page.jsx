@@ -22,11 +22,13 @@ export default function TelecallerPerformancePage() {
     achievementStatus: 'ALL',
   });
   const [detail, setDetail] = React.useState(null);
+  const [deliveryHistory, setDeliveryHistory] = React.useState([]);
+  const [triggeringSchedule, setTriggeringSchedule] = React.useState(false);
 
   const loadDashboard = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [dashRes, deptRes] = await Promise.all([
+      const [dashRes, deptRes, histRes] = await Promise.all([
         api.get('/telecaller-targets/dashboard', {
           params: {
             fromDate: filters.fromDate,
@@ -36,12 +38,15 @@ export default function TelecallerPerformancePage() {
           },
         }),
         api.get('/departments', { params: { limit: 100 } }).catch(() => ({ data: [] })),
+        api.get('/telecaller-targets/reports/history', { params: { businessDate: filters.toDate } }).catch(() => ({ data: [] })),
       ]);
       const data = dashRes?.data || dashRes || {};
       setRows(data.rows || []);
       setLimitation(data.callVerificationLimitation || '');
       const deptList = Array.isArray(deptRes?.data) ? deptRes.data : Array.isArray(deptRes) ? deptRes : [];
       setDepartments(deptList);
+      const histList = histRes?.data?.data || histRes?.data || [];
+      setDeliveryHistory(Array.isArray(histList) ? histList : []);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to load performance dashboard');
     } finally {
@@ -206,6 +211,93 @@ export default function TelecallerPerformancePage() {
                       <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openEmployeeDetail(r.employeeId)}>
                         View Report
                       </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Scheduled Report Delivery History (Email / WhatsApp / Push) */}
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">10:00 PM Daily Report Delivery History ({filters.toDate})</h3>
+            <p className="text-xs text-slate-500">Independent Email, WhatsApp, and Push delivery statuses with PDF preview and retry.</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={triggeringSchedule}
+            className="text-xs h-8"
+            onClick={async () => {
+              setTriggeringSchedule(true);
+              try {
+                await api.post('/telecaller-targets/reports/run-scheduled', { businessDate: filters.toDate });
+                toast.success('Scheduled daily report job executed');
+                loadDashboard();
+              } catch (err) {
+                toast.error(err?.response?.data?.message || 'Failed to trigger reports');
+              } finally {
+                setTriggeringSchedule(false);
+              }
+            }}
+          >
+            {triggeringSchedule ? 'Running...' : 'Run Daily Reports Now'}
+          </Button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-2.5">Employee</th>
+                <th className="px-4 py-2.5">Classification</th>
+                <th className="px-4 py-2.5">Email</th>
+                <th className="px-4 py-2.5">WhatsApp</th>
+                <th className="px-4 py-2.5">Push</th>
+                <th className="px-4 py-2.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {deliveryHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-slate-500">No scheduled reports recorded for {filters.toDate}.</td>
+                </tr>
+              ) : (
+                deliveryHistory.map((rep) => (
+                  <tr key={rep.id}>
+                    <td className="px-4 py-2.5 font-medium text-slate-900">
+                      {rep.employee ? `${rep.employee.firstName} ${rep.employee.lastName}` : `Emp #${rep.employeeId}`}
+                      {rep.isProvisional && <span className="ml-1.5 text-[10px] rounded bg-amber-100 text-amber-800 px-1.5 py-0.5">Provisional</span>}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <Badge variant={rep.classification === 'GOOD' ? 'success' : rep.classification === 'AVERAGE' ? 'warning' : 'destructive'}>
+                        {rep.classification}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-2.5">{rep.emailStatus}</td>
+                    <td className="px-4 py-2.5">{rep.whatsappStatus}</td>
+                    <td className="px-4 py-2.5">{rep.pushStatus}</td>
+                    <td className="px-4 py-2.5 text-right space-x-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                        onClick={async () => {
+                          const res = await api.get(`/telecaller-targets/reports/${rep.id}/pdf`, { responseType: 'blob' });
+                          const url = URL.createObjectURL(new Blob([res], { type: 'application/pdf' }));
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        Preview PDF
+                      </Button>
+                      {(rep.emailStatus === 'FAILED' || rep.whatsappStatus === 'FAILED' || rep.pushStatus === 'FAILED') && (
+                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => handleRetryReport(rep.id)}>
+                          Retry Failed
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))
