@@ -39,6 +39,11 @@ export default function TelecallerTargetsPage() {
     maxRetryAttempts: 3,
     minConnectedCalls: 60,
     maxConnectedCalls: 70,
+    rewardsEnabled: true,
+    rewardPointsPerDay: 100,
+    pointsPerRupee: 10,
+    rewardEligibilityMode: 'ALL_MANDATORY',
+    rewardEffectiveDate: '',
   });
   const [slabs, setSlabs] = React.useState([]);
   const [slabsSaving, setSlabsSaving] = React.useState(false);
@@ -247,6 +252,62 @@ export default function TelecallerTargetsPage() {
               max={10}
               value={policy.maxRetryAttempts ?? 3}
               onChange={(e) => setPolicy((p) => ({ ...p, maxRetryAttempts: Number(e.target.value) }))}
+              className="h-9 text-xs"
+            />
+          </div>
+        </div>
+
+        {/* Reward Points & Salary Incentive Configuration */}
+        <div className="pt-2 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+          <label className="flex items-center gap-2 rounded-lg border border-slate-200 p-2.5 cursor-pointer bg-emerald-50/50 text-xs h-9">
+            <input
+              type="checkbox"
+              checked={policy.rewardsEnabled !== false}
+              onChange={(e) => setPolicy((p) => ({ ...p, rewardsEnabled: e.target.checked }))}
+              className="size-4 accent-[#107569]"
+            />
+            <span className="font-semibold text-slate-800">Enable Reward System</span>
+          </label>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-600">Points for 100% Target</Label>
+            <Input
+              type="number"
+              min={0}
+              value={policy.rewardPointsPerDay ?? 100}
+              onChange={(e) => setPolicy((p) => ({ ...p, rewardPointsPerDay: Number(e.target.value) }))}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-600">Points Per ₹1 (Conversion)</Label>
+            <Input
+              type="number"
+              step="0.5"
+              min={0.5}
+              value={policy.pointsPerRupee ?? 10}
+              onChange={(e) => setPolicy((p) => ({ ...p, pointsPerRupee: Number(e.target.value) }))}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-600">Eligibility Criteria</Label>
+            <Select
+              value={policy.rewardEligibilityMode || 'ALL_MANDATORY'}
+              onValueChange={(v) => setPolicy((p) => ({ ...p, rewardEligibilityMode: v }))}
+            >
+              <SelectTrigger className="h-9 text-xs w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL_MANDATORY" className="text-xs">100% All Mandatory Targets</SelectItem>
+                <SelectItem value="CALL_TARGET_ONLY" className="text-xs">100% Call Target Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-600">Reward Effective Date</Label>
+            <Input
+              type="date"
+              value={policy.rewardEffectiveDate ? String(policy.rewardEffectiveDate).slice(0, 10) : ''}
+              onChange={(e) => setPolicy((p) => ({ ...p, rewardEffectiveDate: e.target.value }))}
               className="h-9 text-xs"
             />
           </div>
