@@ -12,10 +12,12 @@ import {
   FileSpreadsheet,
   FileText,
   Link2,
+  Pencil,
   Plus,
   QrCode,
   RefreshCw,
   Search,
+  Trash2,
   UserCheck,
   UserPlus,
   Users,
@@ -26,6 +28,7 @@ import { Input } from '@/components/common/Input';
 import { Label } from '@/components/common/Label';
 import { Badge } from '@/components/common/Badge';
 import { FormDrawer, DrawerFormField } from '@/components/common/drawers/FormDrawer';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 import api from '../../../../../lib/api';
 
@@ -75,6 +78,11 @@ export default function HiringManagementPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
+  // Selection & delete
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [deleteTargets, setDeleteTargets] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Drawers
   const [createFormOpen, setCreateFormOpen] = useState(false);
   const [formSaving, setFormSaving] = useState(false);
@@ -86,6 +94,9 @@ export default function HiringManagementPage() {
     isActive: true,
     fieldConfig: DEFAULT_FIELD_CONFIG,
   });
+
+  const [editForm, setEditForm] = useState(null);
+  const [editFormSaving, setEditFormSaving] = useState(false);
 
   const [addCandidateOpen, setAddCandidateOpen] = useState(false);
   const [candidateSaving, setCandidateSaving] = useState(false);
@@ -285,6 +296,64 @@ export default function HiringManagementPage() {
     }
   };
 
+  const isFormExpired = (expiresAt) => {
+    if (!expiresAt) return false;
+    const d = new Date(expiresAt);
+    if (Number.isNaN(d.getTime())) return false;
+    if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+      const datePart = d.toISOString().slice(0, 10);
+      return new Date(`${datePart}T23:59:59.999+05:30`) < new Date();
+    }
+    return d < new Date();
+  };
+
+  const handleUpdateForm = async (e) => {
+    e.preventDefault();
+    if (!editForm || !editForm.title.trim()) {
+      toast({ title: 'Title is required', variant: 'destructive' });
+      return;
+    }
+    try {
+      setEditFormSaving(true);
+      await api.patch(`/hiring/forms/${editForm.id}`, {
+        title: editForm.title.trim(),
+        description: editForm.description?.trim() || '',
+        departmentIds: (editForm.departmentIds || []).map(Number),
+        expiresAt: editForm.expiresAt || '',
+        isActive: editForm.isActive,
+        fieldConfig: editForm.fieldConfig,
+      });
+      toast({ title: 'Hiring form updated' });
+      setEditForm(null);
+      loadHiringData();
+    } catch (err) {
+      toast({
+        title: 'Failed to update hiring form',
+        description: err?.response?.data?.message || err?.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setEditFormSaving(false);
+    }
+  };
+
+  const handleDeleteForm = async (form) => {
+    if (!window.confirm(`Delete hiring form "${form.title}"? Existing candidate applications will be kept.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/hiring/forms/${form.id}`);
+      toast({ title: 'Hiring form deleted' });
+      loadHiringData();
+    } catch (err) {
+      toast({
+        title: 'Failed to delete hiring form',
+        description: err?.response?.data?.message || err?.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleAddCandidate = async (e) => {
     e.preventDefault();
     try {
@@ -454,6 +523,37 @@ export default function HiringManagementPage() {
     }
   };
 
+  // Only rows that are still listed count as selected, so filtered-out rows are never deleted.
+  const selectedApps = applications.filter((a) => selectedIds.includes(a.id));
+  const allSelected = applications.length > 0 && selectedApps.length === applications.length;
+
+  const toggleSelected = (id) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const handleDelete = async () => {
+    if (!deleteTargets?.length) return;
+    const ids = deleteTargets.map((a) => a.id);
+    try {
+      setDeleting(true);
+      const res =
+        ids.length === 1
+          ? await api.delete(`/hiring/applications/${ids[0]}`)
+          : await api.delete('/hiring/applications/bulk', { data: { ids } });
+      toast({ title: res?.message || 'Deleted successfully' });
+      setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+      setDeleteTargets(null);
+      await loadHiringData();
+    } catch (err) {
+      toast({
+        title: 'Delete failed',
+        description: err?.response?.data?.message || err?.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const kpiCards = useMemo(() => {
     const bs = stats.byStatus || {};
     return [
@@ -603,11 +703,42 @@ export default function HiringManagementPage() {
             </div>
           </div>
 
+          {selectedApps.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+              <span className="text-sm font-medium text-slate-800">{selectedApps.length} selected</span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setSelectedIds([])}>
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-rose-600 text-white hover:bg-rose-700"
+                  onClick={() => setDeleteTargets(selectedApps)}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete Selected
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Candidate Table */}
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-slate-200 text-left text-xs">
               <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
                 <tr>
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all candidates"
+                      className="h-4 w-4 cursor-pointer"
+                      checked={!loading && allSelected}
+                      disabled={loading || applications.length === 0}
+                      ref={(el) => {
+                        if (el) el.indeterminate = selectedApps.length > 0 && !allSelected;
+                      }}
+                      onChange={() => setSelectedIds(allSelected ? [] : applications.map((a) => a.id))}
+                    />
+                  </th>
                   <th className="px-4 py-3">Candidate & Email</th>
                   <th className="px-4 py-3">Mobile</th>
                   <th className="px-4 py-3">Department</th>
@@ -626,13 +757,13 @@ export default function HiringManagementPage() {
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={13} className="py-12 text-center text-sm text-slate-500">
+                    <td colSpan={14} className="py-12 text-center text-sm text-slate-500">
                       Loading candidate applications...
                     </td>
                   </tr>
                 ) : applications.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="py-12 text-center text-sm text-slate-500">
+                    <td colSpan={14} className="py-12 text-center text-sm text-slate-500">
                       No candidate applications found.
                     </td>
                   </tr>
@@ -644,6 +775,15 @@ export default function HiringManagementPage() {
                     };
                     return (
                       <tr key={app.id} className="hover:bg-slate-50/80">
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${app.candidateName}`}
+                            className="h-4 w-4 cursor-pointer"
+                            checked={selectedIds.includes(app.id)}
+                            onChange={() => toggleSelected(app.id)}
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <div className="font-semibold text-slate-900">{app.candidateName}</div>
                           <div className="text-[11px] text-slate-500">{app.email}</div>
@@ -753,6 +893,16 @@ export default function HiringManagementPage() {
                                 <UserPlus className="mr-1 h-3.5 w-3.5" /> Convert
                               </Button>
                             )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              aria-label={`Delete ${app.candidateName}`}
+                              title="Delete"
+                              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                              onClick={() => setDeleteTargets([app])}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -768,7 +918,7 @@ export default function HiringManagementPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {forms.map((form) => {
             const url = getPublicUrl(form.token);
-            const expired = form.expiresAt && new Date(form.expiresAt) < new Date();
+            const expired = isFormExpired(form.expiresAt);
             return (
               <div
                 key={form.id}
@@ -831,6 +981,31 @@ export default function HiringManagementPage() {
                   >
                     <ExternalLink className="h-3.5 w-3.5" /> Open
                   </a>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setEditForm({
+                        id: form.id,
+                        title: form.title || '',
+                        description: form.description || '',
+                        departmentIds: Array.isArray(form.departmentIds) ? form.departmentIds.map(Number) : [],
+                        expiresAt: form.expiresAt ? new Date(form.expiresAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) : '',
+                        isActive: Boolean(form.isActive),
+                        fieldConfig: form.fieldConfig || DEFAULT_FIELD_CONFIG,
+                      })
+                    }
+                  >
+                    <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteForm(form)}
+                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                  >
+                    <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -927,6 +1102,86 @@ export default function HiringManagementPage() {
             ))}
           </div>
         </DrawerFormField>
+      </FormDrawer>
+
+      {/* Edit Hiring Form Drawer */}
+      <FormDrawer
+        open={Boolean(editForm)}
+        onOpenChange={(open) => !open && setEditForm(null)}
+        title="Edit Hiring Form Link"
+        description="Update form title, description, expiry date (expires at 11:59 PM IST), departments, or required fields."
+        onSubmit={handleUpdateForm}
+        submitLabel={editFormSaving ? 'Saving...' : 'Save Changes'}
+        loading={editFormSaving}
+      >
+        {editForm && (
+          <>
+            <DrawerFormField label="Form Title" required>
+              <Input
+                required
+                value={editForm.title}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+              />
+            </DrawerFormField>
+            <DrawerFormField label="Description">
+              <Input
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              />
+            </DrawerFormField>
+            <DrawerFormField label="Expiry Date (Expires 11:59 PM IST)">
+              <Input
+                type="date"
+                value={editForm.expiresAt}
+                onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
+              />
+            </DrawerFormField>
+            <DrawerFormField label="Applicable Departments (Leave empty for all)">
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3">
+                {departments.map((d) => {
+                  const checked = (editForm.departmentIds || []).includes(d.id);
+                  return (
+                    <label key={d.id} className="flex items-center gap-2 text-xs text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const next = checked
+                            ? editForm.departmentIds.filter((x) => x !== d.id)
+                            : [...(editForm.departmentIds || []), d.id];
+                          setEditForm({ ...editForm, departmentIds: next });
+                        }}
+                      />
+                      {d.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </DrawerFormField>
+            <DrawerFormField label="Required Fields">
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 text-xs">
+                {['currentSalary', 'expectedSalary', 'experience', 'resume'].map((key) => (
+                  <label key={key} className="flex items-center gap-2 text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editForm.fieldConfig?.[key]?.required)}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          fieldConfig: {
+                            ...(editForm.fieldConfig || DEFAULT_FIELD_CONFIG),
+                            [key]: { ...(editForm.fieldConfig?.[key] || {}), required: e.target.checked },
+                          },
+                        })
+                      }
+                    />
+                    Require {key}
+                  </label>
+                ))}
+              </div>
+            </DrawerFormField>
+          </>
+        )}
       </FormDrawer>
 
       {/* Manual Add Candidate Drawer */}
@@ -1254,6 +1509,24 @@ export default function HiringManagementPage() {
           Enable Mobile App Login
         </label>
       </FormDrawer>
+
+      <ConfirmDialog
+        open={Boolean(deleteTargets)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTargets(null);
+        }}
+        title={
+          deleteTargets?.length === 1
+            ? `Delete ${deleteTargets[0].candidateName}?`
+            : `Delete ${deleteTargets?.length || 0} candidates?`
+        }
+        description="This permanently deletes the application, resume, interviews and history. It cannot be undone. Employee records already created are not deleted."
+        confirmLabel="Delete"
+        variant="destructive"
+        loading={deleting}
+        closeOnConfirm={false}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
