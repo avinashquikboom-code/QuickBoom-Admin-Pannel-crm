@@ -6,7 +6,7 @@ const handleApi = async (fn) => {
 };
 
 export async function loadGrowthOverview() {
-  return handleApi(() => api.get('/admin/business-growth/overview'), null);
+  return handleApi(() => api.get('/admin/business-growth/overview', { skipErrorToast: true }), null);
 }
 
 export async function loadGoogleAdsAccounts() {

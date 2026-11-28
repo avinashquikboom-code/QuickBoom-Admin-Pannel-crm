@@ -97,6 +97,7 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
 
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState(null);
+  const [notAvailableYet, setNotAvailableYet] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
 
   // Data states
@@ -169,9 +170,18 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     setLoadError(null);
+    setNotAvailableYet(false);
     try {
-      const [ov, ads, camp, prof, rev, ana, set] = await Promise.all([
-        loadGrowthOverview(),
+      // Check the overview first so an unavailable integration fails only once.
+      const ov = await loadGrowthOverview();
+
+      // Older servers return simulated records. Require an explicit provenance
+      // contract before allowing the dashboard to display any values.
+      if (ov?.source !== 'google-api-verified') {
+        throw new Error('Google API data has not been verified.');
+      }
+
+      const [ads, camp, prof, rev, ana, set] = await Promise.all([
         loadGoogleAdsAccounts(),
         loadGoogleAdsCampaigns(),
         loadBusinessProfile(),
@@ -180,11 +190,6 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
         loadGrowthSettings(),
       ]);
 
-      // Older servers return simulated records. Require an explicit provenance
-      // contract before allowing the dashboard to display any values.
-      if (ov?.source !== 'google-api-verified') {
-        throw new Error('Google API data has not been verified.');
-      }
       if (ov) setOverview(ov);
       if (ads) setGoogleAdsData(ads);
       if (camp?.campaigns) setCampaigns(camp.campaigns);
@@ -203,6 +208,11 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
       if (ana) setAnalyticsData(ana);
       if (set) setSettings(set);
     } catch (error) {
+      // The server reports this while the Google integration is not built or set up.
+      setNotAvailableYet(
+        error?.response?.status === 503 &&
+          String(error?.response?.data?.message || '').startsWith('Google Business Growth integration is unavailable'),
+      );
       setLoadError(error?.response?.data?.message || error?.message || 'Unable to load Google integration data.');
     } finally {
       setLoading(false);
@@ -432,6 +442,21 @@ export function BusinessGrowthScreen({ initialTab = 'overview' }) {
       return true;
     });
   }, [campaigns, campaignFilter, campaignSearch]);
+
+  if (!loading && notAvailableYet) {
+    return (
+      <div className="min-w-0 w-full max-w-full space-y-6 pb-20">
+        <PageHeader category="MARKETING & PROMOTIONS" title="Business Growth" icon={faArrowTrendUp} description="Google Ads, Business Profile and reviews" />
+        <div role="status" className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-700">
+          <p className="font-semibold">Coming soon</p>
+          <p className="mt-2">
+            Google Ads, Business Profile, reviews and analytics are not available yet. The connection to Google is still
+            being set up, so there is no data to show here.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || loadError) {
     return (

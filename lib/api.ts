@@ -5,6 +5,8 @@ declare module 'axios' {
   interface AxiosRequestConfig {
     /** Opt in to the current QB Suite login without changing legacy callers. */
     qbAdminSession?: boolean;
+    /** The calling screen shows this request's error itself. */
+    skipErrorToast?: boolean;
   }
 }
 import { toast } from 'react-hot-toast';
@@ -856,6 +858,7 @@ api.interceptors.response.use(
       message !== '[object Object]' &&
       status !== 401 &&
       status !== 404 &&
+      !originalRequest.skipErrorToast &&
       !isNoSubscriptionOrEmpty
     ) {
       toast.error(message, { id: message });
